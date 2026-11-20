@@ -88,7 +88,7 @@ func outputSchema(rt *manifest.Route, op manifest.Object) manifest.Object {
 	if status == 0 {
 		status = 200
 	}
-	body := at(op, "responses", strconv.Itoa(status), "content", "application/json", "schema")
+	body := nullable(at(op, "responses", strconv.Itoa(status), "content", "application/json", "schema"))
 	if body == nil {
 		body = manifest.Object{{Key: "description", Value: "The response body"}}
 	}
@@ -100,6 +100,55 @@ func outputSchema(rt *manifest.Route, op manifest.Object) manifest.Object {
 		}},
 		{Key: "required", Value: []string{"status", "body"}},
 	}
+}
+
+// nullable is an example-typed schema as a tool may promise it (upstream ToolSchema::nullable):
+// a result is validated against its output schema, and an example cannot show which fields may be
+// null (display_name of GET /auth/me). Every scalar type also admits null, a "null" type is
+// untyped, objects, arrays and oneOf recurse; anything else is returned as is.
+func nullable(v any) any {
+	s, ok := v.(manifest.Object)
+	if !ok {
+		return v
+	}
+	t, _ := s.Get("type")
+	switch t {
+	case "null":
+		return manifest.Object{}
+	case "object":
+		props, ok := s.Get("properties")
+		if p, isObject := props.(manifest.Object); ok && isObject {
+			out := make(manifest.Object, len(p))
+			for i, m := range p {
+				out[i] = manifest.Member{Key: m.Key, Value: nullable(m.Value)}
+			}
+			return s.With("properties", out)
+		}
+		return s
+	case "array":
+		if items, ok := s.Get("items"); ok {
+			return s.With("items", nullable(items))
+		}
+		return s
+	}
+	if one, ok := s.Get("oneOf"); ok {
+		if list, ok := one.([]any); ok {
+			out := make([]any, len(list))
+			for i, o := range list {
+				out[i] = nullable(o)
+			}
+			return s.With("oneOf", out)
+		}
+	}
+	switch t := t.(type) {
+	case string:
+		return s.With("type", []string{t, "null"})
+	case []string:
+		if !slices.Contains(t, "null") {
+			return s.With("type", append(slices.Clone(t), "null"))
+		}
+	}
+	return s
 }
 
 // routeTool is a route as a tool for caller.

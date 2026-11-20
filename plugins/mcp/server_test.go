@@ -129,9 +129,28 @@ func TestSchemasFoldTheQueryAndPathParameters(t *testing.T) {
 	if string(me) != `{"type":"object","properties":[]}` {
 		t.Errorf("auth.me input: %s", me)
 	}
+	// The output is validated against its schema by MCP clients and upstream's SDK, and an example
+	// cannot show which fields may be null: every scalar also admits null (upstream ToolSchema::nullable).
 	out, _ := json.Marshal(p.schemas()["polaris.auth.me"].output)
-	if !strings.Contains(string(out), `"email":{"type":"string"}`) {
-		t.Errorf("auth.me output: %s", out)
+	for _, want := range []string{`"email":{"type":["string","null"]}`, `"display_name":{"type":["string","null"]}`, `"email_verified":{"type":["boolean","null"]}`, `"orgs":{"type":"array","items":[]}`} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("auth.me output lacks %s: %s", want, out)
+		}
+	}
+	type O = manifest.Object
+	for _, c := range []struct {
+		in   any
+		want string
+	}{
+		{O{{Key: "type", Value: "null"}}, `[]`},
+		{O{{Key: "type", Value: []string{"integer", "string"}}}, `{"type":["integer","string","null"]}`},
+		{O{{Key: "type", Value: []string{"string", "null"}}}, `{"type":["string","null"]}`},
+		{O{{Key: "oneOf", Value: []any{O{{Key: "type", Value: "object"}, {Key: "properties", Value: O{{Key: "n", Value: O{{Key: "type", Value: "integer"}}}}}}}}},
+			`{"oneOf":[{"type":"object","properties":{"n":{"type":["integer","null"]}}}]}`},
+	} {
+		if got, _ := json.Marshal(nullable(c.in)); string(got) != c.want {
+			t.Errorf("nullable = %s, want %s", got, c.want)
+		}
 	}
 	if fallback := outputSchema(&manifest.Route{}, nil); fallback == nil {
 		t.Error("no operation still has an output schema")
