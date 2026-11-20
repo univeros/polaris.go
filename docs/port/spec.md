@@ -154,29 +154,21 @@ One Go module, `github.com/univeros/polaris-go`. Packages are added when their w
 not before.
 
 ```
-polaris.go                the root package: the façade a host imports (New, Handler, Protect,
-                          Principal); re-exports wiring.Config and wiring.Plugin as aliases
-wiring/                   Config, Graph (every service built explicitly, once), Plugin, BasePlugin
-endpoint/                 Endpoint, Input, Result, request-context accessors, envelope/problem helpers
-upstream/                 mirror of the PHP manifests and fixtures (§2); embeds api/
-schema/                   schema as data + core table definitions
-store/  store/sqlstore  store/memstore  store/storetest (adapter conformance suite)
-model/  repository/       rows ↔ structs (explicit mapping, no reflection unit of work)
-config/                   Secrets, AuthConfig, rate limits, FromEnv
-security/                 argon2id, pepper, encrypter (security-critical, §3.3)
-token/                    JWT mint/parse/validate, JWKS, refresh rotation, denylist, MFA tickets
-identity/  mfa/  authz/   the domain services
-manifest/                 YAML loader, input rules, OpenAPI 3.1 export
-pipeline/                 router, middleware, handler, envelope/problem writers
-httpapi/                  core endpoints
-event/  ratelimit/  cache/  clock/  notify/
-cmd/polaris/  cli/
-plugins/<id>/             audit, admin, messaging, sentinel, sso, scim, passwordless, username,
-                          anonymous, multisession, social, passkey, apikeys, oauth, mcp, agents
-agent/                    the Go agent SDK (port of polaris/agent)
-contracttest/             fixture replay harness (§6.2)
-examples/<scenario>/      complete, compiling integrations (§4.6)
-llms.txt                  the integration guide for coding agents (§4.6)
+polaris.go, setup.go, …   the host surface: New, FromEnv, Migrate, Prune, Handler, Protect,
+                          PrincipalFrom, Users/Orgs/Sessions/Can, Hooks, errors (§4.7)
+wiring/ endpoint/ manifest/ event/ token/   the plugin SDK (read-only Graph accessors)
+schema/  store/ store/sqlstore store/memstore store/storetest
+config/  security/  cache/  clock/  ratelimit/  notify/  metrics/
+model/  repository/  identity/  session/  mfa/  authz/  orgs/  pipeline/   implementation
+plugins/<id>/             audit, admin, apikeys, oauth, agents, mcp, passwordless, username,
+                          anonymous, multisession, social, passkey, messaging, sentinel, sso, scim
+agent/                    the Go agent SDK
+telemetry/otel/           OpenTelemetry middleware, store wrapper, auth metrics
+cli/  cmd/polaris/        the CLI (cli.Run for host binaries)
+polaristest/              a full test server for hosts' tests
+internal/                 upstream mirror and embed, contracttest, httpapi (core endpoints),
+                          observe, maintenance, netguard, e2e
+examples/  llms.txt  API.md
 ```
 
 Dependency direction: domain packages ← `wiring` ← `httpapi`, `pipeline`, plugins ← root `polaris`.
@@ -245,7 +237,8 @@ rule below exists so it gets the integration right the first time.
    mux.Handle("/auth/", p.Handler())                      // every Polaris route
    mux.Handle("/api/", p.Protect(apiHandler, "invoices.read")) // your routes, Polaris principals
    ```
-   `polaris.Principal(ctx)` gives the user / agent / API key on any protected request. Functional
+   `polaris.PrincipalFrom(ctx)` gives the user / agent / API key / OAuth client on any protected
+   request (§4.7). Functional
    options for everything optional; every port has a working default (in-memory cache, log mailer,
    system clock), so the zero-config path runs.
 2. **Fail at startup, with the fix in the message.** `New` validates config, keys, schema presence
@@ -271,6 +264,39 @@ rule below exists so it gets the integration right the first time.
 
 Each WP's acceptance includes: its `examples/` program builds and its scenario runs end to end in a
 test, and `llms.txt` lists what it added.
+
+### 4.7 The Go developer surface (WP9)
+
+Goal: the obvious choice for a Go service that wants embedded auth. A host touches only package
+`polaris` (plus plugin constructors, `store/sqlstore`, `polaristest`, `agent`, `mcp.Protect`);
+`wiring`, `endpoint`, `manifest`, `event`, `token` are the **plugin SDK**; everything else is
+implementation, behind `internal/` where nothing outside the module needs it.
+
+1. **Principal as a value.** `polaris.PrincipalFrom(ctx) (polaris.Principal, bool)` with
+   `Principal{UserID, OrganizationID, Roles, Permissions, Kind, Delegated, ClientID, AgentID,
+   KeyID, Claims}`; `Kind` is `KindUser | KindAPIKey | KindOAuthClient | KindAgent`.
+   `*token.Token` stays reachable for plugin authors only.
+2. **The app keeps its own user data.** `polaris.Hooks` in `Config`: `OnUserCreated(ctx, User)
+   error` and `OnUserDeleted(ctx, userID) error` run inside Polaris's transaction (an error aborts
+   it), so an app's profile row is created atomically with the account; `Claims(ctx, ClaimsInput)
+   (map[string]any, error)` adds namespaced claims to access tokens (reserved names refused at
+   startup and at mint time).
+3. **Transactions.** `sqlstore.WithTx(ctx, *sql.Tx) context.Context`: every Polaris write made
+   with that ctx joins the host's transaction (the host commits or rolls back); nested Polaris
+   transactions become savepoints.
+4. **Programmatic API.** Everything the HTTP routes do for an app, as Go calls on `*Polaris`:
+   `p.Users()` (Get, ByEmail, Create, SetPassword, Disable, Enable, Delete), `p.Orgs()`
+   (Create, Get, ListFor, AddMember, SetRoles, RemoveMember), `p.Sessions()` (Issue for a custom
+   sign-in, Refresh, Revoke, RevokeAll), `p.Can(ctx, principal, perms...) bool`. Same checks,
+   events and audit as the routes.
+5. **Read-only graph.** `wiring.Graph` exposes services through accessor methods, not mutable
+   fields; documented as the plugin SDK.
+6. **Observability.** `polaris.Config.Middleware` (host middleware wrapped outermost) and package
+   `telemetry/otel`: OpenTelemetry spans and metrics for the pipeline (`Middleware`) and the store
+   (`Store(adapter)`), importing OpenTelemetry only when that package is imported.
+7. **Quality bar.** `staticcheck`, `govulncheck`, `golangci-lint` (a checked-in config) clean in
+   CI (GitHub Actions, private repo); benchmarks for login, token verification, Protect and agent
+   execution; `API.md` states what is stable in v0.x and what may change.
 
 ---
 

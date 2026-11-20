@@ -10,8 +10,8 @@ import (
 
 	"github.com/univeros/polaris-go/cache"
 	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/sentinel"
@@ -102,7 +102,7 @@ func (f *flow) login(email, captcha string) string {
 func (f *flow) operator(role admin.Role) string {
 	f.t.Helper()
 	access := f.login(operator, "")
-	u, err := f.srv.Graph().Repos.Users.ByEmail(context.Background(), operator)
+	u, err := f.srv.Graph().Repos().Users.ByEmail(context.Background(), operator)
 	if err != nil {
 		f.t.Fatal(err)
 	}

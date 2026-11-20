@@ -140,7 +140,7 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 		if !exists {
 			next := model.User{ID: repository.NewID(), Email: email, DisplayName: displayNameOf(body), EmailVerifiedAt: &now,
 				Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-			if err := d.repos.Users.Insert(ctx, next); err != nil {
+			if err := d.identity.InsertUser(ctx, next); err != nil {
 				return err
 			}
 			user = next

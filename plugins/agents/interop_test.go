@@ -10,7 +10,7 @@ import (
 
 	"github.com/univeros/polaris-go/agent"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/plugins/audit"
@@ -42,7 +42,7 @@ func walkThrough(t *testing.T, signer config.Signer) {
 	}
 	srv := polaristest.New(t, opts...)
 	handler = srv.Handler()
-	if alg := srv.Graph().JWKS.Keys[0].Alg; alg != string(signer) {
+	if alg := srv.Graph().JWKS().Keys[0].Alg; alg != string(signer) {
 		t.Fatalf("JWKS alg %s", alg)
 	}
 

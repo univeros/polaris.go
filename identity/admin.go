@@ -173,7 +173,7 @@ func (s *Service) AnonymizeUser(ctx context.Context, actorUserID, userID string)
 				return err
 			}
 		}
-		return nil
+		return s.OnUserDeleted(ctx, userID)
 	})
 	if err != nil {
 		return fmt.Errorf("identity: anonymize user: %w", err)

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/polaristest"
 )
 

@@ -56,7 +56,7 @@ func (f *fixture) user(id, email string) model.User {
 	f.t.Helper()
 	now := time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 	u := model.User{ID: id, Email: email, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := f.srv.Graph().Repos.Users.Insert(f.ctx, u); err != nil {
+	if err := f.srv.Graph().Repos().Users.Insert(f.ctx, u); err != nil {
 		f.t.Fatal(err)
 	}
 	return u
@@ -66,7 +66,7 @@ func (f *fixture) user(id, email string) model.User {
 func (f *fixture) organization() string {
 	f.t.Helper()
 	owner := f.user("u-owner", "owner@acme.example")
-	org := must(f.srv.Graph().Orgs.CreateOrganization(f.ctx, "Acme", "", owner.ID))
+	org := must(f.srv.Graph().Orgs().CreateOrganization(f.ctx, "Acme", "", owner.ID))
 	return org.ID
 }
 
@@ -84,13 +84,13 @@ func TestPlugin(t *testing.T) {
 		f := newFixture(t)
 		g := f.srv.Graph()
 		for _, table := range []string{TableConnections, TableResources, TableProvenance} {
-			if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == table }) {
+			if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == table }) {
 				t.Fatalf("no table %s", table)
 			}
 		}
 		var routes []string
 		served := f.p.endpoints()
-		for _, rt := range g.Manifest.Routes() {
+		for _, rt := range g.Manifest().Routes() {
 			if rt.Plugin != ID {
 				continue
 			}
@@ -198,8 +198,8 @@ func TestPlugin(t *testing.T) {
 		if ada.Email != "ada@acme.example" || *ada.DisplayName != "Ada Lovelace" || ada.PasswordHash != nil || ada.EmailVerifiedAt == nil {
 			t.Fatalf("ada %+v", ada)
 		}
-		m := must(g.Repos.Memberships.ByUserAndOrganization(f.ctx, ada.ID, orgID))
-		if m.Status != model.MembershipStatusActive || len(must(g.Repos.MembershipRoles.ListByMembership(f.ctx, m.ID))) != 1 {
+		m := must(g.Repos().Memberships.ByUserAndOrganization(f.ctx, ada.ID, orgID))
+		if m.Status != model.MembershipStatusActive || len(must(g.Repos().MembershipRoles.ListByMembership(f.ctx, m.ID))) != 1 {
 			t.Fatalf("membership %+v", m)
 		}
 		if !must(res.createdMembership(f.ctx, conn, ada.ID)) {
@@ -279,19 +279,19 @@ func TestPlugin(t *testing.T) {
 		if outcome := must(d.deleteUser(f.ctx, conn, replaced)); outcome != "deactivated" {
 			t.Fatal(outcome)
 		}
-		if _, err := g.Repos.Memberships.ByUserAndOrganization(f.ctx, ada.ID, orgID); err == nil {
+		if _, err := g.Repos().Memberships.ByUserAndOrganization(f.ctx, ada.ID, orgID); err == nil {
 			t.Fatal("the membership the connection created stays")
 		}
-		if must(g.Repos.Users.Get(f.ctx, ada.ID)).Status != model.UserStatusDisabled {
+		if must(g.Repos().Users.Get(f.ctx, ada.ID)).Status != model.UserStatusDisabled {
 			t.Fatal("not disabled")
 		}
 		if must(d.deleteUser(f.ctx, conn, grace)) != "deactivated" {
 			t.Fatal("grace")
 		}
-		if _, err := g.Repos.Memberships.ByUserAndOrganization(f.ctx, grace.ID, orgID); err == nil {
+		if _, err := g.Repos().Memberships.ByUserAndOrganization(f.ctx, grace.ID, orgID); err == nil {
 			t.Fatal("deprovisioning an account the directory does not own leaves its membership")
 		}
-		if must(g.Repos.Users.Get(f.ctx, grace.ID)).Status != model.UserStatusActive {
+		if must(g.Repos().Users.Get(f.ctx, grace.ID)).Status != model.UserStatusActive {
 			t.Fatal("deprovisioning disabled an account the directory does not own")
 		}
 		purge := f.connection(orgID, DeprovisionDelete)
@@ -299,7 +299,7 @@ func TestPlugin(t *testing.T) {
 		if bob.Status != model.UserStatusActive || activeIn(purge, bob) {
 			t.Fatal("active false does not suspend the membership")
 		}
-		if must(d.deleteUser(f.ctx, purge, bob)) != "deleted" || must(g.Repos.Users.Get(f.ctx, bob.ID)).Email == "bob@acme.example" {
+		if must(d.deleteUser(f.ctx, purge, bob)) != "deleted" || must(g.Repos().Users.Get(f.ctx, bob.ID)).Email == "bob@acme.example" {
 			t.Fatal("not anonymised")
 		}
 	})

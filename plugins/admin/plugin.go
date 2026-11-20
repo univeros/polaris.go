@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/repository"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -71,8 +71,8 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		return errors.New(`admin: the audit plugin is required (every admin action is recorded through it): add audit.New(audit.Config{}) to Config.Plugins`)
 	}
 	p.g = g
-	p.grants = &Grants{db: g.DB, clock: g.Clock}
-	p.keys = &Keys{db: g.DB, pepper: g.Pepper, clock: g.Clock}
+	p.grants = &Grants{db: g.DB(), clock: g.Clock()}
+	p.keys = &Keys{db: g.DB(), pepper: g.Pepper(), clock: g.Clock()}
 	return nil
 }
 
@@ -107,7 +107,7 @@ func (p *Plugin) middleware(next http.Handler) http.Handler {
 		}
 		res, err := p.Resolve(ctx, bearerOf(r), endpoint.Client(ctx).IP)
 		if err != nil {
-			p.g.Logger.ErrorContext(ctx, "admin: operator resolution failed", "error", err)
+			p.g.Logger().ErrorContext(ctx, "admin: operator resolution failed", "error", err)
 			endpoint.Write(w, serverError())
 			return
 		}
@@ -170,7 +170,7 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 		}
 		return Resolution{Principal: &Principal{ID: k.ID, Type: TypeAPIKey, Role: k.Role, Scope: k.Scope}}, nil
 	}
-	tok, err := p.g.Tokens.Parse(bearer)
+	tok, err := p.g.Tokens().Parse(bearer)
 	if err != nil {
 		return Resolution{}, nil
 	}
@@ -181,12 +181,12 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 	if userID == "" {
 		return Resolution{}, nil
 	}
-	if p.g.Auth.AccessToken.Denylist {
-		if revoked, err := p.g.Denylist.IsRevoked(ctx, userID, tok.IssuedAt()); err != nil || revoked {
+	if p.g.Auth().AccessToken.Denylist {
+		if revoked, err := p.g.Denylist().IsRevoked(ctx, userID, tok.IssuedAt()); err != nil || revoked {
 			return Resolution{}, err
 		}
 	}
-	user, err := p.g.Repos.Users.Get(ctx, userID)
+	user, err := p.g.Repos().Users.Get(ctx, userID)
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && user.Status == model.UserStatusDisabled) {
 		return Resolution{}, nil
 	}
@@ -200,7 +200,7 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 	if ok {
 		return Resolution{Principal: &Principal{ID: userID, Type: TypeUser, Role: grant.Role, Scope: grant.Scope}}, nil
 	}
-	authority, err := p.g.Resolver.Resolve(ctx, userID, "")
+	authority, err := p.g.Resolver().Resolve(ctx, userID, "")
 	if err != nil || !authority.IsSuperadmin() {
 		return Resolution{}, err
 	}

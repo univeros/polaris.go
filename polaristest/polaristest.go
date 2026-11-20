@@ -3,10 +3,10 @@
 // log, and a frozen rate-limit clock — the environment upstream's functional suite uses, so the
 // contract fixtures replay. Applications built on Polaris use it for their own tests too.
 //
-//	srv := polaristest.New(t)
-//	c := contracttest.NewClient(t, srv.Handler(), nil)
-//	c.Post("/auth/register", map[string]any{"email": "ada@example.com", "password": "correct horse battery staple"})
-//	token := srv.Mailer.Sent()[0].Data["token"]
+//	srv := polaristest.New(t, polaristest.WithConfig(func(c *polaris.Config) { c.Hooks = myHooks }))
+//	ada, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+//	tokens, err := srv.Sessions().Issue(ctx, polaris.SignIn{UserID: ada.ID})
+//	// or over HTTP: httptest.NewServer(srv.Handler()); srv.Mailer.Sent() holds the mails sent
 package polaristest
 
 import (
@@ -19,8 +19,8 @@ import (
 	"github.com/univeros/polaris-go/authz"
 	"github.com/univeros/polaris-go/cache"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/notify/notifytest"
 	"github.com/univeros/polaris-go/ratelimit"
 	"github.com/univeros/polaris-go/schema"
@@ -51,6 +51,8 @@ type options struct {
 	secrets func(*config.Secrets)
 	noRec   bool
 	dialect store.Dialect
+	hasher  security.PasswordHasher
+	config  []func(*polaris.Config)
 }
 
 // EnvDB names the environment variable that picks the database every server boots on when no
@@ -85,6 +87,16 @@ func WithPathPrefix(prefix string) Option { return func(o *options) { o.prefix =
 // WithDB reuses a database from an earlier boot (a test that reboots with other flags keeps its
 // data, as upstream's boot() does).
 func WithDB(db *sqlstore.Store) Option { return func(o *options) { o.db = db } }
+
+// WithHasher replaces the cheap test Argon2id (Memory 1 MiB, Time 1, Threads 1), e.g. with
+// security.Argon2id{} to measure production parameters.
+func WithHasher(h security.PasswordHasher) Option { return func(o *options) { o.hasher = h } }
+
+// WithConfig edits the configuration last, before polaris.New: Hooks, Permissions, Middleware,
+// Listeners, anything the other options do not cover.
+func WithConfig(f func(*polaris.Config)) Option {
+	return func(o *options) { o.config = append(o.config, f) }
+}
 
 // New boots a server; failures stop the test.
 func New(t testing.TB, opts ...Option) *Server {
@@ -128,6 +140,12 @@ func New(t testing.TB, opts ...Option) *Server {
 	if o.noRec {
 		cfg.Mailer, cfg.SMS = nil, nil
 	}
+	if o.hasher != nil {
+		cfg.Hasher = o.hasher
+	}
+	for _, f := range o.config {
+		f(&cfg)
+	}
 	p, err := polaris.New(cfg)
 	if err != nil {
 		t.Fatalf("polaristest: %v", err)
@@ -136,7 +154,7 @@ func New(t testing.TB, opts ...Option) *Server {
 	g := p.Graph()
 	srv.Events.bus.Subscribe(g.Listeners()...)
 	if o.db == nil {
-		if err := authz.Seed(ctx, db, g.Catalog, g.Clock); err != nil {
+		if err := authz.Seed(ctx, db, g.Catalog(), g.Clock()); err != nil {
 			t.Fatalf("polaristest: seed: %v", err)
 		}
 	}

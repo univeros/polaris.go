@@ -36,10 +36,10 @@ import (
 
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -160,7 +160,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		return err
 	}
 	if c.Counters == nil {
-		c.Counters = NewCacheCounters(g.Cache, g.Clock)
+		c.Counters = NewCacheCounters(g.Cache(), g.Clock())
 	}
 	p.routes = c.Routes
 	if p.routes == nil {
@@ -171,13 +171,13 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		p.geo = NoGeo{}
 	}
 	p.g, p.cfg = g, c
-	p.decisions = &Decisions{db: g.DB, clock: g.Clock}
-	p.rules = &IPRules{db: g.DB, clock: g.Clock}
-	p.devices = &devices{db: g.DB, clock: g.Clock}
-	p.stuffing = &stuffing{counters: c.Counters, seen: &seenSet{cache: g.Cache}, window: 10 * time.Minute,
+	p.decisions = &Decisions{db: g.DB(), clock: g.Clock()}
+	p.rules = &IPRules{db: g.DB(), clock: g.Clock()}
+	p.devices = &devices{db: g.DB(), clock: g.Clock()}
+	p.stuffing = &stuffing{counters: c.Counters, seen: &seenSet{cache: g.Cache()}, window: 10 * time.Minute,
 		distinctEmails: 5, minAttempts: 10, failureRatio: 0.8, score: 60}
 	p.engine = &Engine{signals: p.signals(domains), policy: c.Policy, enforce: c.Mode == Enforce,
-		decisions: p.decisions, events: g.Events, logger: g.Logger}
+		decisions: p.decisions, events: g.Events(), logger: g.Logger()}
 	return nil
 }
 
@@ -210,13 +210,13 @@ func (p *Plugin) signals(domains DomainList) []Signal {
 		velocity{counters: c.Counters, limits: c.Velocity, score: 50},
 		p.stuffing,
 		disposable{domains: domains, kinds: []string{SignUp}, score: 60},
-		device{devices: p.devices, users: g.Repos.Users, score: 40},
+		device{devices: p.devices, users: g.Repos().Users, score: 40},
 	}
 	if c.Captcha != nil {
 		s = append(s, bot{verifier: c.Captcha, score: 80})
 	}
 	if c.Geo != nil {
-		s = append(s, travel{geo: c.Geo, devices: p.devices, users: g.Repos.Users, clock: g.Clock, maxKmh: 900, score: 70})
+		s = append(s, travel{geo: c.Geo, devices: p.devices, users: g.Repos().Users, clock: g.Clock(), maxKmh: 900, score: 70})
 	}
 	if c.Breaches != nil {
 		s = append(s, breached{checker: c.Breaches, kinds: []string{SignUp, PasswordReset}, score: 50})
@@ -264,7 +264,7 @@ func (p *Plugin) listen(ctx context.Context, e event.Event) {
 		err = p.devices.record(ctx, e.UserID, a.DeviceID, ip, at)
 	}
 	if err != nil {
-		p.g.Logger.ErrorContext(ctx, "sentinel: listener failed", "event", e.EventName(), "error", err)
+		p.g.Logger().ErrorContext(ctx, "sentinel: listener failed", "event", e.EventName(), "error", err)
 	}
 }
 
@@ -295,10 +295,10 @@ func (p *Plugin) QuietFor(ctx context.Context, kind, recipient string) bool {
 	}
 	page, err := p.decisions.List(ctx, Filter{Email: strings.ToLower(recipient), Limit: 5})
 	if err != nil {
-		p.g.Logger.ErrorContext(ctx, "sentinel: quiet mode lookup failed", "error", err)
+		p.g.Logger().ErrorContext(ctx, "sentinel: quiet mode lookup failed", "error", err)
 		return false
 	}
-	since := p.g.Clock.Now().Add(-QuietWindow)
+	since := p.g.Clock().Now().Add(-QuietWindow)
 	for _, d := range page["data"].([]map[string]any) {
 		created, _ := time.Parse(dateAtom, d["created_at"].(string))
 		if d["action"] != Allow && !created.Before(since) {
@@ -351,7 +351,7 @@ func (p *Plugin) RefreshDomainList(ctx context.Context, url, to string) (int, er
 		}
 	}
 	content := fmt.Sprintf("# Disposable email domains, one per line. Source: %s.\n%s\n", url, strings.Join(out, "\n"))
-	if err := os.WriteFile(to, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(to, []byte(content), 0o644); err != nil { //nolint:gosec // G306: a public domain list, meant to be read by the app and committed
 		return 0, fmt.Errorf("sentinel: %w", err)
 	}
 	return len(out), nil

@@ -55,7 +55,7 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 func (p *Plugin) refuse(ctx context.Context, err error) endpoint.Result {
 	e, ok := asError(err)
 	if !ok {
-		p.g.Logger.ErrorContext(ctx, "polaris api-keys: operation failed", "error", err)
+		p.g.Logger().ErrorContext(ctx, "polaris api-keys: operation failed", "error", err)
 		return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 	}
 	switch e.Kind {
@@ -83,7 +83,7 @@ func (p *Plugin) owner(ctx context.Context, in *endpoint.Input, tok *token.Token
 		return OwnerUser, tok.Subject(), tok.Organization(), nil
 	}
 	if named == tok.Organization() {
-		allowed, err := p.g.Gate.Allows(ctx, wiring.Caller(tok), OrganizationPermission)
+		allowed, err := p.g.Gate().Allows(ctx, wiring.Caller(tok), OrganizationPermission)
 		if err != nil || allowed {
 			return OwnerOrganization, named, named, err
 		}
@@ -106,7 +106,7 @@ func (p *Plugin) manageable(ctx context.Context, in *endpoint.Input, tok *token.
 		return key, nil
 	}
 	if key.OwnerType == OwnerOrganization && key.OwnerID == tok.Organization() {
-		allowed, err := p.g.Gate.Allows(ctx, wiring.Caller(tok), OrganizationPermission)
+		allowed, err := p.g.Gate().Allows(ctx, wiring.Caller(tok), OrganizationPermission)
 		if err != nil || allowed {
 			return key, err
 		}
@@ -120,13 +120,13 @@ func (p *Plugin) held(ctx context.Context, tok *token.Token, orgID string) ([]st
 	if orgID != tok.Organization() {
 		return nil, &Error{Kind: KindForbidden, Detail: "The key acts in another organization than your active one; switch to it to change its permissions."}
 	}
-	a, err := p.g.Gate.Authority(ctx, wiring.Caller(tok))
+	a, err := p.g.Gate().Authority(ctx, wiring.Caller(tok))
 	return a.Scope, err
 }
 
 func (p *Plugin) dispatch(ctx context.Context, name string, tok *token.Token, key Key, data map[string]any) {
 	c := endpoint.Client(ctx)
-	p.g.Events.Dispatch(ctx, Event{Name: name, ActorID: tok.Subject(), KeyID: key.ID, OwnerType: key.OwnerType,
+	p.g.Events().Dispatch(ctx, Event{Name: name, ActorID: tok.Subject(), KeyID: key.ID, OwnerType: key.OwnerType,
 		OwnerID: key.OwnerID, OrganizationID: key.OrganizationID, Data: data, IP: c.IP, UserAgent: c.UserAgent})
 }
 

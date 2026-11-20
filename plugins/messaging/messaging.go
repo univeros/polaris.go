@@ -106,7 +106,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		}
 	}
 	if len(channels) == 0 {
-		channels = []Channel{&Log{Logger: g.Logger}}
+		channels = []Channel{&Log{Logger: g.Logger()}}
 	}
 	if c.Caps == nil {
 		c.Caps = map[string]Cap{"*": DefaultCap}
@@ -123,11 +123,11 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if translator == nil {
 		translator = Strings(c.Strings)
 	}
-	p.templates = &Templates{db: g.DB, clock: g.Clock, instance: c.Templates}
+	p.templates = &Templates{db: g.DB(), clock: g.Clock(), instance: c.Templates}
 	p.sender = &Sender{
-		channels: channels, rates: g.RateStore, caps: c.Caps, fallback: c.Fallback, outbox: c.Outbox,
+		channels: channels, rates: g.RateStore(), caps: c.Caps, fallback: c.Fallback, outbox: c.Outbox,
 		render: &renderer{templates: p.templates, translator: translator, defaultLocale: c.Locale},
-		events: g.Events, logger: g.Logger, clock: g.Clock, defaultLocale: c.Locale,
+		events: g.Events(), logger: g.Logger(), clock: g.Clock(), defaultLocale: c.Locale,
 		suppressor: func() Suppressor { return c.Suppressor },
 	}
 	if c.Suppressor == nil {

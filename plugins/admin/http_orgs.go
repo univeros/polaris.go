@@ -31,7 +31,7 @@ func (refusal) Error() string { return "admin: refused" }
 
 // organization loads the organization of a route, or the 404 (or 500) to answer.
 func (p *Plugin) organization(ctx context.Context, id string) (model.Organization, endpoint.Result, bool) {
-	org, err := p.g.Repos.Organizations.Get(ctx, id)
+	org, err := p.g.Repos().Organizations.Get(ctx, id)
 	if errors.Is(err, repository.ErrNotFound) {
 		return org, NotFound(msgNoOrganization), false
 	}
@@ -68,7 +68,7 @@ func (p *Plugin) listOrganizations(ctx context.Context, in *endpoint.Input) endp
 	if cursor := in.String("cursor"); cursor != "" {
 		c["id"] = store.Gt(cursor)
 	}
-	rows, err := p.g.Repos.Organizations.Find(ctx, c, store.Query{OrderBy: []store.Order{{Column: "id"}}, Limit: limit + 1})
+	rows, err := p.g.Repos().Organizations.Find(ctx, c, store.Query{OrderBy: []store.Order{{Column: "id"}}, Limit: limit + 1})
 	if err != nil {
 		return p.fail(ctx, "list organizations", err)
 	}
@@ -90,7 +90,7 @@ func (p *Plugin) readOrganization(ctx context.Context, in *endpoint.Input) endpo
 	if !found {
 		return res
 	}
-	members, err := p.g.Orgs.ListMembers(ctx, org.ID, true)
+	members, err := p.g.Orgs().ListMembers(ctx, org.ID, true)
 	if err != nil {
 		return p.fail(ctx, "read organization", err)
 	}
@@ -114,7 +114,7 @@ func (p *Plugin) deleteOrganization(ctx context.Context, in *endpoint.Input) end
 	if !found {
 		return res
 	}
-	if err := p.g.Orgs.DeleteOrganization(ctx, org, op.ID); err != nil {
+	if err := p.g.Orgs().DeleteOrganization(ctx, org, op.ID); err != nil {
 		return p.fail(ctx, "delete organization", err)
 	}
 	return p.recorded(ctx, status(model.OrganizationStatusSuspended), AuditOrganizationDeleted, op, "", orgID, nil)
@@ -136,7 +136,7 @@ func (p *Plugin) setMemberRoles(ctx context.Context, in *endpoint.Input) endpoin
 		return res
 	}
 	userID := in.String("userId")
-	err := p.g.DB.Tx(ctx, func(ctx context.Context) error { return p.replaceRoles(ctx, orgID, userID, slugs) })
+	err := p.g.DB().Tx(ctx, func(ctx context.Context) error { return p.replaceRoles(ctx, orgID, userID, slugs) })
 	var refused refusal
 	if errors.As(err, &refused) {
 		return refused.res
@@ -144,15 +144,15 @@ func (p *Plugin) setMemberRoles(ctx context.Context, in *endpoint.Input) endpoin
 	if err != nil {
 		return p.fail(ctx, "set member roles", err)
 	}
-	p.g.Events.Dispatch(ctx, event.MemberRolesChanged{OrganizationID: orgID, UserID: userID, RoleSlugs: slugs, ActorUserID: op.ID})
+	p.g.Events().Dispatch(ctx, event.MemberRolesChanged{OrganizationID: orgID, UserID: userID, RoleSlugs: slugs, ActorUserID: op.ID})
 	return p.recorded(ctx, success(map[string]any{"roles": slugs}), AuditMemberRolesChanged, op, userID, orgID, map[string]any{"roles": slugs})
 }
 
 // replaceRoles runs in a transaction, the organization's row locked first (as core's role
 // changes) so two concurrent demotions cannot both see a co-owner.
 func (p *Plugin) replaceRoles(ctx context.Context, orgID, userID string, slugs []string) error {
-	r := p.g.Repos
-	if _, err := p.g.DB.Update(ctx, "auth_organizations", store.Criteria{"id": orgID}, store.Data{"id": orgID}); err != nil {
+	r := p.g.Repos()
+	if _, err := p.g.DB().Update(ctx, "auth_organizations", store.Criteria{"id": orgID}, store.Data{"id": orgID}); err != nil {
 		return err
 	}
 	membership, err := r.Memberships.ByUserAndOrganization(ctx, userID, orgID)
@@ -197,7 +197,7 @@ func (p *Plugin) replaceRoles(ctx context.Context, orgID, userID string, slugs [
 
 // keepsOwner refuses dropping the owner role from a member when no other active member holds it.
 func (p *Plugin) keepsOwner(ctx context.Context, orgID string, held []model.MembershipRole, wanted []string) error {
-	r := p.g.Repos
+	r := p.g.Repos()
 	owner, err := r.Roles.ByOrganizationAndSlug(ctx, &orgID, authz.RoleOwner)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil

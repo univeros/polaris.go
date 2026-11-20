@@ -384,7 +384,7 @@ func (a *Agent) Do(req *http.Request) (*http.Response, error) {
 	if req.Body != nil && req.Body != http.NoBody {
 		var err error
 		body, err = io.ReadAll(req.Body)
-		req.Body.Close()
+		_ = req.Body.Close() // read fully; a close error changes nothing
 		if err != nil {
 			return nil, fmt.Errorf("agent: read the request body: %w", err)
 		}

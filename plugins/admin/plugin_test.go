@@ -14,8 +14,8 @@ import (
 	"github.com/univeros/polaris-go/authz"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/admin"
@@ -53,7 +53,7 @@ func boot(t *testing.T, edit ...func(*config.Auth)) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := authz.Seed(context.Background(), e.db, p.Graph().Catalog, e.clk); err != nil {
+	if err := authz.Seed(context.Background(), e.db, p.Graph().Catalog(), e.clk); err != nil {
 		t.Fatal(err)
 	}
 	e.p = p
@@ -63,7 +63,7 @@ func boot(t *testing.T, edit ...func(*config.Auth)) env {
 func (e env) user(t *testing.T, id string) model.User {
 	t.Helper()
 	u := model.User{ID: id, Email: id + "@example.com", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := e.p.Graph().Repos.Users.Insert(context.Background(), u); err != nil {
+	if err := e.p.Graph().Repos().Users.Insert(context.Background(), u); err != nil {
 		t.Fatal(err)
 	}
 	return u
@@ -71,7 +71,7 @@ func (e env) user(t *testing.T, id string) model.User {
 
 func (e env) session(t *testing.T, userID string, extra token.Claims) string {
 	t.Helper()
-	raw, err := e.p.Graph().Sessions.Mint(token.SessionPrincipal{UserID: userID}, "sid-1", extra)
+	raw, err := e.p.Graph().Sessions().Mint(context.Background(), token.SessionPrincipal{UserID: userID}, "sid-1", extra)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,11 +81,11 @@ func (e env) session(t *testing.T, userID string, extra token.Claims) string {
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	e := boot(t)
 	g := e.p.Graph()
-	if admin.Of(g) != e.admin || len(g.Schema) != len(schema.Core())+5 {
-		t.Fatalf("plugin or schema (%d tables): core, audit's three and the two admin tables", len(g.Schema))
+	if admin.Of(g) != e.admin || len(g.Schema()) != len(schema.Core())+5 {
+		t.Fatalf("plugin or schema (%d tables): core, audit's three and the two admin tables", len(g.Schema()))
 	}
 	routes := 0
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if !slices.Contains(r.Tags, admin.Tag) {
 			continue
 		}
@@ -240,7 +240,7 @@ func TestPrincipalsResolveKeysGrantsAndRefuseImpersonationTokens(t *testing.T) {
 	}
 	disabled := u
 	disabled.Status = model.UserStatusDisabled
-	if err := e.p.Graph().Repos.Users.Update(ctx, u, disabled); err != nil {
+	if err := e.p.Graph().Repos().Users.Update(ctx, u, disabled); err != nil {
 		t.Fatal(err)
 	}
 	if resolve(session).Principal != nil {
@@ -260,7 +260,7 @@ func TestADenylistedSessionIsNoOperator(t *testing.T) {
 		t.Fatal("a live session")
 	}
 	e.clk.Advance(time.Second)
-	if _, err := e.p.Graph().Sessions.RevokeAll(ctx, "u1", model.RevokedLogout); err != nil {
+	if _, err := e.p.Graph().Sessions().RevokeAll(ctx, "u1", model.RevokedLogout); err != nil {
 		t.Fatal(err)
 	}
 	if res, _ := e.admin.Resolve(ctx, session, ""); res.Principal != nil {
@@ -338,7 +338,7 @@ func TestEndpointEdgeCases(t *testing.T) {
 	locked := e.user(t, "u2")
 	next := locked
 	next.Status = model.UserStatusLocked
-	_ = e.p.Graph().Repos.Users.Update(ctx, locked, next)
+	_ = e.p.Graph().Repos().Users.Update(ctx, locked, next)
 	if resp := c.Post("/admin/users/u2/impersonate", nil, as); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("a locked account is not impersonated: %d", resp.StatusCode)
 	}

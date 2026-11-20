@@ -71,10 +71,10 @@ func (p problems) err() error { return errors.Join(p...) }
 
 // seconds checks a duration that upstream expresses as a whole number of seconds; hint is the
 // upstream key, as " (auth.x.y)", or empty.
-func (p *problems) seconds(field, hint string, d, min time.Duration) {
+func (p *problems) seconds(field, hint string, d, least time.Duration) {
 	switch {
-	case d < min:
-		p.add("%s is %v, must be at least %v%s", field, d, min, hint)
+	case d < least:
+		p.add("%s is %v, must be at least %v%s", field, d, least, hint)
 	case d%time.Second != 0:
 		p.add("%s is %v, must be a whole number of seconds%s", field, d, hint)
 	}

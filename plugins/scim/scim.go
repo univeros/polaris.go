@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -61,15 +61,15 @@ func (*Plugin) AuditNames() map[string]string { return auditNames }
 func (p *Plugin) Init(g *wiring.Graph) error {
 	base := p.cfg.BaseURL
 	if base == "" {
-		base = strings.TrimRight(g.Auth.Issuer, "/") + "/" + strings.Trim(g.Config.PathPrefix, "/")
+		base = strings.TrimRight(g.Auth().Issuer, "/") + "/" + strings.Trim(g.Config().PathPrefix, "/")
 	}
 	if !absoluteURL.MatchString(base) {
 		return fmt.Errorf("scim: Config.BaseURL is %q: set it to the absolute http(s) URL where Polaris is mounted (\"https://app.example.com/auth\")", base)
 	}
 	p.g, p.base = g, strings.TrimRight(base, "/")
-	p.conns = &Connections{db: g.DB, pepper: g.Pepper, clock: g.Clock}
-	res := &resources{db: g.DB, clock: g.Clock}
-	p.dir = &directory{db: g.DB, repos: g.Repos, identity: g.Identity, orgs: g.Orgs, resources: res, events: g.Events, clock: g.Clock,
+	p.conns = &Connections{db: g.DB(), pepper: g.Pepper(), clock: g.Clock()}
+	res := &resources{db: g.DB(), clock: g.Clock()}
+	p.dir = &directory{db: g.DB(), repos: g.Repos(), identity: g.Identity(), orgs: g.Orgs(), resources: res, events: g.Events(), clock: g.Clock(),
 		domains: func() any { return g.Plugin("sso") }}
 	return nil
 }

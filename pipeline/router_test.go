@@ -7,8 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/contracttest"
 )
 
 // RouterTest::testMatchesParametersAndReportsAllowedMethods

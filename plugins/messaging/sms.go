@@ -131,7 +131,7 @@ func (v *Vonage) Send(ctx context.Context, m Message) (string, error) {
 	}
 	h := HTTPSMS{ChannelName: v.Name(), Client: v.Client,
 		Request: func(ctx context.Context, m Message) (*http.Request, error) {
-			body, err := json.Marshal(struct {
+			body, err := json.Marshal(struct { //nolint:gosec // G117: Vonage's API takes its credentials in the request body
 				APIKey    string `json:"api_key"`
 				APISecret string `json:"api_secret"`
 				From      string `json:"from"`

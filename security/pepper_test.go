@@ -26,7 +26,7 @@ func TestPepperProducesHexSha256Digest(t *testing.T) {
 }
 
 func TestPepperIsDeterministicForSameInputs(t *testing.T) {
-	if testPepper(t).Hash("otp", "123456") != testPepper(t).Hash("otp", "123456") {
+	if first, second := testPepper(t).Hash("otp", "123456"), testPepper(t).Hash("otp", "123456"); first != second {
 		t.Fatal("not deterministic")
 	}
 }

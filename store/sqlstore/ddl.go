@@ -139,8 +139,11 @@ func columnType(f schema.Field, d store.Dialect) string {
 		if length == 0 {
 			length = 255
 		}
-		if f.ASCII && d == store.MySQL {
+		switch {
+		case f.ASCII && d == store.MySQL:
 			return fmt.Sprintf("VARCHAR(%d) CHARACTER SET ascii COLLATE ascii_bin", length)
+		case f.CaseSensitive && d == store.MySQL:
+			return fmt.Sprintf("VARCHAR(%d) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin", length)
 		}
 		return fmt.Sprintf("VARCHAR(%d)", length)
 	case schema.Int:

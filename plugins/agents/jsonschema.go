@@ -106,11 +106,11 @@ func validate(s map[string]any, data any, path string) (string, string) {
 		}
 	case string:
 		n := int64(utf8.RuneCountInString(d))
-		if min, ok := phpInt(s["minLength"]); ok && n < min {
-			return path, fmt.Sprintf("Minimum string length is %d, found %d", min, n)
+		if least, ok := phpInt(s["minLength"]); ok && n < least {
+			return path, fmt.Sprintf("Minimum string length is %d, found %d", least, n)
 		}
-		if max, ok := phpInt(s["maxLength"]); ok && n > max {
-			return path, fmt.Sprintf("Maximum string length is %d, found %d", max, n)
+		if most, ok := phpInt(s["maxLength"]); ok && n > most {
+			return path, fmt.Sprintf("Maximum string length is %d, found %d", most, n)
 		}
 		if p, ok := s["pattern"].(string); ok {
 			if re, err := regexp.Compile(p); err != nil || !re.MatchString(d) {

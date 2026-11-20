@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// The goldens are the PHP CLI's output at the pinned ref (upstream/REF), from ../polaris-core:
+// The goldens are the PHP CLI's output at the pinned ref (internal/upstream/REF), from ../polaris-core:
 //
 //	php bin/polaris manifest --format=json      > core.json
 //	php bin/polaris manifest --format=openapi   > core.openapi.json

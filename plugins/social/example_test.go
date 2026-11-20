@@ -13,7 +13,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/social"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store/memstore"

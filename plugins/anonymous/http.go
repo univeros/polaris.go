@@ -59,6 +59,6 @@ func (p *Plugin) convert(ctx context.Context, in *endpoint.Input) endpoint.Resul
 }
 
 func (p *Plugin) fail(ctx context.Context, err error) endpoint.Result {
-	p.guests.g.Logger.ErrorContext(ctx, "polaris anonymous: operation failed", "error", err)
+	p.guests.g.Logger().ErrorContext(ctx, "polaris anonymous: operation failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }

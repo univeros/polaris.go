@@ -84,6 +84,6 @@ func (p *Plugin) emit(ctx context.Context, name, userID, clientID, organizationI
 	if data == nil {
 		data = map[string]any{}
 	}
-	p.graph.Events.Dispatch(ctx, Event{Name: name, UserID: userID, ClientID: clientID, OrganizationID: organizationID,
+	p.graph.Events().Dispatch(ctx, Event{Name: name, UserID: userID, ClientID: clientID, OrganizationID: organizationID,
 		Data: data, IP: c.IP, UserAgent: c.UserAgent})
 }

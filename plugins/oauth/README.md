@@ -85,8 +85,11 @@ active organization) and `…/oauth/not_found` (404). In Go, match `*oauth.Error
 
 ## Host integration
 
-- A delegated principal: `polaris.Principal(ctx).Delegation()`; `Claim(oauth.ClaimClientID)`,
-  `Claim(oauth.ClaimScope)`, `Claim(oauth.ClaimAct)`; the AMR is `oauth.AMR`.
+- In a handler behind `p.Protect`: `who, _ := polaris.PrincipalFrom(r.Context())` — `who.Kind` is
+  `polaris.KindOAuthClient` (`KindAgent` for an agent's token), `who.ClientID` the client,
+  `who.UserID` the user it acts for (`""` for client credentials), `who.Permissions` the scopes
+  intersected with the user's authority; `who.Claims[oauth.ClaimScope]`, `who.Claims[oauth.ClaimAct]`;
+  the AMR is `oauth.AMR`.
 - From code: `p.Graph().Plugin(oauth.ID).(*oauth.Plugin)` — `CreateClient`, `UpdateClient`,
   `DeleteClient`, `IssueTokens`, `Exchange`, `RevokeClientTokens`, `VerifyDPoP`.
 - Schedule `Plugin.Prune(ctx)` (expired codes, device and CIBA requests, dead tokens) beside

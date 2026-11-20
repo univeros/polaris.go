@@ -1,6 +1,10 @@
 // Package wiring builds every Polaris service from a Config, explicitly and once: the Go form of
-// upstream's Polaris\Wiring\Graph, without a container. Hosts use the root package (polaris.New);
-// plugins receive the *Graph and read the services they need from its fields.
+// upstream's Polaris\Wiring\Graph, without a container.
+//
+// It is the plugin SDK, with packages endpoint, manifest, event and token: a plugin implements
+// Plugin (plus the optional interfaces it needs) and receives the *Graph, whose accessor methods
+// expose the services read-only. Hosts use the root package (polaris.New) and never need this one.
+// API.md at the repository root states what is stable.
 package wiring
 
 import (
@@ -8,6 +12,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"slices"
 
 	"github.com/univeros/polaris-go/authz"
@@ -16,11 +21,12 @@ import (
 	"github.com/univeros/polaris-go/config"
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/identity"
+	"github.com/univeros/polaris-go/internal/observe"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/metrics"
 	"github.com/univeros/polaris-go/mfa"
 	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/observe"
 	"github.com/univeros/polaris-go/orgs"
 	"github.com/univeros/polaris-go/ratelimit"
 	"github.com/univeros/polaris-go/repository"
@@ -29,7 +35,6 @@ import (
 	"github.com/univeros/polaris-go/session"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/upstream"
 )
 
 // Config is everything a host decides. Secrets, Auth and DB are required; every other port has a
@@ -51,10 +56,19 @@ type Config struct {
 	Metrics   metrics.Metrics // default: metrics.NewLog(Logger)
 	Clock     clock.Clock     // default: clock.System
 	Logger    *slog.Logger    // default: slog.Default()
-	// Events receives every domain event. Default: an in-process event.Bus with core's and the
-	// plugins' listeners already subscribed. A host passing its own dispatcher subscribes
-	// Graph.Listeners itself.
+	// Events receives every domain event. Default: an in-process event.Bus with core's, the
+	// plugins' and Listeners already subscribed. A host passing its own dispatcher subscribes
+	// Graph.Listeners (which include Listeners) itself.
 	Events event.Dispatcher
+	// Listeners are the host's own event listeners (telemetry, webhooks), subscribed after core's
+	// and the plugins'.
+	Listeners []event.Listener
+
+	// Hooks keep the host's own user data and token claims in step with Polaris; see Hooks.
+	Hooks Hooks
+	// Middleware wraps every Polaris handler (Handler and each Protect), outermost first:
+	// Middleware[0] sees the request before anything else (tracing, request ids, recovery).
+	Middleware []func(http.Handler) http.Handler
 
 	// Permissions are the host's own permission keys and descriptions ("billing.refund": "Refund an
 	// invoice"), joined to the catalog so roles, API keys, OAuth scopes and agent capabilities can
@@ -70,46 +84,46 @@ type Config struct {
 	Plugins []Plugin
 }
 
-// Graph holds every service, built once by New. Fields are read-only after New returns; services
-// are safe for concurrent use.
+// Graph holds every service, built once by New and read through its accessor methods; nothing
+// can replace a service after New returns. Services are safe for concurrent use.
 type Graph struct {
-	Config  Config
-	Auth    config.Auth
-	Clock   clock.Clock
-	Logger  *slog.Logger
-	Events  event.Dispatcher
-	Cache   cache.Cache
-	Metrics metrics.Metrics
-	Mailer  notify.Mailer
-	SMS     notify.SMSSender
+	config  Config
+	auth    config.Auth
+	clock   clock.Clock
+	logger  *slog.Logger
+	events  event.Dispatcher
+	cache   cache.Cache
+	metrics metrics.Metrics
+	mailer  notify.Mailer
+	sms     notify.SMSSender
 
-	DB       store.Adapter
-	Schema   []schema.Model // core + plugin tables
-	Repos    *repository.Repos
-	Manifest *manifest.Manifest
+	db       store.Adapter
+	schema   []schema.Model // core + plugin tables
+	repos    *repository.Repos
+	manifest *manifest.Manifest
 
-	Pepper    *security.Pepper
-	Encrypter security.Encrypter
-	Hasher    security.PasswordHasher
-	Breaches  security.BreachedPasswordCheck
+	pepper    *security.Pepper
+	encrypter security.Encrypter
+	hasher    security.PasswordHasher
+	breaches  security.BreachedPasswordCheck
 
-	Tokens   *token.Codec // access tokens
-	JWKS     token.JWKSet
-	Tickets  *session.MFATickets
-	Denylist *session.Denylist
+	tokens   *token.Codec // access tokens
+	jwks     token.JWKSet
+	tickets  *session.MFATickets
+	denylist *session.Denylist
 
-	Catalog    authz.Catalog
-	Resolver   *authz.Resolver
-	Gate       *authz.Gate
-	Principals *authz.Principals
-	Escalation *authz.EscalationGuard
+	catalog    authz.Catalog
+	resolver   *authz.Resolver
+	gate       *authz.Gate
+	principals *authz.Principals
+	escalation *authz.EscalationGuard
 
-	Sessions *session.Service
-	MFA      *mfa.Service
-	Identity *identity.Service
-	Orgs     *orgs.Service
+	sessions *session.Service
+	mfa      *mfa.Service
+	identity *identity.Service
+	orgs     *orgs.Service
 
-	RateStore ratelimit.Store
+	rateStore ratelimit.Store
 
 	plugins   []Plugin
 	byID      map[string]Plugin
@@ -141,11 +155,17 @@ func New(cfg Config) (*Graph, error) {
 	if err := cfg.Auth.Validate(); err != nil {
 		errs = append(errs, err)
 	}
+	if slices.ContainsFunc(cfg.Listeners, func(l event.Listener) bool { return l == nil }) {
+		errs = append(errs, errors.New("polaris: Config.Listeners holds a nil listener; remove it"))
+	}
+	if slices.ContainsFunc(cfg.Middleware, func(m func(http.Handler) http.Handler) bool { return m == nil }) {
+		errs = append(errs, errors.New("polaris: Config.Middleware holds a nil middleware; remove it"))
+	}
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 
-	g := &Graph{Config: cfg, Auth: cfg.Auth, DB: cfg.DB, byID: map[string]Plugin{}}
+	g := &Graph{config: cfg, auth: cfg.Auth, db: cfg.DB, byID: map[string]Plugin{}}
 	if err := g.registerPlugins(); err != nil {
 		return nil, err
 	}
@@ -165,57 +185,57 @@ func New(cfg Config) (*Graph, error) {
 }
 
 func (g *Graph) defaults() {
-	cfg := g.Config
-	g.Clock = cfg.Clock
-	if g.Clock == nil {
-		g.Clock = clock.System{}
+	cfg := g.config
+	g.clock = cfg.Clock
+	if g.clock == nil {
+		g.clock = clock.System{}
 	}
-	g.Logger = cfg.Logger
-	if g.Logger == nil {
-		g.Logger = slog.Default()
+	g.logger = cfg.Logger
+	if g.logger == nil {
+		g.logger = slog.Default()
 	}
-	g.Cache = cfg.Cache
-	if g.Cache == nil {
-		g.Cache = cache.NewMemory(g.Clock)
+	g.cache = cfg.Cache
+	if g.cache == nil {
+		g.cache = cache.NewMemory(g.clock)
 	}
-	g.RateStore = cfg.RateStore
-	if g.RateStore == nil {
-		g.RateStore = ratelimit.NewCacheStore(g.Cache, g.Clock)
+	g.rateStore = cfg.RateStore
+	if g.rateStore == nil {
+		g.rateStore = ratelimit.NewCacheStore(g.cache, g.clock)
 	}
-	g.Metrics = cfg.Metrics
-	if g.Metrics == nil {
-		g.Metrics = metrics.NewLog(g.Logger)
+	g.metrics = cfg.Metrics
+	if g.metrics == nil {
+		g.metrics = metrics.NewLog(g.logger)
 	}
 	ports := g.pluginPorts()
-	g.Mailer = cfg.Mailer
-	if g.Mailer == nil {
-		g.Mailer = ports.Mailer
+	g.mailer = cfg.Mailer
+	if g.mailer == nil {
+		g.mailer = ports.Mailer
 	}
-	if g.Mailer == nil {
-		g.Mailer = notify.NewLogMailer(g.Logger)
+	if g.mailer == nil {
+		g.mailer = notify.NewLogMailer(g.logger)
 	}
-	g.SMS = cfg.SMS
-	if g.SMS == nil {
-		g.SMS = ports.SMS
+	g.sms = cfg.SMS
+	if g.sms == nil {
+		g.sms = ports.SMS
 	}
-	if g.SMS == nil {
-		g.SMS = notify.NewLogSMS(g.Logger)
+	if g.sms == nil {
+		g.sms = notify.NewLogSMS(g.logger)
 	}
-	g.Breaches = cfg.Breaches
-	if g.Breaches == nil {
-		g.Breaches = ports.Breaches
+	g.breaches = cfg.Breaches
+	if g.breaches == nil {
+		g.breaches = ports.Breaches
 	}
-	if g.Breaches == nil {
+	if g.breaches == nil {
 		if cfg.Auth.Password.BreachCheck {
-			g.Breaches = &security.HIBP{Logger: g.Logger}
+			g.breaches = &security.HIBP{Logger: g.logger}
 		} else {
-			g.Breaches = security.NoBreachCheck{}
+			g.breaches = security.NoBreachCheck{}
 		}
 	}
-	g.Events = cfg.Events
-	if g.Events == nil {
+	g.events = cfg.Events
+	if g.events == nil {
 		g.bus = &event.Bus{}
-		g.Events = g.bus
+		g.events = g.bus
 	}
 }
 
@@ -244,7 +264,7 @@ func (g *Graph) pluginPorts() Ports {
 
 func (g *Graph) registerPlugins() error {
 	var errs []error
-	for _, p := range g.Config.Plugins {
+	for _, p := range g.config.Plugins {
 		if p == nil || p.ID() == "" {
 			errs = append(errs, errors.New("polaris: a plugin is nil or has an empty ID"))
 			continue
@@ -268,7 +288,7 @@ func (g *Graph) buildCore() error {
 			pluginModels = append(pluginModels, sp.Schema())
 		}
 	}
-	if g.Schema, err = schema.Merge(schema.Core(), pluginModels...); err != nil {
+	if g.schema, err = schema.Merge(schema.Core(), pluginModels...); err != nil {
 		return fmt.Errorf("polaris: %w", err)
 	}
 
@@ -283,21 +303,21 @@ func (g *Graph) buildCore() error {
 			dirs = append(dirs, mp.Manifest())
 		}
 	}
-	if g.Manifest, err = manifest.Load(dirs...); err != nil {
+	if g.manifest, err = manifest.Load(dirs...); err != nil {
 		return fmt.Errorf("polaris: %w", err)
 	}
 
-	g.Repos = repository.New(g.DB)
-	secrets := g.Config.Secrets
-	if g.Pepper, err = security.NewPepper(secrets.AppKey); err != nil {
+	g.repos = repository.New(g.db)
+	secrets := g.config.Secrets
+	if g.pepper, err = security.NewPepper(secrets.AppKey); err != nil {
 		return fmt.Errorf("polaris: APP_KEY: %w", err)
 	}
-	if g.Encrypter, err = security.NewXChaCha20Poly1305(secrets.AppKey); err != nil {
+	if g.encrypter, err = security.NewXChaCha20Poly1305(secrets.AppKey); err != nil {
 		return fmt.Errorf("polaris: APP_KEY: %w", err)
 	}
-	g.Hasher = g.Config.Hasher
-	if g.Hasher == nil {
-		g.Hasher = security.Argon2id{}
+	g.hasher = g.config.Hasher
+	if g.hasher == nil {
+		g.hasher = security.Argon2id{}
 	}
 
 	if err := g.buildTokens(); err != nil {
@@ -308,7 +328,7 @@ func (g *Graph) buildCore() error {
 }
 
 func (g *Graph) buildTokens() error {
-	s, a := g.Config.Secrets, g.Auth
+	s, a := g.config.Secrets, g.auth
 	codecCfg := token.Config{
 		Algorithm:  token.Algorithm(a.AccessToken.Signer),
 		PublicKey:  s.JWTPublicKey,
@@ -317,56 +337,56 @@ func (g *Graph) buildTokens() error {
 		Issuer:     a.Issuer,
 		Audience:   a.Audience,
 		TTL:        a.AccessToken.TTL,
-		Clock:      g.Clock,
+		Clock:      g.clock,
 	}
 	if s.JWTPreviousPublicKey != "" {
 		codecCfg.PreviousPublicKey, codecCfg.PreviousKeyID = s.JWTPreviousPublicKey, s.PreviousKeyID()
 	}
 	var err error
-	if g.Tokens, err = token.New(codecCfg); err != nil {
+	if g.tokens, err = token.New(codecCfg); err != nil {
 		return fmt.Errorf("polaris: AUTH_JWT_* keys: %w", err)
 	}
 	keys := []token.PublicKey{{KeyID: s.KeyID(), PEM: s.JWTPublicKey}}
 	if s.JWTPreviousPublicKey != "" {
 		keys = append(keys, token.PublicKey{KeyID: s.PreviousKeyID(), PEM: s.JWTPreviousPublicKey})
 	}
-	if g.JWKS, err = token.NewJWKSet(codecCfg.Algorithm, keys...); err != nil {
+	if g.jwks, err = token.NewJWKSet(codecCfg.Algorithm, keys...); err != nil {
 		return fmt.Errorf("polaris: JWKS: %w", err)
 	}
-	if g.Tickets, err = session.NewMFATickets(codecCfg, a.MFA.LoginTokenTTL); err != nil {
+	if g.tickets, err = session.NewMFATickets(codecCfg, a.MFA.LoginTokenTTL); err != nil {
 		return fmt.Errorf("polaris: MFA tickets: %w", err)
 	}
-	g.Denylist = session.NewDenylist(g.Cache, g.Clock, a.AccessToken.TTL)
+	g.denylist = session.NewDenylist(g.cache, g.clock, a.AccessToken.TTL)
 	return nil
 }
 
 func (g *Graph) buildAuthz() {
 	var contributions []map[string]string
-	if len(g.Config.Permissions) > 0 {
-		contributions = append(contributions, g.Config.Permissions)
+	if len(g.config.Permissions) > 0 {
+		contributions = append(contributions, g.config.Permissions)
 	}
 	for _, p := range g.plugins {
 		if pp, ok := p.(PermissionProvider); ok {
 			contributions = append(contributions, pp.Permissions())
 		}
 	}
-	g.Catalog = authz.NewCatalog(contributions...)
-	g.Resolver = authz.NewResolver(g.Repos)
-	g.Gate = authz.NewGate(g.Resolver)
-	g.Principals = authz.NewPrincipals(g.Repos, g.Resolver, g.Auth.AccessToken.EmbedScope)
-	g.Escalation = authz.NewEscalationGuard(g.Repos)
+	g.catalog = authz.NewCatalog(contributions...)
+	g.resolver = authz.NewResolver(g.repos)
+	g.gate = authz.NewGate(g.resolver)
+	g.principals = authz.NewPrincipals(g.repos, g.resolver, g.auth.AccessToken.EmbedScope)
+	g.escalation = authz.NewEscalationGuard(g.repos)
 }
 
 func (g *Graph) buildServices() error {
 	var err error
-	if g.Sessions, err = session.New(session.Config{
-		DB: g.DB, Pepper: g.Pepper, Access: g.Tokens, Principals: g.Principals, Denylist: g.Denylist,
-		Auth: g.Auth, Clock: g.Clock, Events: g.Events,
+	if g.sessions, err = session.New(session.Config{
+		DB: g.db, Pepper: g.pepper, Access: g.tokens, Principals: g.principals, Denylist: g.denylist,
+		Auth: g.auth, Clock: g.clock, Events: g.events, Claims: g.config.Hooks.claims(),
 	}); err != nil {
 		return fmt.Errorf("polaris: sessions: %w", err)
 	}
 
-	totp, err := mfa.NewTOTP(g.Auth.OTP.TOTP, g.Clock)
+	totp, err := mfa.NewTOTP(g.auth.OTP.TOTP, g.clock)
 	if err != nil {
 		return fmt.Errorf("polaris: TOTP: %w", err)
 	}
@@ -376,23 +396,24 @@ func (g *Graph) buildServices() error {
 			factorTypes = append(factorTypes, fp.MFAFactorTypes()...)
 		}
 	}
-	if g.MFA, err = mfa.New(mfa.Config{
-		DB: g.DB, Pepper: g.Pepper, Encrypter: g.Encrypter, TOTP: totp, SMS: g.SMS, Mailer: g.Mailer,
-		Cache: g.Cache, Sessions: g.Sessions, Tickets: g.Tickets, Principals: g.Principals,
-		FactorTypes: factorTypes, Auth: g.Auth, Clock: g.Clock, Events: g.Events,
+	if g.mfa, err = mfa.New(mfa.Config{
+		DB: g.db, Pepper: g.pepper, Encrypter: g.encrypter, TOTP: totp, SMS: g.sms, Mailer: g.mailer,
+		Cache: g.cache, Sessions: g.sessions, Tickets: g.tickets, Principals: g.principals,
+		FactorTypes: factorTypes, Auth: g.auth, Clock: g.clock, Events: g.events,
 	}); err != nil {
 		return fmt.Errorf("polaris: MFA: %w", err)
 	}
 
-	if g.Identity, err = identity.New(identity.Config{
-		DB: g.DB, Hasher: g.Hasher, Pepper: g.Pepper, Sessions: g.Sessions, MFA: g.MFA,
-		Tickets: g.Tickets, Authority: g.Resolver, Auth: g.Auth, Breaches: g.Breaches,
-		Clock: g.Clock, Events: g.Events,
+	if g.identity, err = identity.New(identity.Config{
+		DB: g.db, Hasher: g.hasher, Pepper: g.pepper, Sessions: g.sessions, MFA: g.mfa,
+		Tickets: g.tickets, Authority: g.resolver, Auth: g.auth, Breaches: g.breaches,
+		Clock: g.clock, Events: g.events,
+		OnUserCreated: g.config.Hooks.onUserCreated(), OnUserDeleted: g.config.Hooks.OnUserDeleted,
 	}); err != nil {
 		return fmt.Errorf("polaris: identity: %w", err)
 	}
-	if g.Orgs, err = orgs.New(orgs.Config{
-		DB: g.DB, Sessions: g.Sessions, Pepper: g.Pepper, Clock: g.Clock, Events: g.Events,
+	if g.orgs, err = orgs.New(orgs.Config{
+		DB: g.db, Sessions: g.sessions, Pepper: g.pepper, Clock: g.clock, Events: g.events,
 	}); err != nil {
 		return fmt.Errorf("polaris: organizations: %w", err)
 	}
@@ -401,16 +422,113 @@ func (g *Graph) buildServices() error {
 
 func (g *Graph) collectListeners() {
 	g.listeners = []event.Listener{
-		observe.AuditLog(g.Repos.AuditLog, g.Clock, g.Logger),
-		notify.Listener(g.Mailer, g.Repos.Users, g.Logger),
-		observe.Metrics(g.Metrics),
+		observe.AuditLog(g.repos.AuditLog, g.clock, g.logger),
+		notify.Listener(g.mailer, g.repos.Users, g.logger),
+		observe.Metrics(g.metrics),
 	}
 	for _, p := range g.plugins {
 		if lp, ok := p.(ListenerProvider); ok {
 			g.listeners = append(g.listeners, lp.Listeners(g)...)
 		}
 	}
+	g.listeners = append(g.listeners, g.config.Listeners...)
 	if g.bus != nil {
 		g.bus.Subscribe(g.listeners...)
 	}
 }
+
+// Read-only accessors: the plugin SDK's view of the services New built. Every service is safe for
+// concurrent use.
+
+// Config returns the host's configuration as given to New.
+func (g *Graph) Config() Config { return g.config }
+
+// Auth returns the validated auth configuration.
+func (g *Graph) Auth() config.Auth { return g.auth }
+
+// Clock returns the clock every service reads.
+func (g *Graph) Clock() clock.Clock { return g.clock }
+
+// Logger returns the logger.
+func (g *Graph) Logger() *slog.Logger { return g.logger }
+
+// Events returns the event dispatcher.
+func (g *Graph) Events() event.Dispatcher { return g.events }
+
+// Cache returns the cache.
+func (g *Graph) Cache() cache.Cache { return g.cache }
+
+// Metrics returns the metrics sink.
+func (g *Graph) Metrics() metrics.Metrics { return g.metrics }
+
+// Mailer returns the mail port (the host's, a plugin's or the logging default).
+func (g *Graph) Mailer() notify.Mailer { return g.mailer }
+
+// SMS returns the SMS port (the host's, a plugin's or the logging default).
+func (g *Graph) SMS() notify.SMSSender { return g.sms }
+
+// DB returns the store adapter.
+func (g *Graph) DB() store.Adapter { return g.db }
+
+// Schema returns core's and the plugins' tables.
+func (g *Graph) Schema() []schema.Model { return slices.Clone(g.schema) }
+
+// Repos returns the core repositories over DB.
+func (g *Graph) Repos() *repository.Repos { return g.repos }
+
+// Manifest returns the loaded route manifest (core and plugins).
+func (g *Graph) Manifest() *manifest.Manifest { return g.manifest }
+
+// Pepper returns the keyed hasher derived from APP_KEY.
+func (g *Graph) Pepper() *security.Pepper { return g.pepper }
+
+// Encrypter returns the authenticated cipher derived from APP_KEY.
+func (g *Graph) Encrypter() security.Encrypter { return g.encrypter }
+
+// Hasher returns the password hasher.
+func (g *Graph) Hasher() security.PasswordHasher { return g.hasher }
+
+// Breaches returns the breached-password check.
+func (g *Graph) Breaches() security.BreachedPasswordCheck { return g.breaches }
+
+// Tokens returns the access-token codec.
+func (g *Graph) Tokens() *token.Codec { return g.tokens }
+
+// JWKS returns the published verification keys.
+func (g *Graph) JWKS() token.JWKSet { return g.jwks }
+
+// Tickets returns the login-MFA ticket codec.
+func (g *Graph) Tickets() *session.MFATickets { return g.tickets }
+
+// Denylist returns the access-token denylist.
+func (g *Graph) Denylist() *session.Denylist { return g.denylist }
+
+// Catalog returns the permission catalog (core, Config.Permissions, plugins).
+func (g *Graph) Catalog() authz.Catalog { return g.catalog }
+
+// Resolver returns the authority resolver.
+func (g *Graph) Resolver() *authz.Resolver { return g.resolver }
+
+// Gate returns the authorization gate.
+func (g *Graph) Gate() *authz.Gate { return g.gate }
+
+// Principals returns the session principal resolver.
+func (g *Graph) Principals() *authz.Principals { return g.principals }
+
+// Escalation returns the privilege-escalation guard.
+func (g *Graph) Escalation() *authz.EscalationGuard { return g.escalation }
+
+// Sessions returns the session service.
+func (g *Graph) Sessions() *session.Service { return g.sessions }
+
+// MFA returns the MFA service.
+func (g *Graph) MFA() *mfa.Service { return g.mfa }
+
+// Identity returns the identity service (accounts, passwords, user administration).
+func (g *Graph) Identity() *identity.Service { return g.identity }
+
+// Orgs returns the organizations service.
+func (g *Graph) Orgs() *orgs.Service { return g.orgs }
+
+// RateStore returns the rate-limit store.
+func (g *Graph) RateStore() ratelimit.Store { return g.rateStore }

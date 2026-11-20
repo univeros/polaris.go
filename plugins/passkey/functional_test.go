@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/passkey"
 	"github.com/univeros/polaris-go/polaristest"
 )
@@ -66,7 +66,7 @@ func login(t testing.TB, srv *polaristest.Server, c *contracttest.Client, email 
 
 func claims(t testing.TB, srv *polaristest.Server, access string) (amr []any, mfa any) {
 	t.Helper()
-	tok, err := srv.Graph().Tokens.Parse(access)
+	tok, err := srv.Graph().Tokens().Parse(access)
 	if err != nil {
 		t.Fatal(err)
 	}

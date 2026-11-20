@@ -33,11 +33,11 @@ type service struct {
 // envelope is the data of core's login envelope, or of its mfa_required answer.
 type envelope = map[string]any
 
-func (v *service) now() time.Time { return v.g.Clock.Now().UTC().Truncate(time.Second) }
+func (v *service) now() time.Time { return v.g.Clock().Now().UTC().Truncate(time.Second) }
 
 // user is the account with id; ok is false when there is none.
 func (v *service) user(ctx context.Context, id string) (model.User, bool, error) {
-	u, err := v.g.Repos.Users.Get(ctx, id)
+	u, err := v.g.Repos().Users.Get(ctx, id)
 	if errors.Is(err, repository.ErrNotFound) {
 		return model.User{}, false, nil
 	}
@@ -46,7 +46,7 @@ func (v *service) user(ctx context.Context, id string) (model.User, bool, error)
 
 // byEmail is the account of a normalized address; ok is false when there is none.
 func (v *service) byEmail(ctx context.Context, email string) (model.User, bool, error) {
-	u, err := v.g.Repos.Users.ByEmail(ctx, email)
+	u, err := v.g.Repos().Users.ByEmail(ctx, email)
 	if errors.Is(err, repository.ErrNotFound) {
 		return model.User{}, false, nil
 	}
@@ -68,7 +68,7 @@ func (v *service) forEmail(ctx context.Context, email string) (model.User, error
 			return model.User{}, errCodeInvalid
 		}
 		u = model.User{ID: repository.NewID(), Email: email, EmailVerifiedAt: &now, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-		err := v.g.Repos.Users.Insert(ctx, u)
+		err := v.g.Identity().InsertUser(ctx, u)
 		if errors.Is(err, store.ErrDuplicate) { // a concurrent sign-up of the same address won
 			return v.forEmail(ctx, email)
 		}
@@ -79,7 +79,7 @@ func (v *service) forEmail(ctx context.Context, email string) (model.User, error
 	}
 	// Whoever registered the address never proved it: a password they set is not the mailbox
 	// owner's, so it goes (the owner can set one by reset). Conditional, so one sign-in verifies.
-	verified, err := v.g.DB.Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{
+	verified, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{
 		"email_verified_at": now, "password_hash": nil, "failed_login_count": 0, "failed_login_at": nil,
 		"locked_until": nil, "updated_at": now,
 	})
@@ -87,7 +87,7 @@ func (v *service) forEmail(ctx context.Context, email string) (model.User, error
 		return model.User{}, err
 	}
 	if verified == 1 {
-		v.g.Events.Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
+		v.g.Events().Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
 	}
 	u.EmailVerifiedAt, u.PasswordHash = &now, nil
 	return u, nil
@@ -109,12 +109,12 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 		return nil, errDisabled
 	}
 	if f.gate && v.s.respectMFA {
-		factors, err := v.g.MFA.ConfirmedFactors(ctx, u.ID)
+		factors, err := v.g.MFA().ConfirmedFactors(ctx, u.ID)
 		if err != nil {
 			return nil, err
 		}
 		if len(factors) > 0 {
-			ch, err := v.g.MFA.BeginLogin(u.ID, factors)
+			ch, err := v.g.MFA().BeginLogin(u.ID, factors)
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +122,7 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 		}
 	}
 	now := v.now()
-	principal, err := v.g.Principals.Resolve(ctx, u.ID, f.organizationID)
+	principal, err := v.g.Principals().Resolve(ctx, u.ID, f.organizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,18 +133,18 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = u.EmailVerifiedAt != nil, f.mfa, f.amr, &authTime
 	client := endpoint.Client(ctx)
 	var tokens token.IssuedTokens
-	err = v.g.DB.Tx(ctx, func(ctx context.Context) error {
-		if _, err := v.g.DB.Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"last_login_at": now, "updated_at": now}); err != nil {
+	err = v.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if _, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"last_login_at": now, "updated_at": now}); err != nil {
 			return err
 		}
 		var err error
-		tokens, err = v.g.Sessions.Issue(ctx, principal, client)
+		tokens, err = v.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	v.g.Events.Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: tokens.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: f.amr})
+	v.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: tokens.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: f.amr})
 	return envelope{
 		"access_token": tokens.AccessToken, "token_type": "Bearer", "expires_in": tokens.AccessExpiresIn,
 		"refresh_token": tokens.RefreshToken,
@@ -164,29 +164,29 @@ func (v *service) handOff(ctx context.Context, e envelope) (string, error) {
 		return "", err
 	}
 	code := newToken()
-	return code, v.g.Cache.Set(ctx, handOffKey(code), b, handOffTTL)
+	return code, v.g.Cache().Set(ctx, handOffKey(code), b, handOffTTL)
 }
 
 // exchange is the envelope a hand-off code stands for, once: the first caller to add the code's
 // spent marker wins (cache.Cache.Add is atomic), so two concurrent exchanges cannot both get it.
 func (v *service) exchange(ctx context.Context, code string) (envelope, error) {
 	key := handOffKey(code)
-	b, found, err := v.g.Cache.Get(ctx, key)
+	b, found, err := v.g.Cache().Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, errTokenInvalid
 	}
-	won, err := v.g.Cache.Add(ctx, key+".spent", []byte("1"), handOffTTL)
+	won, err := v.g.Cache().Add(ctx, key+".spent", []byte("1"), handOffTTL)
 	if err != nil {
 		return nil, err
 	}
 	if !won {
 		return nil, errTokenInvalid
 	}
-	if err := v.g.Cache.Delete(ctx, key); err != nil {
-		v.g.Logger.WarnContext(ctx, "polaris passwordless: spent hand-off code not deleted", "error", err)
+	if err := v.g.Cache().Delete(ctx, key); err != nil {
+		v.g.Logger().WarnContext(ctx, "polaris passwordless: spent hand-off code not deleted", "error", err)
 	}
 	var e envelope
 	if err := json.Unmarshal(b, &e); err != nil {

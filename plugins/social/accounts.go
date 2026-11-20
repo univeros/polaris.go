@@ -21,7 +21,8 @@ func Models() []schema.Model {
 			schema.StringField("id", 36).AsPrimary(),
 			schema.StringField("userId", 36),
 			schema.StringField("provider", 40),
-			schema.StringField("providerAccountId", 255),
+			// Case-sensitive: an IdP's subject compares byte for byte (MySQL's default collation does not).
+			schema.StringField("providerAccountId", 255).AsCaseSensitive(),
 			schema.StringField("email", 320).AsNullable(),
 			schema.BoolField("emailVerified").WithDefault(false),
 			schema.JSONField("scopes"),
@@ -65,10 +66,10 @@ func (a account) wire() map[string]any {
 	}
 }
 
-func (p *Plugin) now() time.Time { return p.g.Clock.Now().UTC().Truncate(time.Second) }
+func (p *Plugin) now() time.Time { return p.g.Clock().Now().UTC().Truncate(time.Second) }
 
 func (p *Plugin) findAccount(ctx context.Context, c store.Criteria) (*account, error) {
-	r, err := p.g.DB.FindOne(ctx, TableAccounts, c)
+	r, err := p.g.DB().FindOne(ctx, TableAccounts, c)
 	if err != nil || r == nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (p *Plugin) findAccount(ctx context.Context, c store.Criteria) (*account, e
 }
 
 func (p *Plugin) accountsOf(ctx context.Context, userID string) ([]account, error) {
-	rows, err := p.g.DB.FindMany(ctx, TableAccounts, store.Criteria{"user_id": userID}, store.Query{OrderBy: []store.Order{{Column: "id"}}})
+	rows, err := p.g.DB().FindMany(ctx, TableAccounts, store.Criteria{"user_id": userID}, store.Query{OrderBy: []store.Order{{Column: "id"}}})
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func (p *Plugin) link(ctx context.Context, userID, providerID string, prof Profi
 		return account{}, err
 	}
 	row["id"], row["user_id"], row["provider"], row["provider_account_id"], row["created_at"] = a.ID, userID, providerID, prof.Subject, now
-	if err := p.g.DB.Insert(ctx, TableAccounts, store.Row(row)); err != nil {
+	if err := p.g.DB().Insert(ctx, TableAccounts, store.Row(row)); err != nil {
 		if errors.Is(err, store.ErrDuplicate) {
 			return account{}, refuse(kindAccountLinked, "This "+providerID+" account, or another "+providerID+" account of this user, is already linked.")
 		}
@@ -123,13 +124,13 @@ func (p *Plugin) refreshAccount(ctx context.Context, a account, prof Profile, t 
 // storeTokens records refreshed tokens (a refresh that answers no refresh token keeps the old).
 func (p *Plugin) storeTokens(ctx context.Context, a account, t tokens) (account, error) {
 	now := p.now()
-	sealed, err := p.g.Encrypter.Encrypt(t.access)
+	sealed, err := p.g.Encrypter().Encrypt(t.access)
 	if err != nil {
 		return account{}, err
 	}
 	a.AccessTokenEnc = sealed
 	if t.refresh != "" {
-		if a.RefreshTokenEnc, err = p.g.Encrypter.Encrypt(t.refresh); err != nil {
+		if a.RefreshTokenEnc, err = p.g.Encrypter().Encrypt(t.refresh); err != nil {
 			return account{}, err
 		}
 	}
@@ -143,7 +144,7 @@ func (p *Plugin) write(ctx context.Context, a account) error {
 	if err != nil {
 		return err
 	}
-	_, err = p.g.DB.Update(ctx, TableAccounts, store.Criteria{"id": a.ID}, store.Data(row))
+	_, err = p.g.DB().Update(ctx, TableAccounts, store.Criteria{"id": a.ID}, store.Data(row))
 	return err
 }
 
@@ -156,13 +157,13 @@ func (p *Plugin) apply(a account, prof Profile, t tokens, now time.Time) (accoun
 	}
 	var err error
 	if t.access != "" {
-		if a.AccessTokenEnc, err = p.g.Encrypter.Encrypt(t.access); err != nil {
+		if a.AccessTokenEnc, err = p.g.Encrypter().Encrypt(t.access); err != nil {
 			return a, err
 		}
 		a.ExpiresAt = expiry(t, now)
 	}
 	if t.refresh != "" {
-		if a.RefreshTokenEnc, err = p.g.Encrypter.Encrypt(t.refresh); err != nil {
+		if a.RefreshTokenEnc, err = p.g.Encrypter().Encrypt(t.refresh); err != nil {
 			return a, err
 		}
 	}
@@ -179,12 +180,12 @@ func expiry(t tokens, now time.Time) *time.Time {
 }
 
 func (p *Plugin) unlinkAccount(ctx context.Context, a account) error {
-	_, err := p.g.DB.Delete(ctx, TableAccounts, store.Criteria{"id": a.ID})
+	_, err := p.g.DB().Delete(ctx, TableAccounts, store.Criteria{"id": a.ID})
 	return err
 }
 
 func (p *Plugin) unlinkAll(ctx context.Context, userID string) error {
-	_, err := p.g.DB.Delete(ctx, TableAccounts, store.Criteria{"user_id": userID})
+	_, err := p.g.DB().Delete(ctx, TableAccounts, store.Criteria{"user_id": userID})
 	return err
 }
 
@@ -193,7 +194,7 @@ func (p *Plugin) open(sealed string) (string, error) {
 	if sealed == "" {
 		return "", nil
 	}
-	plain, err := p.g.Encrypter.Decrypt(sealed)
+	plain, err := p.g.Encrypter().Decrypt(sealed)
 	if errors.Is(err, security.ErrDecrypt) {
 		return "", nil
 	}

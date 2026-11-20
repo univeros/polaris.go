@@ -2,14 +2,16 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/token"
 )
 
@@ -124,6 +126,60 @@ func TestOrder(t *testing.T) {
 	}
 }
 
+type countingGate struct {
+	calls *atomic.Int32
+	err   error
+}
+
+func (g countingGate) Authority(context.Context, *token.Token) (Authority, error) {
+	g.calls.Add(1)
+	return grants{"invoices.read"}, g.err
+}
+
+// Protect without permissions resolves nothing unless the handler asks, then once per request;
+// with permissions it resolves once, up front, and the handler reuses it.
+func TestProtectResolvesTheAuthorityLazilyOnce(t *testing.T) {
+	core, _ := manifests(t)
+	calls := &atomic.Int32{}
+	o := options(t, core)
+	o.Gate = countingGate{calls: calls}
+	p := newPipeline(t, o)
+	tok := issue(t, "user-1", nil)
+	req := func() *http.Request {
+		r := httptest.NewRequest("GET", "/api", nil)
+		r.Header.Set("Authorization", "Bearer "+tok.Raw())
+		return r
+	}
+	reads := 0
+	reader := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for range reads {
+			if a, err := endpoint.ResolveAuthority(r.Context()); err != nil || a == nil {
+				t.Errorf("authority %v %v", a, err)
+			}
+		}
+	})
+	for _, c := range []struct {
+		perms []string
+		reads int
+		want  int32
+	}{{nil, 0, 0}, {nil, 2, 1}, {[]string{"invoices.read"}, 0, 1}, {[]string{"invoices.read"}, 2, 1}} {
+		calls.Store(0)
+		reads = c.reads
+		if w := serve(p.Protect(reader, c.perms...), req()); w.Code != 200 || calls.Load() != c.want {
+			t.Errorf("perms %v, %d reads: %d, %d gate calls, want %d", c.perms, c.reads, w.Code, calls.Load(), c.want)
+		}
+	}
+
+	o.Gate = countingGate{calls: calls, err: errors.New("db down")}
+	p = newPipeline(t, o)
+	failed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := endpoint.ResolveAuthority(r.Context()); err == nil || endpoint.Authority(r.Context()) != nil {
+			t.Error("a failed resolution is an error, and no authority")
+		}
+	})
+	serve(p.Protect(failed), req())
+}
+
 func TestProtect(t *testing.T) {
 	core, _ := manifests(t)
 	host := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +202,8 @@ func TestProtect(t *testing.T) {
 	if w := serve(p.Protect(host), req("")); w.Code != 401 || w.Header().Get("WWW-Authenticate") != "Bearer" {
 		t.Fatalf("anonymous: %d", w.Code)
 	}
-	if w := serve(p.Protect(host), req(tok.Raw())); w.Code != 200 || w.Body.String() != "user-1  203.0.113.7" {
+	// Without permissions the authority is resolved when the handler reads it.
+	if w := serve(p.Protect(host), req(tok.Raw())); w.Code != 200 || w.Body.String() != "user-1 invoices.read 203.0.113.7" {
 		t.Fatalf("authenticated: %d %q", w.Code, w.Body)
 	}
 	if w := serve(p.Protect(host, "invoices.read"), req(tok.Raw())); w.Code != 200 || w.Body.String() != "user-1 invoices.read 203.0.113.7" {

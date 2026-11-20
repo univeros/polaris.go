@@ -9,11 +9,11 @@ import (
 	"github.com/univeros/polaris-go/authz"
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/plugins/oauth"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -93,7 +93,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if op == nil {
 		return errors.New(`agents: the oauth plugin is required (every agent is an OAuth client): add oauth.New(oauth.Config{}) to Config.Plugins`)
 	}
-	if g.Tokens == nil || g.Pepper == nil || g.MFA == nil {
+	if g.Tokens() == nil || g.Pepper() == nil || g.MFA() == nil {
 		return errors.New("agents: the graph has no token codec, pepper or MFA service; build the plugin through polaris.New")
 	}
 	settings := p.settings
@@ -107,11 +107,11 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 			settings.operators = admin.AuthorizeOperator
 		}
 	}
-	p.issuer, p.mcp = g.Auth.Issuer, g.Plugin("mcp") != nil
+	p.issuer, p.mcp = g.Auth().Issuer, g.Plugin("mcp") != nil
 	p.s = &service{
-		db: g.DB, clock: g.Clock, events: g.Events, log: g.Logger, oauth: op, resolver: g.Resolver, gate: g.Gate,
-		pepper: g.Pepper, codec: g.Tokens, mfa: g.MFA, stepUpMaxAge: g.Auth.StepUpMaxAge, settings: settings, caps: p.caps,
-		jwts: &requestJWTs{cache: g.Cache, clock: g.Clock, maxAge: settings.maxAge},
+		db: g.DB(), clock: g.Clock(), events: g.Events(), log: g.Logger(), oauth: op, resolver: g.Resolver(), gate: g.Gate(),
+		pepper: g.Pepper(), codec: g.Tokens(), mfa: g.MFA(), stepUpMaxAge: g.Auth().StepUpMaxAge, settings: settings, caps: p.caps,
+		jwts: &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge},
 	}
 	return nil
 }

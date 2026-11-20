@@ -75,11 +75,11 @@ func (h *harness) callback(provider string, params map[string]any) (string, erro
 func (h *harness) browser(state string) *http.Request {
 	h.t.Helper()
 	r := httptest.NewRequest(http.MethodGet, unitBase+"/social/x/callback", nil)
-	sealed, ok, err := h.srv.Graph().Cache.Get(h.ctx, cacheKey("state", state))
+	sealed, ok, err := h.srv.Graph().Cache().Get(h.ctx, cacheKey("state", state))
 	if err != nil || !ok {
 		return r
 	}
-	raw, err := h.srv.Graph().Encrypter.Decrypt(string(sealed))
+	raw, err := h.srv.Graph().Encrypter().Decrypt(string(sealed))
 	var entry stateEntry
 	if err != nil || json.Unmarshal([]byte(raw), &entry) != nil {
 		return r
@@ -110,7 +110,7 @@ func (h *harness) signIn(provider, linkUserID string) map[string]any {
 func (h *harness) user(email string, verified bool) model.User {
 	h.t.Helper()
 	g := h.srv.Graph()
-	hash, err := g.Hasher.Hash("correct horse battery staple")
+	hash, err := g.Hasher().Hash("correct horse battery staple")
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func (h *harness) user(email string, verified bool) model.User {
 	if verified {
 		u.EmailVerifiedAt = &now
 	}
-	if err := g.Repos.Users.Insert(h.ctx, u); err != nil {
+	if err := g.Repos().Users.Insert(h.ctx, u); err != nil {
 		h.t.Fatal(err)
 	}
 	return u
@@ -168,11 +168,11 @@ func userOf(outcome map[string]any) map[string]any {
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	h := newHarness(t)
 	g := h.srv.Graph()
-	if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == TableAccounts }) {
+	if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == TableAccounts }) {
 		t.Fatal("the table joins the schema")
 	}
 	var routes []string
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if r.Plugin == ID {
 			step := ""
 			if r.StepUp {
@@ -294,7 +294,7 @@ func TestGoogleSignsUpSignsInAndLinksAnExistingUserBecauseItIsTrusted(t *testing
 	if data["token_type"] != "Bearer" || userOf(data)["email"] != "ada@example.com" || userOf(data)["email_verified"] != true {
 		t.Fatalf("%v", data)
 	}
-	ada, err := g.Repos.Users.ByEmail(h.ctx, "ada@example.com")
+	ada, err := g.Repos().Users.ByEmail(h.ctx, "ada@example.com")
 	if err != nil || *ada.DisplayName != "Ada Lovelace" || ada.PasswordHash != nil || ada.EmailVerifiedAt == nil {
 		t.Fatalf("signed up %+v %v", ada, err)
 	}
@@ -331,7 +331,7 @@ func TestGoogleSignsUpSignsInAndLinksAnExistingUserBecauseItIsTrusted(t *testing
 	}
 
 	mallory := h.user("carol@example.com", false)
-	stolen, err := g.Sessions.Issue(h.ctx, token.SessionPrincipal{UserID: mallory.ID}, h.client)
+	stolen, err := g.Sessions().Issue(h.ctx, token.SessionPrincipal{UserID: mallory.ID}, h.client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,17 +340,17 @@ func TestGoogleSignsUpSignsInAndLinksAnExistingUserBecauseItIsTrusted(t *testing
 	if claimed := h.signIn("google", ""); userOf(claimed)["id"] != mallory.ID {
 		t.Fatal("the mailbox is proven now: the account is carol's")
 	}
-	carol, _ := g.Repos.Users.Get(h.ctx, mallory.ID)
+	carol, _ := g.Repos().Users.Get(h.ctx, mallory.ID)
 	if carol.PasswordHash != nil || carol.EmailVerifiedAt == nil {
 		t.Fatal("whoever registered the address without proving it lost the password")
 	}
-	if live, _ := g.DB.FindOne(h.ctx, "auth_refresh_tokens", store.Criteria{"family_id": stolen.SessionID, "revoked_at": nil}); live != nil {
+	if live, _ := g.DB().FindOne(h.ctx, "auth_refresh_tokens", store.Criteria{"family_id": stolen.SessionID, "revoked_at": nil}); live != nil {
 		t.Fatal("and the sessions")
 	}
 
 	disabled := bob
 	disabled.Status = model.UserStatusDisabled
-	if err := g.Repos.Users.Update(h.ctx, bob, disabled); err != nil {
+	if err := g.Repos().Users.Update(h.ctx, bob, disabled); err != nil {
 		t.Fatal(err)
 	}
 	h.rec.Claims["google"] = map[string]any{"sub": "g-bob", "email": "bob@example.com", "email_verified": true}
@@ -447,12 +447,12 @@ func TestAppleAndMicrosoftReadTheIdToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, _ := h.p.exchange(h.ctx, queryParam(redirect, "code"))
-	alan, _ := h.srv.Graph().Repos.Users.Get(h.ctx, userOf(data)["id"].(string))
+	alan, _ := h.srv.Graph().Repos().Users.Get(h.ctx, userOf(data)["id"].(string))
 	if alan.Email != "alan@example.com" || *alan.DisplayName != "Alan Turing" || alan.EmailVerifiedAt == nil {
 		t.Fatalf("the name from the first callback, the email from the id_token: %+v", alan)
 	}
 	secret := h.rec.requested()[0].Form.Get("client_secret")
-	jws, err := jose.ParseSigned(secret, []jose.SignatureAlgorithm{jose.ES256})
+	jws, err := jose.ParseSignedCompact(secret, []jose.SignatureAlgorithm{jose.ES256})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -598,7 +598,7 @@ func TestProviderTokensRefreshWhenExpiringAndAnyOAuth2ServerWorksFromItsDefiniti
 	s = h.restart("acme")
 	_, err = h.callback("acme", map[string]any{"code": "good", "state": s.State})
 	refused(t, err, kindEmailUnverified, "signed up unverified: core requires a verified email to sign in")
-	if _, err := h.srv.Graph().Repos.Users.ByEmail(h.ctx, "zoe@example.com"); err != nil {
+	if _, err := h.srv.Graph().Repos().Users.ByEmail(h.ctx, "zoe@example.com"); err != nil {
 		t.Fatal("the account exists, to verify")
 	}
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-42", "email": "eve@example.com", "verified": true, "name": "Eve"})
@@ -606,14 +606,14 @@ func TestProviderTokensRefreshWhenExpiringAndAnyOAuth2ServerWorksFromItsDefiniti
 	// An acme token that expires and comes back with an HTTP error is a provider error.
 	h.rec.Answer("https://acme.example/oauth/token", 400, map[string]any{"error": "invalid_grant", "error_description": "expired"})
 	g := h.srv.Graph()
-	if _, err := g.DB.Update(h.ctx, TableAccounts, store.Criteria{"user_id": eve}, store.Data{"expires_at": time.Now().Add(-time.Hour)}); err != nil {
+	if _, err := g.DB().Update(h.ctx, TableAccounts, store.Criteria{"user_id": eve}, store.Data{"expires_at": time.Now().Add(-time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
 	_, err = h.p.providerToken(h.ctx, eve, "acme")
 	if r, ok := asRefusal(err); !ok || r.kind != kindProviderError || !strings.Contains(r.detail, "HTTP 400: expired") {
 		t.Fatalf("refresh refused: %v", err)
 	}
-	g.Events.Dispatch(h.ctx, event.UserDeleted{UserID: eve})
+	g.Events().Dispatch(h.ctx, event.UserDeleted{UserID: eve})
 	if len(h.accounts(eve)) != 0 {
 		t.Fatal("an erased user leaves no provider account")
 	}
@@ -658,7 +658,7 @@ func TestSignUpPolicyAndTheMFAGate(t *testing.T) {
 	u := h.user("mfa@example.com", true)
 	now := time.Now().UTC().Truncate(time.Second)
 	f := model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorTOTP, ConfirmedAt: &now, IsDefault: true, CreatedAt: now, UpdatedAt: now}
-	if err := h.srv.Graph().Repos.MFAFactors.Insert(h.ctx, f); err != nil {
+	if err := h.srv.Graph().Repos().MFAFactors.Insert(h.ctx, f); err != nil {
 		t.Fatal(err)
 	}
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-46", "email": "mfa@example.com", "verified": true})
@@ -670,7 +670,7 @@ func TestSignUpPolicyAndTheMFAGate(t *testing.T) {
 	}
 	h = newHarnessOn(t, h.rec, func(c *Config) { c.SkipMFA = true })
 	u = h.user("mfa@example.com", true)
-	if err := h.srv.Graph().Repos.MFAFactors.Insert(h.ctx, model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := h.srv.Graph().Repos().MFAFactors.Insert(h.ctx, model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 	h.signIn("acme", u.ID)

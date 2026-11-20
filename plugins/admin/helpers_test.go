@@ -10,8 +10,8 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/polaristest"
@@ -135,7 +135,7 @@ func (f *flow) key(role admin.Role, scope string, expiresAt *time.Time) string {
 
 func (f *flow) userID(email string) string {
 	f.t.Helper()
-	u, err := f.srv.Graph().Repos.Users.ByEmail(context.Background(), email)
+	u, err := f.srv.Graph().Repos().Users.ByEmail(context.Background(), email)
 	if err != nil {
 		f.t.Fatalf("no user %s: %v", email, err)
 	}
@@ -153,7 +153,7 @@ func (f *flow) createOrg(name, access string) string {
 func (f *flow) join(email, orgID, slug string) {
 	f.t.Helper()
 	ctx := context.Background()
-	role, err := f.srv.Graph().Repos.Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
+	role, err := f.srv.Graph().Repos().Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
 	if err != nil {
 		f.t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func (f *flow) enrol(access string) {
 	f.t.Helper()
 	enrolled := data(f.t, f.c.Post("/auth/mfa/totp/enroll", nil, as(access)))
 	secret, _ := enrolled["secret"].(string)
-	code, err := totp.GenerateCodeCustom(secret, f.srv.Graph().Clock.Now(), totp.ValidateOpts{Period: 30, Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1})
+	code, err := totp.GenerateCodeCustom(secret, f.srv.Graph().Clock().Now(), totp.ValidateOpts{Period: 30, Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1})
 	if err != nil {
 		f.t.Fatal(err)
 	}

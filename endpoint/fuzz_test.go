@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/upstream"
 )
 
 // fuzzRoutes is every upstream route, core and plugins.

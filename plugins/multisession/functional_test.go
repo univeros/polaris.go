@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/multisession"
 	"github.com/univeros/polaris-go/polaristest"
 )
@@ -102,7 +102,7 @@ func TestMultiSessionFlow(t *testing.T) {
 		if n := len(list(t, c.Get("/multi-session/list", asAda, onDevice))); n != 2 {
 			t.Fatalf("%d sessions", n)
 		}
-		tok, err := srv.Graph().Tokens.Parse(grace["access_token"].(string))
+		tok, err := srv.Graph().Tokens().Parse(grace["access_token"].(string))
 		if err != nil {
 			t.Fatal(err)
 		}

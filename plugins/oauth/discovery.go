@@ -48,7 +48,7 @@ func (p *Plugin) openIDConfiguration() map[string]any {
 	doc := p.authorizationServer()
 	doc["userinfo_endpoint"] = p.settings.baseURL + "/oauth2/userinfo"
 	doc["subject_types_supported"] = []string{"public"}
-	doc["id_token_signing_alg_values_supported"] = []string{string(p.graph.Auth.AccessToken.Signer)}
+	doc["id_token_signing_alg_values_supported"] = []string{string(p.graph.Auth().AccessToken.Signer)}
 	doc["claims_supported"] = []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "email", "email_verified", "name", "updated_at", "org"}
 	doc["claims_parameter_supported"] = false
 	doc["request_parameter_supported"] = false

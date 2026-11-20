@@ -89,7 +89,7 @@ func (p *Plugin) serveUserinfo(ctx context.Context, _ *endpoint.Input) endpoint.
 	scope, _ := tok.Claim(ClaimScope).(string)
 	scopes := words(scope)
 	const description = "An access token with the openid scope is required."
-	user, err := p.graph.Repos.Users.Get(ctx, tok.Subject())
+	user, err := p.graph.Repos().Users.Get(ctx, tok.Subject())
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return p.fail(ctx, err)
 	}

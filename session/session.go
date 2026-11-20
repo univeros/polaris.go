@@ -72,6 +72,9 @@ type Config struct {
 	Auth   config.Auth
 	Clock  clock.Clock      // nil: clock.System
 	Events event.Dispatcher // nil: event.Nop
+	// Claims adds the host's claims to every access token Mint signs. A name another claim of the
+	// token already uses, or one Polaris reserves (ReservedClaim), fails the mint. nil: none.
+	Claims func(ctx context.Context, p token.SessionPrincipal) (map[string]any, error)
 }
 
 // Service issues, refreshes and revokes sessions. It is safe for concurrent use: the races that
@@ -87,6 +90,7 @@ type Service struct {
 	auth       config.Auth
 	clock      clock.Clock
 	events     event.Dispatcher
+	claims     func(ctx context.Context, p token.SessionPrincipal) (map[string]any, error)
 }
 
 // New validates cfg and returns a Service.
@@ -109,6 +113,7 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{
 		db: cfg.DB, tokens: repository.New(cfg.DB).RefreshTokens, pepper: cfg.Pepper, access: cfg.Access,
 		principals: cfg.Principals, denylist: cfg.Denylist, auth: cfg.Auth, clock: cfg.Clock, events: cfg.Events,
+		claims: cfg.Claims,
 	}
 	if s.clock == nil {
 		s.clock = clock.System{}
@@ -135,7 +140,7 @@ func (s *Service) Issue(ctx context.Context, p token.SessionPrincipal, client to
 	if err := s.tokens.Insert(ctx, row); err != nil {
 		return token.IssuedTokens{}, fmt.Errorf("session: issue: %w", err)
 	}
-	access, err := s.Mint(p, row.FamilyID, token.Claims{})
+	access, err := s.Mint(ctx, p, row.FamilyID, token.Claims{})
 	if err != nil {
 		return token.IssuedTokens{}, err
 	}
@@ -205,7 +210,7 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 		current.RevokedAt, current.RevokedReason = &now, ptr(model.RevokedRotated)
 		return token.IssuedTokens{}, s.revokedPresented(ctx, current, client, now)
 	}
-	access, err := s.Mint(p, current.FamilyID, token.Claims{})
+	access, err := s.Mint(ctx, p, current.FamilyID, token.Claims{})
 	if err != nil {
 		return token.IssuedTokens{}, err
 	}
@@ -219,7 +224,7 @@ func (s *Service) refreshInPlace(ctx context.Context, current model.RefreshToken
 	if err := s.tokens.Update(ctx, current, after); err != nil {
 		return token.IssuedTokens{}, fmt.Errorf("session: refresh: %w", err)
 	}
-	access, err := s.Mint(p, current.FamilyID, token.Claims{})
+	access, err := s.Mint(ctx, p, current.FamilyID, token.Claims{})
 	if err != nil {
 		return token.IssuedTokens{}, err
 	}
@@ -264,7 +269,7 @@ func (s *Service) StepUp(ctx context.Context, userID, organizationID, sessionID 
 	if err := s.tokens.Update(ctx, active, after); err != nil {
 		return "", fmt.Errorf("session: step-up: %w", err)
 	}
-	return s.Mint(p, sessionID, token.Claims{})
+	return s.Mint(ctx, p, sessionID, token.Claims{})
 }
 
 // SwitchOrganization re-scopes a live session to organizationID: the live refresh token now
@@ -286,7 +291,7 @@ func (s *Service) SwitchOrganization(ctx context.Context, userID, organizationID
 	if err != nil {
 		return "", err
 	}
-	access, err := s.Mint(p, sessionID, token.Claims{})
+	access, err := s.Mint(ctx, p, sessionID, token.Claims{})
 	if err != nil {
 		return "", err
 	}
@@ -314,14 +319,18 @@ func (s *Service) revokeFamily(ctx context.Context, familyID, reason string, now
 // Mint signs an access token for p. With a sessionID it carries sid; without one it belongs to no
 // session (it cannot be refreshed, stepped up, switched or logged out) and lives exactly the
 // access-token TTL. extra claims (impersonated_by, act, …) ride along; standard claims win.
-// auth_time is p's, never re-stamped: it is the last full authentication.
-func (s *Service) Mint(p token.SessionPrincipal, sessionID string, extra token.Claims) (string, error) {
+// auth_time is p's, never re-stamped: it is the last full authentication. Config.Claims adds the
+// host's claims last.
+func (s *Service) Mint(ctx context.Context, p token.SessionPrincipal, sessionID string, extra token.Claims) (string, error) {
 	claims, err := token.AccessClaims{
 		Subject: p.UserID, ID: repository.NewID(), SessionID: sessionID, OrganizationID: p.OrganizationID,
 		Roles: p.Roles, Scope: p.Scope, EmailVerified: p.EmailVerified, MFA: p.MFA, AMR: amrOf(p),
 		AuthTime: p.AuthTime, Extra: extra,
 	}.Claims()
 	if err != nil {
+		return "", fmt.Errorf("session: mint: %w", err)
+	}
+	if claims, err = s.hostClaims(ctx, p, claims); err != nil {
 		return "", fmt.Errorf("session: mint: %w", err)
 	}
 	raw, err := s.access.Issue(claims)

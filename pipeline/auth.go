@@ -217,7 +217,7 @@ func (p *Pipeline) authorize(next http.Handler) http.Handler {
 			endpoint.Write(w, endpoint.Forbidden("This action is for the account holder, not for a delegated credential."))
 			return
 		}
-		p.permit(w, r, rt.RequiresPermissions, next)
+		p.permit(w, r, rt.RequiresPermissions, next, false)
 	})
 }
 
@@ -234,9 +234,23 @@ func DeniesDelegate(rt *manifest.Route, tok *token.Token) bool {
 }
 
 // permit runs next when the principal's authority grants every required permission, recording
-// the authority; no permissions means no check.
-func (p *Pipeline) permit(w http.ResponseWriter, r *http.Request, required []string, next http.Handler) {
+// the authority; no permissions means no check. With lazy set and no permissions, the authority is
+// recorded unresolved: the database is asked only if next reads it (once per request; a failure
+// is logged).
+func (p *Pipeline) permit(w http.ResponseWriter, r *http.Request, required []string, next http.Handler, lazy bool) {
 	if len(required) == 0 {
+		tok := endpoint.Token(r.Context())
+		if lazy && tok != nil {
+			ctx := r.Context()
+			r = r.WithContext(endpoint.WithLazyAuthority(ctx, func() (any, error) {
+				a, err := p.opts.Gate.Authority(ctx, tok)
+				if err != nil {
+					p.log.ErrorContext(ctx, "polaris pipeline: authority resolution failed", "method", r.Method, "path", r.URL.Path, "error", err)
+					return nil, err
+				}
+				return a, nil
+			}))
+		}
 		next.ServeHTTP(w, r)
 		return
 	}

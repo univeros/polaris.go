@@ -24,14 +24,14 @@ func TestThePluginIsCoresMailerAndSmsSenderAndEverySendIsAudited(t *testing.T) {
 	p, _ := boot(t, messaging.Config{Email: mail, SMS: sms, Locale: "es"})
 	g := p.Graph()
 
-	want(t, g.Mailer != nil && g.SMS != nil, "ports")
+	want(t, g.Mailer() != nil && g.SMS() != nil, "ports")
 	found := false
-	for _, m := range g.Schema {
+	for _, m := range g.Schema() {
 		found = found || m.Table == messaging.TableTemplates
 	}
 	want(t, found, "the template table joins the schema")
 
-	g.Events.Dispatch(ctx, event.UserRegistered{UserID: "u1", Email: "ada@example.com", VerificationToken: "tok-1"})
+	g.Events().Dispatch(ctx, event.UserRegistered{UserID: "u1", Email: "ada@example.com", VerificationToken: "tok-1"})
 	sent := mail.Messages()
 	want(t, len(sent) == 1, "the notification listener sent through the plugin: %v", sent)
 	verify := sent[0]
@@ -39,16 +39,16 @@ func TestThePluginIsCoresMailerAndSmsSenderAndEverySendIsAudited(t *testing.T) {
 		verify.Subject == "Verifica tu dirección de correo", "verify %+v", verify)
 	want(t, strings.Contains(verify.Text, "tok-1") && verify.Essential, "verify %+v", verify)
 
-	if err := g.SMS.Send(ctx, "+15551234567", "Your verification code is 123456."); err != nil {
+	if err := g.SMS().Send(ctx, "+15551234567", "Your verification code is 123456."); err != nil {
 		t.Fatal(err)
 	}
 	want(t, sms.Messages()[0].Text == "Your verification code is 123456." && sms.Messages()[0].Template == "sms.otp", "sms %+v", sms.Messages())
 
 	user := model.User{ID: "u1", Email: "ada@example.com", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := g.Repos.Users.Insert(ctx, user); err != nil {
+	if err := g.Repos().Users.Insert(ctx, user); err != nil {
 		t.Fatal(err)
 	}
-	g.Events.Dispatch(ctx, event.PasswordChanged{UserID: "u1", Method: "reset"})
+	g.Events().Dispatch(ctx, event.PasswordChanged{UserID: "u1", Method: "reset"})
 	want(t, mail.Messages()[1].Template == "email.password_changed" && !mail.Messages()[1].Essential, "password changed %+v", mail.Messages())
 
 	recorded := sentTemplates(t, p)
@@ -68,8 +68,8 @@ func TestTheConfiguredMailerWinsOverThePlugin(t *testing.T) {
 	sms := messaging.NewMemory("sms", messaging.KindSMS)
 	p, _ := boot(t, messaging.Config{SMS: sms}, func(c *polaris.Config) { c.Mailer = recording })
 
-	want(t, p.Graph().Mailer == notify.Mailer(recording), "the host's mailer is kept")
-	_ = p.Graph().SMS.Send(context.Background(), "+15551234567", "x")
+	want(t, p.Graph().Mailer() == notify.Mailer(recording), "the host's mailer is kept")
+	_ = p.Graph().SMS().Send(context.Background(), "+15551234567", "x")
 	want(t, len(sms.Messages()) == 1, "the unset port is still the plugin's")
 }
 
@@ -194,7 +194,7 @@ func TestTheSendCommandRunsOnTheApplicationsGraph(t *testing.T) {
 
 func TestTheDefaultChannelIsTheLogAndPolarisTestCanUseThePorts(t *testing.T) {
 	srv := polaristest.New(t, polaristest.WithoutRecorders(), polaristest.WithPlugins(messaging.New(messaging.Config{})))
-	err := srv.Graph().Mailer.Send(context.Background(), "ada@example.com", notify.TemplateOTPCode, map[string]any{"code": "1", "ttl": 60})
+	err := srv.Graph().Mailer().Send(context.Background(), "ada@example.com", notify.TemplateOTPCode, map[string]any{"code": "1", "ttl": 60})
 	want(t, err == nil, "the log channel delivers: %v", err)
 	want(t, len(srv.Mailer.Sent()) == 0, "the recorder is unused")
 	want(t, messaging.Of(srv.Graph()) != nil, "Of")

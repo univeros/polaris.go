@@ -43,12 +43,12 @@ func (p *Plugin) readResource(ctx context.Context, uri string) (map[string]any, 
 	var text, mime string
 	switch {
 	case uri == ResourceManifest:
-		raw, _ := json.MarshalIndent(p.g.Manifest.OpenAPI(manifest.UpstreamVersion), "", "    ")
+		raw, _ := json.MarshalIndent(p.g.Manifest().OpenAPI(manifest.UpstreamVersion), "", "    ")
 		text, mime = string(raw), "application/json"
 	case uri == ResourceSchema && p.cfg.Schema != nil:
 		ddl, err := p.cfg.Schema(ctx)
 		if err != nil {
-			p.g.Logger.ErrorContext(ctx, "polaris mcp: schema export failed", "error", err)
+			p.g.Logger().ErrorContext(ctx, "polaris mcp: schema export failed", "error", err)
 			return nil, newError(codeInternal, http.StatusInternalServerError, "Internal server error.")
 		}
 		text, mime = ddl, "text/x-sql"
@@ -71,7 +71,7 @@ func (p *Plugin) problem(path string) (manifest.Object, *rpcError) {
 	plugin, name, _ := strings.Cut(path, "/")
 	var statuses []int
 	var routes []string
-	for _, rt := range p.g.Manifest.Routes() {
+	for _, rt := range p.g.Manifest().Routes() {
 		if rt.Plugin != plugin || plugin == "" {
 			continue
 		}

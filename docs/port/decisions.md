@@ -566,3 +566,68 @@ MySQL (`clientFoundRows`: affected-row counts for unchanged rows broke condition
   the Go agent SDK walkthrough runs on RS256 and EdDSA (#40).
 - Sentinel's flaky test: velocity buckets are `now / 600 s` on the system clock, so a run crossing a
   boundary split its counts; the test freezes the counters. Production buckets behave as upstream.
+
+## 45. 2026-11-20 — Database matrix (WP8)
+
+memstore, SQLite, PostgreSQL 17 and MySQL 8.4 all run the suite via `scripts/test-db-matrix.sh`
+(`store/storetest.Backends()`; `polaristest` picks `POLARIS_TEST_DB` / `WithDialect`). The race fixes
+of #13, #15–#17, #28, #31, #33, #35 hold on all four. Found and fixed on MySQL: `UPDATE` reported
+*changed* rows, so a conditional update rewriting identical values returned 0 (an agent execution in
+the same second as the previous one silently did nothing) — `sqlstore.Open` forces
+`clientFoundRows=true`; host pools passed to `sqlstore.New` are checked. `schema.Field.ASCII`
+(`AsASCII()`) emits `CHARACTER SET ascii COLLATE ascii_bin` on MySQL only (#41), also applied to
+case-sensitive external identifiers (social `provider_account_id`, …) that MySQL's default collation
+would match case- and accent-insensitively. PG/MySQL return JSON columns normalized; tests compare
+JSON decoded.
+**#45 addendum:** case-sensitive external identifiers use `AsCaseSensitive()` (MySQL `utf8mb4_bin`):
+social `provider_account_id`, every oauth `client_id` column (tests fail without it on MySQL). A
+host pool given to `sqlstore.New` on MySQL is probed once per store on its first top-level write;
+without `clientFoundRows=true` writes fail with `sqlstore.ErrMySQLFoundRows` naming the fix (if the
+probe cannot run, e.g. no `CREATE TEMPORARY TABLES` grant, it retries on later writes). PostgreSQL:
+the whole race suite passes; MySQL: every package that compiled passed — final rerun after WP9.
+
+## 46. 2026-11-20 — WP9: the Go developer surface
+
+Hosts import only package `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`,
+`agent`, `mcp.Protect`, `telemetry/otel`). `PrincipalFrom(ctx)` returns a `Principal` value; its
+kind comes from `token.KindOf`, reading resolver claims only on in-process delegated principals.
+`Protect` always resolves the caller's authority (one query per request). Every account is created
+through `identity.InsertUser`, which runs `Hooks.OnUserCreated` in a savepoint of the creating
+transaction (`TestEveryAccountIsCreatedThroughInsertUser` guards new paths; anonymous guests count
+as accounts, conversion creates none); `OnUserDeleted` runs on erase, admin delete, SCIM delete,
+guest prune and `Users().Delete`. `Hooks.Claims` refuses JWT/OAuth/OIDC names, every core and
+plugin claim, `polaris*` names and names already present, at mint time. `sqlstore.WithTx` joins the
+host's transaction (Polaris's own become savepoints; events fire before the host commits). The
+programmatic API (`Users`, `Orgs`, `Sessions`, `Can`) acts as the trusted actor `system` with the
+routes' checks, events and audit. `Graph` is read-only through accessors. `contracttest`, `httpapi`,
+`upstream` (with its data, `internal/upstream`), `observe`, `maintenance`, `netguard` are internal;
+`Polaris.Prune(ctx)` exposes the expired-row job. `Config.Middleware` wraps `Handler`/`Protect`
+outermost; `Config.Listeners` joins the default bus. API.md states what is stable in v0.x.
+Breaking (pre-1.0): `polaris.Principal`/`Authority` removed; Graph fields → methods;
+`session.Service.Mint(ctx, …)`; an account created already verified sends no verification mail.
+
+## 47. 2026-11-20 — Observability and quality bar (WP9 §4.7 items 6–7)
+
+- `telemetry/otel` (otel v1.47, otelhttp v0.72) is the only importer of OpenTelemetry (`go list
+  -deps` checked): `Middleware` (spans named by Polaris route; duration histogram by route and
+  principal kind), `Store` (a span per adapter call, no values; passes `CreateMissing` through,
+  `Unwrap()`), `Listener()` (`polaris.auth.outcomes`). It records no tokens, emails, values or error
+  messages; the user id only as an HMAC with `WithUserIDHash(key)`. `endpoint.Observed` lets
+  outermost middleware see the route and principal.
+- golangci-lint v2.15 (`.golangci.yml`, every exclusion and `//nolint` with a reason), `make lint`
+  in `make qa`; govulncheck via `scripts/govulncheck.sh` with one reviewed ignore: GO-2026-6909
+  (crewjam/saml; the record covers all versions but describes v0.5.1 — `TestSAMLGO20266909` signs
+  responses exercising both conditions and the plugin refuses them; re-review on every upgrade).
+  `toolchain go1.26.11` pins a standard library with the 18 reported fixes.
+- CI (`.github/workflows/ci.yml`): `make qa` + coverage artifact, `make vuln`, and the database
+  matrix on postgres:17 and mysql:8.4 services. Benchmarks in `docs/benchmarks.md`.
+
+## 48. 2026-11-20 — Lazy authority in Protect
+
+`Protect` without permissions no longer queries the database: it stores a once-per-request resolver
+(`endpoint.WithLazyAuthority` / `endpoint.ResolveAuthority`), and `PrincipalFrom` resolves roles and
+permissions on first use. `Protect` with permissions and the route authorization step resolve
+eagerly and seed the same cache, so a request resolves at most once
+(`TestProtectResolvesTheAuthorityLazilyOnce`). If a lazy resolution fails it is logged and
+`PrincipalFrom` returns `ok=false`. `BenchmarkProtect`: JWT 376 → 124 allocs, API key 597 → 345.
+Supersedes the "one query per request" note of #46.

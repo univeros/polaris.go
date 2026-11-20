@@ -57,7 +57,7 @@ func addUser(t *testing.T, srv *polaristest.Server, email string) model.User {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
 	u := model.User{ID: repository.NewID(), Email: email, EmailVerifiedAt: &now, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	must(t, srv.Graph().Repos.Users.Insert(context.Background(), u))
+	must(t, srv.Graph().Repos().Users.Insert(context.Background(), u))
 	return u
 }
 
@@ -101,7 +101,7 @@ func TestThumbprintMatchesRFC7638AndTheHeaderIsReadWithoutVerifying(t *testing.T
 	}
 
 	p, srv := boot(t, Config{})
-	minted, err := srv.Graph().Tokens.Mint(AccessTokenType, token.Claims{}.With("sub", "u1").With("jti", "j1").
+	minted, err := srv.Graph().Tokens().Mint(AccessTokenType, token.Claims{}.With("sub", "u1").With("jti", "j1").
 		With("aud", []string{testBase, "https://api.test"}).With("scope", "org.read"), time.Now().Add(time.Hour))
 	must(t, err)
 	if JWTHeader(minted)["typ"] != AccessTokenType {
@@ -112,12 +112,12 @@ func TestThumbprintMatchesRFC7638AndTheHeaderIsReadWithoutVerifying(t *testing.T
 	if claims["sub"] != "u1" || claims["scope"] != "org.read" {
 		t.Errorf("claims %v", claims)
 	}
-	idToken, err := srv.Graph().Tokens.Mint("", token.Claims{}.With("sub", "u1").With("jti", "j2").With("aud", "client-1"), time.Now().Add(time.Hour))
+	idToken, err := srv.Graph().Tokens().Mint("", token.Claims{}.With("sub", "u1").With("jti", "j2").With("aud", "client-1"), time.Now().Add(time.Hour))
 	must(t, err)
 	_, err = p.tokens.verifyAccess(idToken)
 	wantCode(t, err, CodeInvalidToken, "an ID token is not an access token")
 	for _, foreign := range []string{minted, idToken} {
-		if _, err := srv.Graph().Tokens.Parse(foreign); err == nil {
+		if _, err := srv.Graph().Tokens().Parse(foreign); err == nil {
 			t.Error("core's session parser refuses what the provider signs")
 		}
 	}
@@ -406,7 +406,7 @@ func (d *docs) RoundTrip(r *http.Request) (*http.Response, error) {
 
 func TestFetchIsBoundedAndJSONOnly(t *testing.T) {
 	ctx := context.Background()
-	log := polaristest.New(t).Graph().Logger
+	log := polaristest.New(t).Graph().Logger()
 	for name, d := range map[string]*docs{
 		"status":     {status: 404, body: `{}`},
 		"too large":  {status: 200, body: `{"x":"` + strings.Repeat("a", maxDocumentBytes) + `"}`},
@@ -441,7 +441,7 @@ func TestCodesTokensDevicesAndBackchannelRequestsExpireAndSpendOnce(t *testing.T
 	must(t, err)
 	c := issued.Client
 
-	codes := &codes{db: srv.DB, pepper: srv.Graph().Pepper, ttl: time.Minute, clock: clk}
+	codes := &codes{db: srv.DB, pepper: srv.Graph().Pepper(), ttl: time.Minute, clock: clk}
 	verifier := strings.Repeat("v", 43)
 	req := pendingRequest{Scopes: []string{"org.read"}, RedirectURI: "https://tv.example/cb", CodeChallenge: sha256b64(verifier)}
 	value, err := codes.issue(ctx, c, user.ID, "", req, nil)
@@ -499,7 +499,7 @@ func TestCodesTokensDevicesAndBackchannelRequestsExpireAndSpendOnce(t *testing.T
 
 	// Device codes: pending, slowed down, decided once, spent once.
 	dev := &devices{poller: poller{db: srv.DB, table: TableDeviceCodes, interval: 5, clock: clk, what: "device code"},
-		pepper: srv.Graph().Pepper, deviceURL: "https://app.test/device", ttl: 600}
+		pepper: srv.Graph().Pepper(), deviceURL: "https://app.test/device", ttl: 600}
 	started, err := dev.start(ctx, c, []string{"org.read"}, "")
 	must(t, err)
 	_, err = dev.pollCode(ctx, started.DeviceCode, c)
@@ -528,7 +528,7 @@ func TestCodesTokensDevicesAndBackchannelRequestsExpireAndSpendOnce(t *testing.T
 	wantCode(t, err, CodeExpiredToken, "expired device code")
 
 	// Backchannel: the hint is normalised; decided by the user it names.
-	backchannel := &ciba{poller: poller{db: srv.DB, table: TableCIBARequests, interval: 0, clock: clk, what: "request"}, repos: srv.Graph().Repos, ttl: 600}
+	backchannel := &ciba{poller: poller{db: srv.DB, table: TableCIBARequests, interval: 0, clock: clk, what: "request"}, repos: srv.Graph().Repos(), ttl: 600}
 	_, _, err = backchannel.request(ctx, c, nil, "", "", "")
 	wantCode(t, err, CodeInvalidRequest, "a hint is required")
 	_, _, err = backchannel.request(ctx, c, nil, "ada@example.com", "<script>\n", "")
@@ -623,7 +623,7 @@ func TestTheGoAPIIssuesExchangesAndVerifies(t *testing.T) {
 	if tok, err := p.ResolveBearer(r); tok != nil || err != nil {
 		t.Error("not ours")
 	}
-	must(t, srv.Graph().Repos.Users.Update(ctx, user, func() model.User { u := user; u.Status = model.UserStatusDisabled; return u }()))
+	must(t, srv.Graph().Repos().Users.Update(ctx, user, func() model.User { u := user; u.Status = model.UserStatusDisabled; return u }()))
 	r.Header.Set("Authorization", "Bearer "+resp.AccessToken)
 	if _, err := p.ResolveBearer(r); err == nil {
 		t.Error("a disabled user's token")
@@ -659,7 +659,7 @@ func TestTheDefaultOperatorsAreTheSuperadmins(t *testing.T) {
 	ctx := context.Background()
 	p, srv := boot(t, Config{})
 	user := addUser(t, srv, "root@example.com")
-	session, err := srv.Graph().Tokens.Issue(token.Claims{}.With("sub", user.ID).With("jti", "j"))
+	session, err := srv.Graph().Tokens().Issue(token.Claims{}.With("sub", user.ID).With("jti", "j"))
 	must(t, err)
 	r := httptest.NewRequest(http.MethodGet, "/admin/oauth/clients", nil)
 	if _, refused := p.operator(ctx, r, false, ""); refused == nil || refused.Status != http.StatusUnauthorized {
@@ -669,7 +669,7 @@ func TestTheDefaultOperatorsAreTheSuperadmins(t *testing.T) {
 	if _, refused := p.operator(ctx, r, false, ""); refused == nil || refused.Status != http.StatusUnauthorized {
 		t.Error("not a superadmin")
 	}
-	impersonating, err := srv.Graph().Tokens.Issue(token.Claims{}.With("sub", user.ID).With("jti", "j2").With(impersonationClaim, "x"))
+	impersonating, err := srv.Graph().Tokens().Issue(token.Claims{}.With("sub", user.ID).With("jti", "j2").With(impersonationClaim, "x"))
 	must(t, err)
 	r.Header.Set("Authorization", "Bearer "+impersonating)
 	if _, refused := p.operator(ctx, r, false, ""); refused == nil || refused.Status != http.StatusForbidden {

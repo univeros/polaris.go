@@ -36,7 +36,7 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 	}
 	withUser := func(f func(ctx context.Context, in *endpoint.Input, u model.User) endpoint.Result) endpoint.Endpoint {
 		return authed(func(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
-			u, err := p.g.Repos.Users.Get(ctx, tok.Subject())
+			u, err := p.g.Repos().Users.Get(ctx, tok.Subject())
 			if errors.Is(err, repository.ErrNotFound) {
 				return endpoint.Unauthorized()
 			}
@@ -122,7 +122,7 @@ func (p *Plugin) answer(ctx context.Context, status int, data any, err error) en
 	}
 	r, ok := asRefusal(err)
 	if !ok {
-		p.g.Logger.ErrorContext(ctx, "polaris passkey: operation failed", "error", err)
+		p.g.Logger().ErrorContext(ctx, "polaris passkey: operation failed", "error", err)
 		return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 	}
 	pr, known := problems[r.kind]

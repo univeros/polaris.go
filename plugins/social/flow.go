@@ -72,7 +72,7 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 			ReturnTo string `json:"return_to"`
 			Provider string `json:"provider"`
 			Exp      int64  `json:"exp"`
-		}{callback, providerID, p.g.Clock.Now().Add(p.settings.stateTTL).Unix()})
+		}{callback, providerID, p.g.Clock().Now().Add(p.settings.stateTTL).Unix()})
 		if err != nil {
 			return started{}, err
 		}
@@ -97,7 +97,7 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 // proxySignature signs random.payload under the pepper the deployments share (as upstream: the
 // base64url of the hex digest).
 func (p *Plugin) proxySignature(signed string) string {
-	return b64([]byte(p.g.Pepper.Hash(proxyContext, signed)))
+	return b64([]byte(p.g.Pepper().Hash(proxyContext, signed)))
 }
 
 func (p *Plugin) redirectURI(requested string) (string, error) {
@@ -202,7 +202,7 @@ func (p *Plugin) forwardTo(state, providerID string) (string, error) {
 		err = dec.Decode(&payload)
 	}
 	exp, isInt := integer(payload["exp"])
-	if err != nil || payload["provider"] != providerID || !isInt || exp < p.g.Clock.Now().Unix() {
+	if err != nil || payload["provider"] != providerID || !isInt || exp < p.g.Clock().Now().Unix() {
 		return "", refuse(kindStateInvalid, "The state is for another provider or has expired.")
 	}
 	returnTo, _ := payload["return_to"].(string)
@@ -297,7 +297,7 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 		if _, err := p.refreshAccount(ctx, *acct, prof, t); err != nil {
 			return nil, err
 		}
-		p.g.Events.Dispatch(ctx, signedIn(*u, false))
+		p.g.Events().Dispatch(ctx, signedIn(*u, false))
 		return p.openSession(ctx, *u, id, client)
 	}
 	email := ""
@@ -320,7 +320,7 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 		return nil, refuse(kindEmailRequired, "The provider shared no email address; grant the email scope or use another provider.")
 	}
 	var u model.User
-	err = p.g.DB.Tx(ctx, func(ctx context.Context) error {
+	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		var err error
 		if u, err = p.createUser(ctx, email, prof.EmailVerified, prof.Name); err != nil {
 			return err
@@ -331,7 +331,7 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 	if err != nil {
 		return nil, err
 	}
-	p.g.Events.Dispatch(ctx, p.event(EventSignedUp, u.ID, id, map[string]any{"account_id": prof.Subject}, client))
+	p.g.Events().Dispatch(ctx, p.event(EventSignedUp, u.ID, id, map[string]any{"account_id": prof.Subject}, client))
 	return p.openSession(ctx, u, id, client)
 }
 
@@ -339,10 +339,10 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 // else is account_exists. A user nobody had proved the mailbox of becomes the provider's user.
 func (p *Plugin) linkTrusted(ctx context.Context, u model.User, id string, prof Profile, t tokens, client token.ClientContext, signedIn func(model.User, bool) Event) (map[string]any, error) {
 	if !slices.Contains(p.settings.trusted, id) || !prof.EmailVerified {
-		p.g.Events.Dispatch(ctx, p.event(EventRejected, u.ID, id, map[string]any{"reason": "account exists; the provider is not trusted to link it"}, client))
+		p.g.Events().Dispatch(ctx, p.event(EventRejected, u.ID, id, map[string]any{"reason": "account exists; the provider is not trusted to link it"}, client))
 		return nil, refuse(kindAccountExists, "An account with this email exists; sign in and link the provider from your account.")
 	}
-	err := p.g.DB.Tx(ctx, func(ctx context.Context) error {
+	err := p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		if u.EmailVerifiedAt == nil {
 			// Whoever registered the address did not own it: the provider just proved it.
 			claimed, err := p.claim(ctx, u)
@@ -360,8 +360,8 @@ func (p *Plugin) linkTrusted(ctx context.Context, u model.User, id string, prof 
 	if err != nil {
 		return nil, err
 	}
-	p.g.Events.Dispatch(ctx, p.event(EventLinked, u.ID, id, map[string]any{"account_id": prof.Subject, "trusted": true}, client))
-	p.g.Events.Dispatch(ctx, signedIn(u, true))
+	p.g.Events().Dispatch(ctx, p.event(EventLinked, u.ID, id, map[string]any{"account_id": prof.Subject, "trusted": true}, client))
+	p.g.Events().Dispatch(ctx, signedIn(u, true))
 	return p.openSession(ctx, u, id, client)
 }
 
@@ -385,7 +385,7 @@ func (p *Plugin) linkFromSession(ctx context.Context, id string, prof Profile, t
 		if linked, err = p.link(ctx, userID, id, prof, t); err != nil {
 			return nil, err
 		}
-		p.g.Events.Dispatch(ctx, p.event(EventLinked, userID, id, map[string]any{"account_id": prof.Subject, "trusted": false}, client))
+		p.g.Events().Dispatch(ctx, p.event(EventLinked, userID, id, map[string]any{"account_id": prof.Subject, "trusted": false}, client))
 	} else if linked, err = p.refreshAccount(ctx, *acct, prof, t); err != nil {
 		return nil, err
 	}
@@ -417,7 +417,7 @@ func (p *Plugin) unlink(ctx context.Context, userID, providerID string) error {
 	if err := p.unlinkAccount(ctx, *acct); err != nil {
 		return err
 	}
-	p.g.Events.Dispatch(ctx, Event{Name: EventUnlinked, UserID: userID, Provider: providerID, Data: map[string]any{"account_id": acct.ProviderAccountID}})
+	p.g.Events().Dispatch(ctx, Event{Name: EventUnlinked, UserID: userID, Provider: providerID, Data: map[string]any{"account_id": acct.ProviderAccountID}})
 	return nil
 }
 
@@ -435,7 +435,7 @@ func (p *Plugin) providerToken(ctx context.Context, userID, providerID string) (
 	if err != nil {
 		return nil, err
 	}
-	expiring := a.ExpiresAt != nil && !a.ExpiresAt.After(p.g.Clock.Now().Add(time.Minute))
+	expiring := a.ExpiresAt != nil && !a.ExpiresAt.After(p.g.Clock().Now().Add(time.Minute))
 	if access == "" || expiring {
 		refresh, err := p.open(a.RefreshTokenEnc)
 		if err != nil {
@@ -456,7 +456,7 @@ func (p *Plugin) providerToken(ctx context.Context, userID, providerID string) (
 			return nil, err
 		}
 		access = t.access
-		p.g.Events.Dispatch(ctx, Event{Name: EventTokenRefreshed, UserID: userID, Provider: providerID})
+		p.g.Events().Dispatch(ctx, Event{Name: EventTokenRefreshed, UserID: userID, Provider: providerID})
 	}
 	var expiresAt any
 	if a.ExpiresAt != nil {
@@ -467,7 +467,7 @@ func (p *Plugin) providerToken(ctx context.Context, userID, providerID string) (
 
 // reject records a refused sign-in and returns it as kind.
 func (p *Plugin) reject(ctx context.Context, providerID, reason string, client token.ClientContext, k kind) error {
-	p.g.Events.Dispatch(ctx, p.event(EventRejected, "", providerID, map[string]any{"reason": reason}, client))
+	p.g.Events().Dispatch(ctx, p.event(EventRejected, "", providerID, map[string]any{"reason": reason}, client))
 	return refuse(k, reason)
 }
 
@@ -490,29 +490,29 @@ func (p *Plugin) keep(ctx context.Context, kind, secret string, v any, ttl time.
 	if err != nil {
 		return err
 	}
-	sealed, err := p.g.Encrypter.Encrypt(string(raw))
+	sealed, err := p.g.Encrypter().Encrypt(string(raw))
 	if err != nil {
 		return err
 	}
-	return p.g.Cache.Set(ctx, cacheKey(kind, secret), []byte(sealed), ttl)
+	return p.g.Cache().Set(ctx, cacheKey(kind, secret), []byte(sealed), ttl)
 }
 
 // take reads what keep stored, once: of concurrent takes, only the one that claims the entry's
 // single-use marker (an atomic Add) gets it.
 func (p *Plugin) take(ctx context.Context, kind, secret string, into any) (bool, error) {
 	key := cacheKey(kind, secret)
-	sealed, ok, err := p.g.Cache.Get(ctx, key)
+	sealed, ok, err := p.g.Cache().Get(ctx, key)
 	if err != nil || !ok {
 		return false, err
 	}
-	won, err := p.g.Cache.Add(ctx, key+".used", []byte{1}, p.settings.stateTTL)
+	won, err := p.g.Cache().Add(ctx, key+".used", []byte{1}, p.settings.stateTTL)
 	if err != nil || !won {
 		return false, err
 	}
-	if err := p.g.Cache.Delete(ctx, key); err != nil {
+	if err := p.g.Cache().Delete(ctx, key); err != nil {
 		return false, err
 	}
-	raw, err := p.g.Encrypter.Decrypt(string(sealed))
+	raw, err := p.g.Encrypter().Decrypt(string(sealed))
 	if err != nil {
 		return false, nil
 	}

@@ -25,9 +25,9 @@ import (
 
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/pipeline"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -131,11 +131,11 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		return err
 	}
 	known := map[string]bool{}
-	for _, perm := range g.Catalog.Permissions() {
+	for _, perm := range g.Catalog().Permissions() {
 		known[perm.Key] = true
 	}
 	p.g = g
-	p.keys = &Keys{db: g.DB, pepper: g.Pepper, permissions: known, settings: s, clock: g.Clock}
+	p.keys = &Keys{db: g.DB(), pepper: g.Pepper(), permissions: known, settings: s, clock: g.Clock()}
 	return nil
 }
 
@@ -173,7 +173,7 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 			return
 		}
 		if err != nil {
-			p.g.Logger.ErrorContext(ctx, "apikeys: keys not erased", "event", e.EventName(), "reason", err.Error())
+			p.g.Logger().ErrorContext(ctx, "apikeys: keys not erased", "event", e.EventName(), "reason", err.Error())
 		}
 	}}
 }

@@ -127,9 +127,9 @@ func NewProtectedResource(cfg ProtectConfig) (*ProtectedResource, error) {
 	clk, store, keys := cfg.Clock, cfg.Cache, map[string]any{}
 	if g := cfg.Graph; g != nil {
 		if cfg.Issuer == "" {
-			cfg.Issuer = g.Auth.Issuer
+			cfg.Issuer = g.Auth().Issuer
 		}
-		clk, store = cmp(clk, g.Clock), cmp(store, g.Cache)
+		clk, store = cmp(clk, g.Clock()), cmp(store, g.Cache())
 		var err error
 		if keys, err = graphKeys(g); err != nil {
 			bad("%v", err)
@@ -221,7 +221,7 @@ func cmp[T comparable](a, b T) T {
 // rotation, the previous (RSA for RS256, Ed25519 for EdDSA).
 func graphKeys(g *wiring.Graph) (map[string]any, error) {
 	keys := map[string]any{}
-	for _, jwk := range g.JWKS.Keys {
+	for _, jwk := range g.JWKS().Keys {
 		raw, err := json.Marshal(jwk)
 		if err != nil {
 			return nil, err
@@ -232,7 +232,7 @@ func graphKeys(g *wiring.Graph) (map[string]any, error) {
 		}
 		key, err := parseJWK(m, jwk.Alg)
 		if err != nil {
-			return nil, fmt.Errorf("the graph's public key %q: %v (AUTH_JWT_PUBLIC_KEY)", jwk.Kid, err)
+			return nil, fmt.Errorf("the graph's public key %q: %w (AUTH_JWT_PUBLIC_KEY)", jwk.Kid, err)
 		}
 		keys[jwk.Kid] = key
 	}
@@ -277,7 +277,7 @@ func (p *ProtectedResource) Handler(next http.Handler) http.Handler {
 		if ref == nil {
 			var claims map[string]any
 			if claims, ref = p.authenticate(r); ref == nil {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims)))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims))) //nolint:contextcheck // r.Context() is inherited; the linter follows into dispatch.go's deliberate fresh context
 				return
 			}
 		}

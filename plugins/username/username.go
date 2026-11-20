@@ -24,9 +24,9 @@ import (
 
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -152,7 +152,7 @@ func (*Plugin) Manifest() fs.FS {
 
 // Init builds the username service.
 func (p *Plugin) Init(g *wiring.Graph) error {
-	u, err := NewUsernames(g.DB, g.Clock, p.cfg)
+	u, err := NewUsernames(g.DB(), g.Clock(), p.cfg)
 	if err != nil {
 		return err
 	}

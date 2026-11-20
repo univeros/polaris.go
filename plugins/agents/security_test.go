@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/plugins/oauth"
 	"github.com/univeros/polaris-go/store"
@@ -41,7 +41,7 @@ func confusedDeputy(a *agentsCase) {
 	a.agentsProblem(a.bearer(tok, "GET", "/agents/session", nil), 401, "invalid_jwt", "", "the session")
 	a.agentsProblem(a.c.Get("/auth/me", contracttest.Bearer(tok)), 401, "invalid_jwt", "", "a core route")
 	a.agentsProblem(a.c.Get("/orgs/"+orgID+"/members", contracttest.Bearer(tok)), 401, "invalid_jwt", "", "a permissioned core route")
-	n, _ := a.srv.Graph().DB.Count(a.ctx, agents.TableReceipts, store.Criteria{"agent_id": id})
+	n, _ := a.srv.Graph().DB().Count(a.ctx, agents.TableReceipts, store.Criteria{"agent_id": id})
 	a.equal(n, 0, "nothing was chained for Ada")
 	a.equal(len(a.audited(agents.EventExecuted)), 0, "no execution was audited")
 
@@ -122,7 +122,7 @@ func everySpelling(a *agentsCase) {
 	a.equal(problemOf(callHost(bound, route, key.requestJWT(id, location, nil, nil), bob))["error"], "aud_mismatch", "the aud is the URL called")
 	ok := callHost(bound, route, key.requestJWT(id, route, nil, nil), bob)
 	a.equal(ok.Code, 200, "bound ok")
-	row, _ := a.srv.Graph().DB.FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": ok.Header().Get(agents.ReceiptHeader)})
+	row, _ := a.srv.Graph().DB().FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": ok.Header().Get(agents.ReceiptHeader)})
 	a.equal(row.String("capability"), "invite", "receipt")
 	a.equal(len(h.seen), 3, "three calls")
 }

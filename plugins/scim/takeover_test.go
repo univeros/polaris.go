@@ -14,7 +14,7 @@ func tenants(t *testing.T) (*fixture, Connection, model.User, string) {
 	f := newFixture(t)
 	orgA := f.organization()
 	victim := f.user("u-victim", "victim@victim.example")
-	orgB := must(f.srv.Graph().Orgs.CreateOrganization(f.ctx, "Beta", "", victim.ID))
+	orgB := must(f.srv.Graph().Orgs().CreateOrganization(f.ctx, "Beta", "", victim.ID))
 	return f, f.connection(orgA, DeprovisionDelete), victim, orgB.ID
 }
 
@@ -31,10 +31,10 @@ func TestADirectoryCannotClaimAnotherOrganizationsAccount(t *testing.T) {
 	f, conn, victim, _ := tenants(t)
 	_, err := f.p.dir.createUser(f.ctx, conn, map[string]any{"userName": victim.Email, "displayName": "Pwned"})
 	refused(t, err, 409, "an existing account on a domain the organization did not verify")
-	if _, err := f.srv.Graph().Repos.Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID); err == nil {
+	if _, err := f.srv.Graph().Repos().Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID); err == nil {
 		t.Fatal("the victim was joined to the attacker's organization")
 	}
-	if u := must(f.srv.Graph().Repos.Users.Get(f.ctx, victim.ID)); u.DisplayName != nil {
+	if u := must(f.srv.Graph().Repos().Users.Get(f.ctx, victim.ID)); u.DisplayName != nil {
 		t.Fatalf("the victim's profile was overwritten: %q", *u.DisplayName)
 	}
 }
@@ -57,20 +57,20 @@ func TestADirectoryCannotRenameDisableOrEraseAnAccountItDoesNotOwn(t *testing.T)
 		t.Fatalf("the account changed: %+v", got)
 	}
 	g := f.srv.Graph()
-	if m := must(g.Repos.Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID)); m.Status != model.MembershipStatusSuspended {
+	if m := must(g.Repos().Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID)); m.Status != model.MembershipStatusSuspended {
 		t.Fatalf("active false leaves the membership %s", m.Status)
 	}
-	if m := must(g.Repos.Memberships.ByUserAndOrganization(f.ctx, victim.ID, orgB)); m.Status != model.MembershipStatusActive {
+	if m := must(g.Repos().Memberships.ByUserAndOrganization(f.ctx, victim.ID, orgB)); m.Status != model.MembershipStatusActive {
 		t.Fatalf("the victim's own organization was touched: %s", m.Status)
 	}
 
 	if outcome := must(d.deleteUser(f.ctx, conn, got)); outcome != "deleted" {
 		t.Fatal(outcome)
 	}
-	if u := must(g.Repos.Users.Get(f.ctx, victim.ID)); u.Email != victim.Email || u.Status != model.UserStatusActive {
+	if u := must(g.Repos().Users.Get(f.ctx, victim.ID)); u.Email != victim.Email || u.Status != model.UserStatusActive {
 		t.Fatalf("deprovision=delete erased or disabled an account the directory does not own: %+v", u)
 	}
-	if _, err := g.Repos.Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID); err == nil {
+	if _, err := g.Repos().Memberships.ByUserAndOrganization(f.ctx, victim.ID, conn.OrganizationID); err == nil {
 		t.Fatal("the membership stays")
 	}
 }
@@ -85,7 +85,7 @@ func TestAnAccountTheDirectoryCreatedIsNoLongerItsOnceItJoinsAnotherOrganization
 	}
 	g := f.srv.Graph()
 	now := bob.CreatedAt
-	if err := g.Repos.Memberships.Insert(f.ctx, model.Membership{ID: "m-b", UserID: bob.ID, OrganizationID: orgB,
+	if err := g.Repos().Memberships.Insert(f.ctx, model.Membership{ID: "m-b", UserID: bob.ID, OrganizationID: orgB,
 		Status: model.MembershipStatusActive, CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
@@ -100,8 +100,8 @@ func TestADirectoryNeverLeavesAnOrganizationWithoutAnActiveOwner(t *testing.T) {
 	d := f.p.dir
 	d.domains = func() any { return verifiedDomains{orgID: "acme.example"} }
 	g := f.srv.Graph()
-	owner := must(g.Repos.Users.Get(f.ctx, "u-owner"))
-	ownerRole := must(g.Repos.Roles.ByOrganizationAndSlug(f.ctx, &orgID, "owner"))
+	owner := must(g.Repos().Users.Get(f.ctx, "u-owner"))
+	ownerRole := must(g.Repos().Roles.ByOrganizationAndSlug(f.ctx, &orgID, "owner"))
 
 	_, err := d.patchGroup(f.ctx, conn, ownerRole, ops(t, map[string]any{"op": "replace", "path": "members", "value": []any{}}))
 	refused(t, err, 409, "emptying the owner role")
@@ -113,10 +113,10 @@ func TestADirectoryNeverLeavesAnOrganizationWithoutAnActiveOwner(t *testing.T) {
 	refused(t, err, 409, "suspending the last active owner")
 	_, err = d.deleteUser(f.ctx, conn, owner)
 	refused(t, err, 409, "deprovisioning the last active owner")
-	if links := must(g.Repos.MembershipRoles.ListByRole(f.ctx, ownerRole.ID)); len(links) != 1 {
+	if links := must(g.Repos().MembershipRoles.ListByRole(f.ctx, ownerRole.ID)); len(links) != 1 {
 		t.Fatalf("owner links %d", len(links))
 	}
-	if m := must(g.Repos.Memberships.ByUserAndOrganization(f.ctx, owner.ID, orgID)); m.Status != model.MembershipStatusActive {
+	if m := must(g.Repos().Memberships.ByUserAndOrganization(f.ctx, owner.ID, orgID)); m.Status != model.MembershipStatusActive {
 		t.Fatalf("owner membership %s", m.Status)
 	}
 }

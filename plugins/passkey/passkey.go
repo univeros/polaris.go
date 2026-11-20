@@ -25,9 +25,9 @@ import (
 
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/mfa"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -193,7 +193,7 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 			return
 		}
 		if err != nil {
-			p.g.Logger.ErrorContext(ctx, "passkey: listener failed", "event", e.EventName(), "reason", err.Error())
+			p.g.Logger().ErrorContext(ctx, "passkey: listener failed", "event", e.EventName(), "reason", err.Error())
 		}
 	}}
 }

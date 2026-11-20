@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/plugins/apikeys"
@@ -40,9 +41,12 @@ func main() {
 	mux.Handle("/", p.Handler()) // Polaris routes, including POST /api-keys to mint a key
 	// A host route needing a permission: an API key passes only if it (and its owner) holds it.
 	mux.Handle("GET /api/invoices", p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		who := polaris.Principal(r.Context())
-		perms, delegated := who.Delegation()
-		_ = json.NewEncoder(w).Encode(map[string]any{"user": who.Subject(), "api_key": delegated, "key_permissions": perms})
+		who, _ := polaris.PrincipalFrom(r.Context())
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"user": who.UserID, "api_key": who.Kind == polaris.KindAPIKey, "key_id": who.KeyID, "permissions": who.Permissions,
+		})
 	}), "org.read"))
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	srv := &http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second,
+		WriteTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }

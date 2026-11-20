@@ -2,6 +2,7 @@ package multisession
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"regexp"
 	"slices"
@@ -10,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/polaristest"
 	"github.com/univeros/polaris-go/repository"
@@ -39,13 +40,13 @@ func boot(t *testing.T, cfg Config) *harness {
 func (h *harness) user(email string) model.User {
 	h.t.Helper()
 	g := h.srv.Graph()
-	hash, err := g.Hasher.Hash(pw)
+	hash, err := g.Hasher().Hash(pw)
 	if err != nil {
 		h.t.Fatal(err)
 	}
 	now := time.Now().UTC().Truncate(time.Second)
 	u := model.User{ID: repository.NewID(), Email: email, PasswordHash: &hash, EmailVerifiedAt: &now, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := g.Repos.Users.Insert(context.Background(), u); err != nil {
+	if err := g.Repos().Users.Insert(context.Background(), u); err != nil {
 		h.t.Fatal(err)
 	}
 	return u
@@ -86,7 +87,7 @@ func (h *harness) data(resp *http.Response) map[string]any {
 
 func (h *harness) claims(access string) map[string]any {
 	h.t.Helper()
-	tok, err := h.srv.Graph().Tokens.Parse(access)
+	tok, err := h.srv.Graph().Tokens().Parse(access)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -113,11 +114,11 @@ func TestPlugin(t *testing.T) {
 	t.Run("testEverythingIsWiredThroughTheGraph", func(t *testing.T) {
 		h := boot(t, Config{})
 		g := h.srv.Graph()
-		if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == TableDevices }) {
+		if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == TableDevices }) {
 			t.Fatal("table missing")
 		}
 		var routes []string
-		for _, rt := range g.Manifest.Routes() {
+		for _, rt := range g.Manifest().Routes() {
 			if strings.HasPrefix(rt.Name, "polaris."+ID+".") {
 				routes = append(routes, rt.Method+" "+rt.Path+" "+string(rt.Auth))
 			}
@@ -197,7 +198,7 @@ func TestPlugin(t *testing.T) {
 		}
 		want(t, h.send(http.MethodPost, "/auth/token/refresh", req{body: map[string]any{"refresh_token": adaSession["refresh_token"]}}), 401, "the old session ended")
 		want(t, h.send(http.MethodGet, "/auth/me", req{token: graceAccess}), 200, "the caller's own session stays")
-		if _, err := h.srv.Graph().Repos.RefreshTokens.ActiveInFamily(context.Background(), h.claims(graceAccess)["sid"].(string)); err != nil {
+		if _, err := h.srv.Graph().Repos().RefreshTokens.ActiveInFamily(context.Background(), h.claims(graceAccess)["sid"].(string)); err != nil {
 			t.Fatal("the caller's session ended", err)
 		}
 		if m := h.data(h.send(http.MethodGet, "/multi-session/last-method", req{device: dev}))["last_method"]; m != "pwd" {
@@ -217,16 +218,16 @@ func TestPlugin(t *testing.T) {
 		ctx := context.Background()
 		g := h.srv.Graph()
 		ada, grace := h.user("ada@example.com"), h.user("grace@example.com")
-		org, err := g.Orgs.CreateOrganization(ctx, "Acme", "", ada.ID)
+		org, err := g.Orgs().CreateOrganization(ctx, "Acme", "", ada.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
 		authTime := int64(1760000000)
-		adaTokens, err := g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: ada.ID, OrganizationID: org.ID, EmailVerified: true, MFA: true, AMR: []string{"pwd", "otp"}, AuthTime: &authTime}, token.ClientContext{})
+		adaTokens, err := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: ada.ID, OrganizationID: org.ID, EmailVerified: true, MFA: true, AMR: []string{"pwd", "otp"}, AuthTime: &authTime}, token.ClientContext{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		graceTokens, err := g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: grace.ID, AMR: []string{"magic_link"}}, token.ClientContext{})
+		graceTokens, err := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: grace.ID, AMR: []string{"magic_link"}}, token.ClientContext{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -255,10 +256,10 @@ func TestPlugin(t *testing.T) {
 
 		disabled := ada
 		disabled.Status = model.UserStatusDisabled
-		if err := g.Repos.Users.Update(ctx, ada, disabled); err != nil {
+		if err := g.Repos().Users.Update(ctx, ada, disabled); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := d.switchTo(ctx, dev, graceTokens.SessionID, claims["sid"].(string), token.ClientContext{}); err != errSessionNotFound {
+		if _, _, err := d.switchTo(ctx, dev, graceTokens.SessionID, claims["sid"].(string), token.ClientContext{}); !errors.Is(err, errSessionNotFound) {
 			t.Fatalf("a disabled account is switched to: %v", err)
 		}
 	})
@@ -301,8 +302,8 @@ func TestConcurrentSwitchesMintOnce(t *testing.T) {
 	ctx := context.Background()
 	g := h.srv.Graph()
 	ada, grace := h.user("ada@example.com"), h.user("grace@example.com")
-	adaTokens, _ := g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: ada.ID, AMR: []string{"pwd"}}, token.ClientContext{})
-	graceTokens, _ := g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: grace.ID, AMR: []string{"pwd"}}, token.ClientContext{})
+	adaTokens, _ := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: ada.ID, AMR: []string{"pwd"}}, token.ClientContext{})
+	graceTokens, _ := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: grace.ID, AMR: []string{"pwd"}}, token.ClientContext{})
 	d := h.p.devices
 	dev, _ := d.record(ctx, mint(), ada.ID, adaTokens.SessionID, nil)
 	dev, _ = d.record(ctx, dev, grace.ID, graceTokens.SessionID, nil)

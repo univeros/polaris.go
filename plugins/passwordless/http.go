@@ -60,7 +60,7 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 func (v *service) refuse(ctx context.Context, err error) endpoint.Result {
 	var e *Error
 	if !errors.As(err, &e) {
-		v.g.Logger.ErrorContext(ctx, "polaris passwordless: operation failed", "error", err)
+		v.g.Logger().ErrorContext(ctx, "polaris passwordless: operation failed", "error", err)
 		return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 	}
 	var ext map[string]any

@@ -1,0 +1,106 @@
+# CI for the private repository: quality gate, vulnerability scan and the database matrix.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOPRIVATE: github.com/univeros/polaris-go
+
+jobs:
+  qa:
+    name: make qa (fmt, vet, lint, test -race, coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26" # latest patch; go.mod's toolchain line names the minimum patched one
+          check-latest: true
+          cache: true
+      - name: Cache golangci-lint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-lint-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml', 'Makefile') }}
+          restore-keys: golangci-lint-${{ runner.os }}-
+      - run: make qa
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: warn
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26" # latest patch; go.mod's toolchain line names the minimum patched one
+          check-latest: true
+          cache: true
+      - run: make vuln # scripts/govulncheck.sh: fails on reachable vulnerabilities
+
+  db-matrix:
+    name: database matrix (PostgreSQL 17, MySQL 8.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: polaris
+          POSTGRES_PASSWORD: polaris
+          POSTGRES_DB: polaris
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U polaris -d polaris"
+          --health-interval 2s --health-timeout 5s --health-retries 60
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: polaris
+          MYSQL_DATABASE: polaris
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ppolaris"
+          --health-interval 2s --health-timeout 5s --health-retries 90
+    env:
+      POLARIS_TEST_PG_DSN: postgres://polaris:polaris@127.0.0.1:5432/polaris?sslmode=disable
+      POLARIS_TEST_MYSQL_DSN: root:polaris@tcp(127.0.0.1:3306)/polaris
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26" # latest patch; go.mod's toolchain line names the minimum patched one
+          check-latest: true
+          cache: true
+      # Service containers take no server flags: apply what scripts/test-db-matrix.sh passes on
+      # its own containers (connection limits for the parallel suites, no fsync).
+      - name: Tune the database servers
+        run: |
+          docker exec ${{ job.services.postgres.id }} psql -U polaris -d polaris \
+            -c "ALTER SYSTEM SET max_connections = 1000" -c "ALTER SYSTEM SET fsync = off"
+          docker restart ${{ job.services.postgres.id }}
+          docker exec ${{ job.services.mysql.id }} mysql -h127.0.0.1 -uroot -ppolaris \
+            -e "SET PERSIST max_connections = 2000; SET PERSIST innodb_flush_log_at_trx_commit = 0"
+          for _ in $(seq 1 60); do
+            docker exec ${{ job.services.postgres.id }} pg_isready -U polaris -d polaris && break
+            sleep 1
+          done
+      - run: scripts/test-db-matrix.sh

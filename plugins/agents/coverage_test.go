@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/token"
 )
@@ -48,10 +49,15 @@ func TestCapabilitiesAreMCPTools(t *testing.T) {
 	}
 	// The caller as Polaris's pipeline sees it: the agent principal of the exchanged token.
 	var caller *token.Token
-	srv.Protect(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { caller = polaris.Principal(r.Context()) })).
-		ServeHTTP(httptest.NewRecorder(), authorized(tok))
+	var who polaris.Principal
+	srv.Protect(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		caller, who = endpoint.Token(r.Context()), must(polaris.PrincipalFrom(r.Context()))
+	})).ServeHTTP(httptest.NewRecorder(), authorized(tok))
 	if caller == nil || caller.Claim(agents.ClaimAgentID) != id {
 		t.Fatalf("agent principal %v", caller)
+	}
+	if who.Kind != polaris.KindAgent || who.AgentID != id || who.ClientID == "" || !who.Delegated || who.UserID == "" || who.OrganizationID != orgID {
+		t.Fatalf("polaris.PrincipalFrom = %+v", who)
 	}
 	tools, err := p.MCPTools(a.ctx, caller)
 	if err != nil || len(tools) != 1 || tools[0].Name != "agents.members.list" || tools[0].Destructive {
@@ -107,4 +113,11 @@ func TestARequestJWTBindsTheMethodURLAndBody(t *testing.T) {
 	if _, ok := agents.CallFrom(context.Background()); ok {
 		t.Error("no call outside a guarded route")
 	}
+}
+
+func must[T any](v T, ok bool) T {
+	if !ok {
+		panic("not ok")
+	}
+	return v
 }

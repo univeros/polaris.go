@@ -54,7 +54,7 @@ func (s *Service) Register(ctx context.Context, email, password, displayName str
 	}
 	var secret string
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
-		if err := s.repos.Users.Insert(ctx, user); errors.Is(err, store.ErrDuplicate) {
+		if err := s.InsertUser(ctx, user); errors.Is(err, store.ErrDuplicate) {
 			return errTaken
 		} else if err != nil {
 			return err

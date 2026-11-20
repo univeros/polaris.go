@@ -11,7 +11,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/multisession"
 	"github.com/univeros/polaris-go/schema"
@@ -38,7 +38,7 @@ func Example() {
 	}
 	now := time.Now()
 	hash, _ := hasher.Hash("correct horse battery staple")
-	_ = p.Graph().Repos.Users.Insert(context.Background(), model.User{ID: "user-1", Email: "ada@example.com", PasswordHash: &hash, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
+	_ = p.Graph().Repos().Users.Insert(context.Background(), model.User{ID: "user-1", Email: "ada@example.com", PasswordHash: &hash, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
 
 	send := func(method, path, body, device string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))

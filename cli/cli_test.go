@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 )
 
 // result is one command's outcome.

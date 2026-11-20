@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -82,7 +82,7 @@ func (*Plugin) AuditNames() map[string]string { return auditNames }
 func (p *Plugin) Init(g *wiring.Graph) error {
 	base := p.cfg.BaseURL
 	if base == "" {
-		base = strings.TrimRight(g.Auth.Issuer, "/") + "/" + strings.Trim(g.Config.PathPrefix, "/")
+		base = strings.TrimRight(g.Auth().Issuer, "/") + "/" + strings.Trim(g.Config().PathPrefix, "/")
 	}
 	if !absoluteURL.MatchString(base) {
 		return fmt.Errorf("sso: Config.BaseURL is %q: set it to the absolute http(s) URL where Polaris is mounted (\"https://app.example.com/auth\")", base)
@@ -93,14 +93,14 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	}
 	client := netguard.NoRedirects(p.cfg.HTTPClient)
 	p.g, p.sp = g, sp
-	p.providers = &Providers{db: g.DB, enc: g.Encrypter, clock: g.Clock}
-	p.domains = &Domains{db: g.DB, clock: g.Clock}
+	p.providers = &Providers{db: g.DB(), enc: g.Encrypter(), clock: g.Clock()}
+	p.domains = &Domains{db: g.DB(), clock: g.Clock()}
 	p.oidc, p.saml, p.verifier = p.cfg.OIDC, p.cfg.SAML, p.cfg.Domains
 	if p.oidc == nil {
-		p.oidc = &HTTPOIDC{HTTP: client, Cache: g.Cache, Clock: g.Clock}
+		p.oidc = &HTTPOIDC{HTTP: client, Cache: g.Cache(), Clock: g.Clock()}
 	}
 	if p.saml == nil {
-		p.saml = DefaultSAML{Clock: g.Clock}
+		p.saml = DefaultSAML{Clock: g.Clock()}
 	}
 	if p.verifier == nil {
 		p.verifier = DNSHTTPSVerifier{HTTP: client}

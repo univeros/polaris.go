@@ -9,6 +9,9 @@
 //		}
 //		return endpoint.Data(200, map[string]any{"id": tok.Subject()})
 //	}
+//
+// Package endpoint is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
+// third-party plugin builds on. API.md states what is stable.
 package endpoint
 
 import (

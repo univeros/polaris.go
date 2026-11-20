@@ -40,8 +40,8 @@ import (
 
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -210,7 +210,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		err = errors.Join(err, errors.New("social: Config.Providers is empty: configure at least one provider, such as \"google\": {ClientID, ClientSecret}"))
 	}
 	p.g, p.settings = g, s
-	p.out = &outbound{http: noRedirects(p.cfg.HTTPClient), cache: g.Cache, clock: g.Clock}
+	p.out = &outbound{http: noRedirects(p.cfg.HTTPClient), cache: g.Cache(), clock: g.Clock()}
 	p.providers = map[string]*provider{}
 	for id, conf := range p.cfg.Providers {
 		prov, perr := buildProvider(id, conf, p.out)
@@ -230,7 +230,7 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 	return []event.Listener{func(ctx context.Context, e event.Event) {
 		if d, ok := e.(event.UserDeleted); ok {
 			if err := p.unlinkAll(ctx, d.UserID); err != nil {
-				p.g.Logger.ErrorContext(ctx, "social: accounts not erased", "user_id", d.UserID, "reason", err.Error())
+				p.g.Logger().ErrorContext(ctx, "social: accounts not erased", "user_id", d.UserID, "reason", err.Error())
 			}
 		}
 	}}

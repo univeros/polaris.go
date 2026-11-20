@@ -75,7 +75,7 @@ func TestApprovals(t *testing.T) {
 			t.Fatalf("%v after %d polls", err, polls)
 		}
 		gone := &Error{Status: 401, Code: "invalid_jwt"}
-		if _, err := clock.waiter().wait(t.Context(), approvalFixture(), func(context.Context) ([]Grant, error) { return nil, gone }, 0); err != gone {
+		if _, err := clock.waiter().wait(t.Context(), approvalFixture(), func(context.Context) ([]Grant, error) { return nil, gone }, 0); !errors.Is(err, gone) {
 			t.Fatalf("rethrown: %v", err)
 		}
 	})

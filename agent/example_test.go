@@ -55,7 +55,9 @@ func Example() {
 	}
 	fmt.Println("result:", string(res.Data), "receipt", res.Receipt.Seq)
 	if _, err := bot.Execute(ctx, "billing.refund", nil); errors.Is(err, agent.ErrCapabilityNotGranted) {
-		fmt.Println("refused:", err.(*agent.Error).Status)
+		if e, ok := errors.AsType[*agent.Error](err); ok {
+			fmt.Println("refused:", e.Status)
+		}
 	}
 
 	chain := ownerReceipts(server, bot.ID()) // the owner's GET /agents/{id}/receipts

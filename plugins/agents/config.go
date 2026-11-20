@@ -174,7 +174,11 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 		}
 		parsed, err := b.parse()
 		if err != nil {
-			bad("Config.AutoApprove[%q]: %s", risk, err.(*Error).Detail)
+			detail := err.Error()
+			if e, ok := errors.AsType[*Error](err); ok {
+				detail = e.Detail
+			}
+			bad("Config.AutoApprove[%q]: %s", risk, detail)
 			continue
 		}
 		s.autoApprove[risk] = parsed

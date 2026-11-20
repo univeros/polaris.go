@@ -39,13 +39,13 @@ func (a gateAdapter) Authority(ctx context.Context, t *token.Token) (pipeline.Au
 type ticketAdapter struct{ g *Graph }
 
 func (a ticketAdapter) Authenticate(_ context.Context, ticket string) (string, error) {
-	return a.g.Tickets.Authenticate(ticket)
+	return a.g.tickets.Authenticate(ticket)
 }
 
 type denylistAdapter struct{ g *Graph }
 
 func (a denylistAdapter) Revoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error) {
-	return a.g.Denylist.IsRevoked(ctx, userID, issuedAt)
+	return a.g.denylist.IsRevoked(ctx, userID, issuedAt)
 }
 
 // PipelineOption adjusts the options of one pipeline Graph.Pipeline builds, after they are filled
@@ -72,21 +72,21 @@ func (g *Graph) Pipeline(endpoints map[string]endpoint.Endpoint, opts ...Pipelin
 		}
 	}
 	o := pipeline.Options{
-		Manifest:         g.Manifest,
-		PathPrefix:       g.Config.PathPrefix,
+		Manifest:         g.manifest,
+		PathPrefix:       g.config.PathPrefix,
 		Endpoints:        endpoints,
-		Auth:             g.Auth,
-		Tokens:           g.Tokens,
+		Auth:             g.auth,
+		Tokens:           g.tokens,
 		BearerResolvers:  resolvers,
 		MFATickets:       ticketAdapter{g},
-		StepUp:           g.MFA,
+		StepUp:           g.mfa,
 		Denylist:         denylistAdapter{g},
-		Gate:             gateAdapter{g.Gate},
-		RateStore:        g.RateStore,
+		Gate:             gateAdapter{g.gate},
+		RateStore:        g.rateStore,
 		PluginMiddleware: middleware,
-		Clock:            g.Clock,
-		Logger:           g.Logger,
-		MaxBodyBytes:     g.Config.MaxBodyBytes,
+		Clock:            g.clock,
+		Logger:           g.logger,
+		MaxBodyBytes:     g.config.MaxBodyBytes,
 	}
 	for _, opt := range opts {
 		opt(&o)

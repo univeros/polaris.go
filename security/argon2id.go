@@ -134,10 +134,10 @@ func verifyArgon2(plain, hash, prefix string, derive argon2Func) bool {
 	if err1 != nil || err2 != nil || len(salt) < argon2MinSalt || len(want) < argon2MinHash {
 		return false
 	}
-	if t < 1 || p < 1 || p > 255 || m > 1<<32-1 || m < argon2MinBlock*p {
+	if t < 1 || t > 1<<32-1 || p < 1 || p > 255 || m > 1<<32-1 || m < argon2MinBlock*p {
 		return false
 	}
-	got := derive([]byte(plain), salt, uint32(t), uint32(m), uint8(p), uint32(len(want)))
+	got := derive([]byte(plain), salt, uint32(t), uint32(m), uint8(p), uint32(len(want))) //nolint:gosec // G115: t, m, p bounded above; len(want) is a decoded hash
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
 

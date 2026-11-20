@@ -9,8 +9,8 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store/memstore"
@@ -41,7 +41,7 @@ func Example() {
 	_ = p.Handler() // mount it: mux.Handle("/", p.Handler())
 
 	ctx := context.Background()
-	p.Graph().Events.Dispatch(ctx, event.UserRegistered{UserID: "u1", Email: "ada@example.com"})
+	p.Graph().Events().Dispatch(ctx, event.UserRegistered{UserID: "u1", Email: "ada@example.com"})
 	_ = trail.Record(ctx, audit.Event{Name: "billing.invoice_paid", ActorType: audit.ActorUser, ActorID: "u1",
 		Data: map[string]any{"invoice": "inv-1", "card_token": "tok_x"}})
 

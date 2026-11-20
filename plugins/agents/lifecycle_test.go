@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/repository"
 	"github.com/univeros/polaris-go/store"
@@ -217,7 +217,7 @@ func executionBudgetsReceiptsKillSwitch(a *agentsCase) {
 	for _, r := range chain {
 		a.equal(a.data(a.c.Get("/agents/receipts/"+str(obj(r)["id"])+"/verify", contracttest.Bearer(session)))["valid"], true, "receipt valid")
 	}
-	db := a.srv.Graph().DB
+	db := a.srv.Graph().DB()
 	if n, err := db.Update(a.ctx, agents.TableReceipts, store.Criteria{"id": at(chain, 2)["id"]}, store.Data{"budget_after": 99}); err != nil || n != 1 {
 		a.t.Fatalf("tamper: %d %v", n, err)
 	}

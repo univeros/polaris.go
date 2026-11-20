@@ -115,7 +115,7 @@ func adminGrant(a *app, fs *flag.FlagSet) runFunc {
 			return report{}, err
 		}
 		email := identity.NormalizeEmail(a.args[0])
-		user, err := p.Graph().Repos.Users.ByEmail(ctx, email)
+		user, err := p.Graph().Repos().Users.ByEmail(ctx, email)
 		if errors.Is(err, repository.ErrNotFound) {
 			return report{}, fail(fmt.Sprintf("no user has the email address %q", email), "register the user first (POST /auth/register), then grant again")
 		}

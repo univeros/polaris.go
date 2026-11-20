@@ -8,8 +8,8 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/messaging"
 	"github.com/univeros/polaris-go/schema"
@@ -39,7 +39,7 @@ func Example() {
 	}
 
 	// What core's notification listener does after a sign-up.
-	p.Graph().Events.Dispatch(context.Background(), event.UserRegistered{UserID: "u1", Email: "ada@example.com", VerificationToken: "tok-1"})
+	p.Graph().Events().Dispatch(context.Background(), event.UserRegistered{UserID: "u1", Email: "ada@example.com", VerificationToken: "tok-1"})
 	sent := outbox.Messages()[0]
 	fmt.Println(sent.Template, "|", sent.Subject, "|", sent.Text)
 	// Output: email.verify | Welcome to Acme | Your token: tok-1

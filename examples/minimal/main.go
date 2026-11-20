@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/store"
@@ -41,7 +42,10 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /orgs, …
 	mux.Handle("GET /hello", p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "hello %s\n", polaris.Principal(r.Context()).Subject())
+		who, _ := polaris.PrincipalFrom(r.Context())
+		fmt.Fprintf(w, "hello %s\n", who.UserID)
 	})))
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	srv := &http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second,
+		WriteTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }

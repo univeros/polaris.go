@@ -19,7 +19,7 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/cli"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/notify/notifytest"
 	"github.com/univeros/polaris-go/plugins/mcp"
 	"github.com/univeros/polaris-go/polaristest"
@@ -65,7 +65,8 @@ func TestQuickstart(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("/", p.Handler())
 	mux.Handle("GET /hello", p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "hello "+polaris.Principal(r.Context()).Subject())
+		who, _ := polaris.PrincipalFrom(r.Context())
+		io.WriteString(w, "hello "+who.UserID+" "+string(who.Kind))
 	})))
 	c := contracttest.NewClient(t, mux, nil)
 
@@ -90,7 +91,7 @@ func TestQuickstart(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+access)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != 200 || !strings.HasPrefix(rec.Body.String(), "hello ") || len(rec.Body.String()) < 10 {
+	if rec.Code != 200 || !strings.HasPrefix(rec.Body.String(), "hello ") || !strings.HasSuffix(rec.Body.String(), " user") || len(rec.Body.String()) < 15 {
 		t.Fatalf("protected host route: %d %q", rec.Code, rec.Body.String())
 	}
 }
@@ -119,7 +120,7 @@ func TestHostPermissionsJoinTheCatalog(t *testing.T) {
 	if _, err := p.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Graph().Repos.Permissions.ByKey(ctx, "billing.refund"); err != nil {
+	if _, err := p.Graph().Repos().Permissions.ByKey(ctx, "billing.refund"); err != nil {
 		t.Fatalf("host permission not seeded: %v", err)
 	}
 }
@@ -207,5 +208,16 @@ func TestEdDSAFromEnv(t *testing.T) {
 	tools.ServeHTTP(rec, req)
 	if rec.Code != 200 || !strings.HasPrefix(rec.Body.String(), "tools for ") {
 		t.Fatalf("mcp.Protect over the EdDSA JWKS: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPruneIsReachable(t *testing.T) {
+	srv := polaristest.New(t)
+	n, err := srv.Prune(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n == nil {
+		t.Fatal("Prune must report per-table counts")
 	}
 }

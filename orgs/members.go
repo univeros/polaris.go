@@ -68,6 +68,17 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string, withPe
 // ErrInvalid (unknown slug), forbidden (a non-owner touching an owner, or escalation), ErrConflict
 // (demoting the last active owner).
 func (s *Service) ChangeMemberRoles(ctx context.Context, actorUserID, organizationID, targetUserID string, roleSlugs []string) error {
+	return s.changeMemberRoles(ctx, actorUserID, organizationID, targetUserID, roleSlugs, true)
+}
+
+// SetMemberRoles is ChangeMemberRoles for a trusted system actor (the host, a directory): actor is
+// only recorded in the event, no actor authority or escalation is checked, and the
+// last-active-owner guard still applies.
+func (s *Service) SetMemberRoles(ctx context.Context, actor, organizationID, targetUserID string, roleSlugs []string) error {
+	return s.changeMemberRoles(ctx, actor, organizationID, targetUserID, roleSlugs, false)
+}
+
+func (s *Service) changeMemberRoles(ctx context.Context, actorUserID, organizationID, targetUserID string, roleSlugs []string, checkActor bool) error {
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		if err := s.lockOrganization(ctx, organizationID); err != nil {
 			return err
@@ -88,11 +99,17 @@ func (s *Service) ChangeMemberRoles(ctx context.Context, actorUserID, organizati
 				wanted = append(wanted, role.ID)
 			}
 		}
-		actor, targetWasOwner, err := s.actorAndTarget(ctx, actorUserID, organizationID, target.ID, MsgOwnerModify)
-		if err != nil {
-			return err
-		}
-		if err := s.guard.CheckRoles(ctx, actor, wanted); err != nil {
+		var targetWasOwner bool
+		if checkActor {
+			actor, owner, err := s.actorAndTarget(ctx, actorUserID, organizationID, target.ID, MsgOwnerModify)
+			if err != nil {
+				return err
+			}
+			if err := s.guard.CheckRoles(ctx, actor, wanted); err != nil {
+				return err
+			}
+			targetWasOwner = owner
+		} else if targetWasOwner, err = s.isOwner(ctx, actorUserID, organizationID, target.ID, false); err != nil {
 			return err
 		}
 		ownerRoleID, err := s.ownerRoleID(ctx, organizationID)
@@ -259,6 +276,17 @@ func (s *Service) changeMemberStatus(ctx context.Context, actorUserID, organizat
 // event.MemberRemoved. Refusals, in order: ErrNotFound (not a member), forbidden (a non-owner
 // removing an owner), ErrConflict (the last active owner, even by an owner or a superadmin).
 func (s *Service) RemoveMember(ctx context.Context, actorUserID, organizationID, targetUserID string) error {
+	return s.removeMember(ctx, actorUserID, organizationID, targetUserID, true)
+}
+
+// DropMember is RemoveMember for a trusted system actor (the host, a directory): actor is only
+// recorded in the event, no actor authority is checked, and the last-active-owner guard still
+// applies.
+func (s *Service) DropMember(ctx context.Context, actor, organizationID, targetUserID string) error {
+	return s.removeMember(ctx, actor, organizationID, targetUserID, false)
+}
+
+func (s *Service) removeMember(ctx context.Context, actorUserID, organizationID, targetUserID string, checkActor bool) error {
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		if err := s.lockOrganization(ctx, organizationID); err != nil {
 			return err
@@ -267,7 +295,7 @@ func (s *Service) RemoveMember(ctx context.Context, actorUserID, organizationID,
 		if err != nil {
 			return err
 		}
-		_, targetIsOwner, err := s.actorAndTarget(ctx, actorUserID, organizationID, target.ID, MsgOwnerRemove)
+		targetIsOwner, err := s.isOwnerFor(ctx, actorUserID, organizationID, target.ID, MsgOwnerRemove, checkActor)
 		if err != nil {
 			return err
 		}
@@ -359,8 +387,12 @@ func (s *Service) ownerRoleID(ctx context.Context, organizationID string) (strin
 // isOwner is whether the target membership holds the owner role, after actorAndTarget's check
 // of the actor when checkActor.
 func (s *Service) isOwner(ctx context.Context, actorUserID, organizationID, targetMembershipID string, checkActor bool) (bool, error) {
+	return s.isOwnerFor(ctx, actorUserID, organizationID, targetMembershipID, MsgOwnerStatus, checkActor)
+}
+
+func (s *Service) isOwnerFor(ctx context.Context, actorUserID, organizationID, targetMembershipID, ownerOnly string, checkActor bool) (bool, error) {
 	if checkActor {
-		_, owner, err := s.actorAndTarget(ctx, actorUserID, organizationID, targetMembershipID, MsgOwnerStatus)
+		_, owner, err := s.actorAndTarget(ctx, actorUserID, organizationID, targetMembershipID, ownerOnly)
 		return owner, err
 	}
 	slugs, err := s.roleSlugsOf(ctx, targetMembershipID)

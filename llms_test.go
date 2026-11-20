@@ -67,6 +67,10 @@ var (
 	refundHandler   http.Handler
 	enrollmentToken string
 	listInvoices    func(context.Context, agents.Agent) (any, error)
+	createProfile   func(context.Context, string) error
+	deleteProfile   func(context.Context, string) error
+	planOf          func(string) string
+	otherUserID     string
 )
 
 func llmsQuickstart() {
@@ -78,11 +82,41 @@ func llmsQuickstart() {
 	mux := http.NewServeMux()
 	mux.Handle("/", p.Handler())                                            // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
 	mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
-	// in the handler: polaris.Principal(r.Context()).Subject() is the user id; .Organization() the active org;
-	// .Delegation() reports an API key / OAuth client / agent acting with a subset of the owner's permissions.
+	// in the handler: who, ok := polaris.PrincipalFrom(r.Context()) — who.UserID, who.OrganizationID,
+	// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated.
 	_ = err
 	var r *http.Request
-	_, _, _ = polaris.Principal(r.Context()).Subject(), polaris.Principal(r.Context()).Organization(), polaris.Principal(r.Context()).Delegation
+	who, ok := polaris.PrincipalFrom(r.Context())
+	_, _, _, _, _ = who.UserID, who.OrganizationID, who.Permissions, who.Delegated, ok
+	_ = []polaris.Kind{polaris.KindUser, polaris.KindAPIKey, polaris.KindOAuthClient, polaris.KindAgent}
+}
+
+func llmsHooks(cfg polaris.Config, db *sqlstore.Store) {
+	cfg.Hooks = polaris.Hooks{
+		OnUserCreated: func(ctx context.Context, u polaris.User) error { return createProfile(ctx, u.ID) }, // same transaction as the account
+		OnUserDeleted: func(ctx context.Context, userID string) error { return deleteProfile(ctx, userID) },
+		Claims: func(ctx context.Context, in polaris.ClaimsInput) (map[string]any, error) {
+			return map[string]any{"app_plan": planOf(in.UserID)}, nil // reserved names (sub, org, roles, …) are refused
+		},
+	}
+	p, err := polaris.New(cfg)
+
+	tx, err := db.DB().BeginTx(ctx, nil) // your transaction (sqlstore.Store.DB() is the *sql.DB)
+	ada, err := p.Users().Create(sqlstore.WithTx(ctx, tx), polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+	err = tx.Commit()                                    // or Rollback: the account and OnUserCreated's rows go too
+	org, err := p.Orgs().Create(ctx, ada.ID, "Acme", "") // ada is its owner
+	err = p.Orgs().AddMember(ctx, org.ID, otherUserID, "member")
+	tokens, err := p.Sessions().Issue(ctx, polaris.SignIn{UserID: ada.ID}) // your own sign-in; tokens.AccessToken works on Protect
+	ok := p.Can(ctx, polaris.Principal{UserID: ada.ID, OrganizationID: org.ID}, "org.read")
+	// errors: errors.Is(err, polaris.ErrNotFound), polaris.ErrConflict, polaris.ErrForbidden, polaris.ErrInvalidInput, polaris.ErrInvalidCredentials
+	_, _ = tokens, ok
+	_ = errors.Is(err, polaris.ErrNotFound) || errors.Is(err, polaris.ErrConflict) || errors.Is(err, polaris.ErrForbidden) ||
+		errors.Is(err, polaris.ErrInvalidInput) || errors.Is(err, polaris.ErrInvalidCredentials)
+	u, o, sess := p.Users(), p.Orgs(), p.Sessions()
+	_, _, _, _, _, _, _ = u.Get, u.ByEmail, u.Create, u.SetPassword, u.Disable, u.Enable, u.Delete
+	_, _, _, _, _, _ = o.Create, o.Get, o.ListFor, o.AddMember, o.SetRoles, o.RemoveMember
+	_, _, _, _ = sess.Issue, sess.Refresh, sess.Revoke, sess.RevokeAll
+	_, _ = cfg.Listeners, cfg.Middleware
 }
 
 func llmsAgents(db store.Adapter, mux *http.ServeMux) {
@@ -132,8 +166,10 @@ func llmsProtectMCP(mcpServerHandler http.Handler, mux *http.ServeMux) {
 
 func llmsTesting(t *testing.T) {
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) // SQLite in a temp dir, test keys, recorders
-	// srv.Handler(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names(), srv.Graph()
-	_, _, _, _, _ = srv.Handler(), srv.Mailer.Sent(), srv.SMS, srv.Events.Names(), srv.Graph()
+	// srv.Handler(), srv.Users(), srv.Sessions(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names()
+	// polaristest.WithConfig(func(c *polaris.Config) { c.Hooks = … }) for anything else
+	_, _, _, _, _, _ = srv.Handler(), srv.Users(), srv.Sessions(), srv.Mailer.Sent(), srv.SMS, srv.Events.Names()
+	_ = polaristest.WithConfig
 }
 
 // llmsInline checks the identifiers llms.txt names outside code blocks.

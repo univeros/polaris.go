@@ -2,9 +2,11 @@ package sso_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +20,7 @@ import (
 	"github.com/univeros/polaris-go/plugins/sso"
 	"github.com/univeros/polaris-go/polaristest"
 	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/token"
 )
 
@@ -48,10 +51,10 @@ func (u *unit) organization(ownerEmail string) string {
 	u.t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
 	owner := model.User{ID: "u-owner", Email: ownerEmail, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := u.srv.Graph().Repos.Users.Insert(u.ctx, owner); err != nil {
+	if err := u.srv.Graph().Repos().Users.Insert(u.ctx, owner); err != nil {
 		u.t.Fatal(err)
 	}
-	org, err := u.srv.Graph().Orgs.CreateOrganization(u.ctx, "Acme", "", owner.ID)
+	org, err := u.srv.Graph().Orgs().CreateOrganization(u.ctx, "Acme", "", owner.ID)
 	if err != nil {
 		u.t.Fatal(err)
 	}
@@ -99,7 +102,7 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	u := newUnit(t)
 	g := u.srv.Graph()
 	var routes []string
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if !slices.Contains(r.Tags, "sso") {
 			continue
 		}
@@ -132,9 +135,21 @@ func TestProvidersKeepTheSecretEncryptedAndAreListed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check(t, !strings.Contains(row.String("config"), "shh") && strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "encrypted at rest: %s", row.String("config"))
-	check(t, row.String("redirect_uris") == `["https:\/\/app.example\/done"]` && row.String("jit") == `{"enabled":true,"roles":["member"]}` &&
-		row.String("attributes") == `{"email":"email"}`, "stored as PHP writes it: %v", row)
+	var config map[string]any
+	check(t, json.Unmarshal([]byte(row.String("config")), &config) == nil && config["client_id"] == "c1" &&
+		config["client_secret"] != "shh" && !strings.Contains(row.String("config"), "shh"), "encrypted at rest: %s", row.String("config"))
+	stored := func(col, want string) bool {
+		if storetest.JSONNormalized(u.srv.DB.Dialect()) { // jsonb / MySQL JSON hand back their own form
+			var g, w any
+			return json.Unmarshal([]byte(row.String(col)), &g) == nil && json.Unmarshal([]byte(want), &w) == nil && reflect.DeepEqual(g, w)
+		}
+		return row.String(col) == want
+	}
+	if !storetest.JSONNormalized(u.srv.DB.Dialect()) {
+		check(t, strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "PHP's bytes: %s", row.String("config"))
+	}
+	check(t, stored("redirect_uris", `["https:\/\/app.example\/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
+		stored("attributes", `{"email":"email"}`), "stored as PHP writes it: %v", row)
 	secret, err := providers.Secret(p)
 	check(t, secret == "shh" && err == nil, "secret %q %v", secret, err)
 	m := p.Map()
@@ -227,13 +242,13 @@ func TestTheOIDCFlowRoutesByDomainProvisionsAndHandsTheSessionOver(t *testing.T)
 	_, err = u.p.Exchange(u.ctx, "nope")
 	refused(t, err, sso.ReasonCodeInvalid, "unknown")
 
-	ada, err := g.Repos.Users.ByEmail(u.ctx, "ada@acme.example")
+	ada, err := g.Repos().Users.ByEmail(u.ctx, "ada@acme.example")
 	check(t, err == nil && ada.DisplayName != nil && *ada.DisplayName == "Ada Lovelace" && ada.EmailVerifiedAt != nil && ada.PasswordHash == nil && ada.LastLoginAt != nil,
 		"provisioned just in time: %+v %v", ada, err)
-	m, err := g.Repos.Memberships.ByUserAndOrganization(u.ctx, ada.ID, orgID)
-	links, _ := g.Repos.MembershipRoles.ListByMembership(u.ctx, m.ID)
+	m, err := g.Repos().Memberships.ByUserAndOrganization(u.ctx, ada.ID, orgID)
+	links, _ := g.Repos().MembershipRoles.ListByMembership(u.ctx, m.ID)
 	check(t, err == nil && m.Status == model.MembershipStatusActive && len(links) == 1, "the member role: %+v %v", m, links)
-	tok, err := g.Tokens.Verify(session["access_token"].(string))
+	tok, err := g.Tokens().Verify(session["access_token"].(string))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,14 +280,14 @@ func TestTheOIDCFlowRoutesByDomainProvisionsAndHandsTheSessionOver(t *testing.T)
 	prov = u.update(prov, func(n *sso.Provider) { n.JIT = sso.JIT{} })
 	disabled := ada
 	disabled.Status = model.UserStatusDisabled
-	if err := g.Repos.Users.Update(u.ctx, ada, disabled); err != nil {
+	if err := g.Repos().Users.Update(u.ctx, ada, disabled); err != nil {
 		t.Fatal(err)
 	}
 	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", restart(""), "", u.client)
 	refused(t, err, sso.ReasonAccountDisabled, "a disabled account")
 	moved := disabled
 	moved.Email = "moved@acme.example"
-	if err := g.Repos.Users.Update(u.ctx, disabled, moved); err != nil {
+	if err := g.Repos().Users.Update(u.ctx, disabled, moved); err != nil {
 		t.Fatal(err)
 	}
 	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", restart(""), "", u.client)
@@ -311,12 +326,12 @@ func TestTheSAMLFlowRefusesReplaysAndUnsolicitedResponsesUnlessAllowedAndLogsOut
 	refused(t, err, sso.ReasonAssertionInvalid, "a bad response")
 	to, err := u.p.CompleteSAML(u.ctx, prov.ID, "good:bob@acme.example", start(), u.client)
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/done?sso_code="), "redirect %q %v", to, err)
-	bob, err := g.Repos.Users.ByEmail(u.ctx, "bob@acme.example")
+	bob, err := g.Repos().Users.ByEmail(u.ctx, "bob@acme.example")
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, _ := g.Repos.Memberships.ByUserAndOrganization(u.ctx, bob.ID, orgID)
-	links, _ := g.Repos.MembershipRoles.ListByMembership(u.ctx, m.ID)
+	m, _ := g.Repos().Memberships.ByUserAndOrganization(u.ctx, bob.ID, orgID)
+	links, _ := g.Repos().MembershipRoles.ListByMembership(u.ctx, m.ID)
 	check(t, len(links) == 1, "the member role by default")
 
 	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "good:bob@acme.example", start(), u.client)
@@ -370,13 +385,13 @@ func TestMembershipsGateTheSignIn(t *testing.T) {
 	}
 	to, err := u.p.CompleteSAML(u.ctx, prov.ID, "good:eve@acme.example", u.saml.relay(), u.client)
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/done?from=sso&sso_code="), "a redirect with a query %q %v", to, err)
-	eve, _ := g.Repos.Users.ByEmail(u.ctx, "eve@acme.example")
-	m, _ := g.Repos.Memberships.ByUserAndOrganization(u.ctx, eve.ID, orgID)
-	links, _ := g.Repos.MembershipRoles.ListByMembership(u.ctx, m.ID)
+	eve, _ := g.Repos().Users.ByEmail(u.ctx, "eve@acme.example")
+	m, _ := g.Repos().Memberships.ByUserAndOrganization(u.ctx, eve.ID, orgID)
+	links, _ := g.Repos().MembershipRoles.ListByMembership(u.ctx, m.ID)
 	check(t, len(links) == 1, "the admin role; an unknown slug is skipped: %v", links)
 	suspended := m
 	suspended.Status = model.MembershipStatusSuspended
-	if err := g.Repos.Memberships.Update(u.ctx, m, suspended); err != nil {
+	if err := g.Repos().Memberships.Update(u.ctx, m, suspended); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
@@ -390,7 +405,7 @@ func TestMembershipsGateTheSignIn(t *testing.T) {
 	u.saml.mu.Lock()
 	u.saml.lastRequestID = "request-" + prov.ID
 	u.saml.mu.Unlock()
-	_, err = g.Repos.Users.ByEmail(u.ctx, "eve@acme.example")
+	_, err = g.Repos().Users.ByEmail(u.ctx, "eve@acme.example")
 	check(t, err == nil, "eve exists")
 	// eve's assertion id was used: a fresh identity with the same email needs another id, so go
 	// through the OIDC fake bound to eve instead.
@@ -450,10 +465,10 @@ func TestAnOrganizationsIdPCannotClaimOutsideAccounts(t *testing.T) {
 	orgID := u.organization("owner@acme.example")
 	now := time.Now().UTC().Truncate(time.Second)
 	victim := model.User{ID: "u-victim", Email: "ceo@globex.example", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := g.Repos.Users.Insert(u.ctx, victim); err != nil {
+	if err := g.Repos().Users.Insert(u.ctx, victim); err != nil {
 		t.Fatal(err)
 	}
-	issued, err := g.Sessions.Issue(u.ctx, token.SessionPrincipal{UserID: victim.ID}, u.client)
+	issued, err := g.Sessions().Issue(u.ctx, token.SessionPrincipal{UserID: victim.ID}, u.client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,12 +480,12 @@ func TestAnOrganizationsIdPCannotClaimOutsideAccounts(t *testing.T) {
 	}
 	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "good:ceo@globex.example", u.saml.relay(), u.client)
 	refused(t, err, sso.ReasonUserUnknown, "an outside account")
-	_, err = g.Repos.Memberships.ByUserAndOrganization(u.ctx, victim.ID, orgID)
+	_, err = g.Repos().Memberships.ByUserAndOrganization(u.ctx, victim.ID, orgID)
 	check(t, err != nil, "no membership was created")
 
 	to, err := u.p.IdPLogout(u.ctx, prov.ID, sso.LogoutMessage{SAMLRequest: "logout:ceo@globex.example"}, u.client)
 	check(t, err == nil && to != "", "the IdP is answered: %v", err)
-	_, err = g.Sessions.Refresh(u.ctx, issued.RefreshToken, u.client)
+	_, err = g.Sessions().Refresh(u.ctx, issued.RefreshToken, u.client)
 	check(t, err == nil, "an outside account's sessions stay: %v", err)
 
 	d, err := u.p.Domains().Add(u.ctx, orgID, prov.ID, "globex.example")

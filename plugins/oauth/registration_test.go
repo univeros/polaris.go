@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/oauth"
 )
 

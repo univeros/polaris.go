@@ -321,7 +321,7 @@ func testTransactionCommits(t *testing.T, a store.Adapter) {
 			return err
 		}
 		if n, err := a.Count(ctx, "auth_users", nil); err != nil || n != 1 {
-			return fmt.Errorf("inside the transaction: count %d, %v", n, err)
+			return fmt.Errorf("inside the transaction: count %d, %w", n, err)
 		}
 		return nil
 	})
@@ -339,7 +339,7 @@ func testTransactionRollsBack(t *testing.T, a store.Adapter) {
 		}
 		return abort
 	})
-	if err != abort {
+	if err != abort { //nolint:errorlint // the contract is the callback's error unchanged, not wrapped
 		t.Errorf("Tx returned %v, want the callback's error unchanged", err)
 	}
 	if n := count(t, a, "auth_users", nil); n != 0 {
@@ -358,8 +358,8 @@ func testNestedTransaction(t *testing.T, a store.Adapter) {
 				return err
 			}
 			return inner
-		}); err != inner {
-			return fmt.Errorf("inner Tx returned %v", err)
+		}); err != inner { //nolint:errorlint // the contract is the callback's error unchanged, not wrapped
+			return fmt.Errorf("inner Tx returned %w", err)
 		}
 		return a.Tx(ctx, func(ctx context.Context) error {
 			return a.Insert(ctx, "auth_users", user("second@example.com"))

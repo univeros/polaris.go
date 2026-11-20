@@ -116,7 +116,7 @@ func TestTxOfAnotherStoreIsNotJoined(t *testing.T) {
 		}
 		return abort
 	})
-	if err != abort || len(b.Rows("t")) != 1 {
+	if !errors.Is(err, abort) || len(b.Rows("t")) != 1 {
 		t.Errorf("err = %v, b rows = %v", err, b.Rows("t"))
 	}
 }
@@ -202,7 +202,7 @@ func TestDeleteAppliesForeignKeys(t *testing.T) {
 			}
 			return abort
 		})
-		if err != abort || len(s.Rows("child")) != 2 || len(s.Rows("grandchild")) != 2 {
+		if !errors.Is(err, abort) || len(s.Rows("child")) != 2 || len(s.Rows("grandchild")) != 2 {
 			t.Errorf("err = %v, child = %v", err, s.Rows("child"))
 		}
 	})

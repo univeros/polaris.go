@@ -10,7 +10,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/anonymous"
@@ -52,7 +52,7 @@ func TestDoctor(t *testing.T) {
 func TestHostWithoutAnSQLStore(t *testing.T) {
 	srv := polaristest.New(t)
 	g := srv.Graph()
-	p, err := polarisOver(g.Config.Secrets, g.Auth)
+	p, err := polarisOver(g.Config().Secrets, g.Auth())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestPluginCommands(t *testing.T) {
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}), anonymous.New(anonymous.Config{})))
 	p := srv.Polaris
 	now := time.Now().UTC().Truncate(time.Second)
-	if err := srv.Graph().Repos.Users.Insert(ctx, model.User{ID: repository.NewID(), Email: "ada@example.com", CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := srv.Graph().Repos().Users.Insert(ctx, model.User{ID: repository.NewID(), Email: "ada@example.com", CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 

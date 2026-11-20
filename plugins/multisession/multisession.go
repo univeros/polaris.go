@@ -22,8 +22,8 @@ import (
 	"net/http"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -92,7 +92,7 @@ func (*Plugin) Manifest() fs.FS {
 // Init builds the device service.
 func (p *Plugin) Init(g *wiring.Graph) error {
 	p.g = g
-	p.devices = &devices{db: g.DB, repos: g.Repos, sessions: g.Sessions, principals: g.Principals, clock: g.Clock}
+	p.devices = &devices{db: g.DB(), repos: g.Repos(), sessions: g.Sessions(), principals: g.Principals(), clock: g.Clock()}
 	return nil
 }
 

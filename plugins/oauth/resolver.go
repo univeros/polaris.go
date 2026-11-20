@@ -60,7 +60,7 @@ func (p *Plugin) ResolveBearer(r *http.Request) (*token.Token, error) {
 			return nil, err
 		}
 	}
-	if rec == nil || !rec.live(p.graph.Clock.Now()) {
+	if rec == nil || !rec.live(p.graph.Clock().Now()) {
 		return nil, errResolve("the token is revoked or unknown")
 	}
 	if err := p.assertBinding(r, scheme, raw, rec.DPoPJKT); err != nil {
@@ -68,7 +68,7 @@ func (p *Plugin) ResolveBearer(r *http.Request) (*token.Token, error) {
 	}
 	emailVerified := false
 	if rec.UserID != "" {
-		user, err := p.graph.Repos.Users.Get(ctx, rec.UserID)
+		user, err := p.graph.Repos().Users.Get(ctx, rec.UserID)
 		if errors.Is(err, repository.ErrNotFound) || (err == nil && !active(user)) {
 			return nil, errResolve("the token's user cannot sign in")
 		}

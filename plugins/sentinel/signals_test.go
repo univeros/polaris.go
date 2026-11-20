@@ -49,7 +49,8 @@ func TestVelocityScoresEachDimensionOverItsLimitAndResets(t *testing.T) {
 	v := velocity{counters: c, limits: map[string]Limit{"ip": {2, 10 * time.Minute}, "email": {3, 10 * time.Minute}}, score: 50}
 	a := Attempt{Kind: SignIn, Email: "Ada@Example.com ", IP: "203.0.113.7", DeviceID: "dev-1"}
 
-	check(t, eval(t, v, a).Score == 0 && eval(t, v, a).Score == 0, "under the limits")
+	first, second := eval(t, v, a), eval(t, v, a)
+	check(t, first.Score == 0 && second.Score == 0, "under the limits")
 	third := eval(t, v, a)
 	check(t, third.Score == 50 && slices.Equal(third.Reasons, []string{"ip: 3 attempts in 600 s (limit 2)"}), "the address is over: %+v", third)
 	check(t, eval(t, v, a).Score == 100, "the address and the email")

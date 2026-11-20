@@ -17,7 +17,7 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/username"
 	"github.com/univeros/polaris-go/repository"
@@ -55,7 +55,7 @@ func mustBoot(t *testing.T, cfg username.Config) *polaris.Polaris {
 
 func addUser(t *testing.T, p *polaris.Polaris, email string, verified bool) model.User {
 	t.Helper()
-	hash, err := p.Graph().Hasher.Hash(password)
+	hash, err := p.Graph().Hasher().Hash(password)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func addUser(t *testing.T, p *polaris.Polaris, email string, verified bool) mode
 	if verified {
 		u.EmailVerifiedAt = &now
 	}
-	if err := p.Graph().Repos.Users.Insert(context.Background(), u); err != nil {
+	if err := p.Graph().Repos().Users.Insert(context.Background(), u); err != nil {
 		t.Fatal(err)
 	}
 	return u
@@ -101,11 +101,11 @@ func TestPlugin(t *testing.T) {
 	t.Run("testEverythingIsWiredThroughTheGraph", func(t *testing.T) {
 		p := mustBoot(t, username.Config{})
 		g := p.Graph()
-		if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == username.TableUsernames }) {
+		if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == username.TableUsernames }) {
 			t.Fatal("no table")
 		}
 		var routes []string
-		for _, rt := range g.Manifest.Routes() {
+		for _, rt := range g.Manifest().Routes() {
 			if slices.Contains(rt.Tags, "username") {
 				routes = append(routes, rt.Method+" "+rt.Path+" "+string(rt.Auth)+" "+rt.Name)
 			}
@@ -162,7 +162,7 @@ func TestPlugin(t *testing.T) {
 		p := mustBoot(t, username.Config{})
 		g := p.Graph()
 		ada := addUser(t, p, "ada@example.com", true)
-		access, err := g.Sessions.Mint(token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{})
+		access, err := g.Sessions().Mint(context.Background(), token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func TestPlugin(t *testing.T) {
 			a := call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": id, "password": password}, "")
 			d, _ := a.body["data"].(map[string]any)
 			raw, _ := d["access_token"].(string)
-			tok, err := g.Tokens.Parse(raw)
+			tok, err := g.Tokens().Parse(raw)
 			if a.status != 200 || err != nil || tok.Subject() != ada.ID || !reflect.DeepEqual(tok.Claim("amr"), []any{"pwd"}) {
 				t.Fatalf("%s: %v %v", id, a, err)
 			}
@@ -195,7 +195,7 @@ func TestPlugin(t *testing.T) {
 		problem(t, call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": "", "password": "x"}, ""), 422, "username_invalid_input")
 
 		email := "ada@example.com"
-		if err := g.Repos.MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: ada.ID, Type: "email", Email: &email, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+		if err := g.Repos().MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: ada.ID, Type: "email", Email: &email, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
 			t.Fatal(err)
 		}
 		gated := call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": "ada.l", "password": password}, "")
@@ -211,13 +211,13 @@ func TestPlugin(t *testing.T) {
 		problem(t, call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": "grace", "password": password}, ""), 403, "username_email_unverified")
 		disabled := grace
 		disabled.Status, disabled.EmailVerifiedAt = model.UserStatusDisabled, &now
-		if err := g.Repos.Users.Update(ctx, grace, disabled); err != nil {
+		if err := g.Repos().Users.Update(ctx, grace, disabled); err != nil {
 			t.Fatal(err)
 		}
 		problem(t, call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": "grace", "password": password}, ""), 403, "username_account_disabled")
 
 		// A username whose owner is gone signs in as nobody.
-		if err := g.Repos.Users.Delete(ctx, disabled); err != nil {
+		if err := g.Repos().Users.Delete(ctx, disabled); err != nil {
 			t.Fatal(err)
 		}
 		problem(t, call(t, p, http.MethodPost, "/username/sign-in", map[string]any{"username": "grace", "password": password}, ""), 401, "username_invalid_credentials")

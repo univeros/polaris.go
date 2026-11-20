@@ -23,7 +23,7 @@ const (
 const nobody = "nobody@username.invalid"
 
 func (p *Plugin) fail(ctx context.Context, op string, err error) endpoint.Result {
-	p.g.Logger.ErrorContext(ctx, "polaris username: "+op+" failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "polaris username: "+op+" failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 
@@ -38,7 +38,7 @@ func (p *Plugin) signIn(ctx context.Context, in *endpoint.Input) endpoint.Result
 	if err != nil {
 		return p.fail(ctx, "sign-in", err)
 	}
-	res, err := p.g.Identity.Login(ctx, email, password, endpoint.Client(ctx))
+	res, err := p.g.Identity().Login(ctx, email, password, endpoint.Client(ctx))
 	switch {
 	case errors.Is(err, identity.ErrEmailNotVerified):
 		return endpoint.Problem(http.StatusForbidden, "username/email_unverified", "Email not verified", "Verify your email address before signing in.", nil)
@@ -75,7 +75,7 @@ func (p *Plugin) email(ctx context.Context, identifier string) (string, error) {
 	if err != nil || userID == "" {
 		return nobody, err
 	}
-	user, err := p.g.Repos.Users.Get(ctx, userID)
+	user, err := p.g.Repos().Users.Get(ctx, userID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nobody, nil
 	}

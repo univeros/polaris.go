@@ -160,9 +160,9 @@ func (d *devices) start(ctx context.Context, c Client, scopes []string, resource
 
 func randomUserCode() string {
 	var b strings.Builder
-	max := big.NewInt(int64(len(userCodeAlphabet)))
+	alphabet := big.NewInt(int64(len(userCodeAlphabet)))
 	for range userCodeLength {
-		n, _ := rand.Int(rand.Reader, max)
+		n, _ := rand.Int(rand.Reader, alphabet)
 		b.WriteByte(userCodeAlphabet[n.Int64()])
 	}
 	return b.String()

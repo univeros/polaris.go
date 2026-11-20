@@ -87,10 +87,10 @@ func (p *Plugin) stats(ctx context.Context, _ *endpoint.Input) endpoint.Result {
 	if _, res, ok := Authorize(ctx, Read, ""); !ok {
 		return res
 	}
-	now := p.g.Clock.Now().UTC()
+	now := p.g.Clock().Now().UTC()
 	var errs []error
 	count := func(table string, c store.Criteria) int64 {
-		n, err := p.g.DB.Count(ctx, table, c)
+		n, err := p.g.DB().Count(ctx, table, c)
 		errs = append(errs, err)
 		return n
 	}
@@ -126,7 +126,7 @@ func (p *Plugin) scopeExists(ctx context.Context, scope string) (endpoint.Result
 	if scope == ScopeInstance {
 		return endpoint.Result{}, true
 	}
-	_, err := p.g.Repos.Organizations.Get(ctx, scope)
+	_, err := p.g.Repos().Organizations.Get(ctx, scope)
 	if errors.Is(err, repository.ErrNotFound) {
 		return Invalid(msgBadScope), false
 	}

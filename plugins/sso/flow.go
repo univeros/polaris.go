@@ -187,9 +187,9 @@ func (p *Plugin) CompleteSAML(ctx context.Context, providerID, samlResponse, rel
 	if id.AssertionID != "" {
 		ttl := stateTTL
 		if !id.NotOnOrAfter.IsZero() {
-			ttl = max(time.Second, id.NotOnOrAfter.Sub(p.g.Clock.Now())) + replayDrift
+			ttl = max(time.Second, id.NotOnOrAfter.Sub(p.g.Clock().Now())) + replayDrift
 		}
-		added, err := p.g.Cache.Add(ctx, cacheKey("assertion", digest(id.AssertionID)), []byte{1}, ttl)
+		added, err := p.g.Cache().Add(ctx, cacheKey("assertion", digest(id.AssertionID)), []byte{1}, ttl)
 		if err != nil {
 			return "", err
 		}
@@ -230,7 +230,7 @@ func (p *Plugin) IdPLogout(ctx context.Context, providerID string, m LogoutMessa
 	// An organization's IdP ends the sessions of its own members only: whoever runs the IdP signs
 	// its LogoutRequests, and an organization admin can run one.
 	revoked, userID := 0, ""
-	u, err := p.g.Repos.Users.ByEmail(ctx, strings.ToLower(strings.TrimSpace(req.NameID)))
+	u, err := p.g.Repos().Users.ByEmail(ctx, strings.ToLower(strings.TrimSpace(req.NameID)))
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return "", err
 	}
@@ -241,7 +241,7 @@ func (p *Plugin) IdPLogout(ctx context.Context, providerID string, m LogoutMessa
 		}
 		if member {
 			userID = u.ID
-			if revoked, err = p.g.Sessions.RevokeAll(ctx, u.ID, logoutRevoke); err != nil {
+			if revoked, err = p.g.Sessions().RevokeAll(ctx, u.ID, logoutRevoke); err != nil {
 				return "", err
 			}
 		}
@@ -281,7 +281,7 @@ func (p *Plugin) Logout(ctx context.Context, u model.User, organizationID, provi
 	} else if len(prov.RedirectURIs) > 0 {
 		postLogoutURI = prov.RedirectURIs[0]
 	}
-	revoked, err := p.g.Sessions.RevokeAll(ctx, u.ID, logoutRevoke)
+	revoked, err := p.g.Sessions().RevokeAll(ctx, u.ID, logoutRevoke)
 	if err != nil {
 		return "", err
 	}
@@ -339,29 +339,29 @@ func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirec
 		return "", err
 	}
 	if joined {
-		p.g.Events.Dispatch(ctx, event.MemberJoined{OrganizationID: prov.OrganizationID, UserID: u.ID, Email: u.Email})
+		p.g.Events().Dispatch(ctx, event.MemberJoined{OrganizationID: prov.OrganizationID, UserID: u.ID, Email: u.Email})
 	}
-	principal, err := p.g.Principals.Resolve(ctx, u.ID, prov.OrganizationID)
+	principal, err := p.g.Principals().Resolve(ctx, u.ID, prov.OrganizationID)
 	if err != nil {
 		return "", err
 	}
-	now := p.g.Clock.Now().UTC().Truncate(time.Second)
+	now := p.g.Clock().Now().UTC().Truncate(time.Second)
 	authTime := now.Unix()
 	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = true, false, []string{AMR}, &authTime
 	next := u
 	next.LastLoginAt, next.UpdatedAt = &now, now
 	var issued token.IssuedTokens
-	err = p.g.DB.Tx(ctx, func(ctx context.Context) error {
-		if err := p.g.Repos.Users.Update(ctx, u, next); err != nil {
+	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if err := p.g.Repos().Users.Update(ctx, u, next); err != nil {
 			return err
 		}
-		issued, err = p.g.Sessions.Issue(ctx, principal, client)
+		issued, err = p.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
-	p.g.Events.Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: []string{AMR}})
+	p.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: []string{AMR}})
 	p.record(ctx, Event{Name: AuditSignedIn, ActorType: audit.ActorUser, ActorID: u.ID, SubjectID: u.ID, OrganizationID: prov.OrganizationID,
 		Data: map[string]any{"provider_id": prov.ID, "type": prov.Type, "provisioned": provisioned, "joined": joined}}, client)
 	s := session{AccessToken: issued.AccessToken, TokenType: "Bearer", ExpiresIn: issued.AccessExpiresIn, RefreshToken: issued.RefreshToken}
@@ -393,8 +393,8 @@ func (p *Plugin) provision(ctx context.Context, prov Provider, id Identity) (u m
 
 func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) (u model.User, provisioned, joined bool, err error) {
 	email := identity.NormalizeEmail(id.Email)
-	err = p.g.DB.Tx(ctx, func(ctx context.Context) error {
-		existing, err := p.g.Repos.Users.ByEmail(ctx, email)
+	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		existing, err := p.g.Repos().Users.ByEmail(ctx, email)
 		switch {
 		case err == nil:
 			if existing.Status == model.UserStatusDisabled {
@@ -409,13 +409,13 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 		case !prov.JIT.Enabled:
 			return refuse(ReasonUserUnknown, "no account for "+email+" and the provider does not provision")
 		default:
-			now := p.g.Clock.Now().UTC().Truncate(time.Second)
+			now := p.g.Clock().Now().UTC().Truncate(time.Second)
 			u = model.User{ID: repository.NewID(), Email: email, Status: model.UserStatusActive, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now}
 			if id.Name != "" {
 				name := id.Name
 				u.DisplayName = &name
 			}
-			if err := p.g.Repos.Users.Insert(ctx, u); err != nil {
+			if err := p.g.Identity().InsertUser(ctx, u); err != nil {
 				return err
 			}
 			provisioned = true
@@ -443,7 +443,7 @@ func (p *Plugin) mayLink(ctx context.Context, prov Provider, u model.User) error
 
 // member reports whether the user has a membership (in any state) in the organization.
 func (p *Plugin) member(ctx context.Context, userID, organizationID string) (bool, error) {
-	_, err := p.g.Repos.Memberships.ByUserAndOrganization(ctx, userID, organizationID)
+	_, err := p.g.Repos().Memberships.ByUserAndOrganization(ctx, userID, organizationID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return false, nil
 	}
@@ -452,7 +452,7 @@ func (p *Plugin) member(ctx context.Context, userID, organizationID string) (boo
 
 // join makes the user an active member with the provider's roles; false when they were one.
 func (p *Plugin) join(ctx context.Context, prov Provider, userID string) (bool, error) {
-	m, err := p.g.Repos.Memberships.ByUserAndOrganization(ctx, userID, prov.OrganizationID)
+	m, err := p.g.Repos().Memberships.ByUserAndOrganization(ctx, userID, prov.OrganizationID)
 	if err == nil {
 		if m.Status == model.MembershipStatusSuspended {
 			return false, refuse(ReasonMembershipSuspended, "the membership is suspended")
@@ -462,10 +462,10 @@ func (p *Plugin) join(ctx context.Context, prov Provider, userID string) (bool, 
 	if !errors.Is(err, repository.ErrNotFound) {
 		return false, err
 	}
-	now := p.g.Clock.Now().UTC().Truncate(time.Second)
+	now := p.g.Clock().Now().UTC().Truncate(time.Second)
 	m = model.Membership{ID: repository.NewID(), UserID: userID, OrganizationID: prov.OrganizationID,
 		Status: model.MembershipStatusActive, JoinedAt: &now, CreatedAt: now, UpdatedAt: now}
-	if err := p.g.Repos.Memberships.Insert(ctx, m); err != nil {
+	if err := p.g.Repos().Memberships.Insert(ctx, m); err != nil {
 		return false, err
 	}
 	slugs := prov.JIT.Roles
@@ -474,14 +474,14 @@ func (p *Plugin) join(ctx context.Context, prov Provider, userID string) (bool, 
 	}
 	orgID := prov.OrganizationID
 	for _, slug := range slugs {
-		role, err := p.g.Repos.Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
+		role, err := p.g.Repos().Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
 		if errors.Is(err, repository.ErrNotFound) {
 			continue
 		}
 		if err != nil {
 			return false, err
 		}
-		if err := p.g.Repos.MembershipRoles.Insert(ctx, model.MembershipRole{MembershipID: m.ID, RoleID: role.ID}); err != nil {
+		if err := p.g.Repos().MembershipRoles.Insert(ctx, model.MembershipRole{MembershipID: m.ID, RoleID: role.ID}); err != nil {
 			return false, err
 		}
 	}
@@ -497,7 +497,7 @@ func (p *Plugin) reject(ctx context.Context, prov Provider, reason string, clien
 
 func (p *Plugin) record(ctx context.Context, e Event, client token.ClientContext) {
 	e.IP, e.UserAgent = client.IP, client.UserAgent
-	p.g.Events.Dispatch(ctx, e)
+	p.g.Events().Dispatch(ctx, e)
 }
 
 // keep stores v encrypted in the cache under polaris.sso.<name> (it holds a PKCE verifier and a
@@ -507,27 +507,27 @@ func (p *Plugin) keep(ctx context.Context, name string, v any, ttl time.Duration
 	if err != nil {
 		return err
 	}
-	sealed, err := p.g.Encrypter.Encrypt(string(raw))
+	sealed, err := p.g.Encrypter().Encrypt(string(raw))
 	if err != nil {
 		return err
 	}
-	return p.g.Cache.Set(ctx, cacheKey(name), []byte(sealed), ttl)
+	return p.g.Cache().Set(ctx, cacheKey(name), []byte(sealed), ttl)
 }
 
 // take reads what keep stored, once across every process sharing the cache.
 func (p *Plugin) take(ctx context.Context, name string, into any, ttl time.Duration) (bool, error) {
 	key := cacheKey(name)
-	sealed, ok, err := p.g.Cache.Get(ctx, key)
+	sealed, ok, err := p.g.Cache().Get(ctx, key)
 	if err != nil || !ok {
 		return false, err
 	}
-	if won, err := p.g.Cache.Add(ctx, key+".used", []byte{1}, ttl); err != nil || !won {
+	if won, err := p.g.Cache().Add(ctx, key+".used", []byte{1}, ttl); err != nil || !won {
 		return false, err
 	}
-	if err := p.g.Cache.Delete(ctx, key); err != nil {
+	if err := p.g.Cache().Delete(ctx, key); err != nil {
 		return false, err
 	}
-	raw, err := p.g.Encrypter.Decrypt(string(sealed))
+	raw, err := p.g.Encrypter().Decrypt(string(sealed))
 	if err != nil {
 		return false, nil
 	}

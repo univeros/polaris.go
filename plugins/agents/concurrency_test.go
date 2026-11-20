@@ -9,7 +9,7 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/authz"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/oauth"
@@ -44,7 +44,7 @@ func bootOn(t *testing.T, b storetest.Backend, cfg Config) *Plugin {
 		Hasher: security.Argon2id{Memory: 1024, Time: 1, Threads: 1},
 	})
 	must(t, err)
-	must(t, authz.Seed(ctx, db, pol.Graph().Catalog, pol.Graph().Clock))
+	must(t, authz.Seed(ctx, db, pol.Graph().Catalog(), pol.Graph().Clock()))
 	return p
 }
 
@@ -90,7 +90,7 @@ func TestConcurrentGrantRequestsRespectTheApprovalCap(t *testing.T) {
 				if err == nil {
 					ok++
 				} else {
-					wantType(t, err, ErrConflict, "over the cap")
+					_ = wantType(t, err, ErrConflict, "over the cap")
 				}
 			}
 			if pending, _ := p.s.pendingApprovals(ctx, []Agent{a}); ok != 1 || len(pending) != maxPending {

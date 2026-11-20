@@ -267,7 +267,7 @@ func (e errUnknownKey) Error() string { return e.msg }
 // key of the header's algorithm (a key without alg is RS256), a valid signature, a JSON object
 // payload, and nbf / iat / exp within a minute of leeway.
 func verifyIDToken(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {
-	jws, err := jose.ParseSigned(raw, idTokenAlgorithms)
+	jws, err := jose.ParseSignedCompact(raw, idTokenAlgorithms)
 	if err != nil {
 		return nil, err
 	}

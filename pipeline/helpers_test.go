@@ -15,11 +15,11 @@ import (
 
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/contracttest"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/upstream"
 )
 
 var now = time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)

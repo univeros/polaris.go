@@ -83,7 +83,7 @@ func (p *Plugin) recordSignIn(r *http.Request, buf *buffered, deviceID string) {
 	}
 	deviceID, err := p.devices.record(r.Context(), deviceID, userID, sessionID, amr)
 	if err != nil { // the session is open: answer it, untracked
-		p.g.Logger.ErrorContext(r.Context(), "polaris multi-session: device not recorded", "error", err)
+		p.g.Logger().ErrorContext(r.Context(), "polaris multi-session: device not recorded", "error", err)
 		return
 	}
 	h := buf.Header()
@@ -112,7 +112,7 @@ func (p *Plugin) issued(buf *buffered) (userID, sessionID string, amr []string, 
 	if json.Unmarshal(buf.body.Bytes(), &body) != nil || body.Data.AccessToken == nil || body.Data.RefreshToken == nil {
 		return "", "", nil, false
 	}
-	tok, err := p.g.Tokens.Parse(*body.Data.AccessToken)
+	tok, err := p.g.Tokens().Parse(*body.Data.AccessToken)
 	if err != nil {
 		return "", "", nil, false
 	}
@@ -141,7 +141,7 @@ func (b *buffered) WriteHeader(code int)        { b.status = code }
 func (b *buffered) Write(p []byte) (int, error) { return b.body.Write(p) }
 
 func (p *Plugin) fail(w http.ResponseWriter, r *http.Request, err error) {
-	p.g.Logger.ErrorContext(r.Context(), "polaris multi-session: operation failed", "error", err)
+	p.g.Logger().ErrorContext(r.Context(), "polaris multi-session: operation failed", "error", err)
 	endpoint.Write(w, endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request."))
 }
 
@@ -172,7 +172,7 @@ func (p *Plugin) refuse(ctx context.Context, err error) endpoint.Result {
 	case errors.Is(err, errSessionNotFound):
 		return endpoint.Problem(http.StatusNotFound, ID+"/session_not_found", "Session not found", err.Error(), nil)
 	}
-	p.g.Logger.ErrorContext(ctx, "polaris multi-session: operation failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "polaris multi-session: operation failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 

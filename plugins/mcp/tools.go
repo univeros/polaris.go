@@ -129,14 +129,14 @@ func (p *Plugin) routeTool(rt *manifest.Route, c caller) wiring.Tool {
 func (p *Plugin) tools(ctx context.Context, c caller) ([]wiring.Tool, error) {
 	var allows func(...string) bool
 	if c.token != nil {
-		authority, err := p.g.Gate.Authority(ctx, wiring.Caller(c.token))
+		authority, err := p.g.Gate().Authority(ctx, wiring.Caller(c.token))
 		if err != nil {
 			return nil, err
 		}
 		allows = authority.Allows
 	}
 	var tools []wiring.Tool
-	for _, rt := range p.g.Manifest.Routes() {
+	for _, rt := range p.g.Manifest().Routes() {
 		if p.lists(rt, c, allows) {
 			tools = append(tools, p.routeTool(rt, c))
 		}

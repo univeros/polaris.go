@@ -23,6 +23,7 @@ import (
 type Store struct {
 	db      *sql.DB
 	dialect store.Dialect
+	found   foundRows // MySQL: whether the pool reports matched rows (see ErrMySQLFoundRows)
 }
 
 var _ store.Adapter = (*Store)(nil)
@@ -31,7 +32,8 @@ var _ store.Adapter = (*Store)(nil)
 // For SQLite, enable foreign keys and a busy timeout on every pooled connection through the DSN,
 // e.g. "file:polaris.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)". For MySQL, the DSN
 // must set clientFoundRows=true (Open does): Update reports matched rows on every dialect, and
-// Polaris's conditional updates read 0 as "another request won".
+// Polaris's conditional updates read 0 as "another request won". A MySQL pool without it is
+// detected on the first write, which fails with ErrMySQLFoundRows.
 func New(db *sql.DB, d store.Dialect) *Store {
 	return &Store{db: db, dialect: d}
 }
@@ -59,7 +61,9 @@ func Open(ctx context.Context, d store.Dialect, dsn string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("sqlstore: connect to %s: %w", d, err)
 	}
-	return New(db, d), nil
+	s := New(db, d)
+	s.found.checked = true // Open set clientFoundRows on MySQL itself
+	return s, nil
 }
 
 // DB returns the underlying pool.
@@ -109,6 +113,11 @@ func (s *Store) Update(ctx context.Context, table string, c store.Criteria, d st
 	if err != nil {
 		return 0, err
 	}
+	if _, inTx := s.txOf(ctx); !inTx {
+		if err := s.checkFoundRows(ctx); err != nil {
+			return 0, err
+		}
+	}
 	return s.exec(ctx, q)
 }
 
@@ -127,8 +136,11 @@ func (s *Store) Exec(ctx context.Context, statement string, args ...any) error {
 // polaris_sp_N when nested. fn's error (or panic) rolls back to where this Tx began and is
 // returned unchanged; a nil error commits or releases the savepoint.
 func (s *Store) Tx(ctx context.Context, fn func(ctx context.Context) error) error {
-	if t, ok := ctx.Value(txKey{s}).(*txState); ok {
+	if t, ok := s.txOf(ctx); ok {
 		return s.savepoint(ctx, t, fn)
+	}
+	if err := s.checkFoundRows(ctx); err != nil {
+		return err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -183,6 +195,33 @@ func finishGuarded(fn func() error, rollback, commit func() error) error {
 // txKey marks a ctx as running inside a transaction of one Store.
 type txKey struct{ s *Store }
 
+// hostTxKey marks a ctx carrying a host's transaction (WithTx).
+type hostTxKey struct{}
+
+// WithTx returns a ctx under which every Polaris read and write joins tx, the host's own
+// transaction: a programmatic call (p.Users().Create(ctx, …)), with its OnUserCreated hook, commits
+// or rolls back with the host's other writes. The host alone commits or rolls back tx; Polaris's
+// own transactions inside it become savepoints, so a Polaris failure undoes only its own writes
+// and returns the error.
+//
+// tx must come from the same database the Store uses (sqlstore.Store.DB().BeginTx). Events are
+// dispatched when Polaris's work is done, before the host commits: a listener with side effects
+// outside the database (mail) runs even if the host then rolls back. On PostgreSQL, a failed
+// statement aborts the whole transaction; only the savepoint around each Polaris transaction
+// recovers from it.
+func WithTx(ctx context.Context, tx *sql.Tx) context.Context {
+	return context.WithValue(ctx, hostTxKey{}, &txState{tx: tx, depth: 1})
+}
+
+// txOf is the transaction ctx runs in: one of this Store's, else the host's (WithTx).
+func (s *Store) txOf(ctx context.Context) (*txState, bool) {
+	if t, ok := ctx.Value(txKey{s}).(*txState); ok {
+		return t, true
+	}
+	t, ok := ctx.Value(hostTxKey{}).(*txState)
+	return t, ok && t.tx != nil
+}
+
 type txState struct {
 	tx    *sql.Tx
 	depth int
@@ -196,7 +235,7 @@ type conner interface {
 }
 
 func (s *Store) conn(ctx context.Context) conner {
-	if t, ok := ctx.Value(txKey{s}).(*txState); ok {
+	if t, ok := s.txOf(ctx); ok {
 		return t.tx
 	}
 	return s.db

@@ -15,9 +15,9 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/notify/notifytest"
 	"github.com/univeros/polaris-go/repository"
@@ -112,13 +112,13 @@ func tryBoot(cfg Config) (env, error) {
 
 func (e env) user(email string, verified bool) model.User {
 	e.t.Helper()
-	hash, _ := e.g.Hasher.Hash(tPass)
+	hash, _ := e.g.Hasher().Hash(tPass)
 	now := e.clk.Now()
 	u := model.User{ID: repository.NewID(), Email: email, PasswordHash: &hash, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
 	if verified {
 		u.EmailVerifiedAt = &now
 	}
-	if err := e.g.Repos.Users.Insert(context.Background(), u); err != nil {
+	if err := e.g.Repos().Users.Insert(context.Background(), u); err != nil {
 		e.t.Fatal(err)
 	}
 	return u
@@ -126,7 +126,7 @@ func (e env) user(email string, verified bool) model.User {
 
 func (e env) reload(id string) model.User {
 	e.t.Helper()
-	u, err := e.g.Repos.Users.Get(context.Background(), id)
+	u, err := e.g.Repos().Users.Get(context.Background(), id)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func (e env) factor(userID string) {
 	e.t.Helper()
 	addr := "ada@example.com"
 	now := e.clk.Now()
-	if err := e.g.Repos.MFAFactors.Insert(context.Background(), model.MFAFactor{ID: "factor-" + userID, UserID: userID, Type: "email", Email: &addr, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := e.g.Repos().MFAFactors.Insert(context.Background(), model.MFAFactor{ID: "factor-" + userID, UserID: userID, Type: "email", Email: &addr, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -167,7 +167,7 @@ func (e env) smsCode() string {
 
 func (e env) claims(data envelope) map[string]any {
 	e.t.Helper()
-	tok, err := e.g.Tokens.Parse(data["access_token"].(string))
+	tok, err := e.g.Tokens().Parse(data["access_token"].(string))
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -223,14 +223,14 @@ func TestPlugin(t *testing.T) {
 	t.Run("testEverythingIsWiredThroughTheGraph", func(t *testing.T) {
 		e := boot(t, Config{})
 		tables := map[string]bool{}
-		for _, m := range e.g.Schema {
+		for _, m := range e.g.Schema() {
 			tables[m.Table] = true
 		}
 		if !tables[TableSecrets] || !tables[TablePhones] {
 			t.Fatal("tables missing")
 		}
 		var routes []string
-		for _, rt := range e.g.Manifest.Routes() {
+		for _, rt := range e.g.Manifest().Routes() {
 			if slices.Contains(rt.Tags, ID) {
 				routes = append(routes, rt.Method+" "+rt.Path)
 			}
@@ -295,7 +295,7 @@ func TestPlugin(t *testing.T) {
 		if got := amr(e.claims(data)); !slices.Equal(got, []string{AMRMagicLink}) {
 			t.Fatalf("amr %v", got)
 		}
-		u, err := e.g.Repos.Users.ByEmail(ctx, "ada@example.com")
+		u, err := e.g.Repos().Users.ByEmail(ctx, "ada@example.com")
 		if err != nil || u.PasswordHash != nil {
 			t.Fatalf("signed up %+v %v", u, err)
 		}
@@ -318,7 +318,7 @@ func TestPlugin(t *testing.T) {
 		_, err = e.v.verifyMagicLink(ctx, e.linkToken())
 		refused(t, err, ErrTokenInvalid, "a link lives 15 minutes")
 
-		if _, err := e.g.DB.Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"status": model.UserStatusDisabled}); err != nil {
+		if _, err := e.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"status": model.UserStatusDisabled}); err != nil {
 			t.Fatal(err)
 		}
 		sent := len(e.mail.Sent())
@@ -407,10 +407,10 @@ func TestPlugin(t *testing.T) {
 		if e.events.count("user.password_changed") != 1 {
 			t.Fatal("password changed")
 		}
-		if n, _ := e.g.DB.Count(ctx, "auth_refresh_tokens", store.Criteria{"user_id": ada.ID, "revoked_reason": "password_change"}); n == 0 || session["refresh_token"] == "" {
+		if n, _ := e.g.DB().Count(ctx, "auth_refresh_tokens", store.Criteria{"user_id": ada.ID, "revoked_reason": "password_change"}); n == 0 || session["refresh_token"] == "" {
 			t.Fatal("every session ended")
 		}
-		if res, err := e.g.Identity.Login(ctx, "ada@example.com", "a brand new passphrase", token.ClientContext{}); err != nil || res.UserID != ada.ID {
+		if res, err := e.g.Identity().Login(ctx, "ada@example.com", "a brand new passphrase", token.ClientContext{}); err != nil || res.UserID != ada.ID {
 			t.Fatalf("login %v", err)
 		}
 		refused(t, e.v.resetPassword(ctx, "ada@example.com", code, "another new passphrase"), ErrCodeInvalid, "once")
@@ -420,7 +420,7 @@ func TestPlugin(t *testing.T) {
 		e := boot(t, Config{})
 		u := e.user("ada@example.com", false)
 		until := e.clk.Now().Add(time.Hour)
-		if _, err := e.g.DB.Update(e.ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"status": model.UserStatusLocked, "locked_until": until}); err != nil {
+		if _, err := e.g.DB().Update(e.ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"status": model.UserStatusLocked, "locked_until": until}); err != nil {
 			t.Fatal(err)
 		}
 		ok(t, e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeResetPassword))
@@ -516,8 +516,8 @@ func TestPlugin(t *testing.T) {
 		ctx := e.ctx
 		ada := e.user("ada@example.com", true)
 		authTime := int64(1760000000)
-		issued := must[token.IssuedTokens](t)(e.g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: ada.ID, EmailVerified: true, MFA: true, AMR: []string{"pwd", "otp"}, AuthTime: &authTime}, token.ClientContext{}))
-		access := must[*token.Token](t)(e.g.Tokens.Parse(issued.AccessToken))
+		issued := must[token.IssuedTokens](t)(e.g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: ada.ID, EmailVerified: true, MFA: true, AMR: []string{"pwd", "otp"}, AuthTime: &authTime}, token.ClientContext{}))
+		access := must[*token.Token](t)(e.g.Tokens().Parse(issued.AccessToken))
 
 		generated := must[map[string]any](t)(e.v.generateOneTimeToken(ctx, access))
 		if generated["expires_in"] != 180 {
@@ -540,14 +540,14 @@ func TestPlugin(t *testing.T) {
 
 		e.clk.Advance(-4 * time.Minute)
 		generated = must[map[string]any](t)(e.v.generateOneTimeToken(ctx, access))
-		if err := e.g.Sessions.RevokeFamily(ctx, issued.SessionID, model.RevokedLogout); err != nil {
+		if err := e.g.Sessions().RevokeFamily(ctx, issued.SessionID, model.RevokedLogout); err != nil {
 			t.Fatal(err)
 		}
 		_, err = e.v.verifyOneTimeToken(ctx, generated["token"].(string))
 		refused(t, err, ErrTokenInvalid, "the token dies with its session")
 
-		minted := must[string](t)(e.g.Sessions.Mint(token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{}))
-		_, err = e.v.generateOneTimeToken(ctx, must[*token.Token](t)(e.g.Tokens.Parse(minted)))
+		minted := must[string](t)(e.g.Sessions().Mint(context.Background(), token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{}))
+		_, err = e.v.generateOneTimeToken(ctx, must[*token.Token](t)(e.g.Tokens().Parse(minted)))
 		refused(t, err, ErrSessionRequired, "no session behind the token")
 		_, err = e.v.generateOneTimeToken(ctx, access)
 		refused(t, err, ErrSessionRequired, "the session ended")
@@ -556,7 +556,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("AOneTimeTokenWithoutAmrSaysSo", func(t *testing.T) {
 		e := boot(t, Config{})
 		ada := e.user("ada@example.com", true)
-		issued := must[token.IssuedTokens](t)(e.g.Sessions.Issue(e.ctx, token.SessionPrincipal{UserID: ada.ID}, token.ClientContext{}))
+		issued := must[token.IssuedTokens](t)(e.g.Sessions().Issue(e.ctx, token.SessionPrincipal{UserID: ada.ID}, token.ClientContext{}))
 		claims := map[string]any{"sub": ada.ID, "sid": issued.SessionID, "org": "org-1"}
 		generated := must[map[string]any](t)(e.v.generateOneTimeToken(e.ctx, token.NewPrincipal(claims)))
 		data := must[envelope](t)(e.v.verifyOneTimeToken(e.ctx, generated["token"].(string)))
@@ -589,7 +589,7 @@ func TestConcurrency(t *testing.T) {
 		e.user("ada@example.com", true)
 		ok(t, e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn))
 		parallel(20, func() { _, _ = e.v.signInWithEmailCode(e.ctx, "ada@example.com", "000000") })
-		rows, _ := e.g.DB.FindMany(e.ctx, TableSecrets, store.Criteria{"kind": kindEmailSignIn}, store.Query{})
+		rows, _ := e.g.DB().FindMany(e.ctx, TableSecrets, store.Criteria{"kind": kindEmailSignIn}, store.Query{})
 		if len(rows) != 1 || rows[0].Int("attempts") != 5 {
 			t.Fatalf("rows %v", rows)
 		}

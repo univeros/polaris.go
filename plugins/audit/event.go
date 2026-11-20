@@ -153,7 +153,7 @@ func phpJSON(v any) (string, error) {
 		i += size
 		switch {
 		case r < utf8.RuneSelf:
-			out = append(out, byte(r))
+			out = append(out, byte(r)) //nolint:gosec // G115: r < utf8.RuneSelf, so it fits a byte
 		case r < 0x10000:
 			out = fmt.Appendf(out, `\u%04x`, r)
 		default:

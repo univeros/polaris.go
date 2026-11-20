@@ -23,8 +23,8 @@ import (
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -97,15 +97,15 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if p.catalog, err = NewCatalog(names...); err != nil {
 		return err
 	}
-	p.clock, p.logger = g.Clock, g.Logger
-	p.store = NewStore(g.DB, p.cfg.HashChain)
-	p.drains = NewDrains(g.DB, g.Encrypter, g.Clock)
+	p.clock, p.logger = g.Clock(), g.Logger()
+	p.store = NewStore(g.DB(), p.cfg.HashChain)
+	p.drains = NewDrains(g.DB(), g.Encrypter(), g.Clock())
 	sinks := append([]Sink{databaseSink{p.store}}, p.cfg.Sinks...)
 	if p.cfg.HTTPClient != nil {
-		sinks = append(sinks, drainSink{drains: p.drains, client: p.cfg.HTTPClient, attempts: p.cfg.WebhookAttempts, sleep: p.sleep, logger: g.Logger})
+		sinks = append(sinks, drainSink{drains: p.drains, client: p.cfg.HTTPClient, attempts: p.cfg.WebhookAttempts, sleep: p.sleep, logger: g.Logger()})
 	}
-	p.recorder = NewRecorder(p.catalog, chain{sinks: sinks, logger: g.Logger}, g.Clock, g.Logger)
-	p.activity = NewActivity(g.DB, g.Cache, g.Clock, p.cfg.ActivityInterval, g.Logger)
+	p.recorder = NewRecorder(p.catalog, chain{sinks: sinks, logger: g.Logger()}, g.Clock(), g.Logger())
+	p.activity = NewActivity(g.DB(), g.Cache(), g.Clock(), p.cfg.ActivityInterval, g.Logger())
 	return nil
 }
 

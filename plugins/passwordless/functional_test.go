@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/passwordless"
 	"github.com/univeros/polaris-go/polaristest"
@@ -112,7 +112,7 @@ func param(t *testing.T, raw, name string) string {
 // amr is the amr claim of an access token.
 func (f *flow) amr(access string) []string {
 	f.t.Helper()
-	tok, err := f.srv.Graph().Tokens.Parse(access)
+	tok, err := f.srv.Graph().Tokens().Parse(access)
 	if err != nil {
 		f.t.Fatal(err)
 	}

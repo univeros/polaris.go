@@ -13,8 +13,8 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/anonymous"
 	"github.com/univeros/polaris-go/repository"
@@ -47,7 +47,7 @@ type env struct {
 	client token.ClientContext
 }
 
-func boot(t *testing.T, cfg anonymous.Config) env {
+func boot(t *testing.T, cfg anonymous.Config, hooks ...polaris.Hooks) env {
 	t.Helper()
 	private, public := contracttest.TestRSAKeyPEM()
 	auth := config.Defaults()
@@ -59,6 +59,7 @@ func boot(t *testing.T, cfg anonymous.Config) env {
 	p, err := polaris.New(polaris.Config{
 		Secrets: config.Secrets{AppKey: strings.Repeat("k", 32), JWTPrivateKey: private, JWTPublicKey: public},
 		Auth:    auth, DB: db, Clock: clk, Events: events, Plugins: []polaris.Plugin{plugin},
+		Hooks: append(hooks, polaris.Hooks{})[0],
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -81,10 +82,10 @@ func (e env) account(t *testing.T, email string) (model.User, token.IssuedTokens
 	ctx := context.Background()
 	at := e.clk.Now()
 	user := model.User{ID: repository.NewID(), Email: email, EmailVerifiedAt: &at, Status: model.UserStatusActive, CreatedAt: at, UpdatedAt: at}
-	if err := e.p.Graph().Repos.Users.Insert(ctx, user); err != nil {
+	if err := e.p.Graph().Repos().Users.Insert(ctx, user); err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := e.p.Graph().Sessions.Issue(ctx, token.SessionPrincipal{UserID: user.ID, AMR: []string{"magic_link"}}, e.client)
+	tokens, err := e.p.Graph().Sessions().Issue(ctx, token.SessionPrincipal{UserID: user.ID, AMR: []string{"magic_link"}}, e.client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func (e env) liveSessions(t *testing.T, userID string) int64 {
 
 func (e env) status(t *testing.T, userID string) string {
 	t.Helper()
-	u, err := e.p.Graph().Repos.Users.Get(context.Background(), userID)
+	u, err := e.p.Graph().Repos().Users.Get(context.Background(), userID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,11 +123,11 @@ func TestPlugin(t *testing.T) {
 	t.Run("testEverythingIsWiredThroughTheGraph", func(t *testing.T) {
 		e := boot(t, anonymous.Config{})
 		g := e.p.Graph()
-		if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == anonymous.TableGuests }) {
+		if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == anonymous.TableGuests }) {
 			t.Fatal("no table")
 		}
 		var routes []string
-		for _, rt := range g.Manifest.Routes() {
+		for _, rt := range g.Manifest().Routes() {
 			if slices.Contains(rt.Tags, "anonymous") {
 				routes = append(routes, rt.Method+" "+rt.Path+" "+string(rt.Auth))
 			}
@@ -140,7 +141,7 @@ func TestPlugin(t *testing.T) {
 		}
 		for _, bad := range []time.Duration{-time.Hour, time.Hour} {
 			_, err := polaris.New(polaris.Config{
-				Secrets: e.p.Graph().Config.Secrets, Auth: g.Auth, DB: e.db,
+				Secrets: e.p.Graph().Config().Secrets, Auth: g.Auth(), DB: e.db,
 				Plugins: []polaris.Plugin{anonymous.New(anonymous.Config{PruneAfter: bad})},
 			})
 			if err == nil || !strings.Contains(err.Error(), "Config.PruneAfter") {
@@ -152,7 +153,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("testAGuestIsAPasswordlessUserWithAPlaceholderEmailAndAnAnonymousSession", func(t *testing.T) {
 		e := boot(t, anonymous.Config{})
 		tokens, user := e.signIn(t)
-		tok, err := e.p.Graph().Tokens.Parse(tokens.AccessToken)
+		tok, err := e.p.Graph().Tokens().Parse(tokens.AccessToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +163,7 @@ func TestPlugin(t *testing.T) {
 		if user.Email != user.ID+"@anonymous.invalid" {
 			t.Fatalf("email %s", user.Email)
 		}
-		stored, err := e.p.Graph().Repos.Users.Get(ctx, user.ID)
+		stored, err := e.p.Graph().Repos().Users.Get(ctx, user.ID)
 		if err != nil || stored.PasswordHash != nil || stored.EmailVerifiedAt != nil || stored.Status != model.UserStatusActive {
 			t.Fatalf("stored %+v %v", stored, err)
 		}
@@ -198,7 +199,7 @@ func TestPlugin(t *testing.T) {
 		refused(t, err, anonymous.ErrTokenInvalid, "not into itself")
 		_, err = e.guests.Convert(ctx, guestUser.ID, other.AccessToken)
 		refused(t, err, anonymous.ErrTokenInvalid, "not into another guest")
-		impersonation, err := e.p.Graph().Sessions.Mint(token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{})
+		impersonation, err := e.p.Graph().Sessions().Mint(context.Background(), token.SessionPrincipal{UserID: ada.ID}, "", token.Claims{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,7 +226,7 @@ func TestPlugin(t *testing.T) {
 		_, err = e.guests.Convert(ctx, guestUser.ID, session.AccessToken)
 		refused(t, err, anonymous.ErrNotAGuest, "once")
 
-		if err := e.p.Graph().Sessions.RevokeFamily(ctx, session.SessionID, model.RevokedLogout); err != nil {
+		if err := e.p.Graph().Sessions().RevokeFamily(ctx, session.SessionID, model.RevokedLogout); err != nil {
 			t.Fatal(err)
 		}
 		_, err = e.guests.Convert(ctx, otherUser.ID, session.AccessToken)
@@ -265,7 +266,7 @@ func TestPlugin(t *testing.T) {
 		if err != nil || n != 1 {
 			t.Fatalf("pruned %d %v", n, err)
 		}
-		if _, err := e.p.Graph().Repos.Users.Get(ctx, old.ID); !errors.Is(err, repository.ErrNotFound) {
+		if _, err := e.p.Graph().Repos().Users.Get(ctx, old.ID); !errors.Is(err, repository.ErrNotFound) {
 			t.Fatalf("user stays: %v", err)
 		}
 		if c, _ := e.db.Count(ctx, "auth_refresh_tokens", store.Criteria{"user_id": old.ID}); c != 0 {
@@ -289,6 +290,25 @@ func TestPlugin(t *testing.T) {
 			t.Fatalf("again %d %v", n, err)
 		}
 	})
+}
+
+// A guest is an account: the host's hooks see it created and, when pruned, deleted (before its
+// row goes, inside the pruning transaction).
+func TestGuestsRunTheHostsAccountHooks(t *testing.T) {
+	ctx := context.Background()
+	var created, deleted []string
+	e := boot(t, anonymous.Config{}, polaris.Hooks{
+		OnUserCreated: func(_ context.Context, u polaris.User) error { created = append(created, u.ID); return nil },
+		OnUserDeleted: func(_ context.Context, id string) error { deleted = append(deleted, id); return nil },
+	})
+	_, guest := e.signIn(t)
+	if len(created) != 1 || created[0] != guest.ID {
+		t.Fatalf("created %v", created)
+	}
+	e.clk.Advance(31 * 24 * time.Hour)
+	if n, err := e.plugin.Prune(ctx); n != 1 || err != nil || len(deleted) != 1 || deleted[0] != guest.ID {
+		t.Fatalf("pruned %d %v, deleted %v", n, err, deleted)
+	}
 }
 
 // Concurrent conversions of one guest run the hook once and convert it once.

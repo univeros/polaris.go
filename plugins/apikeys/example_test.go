@@ -11,7 +11,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/apikeys"
 	"github.com/univeros/polaris-go/plugins/audit"
@@ -40,14 +40,13 @@ func Example() {
 	mux := http.NewServeMux()
 	mux.Handle("/auth/", p.Handler())
 	mux.Handle("/api/", p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal := polaris.Principal(r.Context())
-		permissions, delegated := principal.Delegation()
-		fmt.Fprintf(w, "%s delegated=%v %v", principal.Subject(), delegated, permissions)
+		who, _ := polaris.PrincipalFrom(r.Context())
+		fmt.Fprintf(w, "%s %s key=%v delegated=%v %v", who.UserID, who.Kind, who.KeyID != "", who.Delegated, who.Permissions)
 	})))
 
 	ctx := context.Background()
 	verified := time.Now()
-	_ = p.Graph().Repos.Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &verified, CreatedAt: verified, UpdatedAt: verified})
+	_ = p.Graph().Repos().Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &verified, CreatedAt: verified, UpdatedAt: verified})
 	issued, err := keys.Keys().Create(ctx, apikeys.CreateParams{
 		OwnerType: apikeys.OwnerUser, OwnerID: "user-1", CreatedBy: "user-1", Name: "CI deploy",
 		Permissions: []string{}, // a subset of what the owner holds in the key's organization
@@ -61,5 +60,5 @@ func Example() {
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 	fmt.Println(w.Code, w.Body.String())
-	// Output: 200 user-1 delegated=true []
+	// Output: 200 user-1 api_key key=true delegated=true []
 }

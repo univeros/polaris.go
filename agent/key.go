@@ -125,7 +125,7 @@ func (k *Key) Export() ([]byte, error) {
 	} else {
 		s.Secret = base64.StdEncoding.EncodeToString(k.ed)
 	}
-	return json.Marshal(s)
+	return json.Marshal(s) //nolint:gosec // G117: exporting the key is this method's purpose (the caller stores it as a secret)
 }
 
 // ImportKey loads a key from Export's output (or the PHP SDK's AgentKey::toArray() as JSON).

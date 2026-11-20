@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -253,7 +254,7 @@ func wellFormed(b []byte) bool {
 	dec := xml.NewDecoder(bytes.NewReader(b))
 	for {
 		if _, err := dec.Token(); err != nil {
-			return err == io.EOF
+			return errors.Is(err, io.EOF)
 		}
 	}
 }

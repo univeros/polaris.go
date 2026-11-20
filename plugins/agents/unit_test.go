@@ -145,8 +145,8 @@ func holder(t *testing.T, p *Plugin, srv *polaristest.Server) Agent {
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 	user := model.User{ID: repository.NewID(), Email: repository.NewID() + "@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now}
-	must(t, srv.Graph().Repos.Users.Insert(ctx, user))
-	org, err := srv.Graph().Orgs.CreateOrganization(ctx, "Acme "+user.ID, "", user.ID)
+	must(t, srv.Graph().Repos().Users.Insert(ctx, user))
+	org, err := srv.Graph().Orgs().CreateOrganization(ctx, "Acme "+user.ID, "", user.ID)
 	must(t, err)
 	a, _, err := p.s.createAgent(ctx, map[string]any{"name": "Bot", "auth": AuthPrivateKeyJWT, "jwk": newTestKey(AlgES256).jwk()},
 		Agent{OwnerType: OwnerUser, OwnerID: user.ID, OrganizationID: org.ID, CreatedBy: user.ID})
@@ -244,7 +244,7 @@ func TestConstraintsAreParsedAndEvaluated(t *testing.T) {
 		"list":        []any{"x"},
 	} {
 		_, err := parseConstraints(c)
-		wantType(t, err, ErrInvalidInput, name)
+		_ = wantType(t, err, ErrInvalidInput, name)
 	}
 	if c, err := parseConstraints([]any{}); err != nil || len(c.fields) != 0 {
 		t.Error("[] is no constraint")
@@ -257,7 +257,7 @@ func TestConstraintsAreParsedAndEvaluated(t *testing.T) {
 		t.Errorf("count cost %d", n)
 	}
 	_, err = cost(amount, map[string]any{"amount": "x"})
-	wantType(t, err, ErrInvalidArguments, "amount")
+	_ = wantType(t, err, ErrInvalidArguments, "amount")
 }
 
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
@@ -376,7 +376,7 @@ func TestTheAgentKeyIsValidatedAndGetsAKid(t *testing.T) {
 		"off curve": with(map[string]any{"x": enc(make([]byte, 32))}),
 	} {
 		_, err := publicJWK(bad)
-		wantType(t, err, ErrInvalidInput, name)
+		_ = wantType(t, err, ErrInvalidInput, name)
 	}
 }
 
@@ -422,7 +422,7 @@ func TestRequestJWTsAreVerifiedAgainstTheAgentsKeyAndTheRequest(t *testing.T) {
 			if strings.HasPrefix(why, "aud") {
 				want = ErrAudMismatch
 			}
-			wantType(t, err, want, alg+" "+why)
+			_ = wantType(t, err, want, alg+" "+why)
 		}
 		replayed := k.jwt(k.request(a.ID, execute, nil), nil)
 		_, err = p.s.jwts.verify(ctx, replayed, a, "POST", execute, body)
@@ -453,7 +453,7 @@ func TestAgentRegistrationIsValidated(t *testing.T) {
 		{"name": "X", "mode": "delegated", "auth": "private_key_jwt"}, {"name": "X", "mode": "delegated", "auth": "private_key_jwt", "jwk": priv},
 	} {
 		_, _, err := p.s.createAgent(ctx, f, owner)
-		wantType(t, err, ErrInvalidInput, mustJSON(f))
+		_ = wantType(t, err, ErrInvalidInput, mustJSON(f))
 	}
 	public, _, err := p.s.createAgent(ctx, map[string]any{"name": "X", "auth": AuthDelegatedToken}, owner)
 	must(t, err)
@@ -492,7 +492,7 @@ func TestBudgetsAreSpentByAConditionalUpdate(t *testing.T) {
 		t.Error("an exhausted grant is not active")
 	}
 	_, err = p.s.approveGrant(ctx, g, "owner", MethodInApp, nil)
-	wantType(t, err, ErrConflict, "approve twice")
+	_ = wantType(t, err, ErrConflict, "approve twice")
 }
 
 func TestTheAskerCannotWidenTheAutoApprovalBudget(t *testing.T) {
@@ -532,7 +532,7 @@ func TestTheAskerCannotWidenTheAutoApprovalBudget(t *testing.T) {
 		t.Error("an owner without the permission always waits")
 	}
 	_, err := p.s.requestGrants(ctx, h, nil)
-	wantType(t, err, ErrInvalidInput, "nothing asked")
+	_ = wantType(t, err, ErrInvalidInput, "nothing asked")
 }
 
 func TestPendingGrantsAreReusedApprovalsAreCappedAndExpire(t *testing.T) {
@@ -553,7 +553,7 @@ func TestPendingGrantsAreReusedApprovalsAreCappedAndExpire(t *testing.T) {
 	if g1[0].ID != g2[0].ID || ap1.ID != ap2.ID || ap1.Method != MethodInApp {
 		t.Error("the same pending grant and approval")
 	}
-	_, err = srv.Graph().DB.Update(ctx, TableApprovals, store.Criteria{"id": ap1.ID}, store.Data{"expires_at": time.Now().Add(-time.Second)})
+	_, err = srv.Graph().DB().Update(ctx, TableApprovals, store.Criteria{"id": ap1.ID}, store.Data{"expires_at": time.Now().Add(-time.Second)})
 	must(t, err)
 	expired, _, _ := p.s.approval(ctx, ap1.ID)
 	if expired.Status != ApprovalExpired {
@@ -575,7 +575,7 @@ func TestPendingGrantsAreReusedApprovalsAreCappedAndExpire(t *testing.T) {
 		must(t, err)
 	}
 	_, _, err = req("c6")
-	wantType(t, err, ErrConflict, "capped")
+	_ = wantType(t, err, ErrConflict, "capped")
 	if g, _ := p.s.grantWith(ctx, a, "c6", GrantPending); g != nil {
 		t.Error("nothing was written")
 	}
@@ -584,9 +584,9 @@ func TestPendingGrantsAreReusedApprovalsAreCappedAndExpire(t *testing.T) {
 		t.Error("a reused grant with an open approval needs no method")
 	}
 	_, err = p.s.openApproval(ctx, a, nil, "fax", StrengthSession, "")
-	wantType(t, err, ErrInvalidInput, "method")
+	_ = wantType(t, err, ErrInvalidInput, "method")
 	_, err = p.s.openApproval(ctx, a, nil, MethodCIBA, StrengthSession, strings.Repeat("x", 161))
-	wantType(t, err, ErrInvalidInput, "binding message")
+	_ = wantType(t, err, ErrInvalidInput, "binding message")
 }
 
 func TestADecisionWithBadConstraintsLeavesTheApprovalPending(t *testing.T) {
@@ -596,7 +596,7 @@ func TestADecisionWithBadConstraintsLeavesTheApprovalPending(t *testing.T) {
 	grants, ap, err := p.s.requestGrantsAndApproval(ctx, a, []any{"refund"}, "", "", "", true, client{})
 	must(t, err)
 	_, _, err = p.s.decide(ctx, *ap, true, "owner", map[string]any{"amount": map[string]any{"between": []any{}}})
-	wantType(t, err, ErrUnknownConstraintOperator, "bad constraints")
+	_ = wantType(t, err, ErrUnknownConstraintOperator, "bad constraints")
 	still, _, _ := p.s.approval(ctx, ap.ID)
 	g, _, _ := p.s.grant(ctx, grants[0].ID)
 	if still.Status != ApprovalPending || g.Status != GrantPending {
@@ -647,7 +647,7 @@ func TestReceiptsChainHashAndVerify(t *testing.T) {
 		t.Errorf("sealed %+v", sealed)
 	}
 	_, err = p.s.appendReceipt(ctx, a, nil, "deploy", inputHash(nil), OutcomeSuccess, nil, nil)
-	wantType(t, err, ErrSealed, "nothing after the seal")
+	_ = wantType(t, err, ErrSealed, "nothing after the seal")
 }
 
 func TestHostsAuthenticateByTheirEnrolmentToken(t *testing.T) {
@@ -672,11 +672,11 @@ func TestHostsAuthenticateByTheirEnrolmentToken(t *testing.T) {
 		t.Error("revoked")
 	}
 	_, _, err = p.s.createHost(ctx, owner, "Laptop", []any{"nope"})
-	wantType(t, err, ErrCapabilityNotFound, "unknown capability")
+	_ = wantType(t, err, ErrCapabilityNotFound, "unknown capability")
 	_, _, err = p.s.createHost(ctx, owner, "", nil)
-	wantType(t, err, ErrInvalidInput, "no name")
+	_ = wantType(t, err, ErrInvalidInput, "no name")
 	_, _, err = p.s.createHost(ctx, owner, "X", make([]any, 51))
-	wantType(t, err, ErrInvalidInput, "too many")
+	_ = wantType(t, err, ErrInvalidInput, "too many")
 
 	// A member who leaves takes the organization's hosts they created; erasures leave nothing.
 	org := Host{OwnerType: OwnerOrganization, OwnerID: "org-1", OrganizationID: "org-1", CreatedBy: "user-1"}
@@ -693,7 +693,7 @@ func TestHostsAuthenticateByTheirEnrolmentToken(t *testing.T) {
 	}
 	srv.Events.Dispatch(ctx, event.OrganizationDeleted{OrganizationID: "org-1"})
 	srv.Events.Dispatch(ctx, event.UserDeleted{UserID: "user-1"})
-	if n, _ := srv.Graph().DB.Count(ctx, TableHosts, store.Criteria{}); n != 0 {
+	if n, _ := srv.Graph().DB().Count(ctx, TableHosts, store.Criteria{}); n != 0 {
 		t.Errorf("%d hosts left", n)
 	}
 }
@@ -732,7 +732,7 @@ func TestExecutionIsRefusedWithoutAGrantAndHoldsTheAgentRow(t *testing.T) {
 	pr := principal{agent: a, via: ViaJWT}
 	for name, typ := range map[string]string{"nope": ErrCapabilityNotFound, "deploy": ErrCapabilityNotGranted} {
 		_, err := p.s.execute(ctx, pr, name, map[string]any{"build": "1"}, client{})
-		wantType(t, err, typ, name)
+		_ = wantType(t, err, typ, name)
 	}
 	if got, err := p.s.fromToken(ctx, token.NewPrincipal(map[string]any{"sub": "x", "client_id": "nobody"}).Delegate(nil)); got != nil || err != nil {
 		t.Error("not an agent's token")
@@ -767,20 +767,20 @@ func TestExecutionIsRefusedWithoutAGrantAndHoldsTheAgentRow(t *testing.T) {
 		t.Error("nothing runs")
 	}
 	_, err = p.s.evaluate(ctx, hp, "members", "x")
-	wantType(t, err, ErrInvalidArguments, "not an object")
+	_ = wantType(t, err, ErrInvalidArguments, "not an object")
 	_, err = p.s.evaluate(ctx, principal{agent: h, via: ViaOAuth}, "members", nil)
-	wantType(t, err, ErrCapabilityNotGranted, "the token lacks the permission")
+	_ = wantType(t, err, ErrCapabilityNotGranted, "the token lacks the permission")
 	_, err = p.s.evaluate(ctx, principal{agent: h, via: ViaJWT, capabilities: []string{"deploy"}}, "members", nil)
-	wantType(t, err, ErrCapabilityNotGranted, "the JWT does not name it")
+	_ = wantType(t, err, ErrCapabilityNotGranted, "the JWT does not name it")
 
 	// A grant without a budget revoked between the evaluation and the run runs nothing.
 	_, err = p.s.transition(ctx, h, StatusSuspended, StatusActive, "")
 	must(t, err)
-	_, err = srv.Graph().DB.Update(ctx, TableGrants, store.Criteria{"agent_id": h.ID}, store.Data{"status": GrantRevoked})
+	_, err = srv.Graph().DB().Update(ctx, TableGrants, store.Criteria{"agent_id": h.ID}, store.Data{"status": GrantRevoked})
 	must(t, err)
 	ev.grant.BudgetKind = ""
 	_, err = p.s.run(ctx, ev, ran, nil, client{})
-	wantType(t, err, ErrCapabilityNotGranted, "revoked meanwhile")
+	_ = wantType(t, err, ErrCapabilityNotGranted, "revoked meanwhile")
 }
 
 func TestReceiptCollisionIsAConflict(t *testing.T) {
@@ -791,7 +791,7 @@ func TestReceiptCollisionIsAConflict(t *testing.T) {
 	must(t, err)
 	// Another writer appended the same seq meanwhile: the unique (agent_id, seq) refuses it.
 	colliding := *p.s
-	colliding.db = staleLast{Adapter: srv.Graph().DB, row: r.row()}
+	colliding.db = staleLast{Adapter: srv.Graph().DB(), row: r.row()}
 	_, err = colliding.appendReceipt(ctx, a, nil, "x", inputHash(nil), OutcomeSuccess, nil, nil)
 	if e := wantType(t, err, ErrConflict, "collision"); e.Status() != 409 {
 		t.Error(e.Status())

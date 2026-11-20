@@ -19,7 +19,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/plugins/oauth"
@@ -72,9 +72,9 @@ func Example() {
 	// The owner: a user with an organization, signed in (POST /auth/login in a real flow).
 	g := p.Graph()
 	now := time.Now()
-	_ = g.Repos.Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
-	org, _ := g.Orgs.CreateOrganization(ctx, "Acme", "", "user-1")
-	session, _ := g.Sessions.Issue(ctx, token.SessionPrincipal{UserID: "user-1", OrganizationID: org.ID, Roles: []string{"owner"}, EmailVerified: true}, token.ClientContext{})
+	_ = g.Repos().Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
+	org, _ := g.Orgs().CreateOrganization(ctx, "Acme", "", "user-1")
+	session, _ := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: "user-1", OrganizationID: org.ID, Roles: []string{"owner"}, EmailVerified: true}, token.ClientContext{})
 
 	// 3. The owner registers the agent with its public key; the low-risk grants are approved by policy.
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

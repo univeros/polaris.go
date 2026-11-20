@@ -26,7 +26,7 @@ func seconds(d time.Duration) int { return int(d / time.Second) }
 // whether the address is known (something was sent) or not.
 func (v *service) deliver(ctx context.Context, send func() error) {
 	if err := send(); err != nil {
-		v.g.Logger.ErrorContext(ctx, "polaris passwordless: delivery failed", "error", err)
+		v.g.Logger().ErrorContext(ctx, "polaris passwordless: delivery failed", "error", err)
 	}
 }
 
@@ -71,7 +71,7 @@ func (v *service) sendMagicLink(ctx context.Context, email, redirectURI string) 
 	}
 	link := v.s.baseURL + "/magic-link/verify?token=" + url.QueryEscape(tok)
 	v.deliver(ctx, func() error {
-		return v.g.Mailer.Send(ctx, email, TemplateMagicLink, map[string]any{"link": link, "ttl": seconds(v.s.magicLinkTTL)})
+		return v.g.Mailer().Send(ctx, email, TemplateMagicLink, map[string]any{"link": link, "ttl": seconds(v.s.magicLinkTTL)})
 	})
 	return nil
 }
@@ -134,7 +134,7 @@ func (v *service) sendEmailCode(ctx context.Context, email, purpose string) erro
 		return err
 	}
 	v.deliver(ctx, func() error {
-		return v.g.Mailer.Send(ctx, email, notify.TemplateOTPCode, map[string]any{"code": code, "ttl": seconds(v.s.otpTTL)})
+		return v.g.Mailer().Send(ctx, email, notify.TemplateOTPCode, map[string]any{"code": code, "ttl": seconds(v.s.otpTTL)})
 	})
 	return nil
 }
@@ -180,9 +180,9 @@ func (v *service) verifyEmail(ctx context.Context, email, code string) error {
 		return err
 	}
 	now := v.now()
-	verified, err := v.g.DB.Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{"email_verified_at": now, "updated_at": now})
+	verified, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{"email_verified_at": now, "updated_at": now})
 	if err == nil && verified == 1 {
-		v.g.Events.Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
+		v.g.Events().Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
 	}
 	return err
 }
@@ -190,7 +190,7 @@ func (v *service) verifyEmail(ctx context.Context, email, code string) error {
 // resetPassword sets a new password and ends every session, as core's reset does. A password
 // failing the policy keeps the code.
 func (v *service) resetPassword(ctx context.Context, email, code, password string) error {
-	policy := identity.PasswordPolicy{MinLength: v.g.Auth.Password.MinLength, Breaches: v.g.Breaches}
+	policy := identity.PasswordPolicy{MinLength: v.g.Auth().Password.MinLength, Breaches: v.g.Breaches()}
 	if violations := policy.Validate(ctx, password); len(violations) > 0 {
 		return &Error{Kind: KindPasswordInvalid, Detail: violations[0], Errors: violations}
 	}
@@ -198,7 +198,7 @@ func (v *service) resetPassword(ctx context.Context, email, code, password strin
 	if err != nil {
 		return err
 	}
-	hash, err := v.g.Hasher.Hash(password)
+	hash, err := v.g.Hasher().Hash(password)
 	if err != nil {
 		return err
 	}
@@ -210,17 +210,17 @@ func (v *service) resetPassword(ctx context.Context, email, code, password strin
 	if u.EmailVerifiedAt == nil {
 		data["email_verified_at"] = now
 	}
-	err = v.g.DB.Tx(ctx, func(ctx context.Context) error {
-		if _, err := v.g.DB.Update(ctx, "auth_users", store.Criteria{"id": u.ID}, data); err != nil {
+	err = v.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if _, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, data); err != nil {
 			return err
 		}
-		_, err := v.g.Sessions.RevokeAll(ctx, u.ID, model.RevokedPasswordChange)
+		_, err := v.g.Sessions().RevokeAll(ctx, u.ID, model.RevokedPasswordChange)
 		return err
 	})
 	if err != nil {
 		return err
 	}
-	v.g.Events.Dispatch(ctx, event.PasswordChanged{UserID: u.ID, Method: event.PasswordMethodReset})
+	v.g.Events().Dispatch(ctx, event.PasswordChanged{UserID: u.ID, Method: event.PasswordMethodReset})
 	return nil
 }
 
@@ -241,7 +241,7 @@ func normalizePhone(phone string) (string, error) {
 
 // phoneOwner is the user a verified number belongs to, "" for none.
 func (v *service) phoneOwner(ctx context.Context, e164 string) (string, error) {
-	row, err := v.g.DB.FindOne(ctx, TablePhones, store.Criteria{"e164": e164})
+	row, err := v.g.DB().FindOne(ctx, TablePhones, store.Criteria{"e164": e164})
 	if err != nil || row == nil {
 		return "", err
 	}
@@ -250,7 +250,7 @@ func (v *service) phoneOwner(ctx context.Context, e164 string) (string, error) {
 
 // phoneOf is the user's verified number, "" for none.
 func (v *service) phoneOf(ctx context.Context, userID string) (string, error) {
-	row, err := v.g.DB.FindOne(ctx, TablePhones, store.Criteria{"user_id": userID})
+	row, err := v.g.DB().FindOne(ctx, TablePhones, store.Criteria{"user_id": userID})
 	if err != nil || row == nil {
 		return "", err
 	}
@@ -268,11 +268,11 @@ func (v *service) attachPhone(ctx context.Context, userID, e164 string) error {
 		return errPhoneTaken
 	}
 	now := v.now()
-	err = v.g.DB.Tx(ctx, func(ctx context.Context) error {
-		if _, err := v.g.DB.Delete(ctx, TablePhones, store.Criteria{"user_id": userID}); err != nil {
+	err = v.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if _, err := v.g.DB().Delete(ctx, TablePhones, store.Criteria{"user_id": userID}); err != nil {
 			return err
 		}
-		return v.g.DB.Insert(ctx, TablePhones, store.Row{"user_id": userID, "e164": e164, "verified_at": now, "created_at": now})
+		return v.g.DB().Insert(ctx, TablePhones, store.Row{"user_id": userID, "e164": e164, "verified_at": now, "created_at": now})
 	})
 	if errors.Is(err, store.ErrDuplicate) {
 		return errPhoneTaken
@@ -285,7 +285,7 @@ func (v *service) sendPhoneCode(ctx context.Context, kind, e164, userID string) 
 	if err := v.secrets.issueCode(ctx, kind, e164, userID, code, v.s.otpTTL); err != nil {
 		return err
 	}
-	v.deliver(ctx, func() error { return v.g.SMS.Send(ctx, e164, "Your verification code is "+code+".") })
+	v.deliver(ctx, func() error { return v.g.SMS().Send(ctx, e164, "Your verification code is "+code+".") })
 	return nil
 }
 
@@ -375,7 +375,7 @@ type oneTimeTokenData struct {
 
 // liveSession reports whether the session (refresh family) of userID has a live token.
 func (v *service) liveSession(ctx context.Context, userID, sessionID string) (bool, error) {
-	rt, err := v.g.Repos.RefreshTokens.ActiveInFamily(ctx, sessionID)
+	rt, err := v.g.Repos().RefreshTokens.ActiveInFamily(ctx, sessionID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return false, nil
 	}

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/scim"
@@ -110,8 +110,8 @@ func TestAMemberWithoutOrgUpdateCannotManageConnections(t *testing.T) {
 	connID, token := f.connection(acme, owner, "Okta")
 	bobAccess := f.login("bob@acme.example")
 	g := f.srv.Graph()
-	bob := must(g.Repos.Users.ByEmail(ctx, "bob@acme.example"))
-	role := must(g.Repos.Roles.ByOrganizationAndSlug(ctx, &acme, "member"))
+	bob := must(g.Repos().Users.ByEmail(ctx, "bob@acme.example"))
+	role := must(g.Repos().Roles.ByOrganizationAndSlug(ctx, &acme, "member"))
 	now := time.Now().UTC().Truncate(time.Second)
 	id := repository.NewID()
 	if err := f.srv.DB.Insert(ctx, "auth_memberships", store.Row{"id": id, "user_id": bob.ID, "organization_id": acme, "status": "active",

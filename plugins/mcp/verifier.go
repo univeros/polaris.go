@@ -172,7 +172,7 @@ func (j *jwks) fetch(ctx context.Context) ([]map[string]any, error) {
 	req.Header.Set("Accept", "application/json")
 	resp, err := j.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errUnavailable, err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJWKSBytes+1))

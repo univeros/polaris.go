@@ -20,7 +20,7 @@ type dotenv struct {
 // # comments, 'single-quoted' (literal) and "double-quoted" values (\n, \", \\ escapes; may span
 // lines, as a PEM does).
 func readDotenv(path string) (dotenv, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the operator names the .env file (--env-file)
 	if errors.Is(err, fs.ErrNotExist) {
 		return dotenv{values: map[string]string{}, spans: map[string][2]int{}}, nil
 	}

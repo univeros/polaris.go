@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// UpstreamVersion is the polaris-core release the embedded manifests come from (upstream/REF),
+// UpstreamVersion is the polaris-core release the embedded manifests come from (internal/upstream/REF),
 // the version upstream's OpenAPI document carries.
 const UpstreamVersion = "0.12.0"
 

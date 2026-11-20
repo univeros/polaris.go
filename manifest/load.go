@@ -380,7 +380,7 @@ func examples(output Object) []Example {
 			continue
 		}
 		if _, ok := asMap(m.Value); ok {
-			out = append(out, Example{m.Key, m.Value})
+			out = append(out, Example(m))
 		}
 	}
 	return out

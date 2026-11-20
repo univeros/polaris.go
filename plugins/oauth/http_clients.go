@@ -191,21 +191,21 @@ func (p *Plugin) superadmins(r *http.Request) (*Operator, error) {
 	if !ok || bearer == "" {
 		return nil, nil
 	}
-	tok, err := p.graph.Tokens.Parse(bearer)
+	tok, err := p.graph.Tokens().Parse(bearer)
 	if err != nil {
 		return nil, nil
 	}
 	if tok.Claim(impersonationClaim) != nil {
 		return nil, errImpersonation
 	}
-	user, err := p.graph.Repos.Users.Get(r.Context(), tok.Subject())
+	user, err := p.graph.Repos().Users.Get(r.Context(), tok.Subject())
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && user.Status == model.UserStatusDisabled) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	authority, err := p.graph.Resolver.Resolve(r.Context(), user.ID, "")
+	authority, err := p.graph.Resolver().Resolve(r.Context(), user.ID, "")
 	if err != nil || !authority.IsSuperadmin() {
 		return nil, err
 	}

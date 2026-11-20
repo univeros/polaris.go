@@ -1,18 +1,15 @@
 package polaris
 
 import (
-	"context"
 	"net/http"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/httpapi"
+	"github.com/univeros/polaris-go/internal/httpapi"
 	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/token"
 	"github.com/univeros/polaris-go/wiring"
 )
 
-// Config is everything a host decides; see wiring.Config. Secrets, Auth and DB are required.
+// Config is everything a host decides; see wiring.Config. Secrets, Auth and DB are required;
+// FromEnv fills them.
 type Config = wiring.Config
 
 // Plugin extends Polaris; see wiring.Plugin and its optional interfaces.
@@ -23,6 +20,7 @@ type Plugin = wiring.Plugin
 type Polaris struct {
 	graph    *wiring.Graph
 	pipeline *pipeline.Pipeline
+	handler  http.Handler
 }
 
 // New validates cfg, builds every service and the HTTP pipeline. Errors name what to fix.
@@ -45,28 +43,32 @@ func New(cfg Config) (*Polaris, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Polaris{graph: g, pipeline: pl}, nil
+	p := &Polaris{graph: g, pipeline: pl}
+	p.handler = p.wrap(pl.Handler())
+	return p, nil
+}
+
+// wrap applies Config.Middleware, Middleware[0] outermost.
+func (p *Polaris) wrap(h http.Handler) http.Handler {
+	mw := p.graph.Config().Middleware
+	for i := len(mw) - 1; i >= 0; i-- {
+		h = mw[i](h)
+	}
+	return h
 }
 
 // Handler serves every Polaris route (core and plugins) under Config.PathPrefix.
-func (p *Polaris) Handler() http.Handler { return p.pipeline.Handler() }
+func (p *Polaris) Handler() http.Handler { return p.handler }
 
 // Protect guards a host handler with Polaris principals (session JWTs, and API keys, OAuth tokens
-// or agent requests when those plugins are installed). With permissions, the caller's authority in
-// the active organization must hold every one (403 otherwise); without, any authenticated principal
-// passes. Read the principal in next with Principal.
+// or agent requests when those plugins are installed): 401 without one. With permissions, the
+// caller's authority in the active organization must hold every one (403 otherwise); without, any
+// authenticated principal passes and no authority is resolved until next calls PrincipalFrom
+// (then once per request). next reads the complete principal with PrincipalFrom.
 func (p *Polaris) Protect(next http.Handler, permissions ...string) http.Handler {
-	return p.pipeline.Protect(next, permissions...)
+	return p.wrap(p.pipeline.Protect(next, permissions...))
 }
 
-// Graph exposes every service, for plugins, CLIs and advanced hosts.
+// Graph exposes every service read-only: the plugin SDK, for plugins, CLIs and advanced hosts.
+// An application needs only the methods of Polaris.
 func (p *Polaris) Graph() *wiring.Graph { return p.graph }
-
-// Principal is the authenticated principal of a request Protect or Handler let through: Subject()
-// is the user id, Organization() the active organization; Delegation() reports an API key, OAuth
-// client or agent acting with a subset of the owner's permissions.
-func Principal(ctx context.Context) *token.Token { return endpoint.Token(ctx) }
-
-// Authority is the caller's resolved roles and permissions, when the route or Protect checked
-// permissions.
-func Authority(ctx context.Context) (authz.Authority, bool) { return wiring.Authority(ctx) }

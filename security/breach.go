@@ -2,7 +2,7 @@ package security
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // G505: the HIBP range API is keyed by SHA-1 (k-anonymity prefix), not used for security
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -35,7 +35,7 @@ var _ BreachedPasswordCheck = HIBP{}
 
 // IsBreached reports whether password appears in the HIBP corpus with a non-zero count.
 func (h HIBP) IsBreached(ctx context.Context, password string) bool {
-	sum := sha1.Sum([]byte(password))
+	sum := sha1.Sum([]byte(password)) //nolint:gosec // G401: HIBP range API; only the 5-hex prefix leaves the process
 	digest := strings.ToUpper(hex.EncodeToString(sum[:]))
 	prefix, suffix := digest[:5], digest[5:]
 

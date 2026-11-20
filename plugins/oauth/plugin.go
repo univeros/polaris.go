@@ -11,11 +11,11 @@ import (
 
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/pipeline"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -77,30 +77,30 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if p.configErr != nil {
 		return p.configErr
 	}
-	if g.Tokens == nil || g.Pepper == nil {
+	if g.Tokens() == nil || g.Pepper() == nil {
 		return errors.New("oauth: the graph has no token codec or pepper; build the plugin through polaris.New")
 	}
 	if p.settings.baseURL == "" {
-		prefix := strings.TrimRight(g.Config.PathPrefix, "/")
-		p.settings.baseURL = strings.TrimRight(g.Auth.Issuer, "/") + prefix
+		prefix := strings.TrimRight(g.Config().PathPrefix, "/")
+		p.settings.baseURL = strings.TrimRight(g.Auth().Issuer, "/") + prefix
 	}
 	if !baseURLPattern.MatchString(p.settings.baseURL) {
 		return fmt.Errorf("oauth: the base URL %q is not an absolute http(s) URL: set oauth.Config.BaseURL", p.settings.baseURL)
 	}
-	once := &onceGuard{cache: g.Cache}
-	p.graph, p.issuer = g, g.Auth.Issuer
-	p.scopes = newScopes(g.Catalog, p.settings.scopes)
-	p.clients = &clients{db: g.DB, pepper: g.Pepper, scopes: p.scopes, settings: p.settings, cache: g.Cache, once: once, clock: g.Clock, log: g.Logger}
-	p.tokens = &tokens{db: g.DB, pepper: g.Pepper, codec: g.Tokens, repos: g.Repos, issuer: p.issuer, settings: p.settings, clock: g.Clock}
-	p.codes = &codes{db: g.DB, pepper: g.Pepper, ttl: time.Duration(p.settings.codeTTL) * time.Second, clock: g.Clock}
-	p.consents = &consents{db: g.DB, clock: g.Clock}
+	once := &onceGuard{cache: g.Cache()}
+	p.graph, p.issuer = g, g.Auth().Issuer
+	p.scopes = newScopes(g.Catalog(), p.settings.scopes)
+	p.clients = &clients{db: g.DB(), pepper: g.Pepper(), scopes: p.scopes, settings: p.settings, cache: g.Cache(), once: once, clock: g.Clock(), log: g.Logger()}
+	p.tokens = &tokens{db: g.DB(), pepper: g.Pepper(), codec: g.Tokens(), repos: g.Repos(), issuer: p.issuer, settings: p.settings, clock: g.Clock()}
+	p.codes = &codes{db: g.DB(), pepper: g.Pepper(), ttl: time.Duration(p.settings.codeTTL) * time.Second, clock: g.Clock()}
+	p.consents = &consents{db: g.DB(), clock: g.Clock()}
 	p.authorization = &authorization{clients: p.clients, scopes: p.scopes, codes: p.codes, consents: p.consents,
-		settings: p.settings, issuer: p.issuer, cache: g.Cache, clock: g.Clock}
-	p.devices = &devices{poller: poller{db: g.DB, table: TableDeviceCodes, interval: p.settings.pollInterval, clock: g.Clock, what: "device code"},
-		pepper: g.Pepper, deviceURL: p.settings.deviceURL, ttl: p.settings.deviceTTL}
-	p.ciba = &ciba{poller: poller{db: g.DB, table: TableCIBARequests, interval: p.settings.pollInterval, clock: g.Clock, what: "request"},
-		repos: g.Repos, ttl: p.settings.cibaTTL}
-	p.dpop = &dpop{once: once, clock: g.Clock}
+		settings: p.settings, issuer: p.issuer, cache: g.Cache(), clock: g.Clock()}
+	p.devices = &devices{poller: poller{db: g.DB(), table: TableDeviceCodes, interval: p.settings.pollInterval, clock: g.Clock(), what: "device code"},
+		pepper: g.Pepper(), deviceURL: p.settings.deviceURL, ttl: p.settings.deviceTTL}
+	p.ciba = &ciba{poller: poller{db: g.DB(), table: TableCIBARequests, interval: p.settings.pollInterval, clock: g.Clock(), what: "request"},
+		repos: g.Repos(), ttl: p.settings.cibaTTL}
+	p.dpop = &dpop{once: once, clock: g.Clock()}
 	return nil
 }
 
@@ -122,13 +122,13 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 		switch e := e.(type) {
 		case event.UserDeleted:
 			err = errors.Join(
-				deleteWhere(ctx, p.graph.DB, TableConsents, store.Criteria{"user_id": e.UserID}),
+				deleteWhere(ctx, p.graph.DB(), TableConsents, store.Criteria{"user_id": e.UserID}),
 				p.tokens.deleteWhere(ctx, store.Criteria{"user_id": e.UserID}))
 		case event.OrganizationDeleted:
 			err = p.eraseOrganization(ctx, e.OrganizationID)
 		}
 		if err != nil {
-			p.graph.Logger.ErrorContext(ctx, "oauth: erasing after "+e.EventName()+" failed", "error", err)
+			p.graph.Logger().ErrorContext(ctx, "oauth: erasing after "+e.EventName()+" failed", "error", err)
 		}
 	}}
 }
@@ -143,7 +143,7 @@ func (p *Plugin) eraseOrganization(ctx context.Context, organizationID string) e
 			return err
 		}
 	}
-	return deleteWhere(ctx, p.graph.DB, TableClients, store.Criteria{"organization_id": organizationID})
+	return deleteWhere(ctx, p.graph.DB(), TableClients, store.Criteria{"organization_id": organizationID})
 }
 
 func deleteWhere(ctx context.Context, db store.Adapter, table string, c store.Criteria) error {

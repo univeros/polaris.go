@@ -148,6 +148,26 @@ func TestCircularForeignKeysAreRejected(t *testing.T) {
 	}
 }
 
+// A case-sensitive string column (external identifiers: OIDC subjects, client_id URLs) compares
+// byte for byte on MySQL, whose default collation is case- and accent-insensitive.
+func TestCaseSensitiveColumnsAreBinaryOnMySQLOnly(t *testing.T) {
+	m := schema.Table("t", schema.StringField("subject", 255).AsCaseSensitive())
+	want := map[store.Dialect]string{
+		store.MySQL:    "`subject` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL",
+		store.Postgres: `"subject" VARCHAR(255) NOT NULL`,
+		store.SQLite:   `"subject" VARCHAR(255) NOT NULL`,
+	}
+	for _, d := range dialects {
+		got, err := sqlstore.DDL([]schema.Model{m}, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got, want[d]) {
+			t.Errorf("%s:\n%s\nwant a column %s", d, got, want[d])
+		}
+	}
+}
+
 // An ASCII string column is byte-exact and case-sensitive on MySQL (and fits a unique index at
 // 1024 characters: 1024 bytes, not utf8mb4's 4096); the other dialects declare it as any string.
 func TestASCIIColumnsAreBinaryOnMySQLOnly(t *testing.T) {

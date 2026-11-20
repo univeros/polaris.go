@@ -46,7 +46,7 @@ func (p *Plugin) DeleteClient(ctx context.Context, c Client) error {
 	if c.IsMetadataClient() {
 		return errors.New("oauth: a metadata-document client is not stored")
 	}
-	return p.graph.DB.Tx(ctx, func(ctx context.Context) error {
+	return p.graph.DB().Tx(ctx, func(ctx context.Context) error {
 		if err := p.tokens.deleteWhere(ctx, store.Criteria{"client_id": c.ClientID}); err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ func (p *Plugin) BaseURL() string { return p.settings.baseURL }
 // and backchannel requests, and tokens that expired more than a refresh lifetime ago. It returns
 // the rows deleted per table; a host schedules it beside maintenance.PruneExpired.
 func (p *Plugin) Prune(ctx context.Context) (map[string]int64, error) {
-	now := p.graph.Clock.Now()
+	now := p.graph.Clock().Now()
 	cutoffs := map[string]any{
 		TableCodes:        now,
 		TableDeviceCodes:  now,
@@ -103,7 +103,7 @@ func (p *Plugin) Prune(ctx context.Context) (map[string]int64, error) {
 	}
 	out := map[string]int64{}
 	for _, table := range sortedKeys(cutoffs) {
-		n, err := p.graph.DB.Delete(ctx, table, store.Criteria{"expires_at": store.Lt(cutoffs[table])})
+		n, err := p.graph.DB().Delete(ctx, table, store.Criteria{"expires_at": store.Lt(cutoffs[table])})
 		if err != nil {
 			return out, err
 		}

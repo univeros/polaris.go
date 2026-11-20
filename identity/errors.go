@@ -25,6 +25,8 @@ var (
 	ErrConflict = errors.New("identity: conflict")
 	// ErrInvalidProfile: a profile update with an invalid value (422).
 	ErrInvalidProfile = errors.New("identity: invalid profile")
+	// ErrEmailTaken: CreateUser for an email another account holds.
+	ErrEmailTaken = errors.New("identity: email taken")
 	// ErrInvalidConfig: New was given an incomplete Config.
 	ErrInvalidConfig = errors.New("identity: invalid configuration")
 )
@@ -66,4 +68,6 @@ const (
 	msgTombstone          = "The account has been anonymized and cannot be re-enabled."
 	msgDisplayNameTooLong = "The display name must be 120 characters or fewer."
 	msgOwnAccountOnly     = "You may only manage your own account."
+	msgInvalidEmail       = "A valid email address is required."
+	msgEmailTaken         = "The email address is already registered."
 )

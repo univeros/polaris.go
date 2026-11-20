@@ -79,7 +79,7 @@ func scimError(e *Error) endpoint.Result {
 }
 
 func (p *Plugin) serverError(ctx context.Context, err error) endpoint.Result {
-	p.g.Logger.ErrorContext(ctx, "polaris scim: request failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "polaris scim: request failed", "error", err)
 	return scimError(&Error{Status: http.StatusInternalServerError, Detail: "The server could not complete the request."})
 }
 
@@ -102,7 +102,7 @@ func (p *Plugin) record(ctx context.Context, name string, conn Connection, subje
 	for k, v := range data {
 		merged[k] = v
 	}
-	p.g.Events.Dispatch(ctx, Event{Name: name, ActorType: audit.ActorAPIKey, ActorID: conn.ID, SubjectID: subjectID,
+	p.g.Events().Dispatch(ctx, Event{Name: name, ActorType: audit.ActorAPIKey, ActorID: conn.ID, SubjectID: subjectID,
 		OrganizationID: conn.OrganizationID, Data: merged, IP: c.IP, UserAgent: c.UserAgent})
 }
 

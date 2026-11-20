@@ -93,7 +93,7 @@ func parseRSAPublicKey(data string) (*rsa.PublicKey, error) {
 		err = fmt.Errorf("unexpected PEM block %q", block.Type)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: the JWT public key could not be parsed: %v", ErrInvalidConfig, err)
+		return nil, fmt.Errorf("%w: the JWT public key could not be parsed: %w", ErrInvalidConfig, err)
 	}
 	pub, ok := key.(*rsa.PublicKey)
 	if !ok {
@@ -119,7 +119,7 @@ func parseRSAPrivateKey(data string) (*rsa.PrivateKey, error) {
 		err = fmt.Errorf("unexpected PEM block %q", block.Type)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: the JWT private key could not be parsed: %v", ErrInvalidConfig, err)
+		return nil, fmt.Errorf("%w: the JWT private key could not be parsed: %w", ErrInvalidConfig, err)
 	}
 	priv, ok := key.(*rsa.PrivateKey)
 	if !ok {

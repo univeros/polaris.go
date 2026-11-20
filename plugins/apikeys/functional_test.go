@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/apikeys"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/polaristest"

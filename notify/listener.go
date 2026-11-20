@@ -61,6 +61,9 @@ func notify(ctx context.Context, m Mailer, users Users, e event.Event) error {
 	}
 	switch e := e.(type) {
 	case event.UserRegistered:
+		if e.VerificationToken == "" { // created verified (Users().Create): nothing to verify
+			return nil
+		}
 		return m.Send(ctx, e.Email, TemplateVerifyEmail, map[string]any{"token": e.VerificationToken})
 	case event.PasswordResetRequested:
 		return m.Send(ctx, e.Email, TemplatePasswordReset, map[string]any{"token": e.ResetToken})

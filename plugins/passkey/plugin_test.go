@@ -47,11 +47,11 @@ func newHarness(t *testing.T, cfg ...Config) *harness {
 func (h *harness) user(email string) model.User {
 	h.t.Helper()
 	g := h.srv.Graph()
-	hash, _ := g.Hasher.Hash(unitPass)
+	hash, _ := g.Hasher().Hash(unitPass)
 	now := time.Now().UTC().Truncate(time.Second)
 	name := "Ada"
 	u := model.User{ID: repository.NewID(), Email: email, DisplayName: &name, PasswordHash: &hash, EmailVerifiedAt: &now, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := g.Repos.Users.Insert(h.ctx, u); err != nil {
+	if err := g.Repos().Users.Insert(h.ctx, u); err != nil {
 		h.t.Fatal(err)
 	}
 	return u
@@ -117,11 +117,11 @@ func refused(t *testing.T, err error, want kind, msg string) {
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	h := newHarness(t)
 	g := h.srv.Graph()
-	if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == TablePasskeys }) {
+	if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == TablePasskeys }) {
 		t.Fatal("the table joins the schema")
 	}
 	var routes []string
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if r.Plugin == ID {
 			step := ""
 			if r.StepUp {
@@ -188,7 +188,7 @@ func TestRegistrationMakesAPasskeyAndAConfirmedCoreFactor(t *testing.T) {
 		pk.AAGUID != "00000000-0000-0000-0000-000000000000" || len(reg.recoveryCodes) == 0 || pk.FactorID == "" {
 		t.Fatalf("registered %+v", reg)
 	}
-	f, err := g.Repos.MFAFactors.Get(h.ctx, pk.FactorID)
+	f, err := g.Repos().MFAFactors.Get(h.ctx, pk.FactorID)
 	if err != nil || f.Type != FactorType || *f.Label != "MacBook" || f.UserID != ada.ID || f.ConfirmedAt == nil {
 		t.Fatalf("factor %+v %v", f, err)
 	}
@@ -212,7 +212,7 @@ func TestRegistrationMakesAPasskeyAndAConfirmedCoreFactor(t *testing.T) {
 	if r := plain.register(bob, NewAuthenticator(t), ""); r.passkey.FactorID != "" || len(r.recoveryCodes) != 0 {
 		t.Fatalf("not a factor: %+v", r)
 	}
-	if fs, _ := plain.srv.Graph().MFA.Factors(plain.ctx, bob.ID); len(fs) != 0 {
+	if fs, _ := plain.srv.Graph().MFA().Factors(plain.ctx, bob.ID); len(fs) != 0 {
 		t.Fatal(fs)
 	}
 }
@@ -240,7 +240,7 @@ func TestDiscoverableSignInOpensASessionAndTheGateAppliesWithoutUserVerification
 	if err != nil {
 		t.Fatal(err)
 	}
-	tok, _ := g.Tokens.Parse(data["access_token"].(string))
+	tok, _ := g.Tokens().Parse(data["access_token"].(string))
 	if amr, _ := tok.Claim("amr").([]any); !slices.Equal(amr, []any{"passkey"}) || tok.Claim("mfa") != true || tok.Subject() != ada.ID {
 		t.Fatal("user verification: the gate is passed")
 	}
@@ -257,7 +257,7 @@ func TestDiscoverableSignInOpensASessionAndTheGateAppliesWithoutUserVerification
 	refused(t, err, kindUserVerificationReqd, "no user verification and the passkey is the only factor")
 
 	now := time.Now().UTC().Truncate(time.Second)
-	if err := g.Repos.MFAFactors.Insert(h.ctx, model.MFAFactor{ID: repository.NewID(), UserID: ada.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := g.Repos().MFAFactors.Insert(h.ctx, model.MFAFactor{ID: repository.NewID(), UserID: ada.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 	gated, err := h.p.authenticate(h.ctx, js(a.Get(h.request(), unitOrigin, ada.ID, false, 3)), h.client)
@@ -270,12 +270,12 @@ func TestDiscoverableSignInOpensASessionAndTheGateAppliesWithoutUserVerification
 
 	disabled := ada
 	disabled.Status = model.UserStatusDisabled
-	_ = g.Repos.Users.Update(h.ctx, ada, disabled)
+	_ = g.Repos().Users.Update(h.ctx, ada, disabled)
 	_, err = h.p.authenticate(h.ctx, js(a.Get(h.request(), unitOrigin, ada.ID, true, 4)), h.client)
 	refused(t, err, kindAccountDisabled, "disabled")
 	unverified := disabled
 	unverified.Status, unverified.EmailVerifiedAt = model.UserStatusActive, nil
-	_ = g.Repos.Users.Update(h.ctx, disabled, unverified)
+	_ = g.Repos().Users.Update(h.ctx, disabled, unverified)
 	_, err = h.p.authenticate(h.ctx, js(a.Get(h.request(), unitOrigin, ada.ID, true, 5)), h.client)
 	refused(t, err, kindEmailUnverified, "core requires a verified email to sign in")
 
@@ -287,7 +287,7 @@ func TestDiscoverableSignInOpensASessionAndTheGateAppliesWithoutUserVerification
 	if err != nil {
 		t.Fatal(err)
 	}
-	tok, _ = plain.srv.Graph().Tokens.Parse(out["access_token"].(string))
+	tok, _ = plain.srv.Graph().Tokens().Parse(out["access_token"].(string))
 	if tok.Claim("mfa") != false {
 		t.Fatal("no factor to gate on: a one-factor session")
 	}
@@ -301,33 +301,33 @@ func TestAPasskeyIsASecondFactorThroughCoresGateAndStepUp(t *testing.T) {
 	pk := h.register(ada, a, "MacBook").passkey
 	h.register(ada, other, "Phone")
 
-	login, err := g.Identity.Login(h.ctx, "ada@example.com", unitPass, h.client)
+	login, err := g.Identity().Login(h.ctx, "ada@example.com", unitPass, h.client)
 	if err != nil || login.MFA == nil || login.MFA.Factors[0].ID != pk.FactorID {
 		t.Fatalf("the password login hits the gate: %+v %v", login, err)
 	}
 	assertion := a.GetJSON(h.request(), unitOrigin, ada.ID, true, 0)
-	if _, err := g.MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, other.GetJSON(h.request(), unitOrigin, ada.ID, true, 0), h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, other.GetJSON(h.request(), unitOrigin, ada.ID, true, 0), h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("another passkey than the factor's: %v", err)
 	}
-	tokens, err := g.MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client)
+	tokens, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tok, _ := g.Tokens.Parse(tokens.AccessToken)
+	tok, _ := g.Tokens().Parse(tokens.AccessToken)
 	if amr, _ := tok.Claim("amr").([]any); !slices.Equal(amr, []any{"pwd", "otp"}) || tok.Claim("mfa") != true {
 		t.Fatal("core's post-MFA session")
 	}
-	if _, err := g.MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("replayed: %v", err)
 	}
-	if _, err := g.MFA.VerifyStepUp(h.ctx, ada.ID, "", tokens.SessionID, pk.FactorID, a.GetJSON(h.request(), unitOrigin, ada.ID, true, 1)); err != nil {
+	if _, err := g.MFA().VerifyStepUp(h.ctx, ada.ID, "", tokens.SessionID, pk.FactorID, a.GetJSON(h.request(), unitOrigin, ada.ID, true, 1)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.MFA.Challenge(h.ctx, ada.ID, pk.FactorID, mfa.PurposeLoginMFA, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := g.MFA().Challenge(h.ctx, ada.ID, pk.FactorID, mfa.PurposeLoginMFA, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("a passkey has no sent challenge: %v", err)
 	}
 
-	if err := g.MFA.RemoveFactor(h.ctx, ada.ID, pk.FactorID); err != nil {
+	if err := g.MFA().RemoveFactor(h.ctx, ada.ID, pk.FactorID); err != nil {
 		t.Fatal(err)
 	}
 	if l := h.list(ada.ID); l[0].FactorID != "" {
@@ -340,7 +340,7 @@ func TestAPasskeyIsASecondFactorThroughCoresGateAndStepUp(t *testing.T) {
 	if err := (factor{h.p}).Verify(h.ctx, model.MFAFactor{ID: pk.FactorID, UserID: ada.ID}, "{}", mfa.PurposeStepUp); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatal(err)
 	}
-	g.Events.Dispatch(h.ctx, event.UserDeleted{UserID: ada.ID})
+	g.Events().Dispatch(h.ctx, event.UserDeleted{UserID: ada.ID})
 	if len(h.list(ada.ID)) != 0 {
 		t.Fatal("an erased user leaves no passkey")
 	}
@@ -359,25 +359,25 @@ func TestRenameAndDeleteKeepCoreInStep(t *testing.T) {
 	if r, err := h.p.rename(h.ctx, ada.ID, pk.ID, "Work laptop"); err != nil || r.Name != "Work laptop" {
 		t.Fatal(err)
 	}
-	if f, _ := g.Repos.MFAFactors.Get(h.ctx, pk.FactorID); *f.Label != "Work laptop" {
+	if f, _ := g.Repos().MFAFactors.Get(h.ctx, pk.FactorID); *f.Label != "Work laptop" {
 		t.Fatal("the factor follows")
 	}
 
 	enforced := ada
 	enforced.MFAEnforced = true
-	_ = g.Repos.Users.Update(h.ctx, ada, enforced)
+	_ = g.Repos().Users.Update(h.ctx, ada, enforced)
 	refused(t, h.p.remove(h.ctx, ada.ID, pk.ID), kindLastFactor, "protected")
-	_ = g.Repos.Users.Update(h.ctx, enforced, ada)
+	_ = g.Repos().Users.Update(h.ctx, enforced, ada)
 	refused(t, h.p.remove(h.ctx, grace.ID, pk.ID), kindNotFound, "not grace's")
 	if err := h.p.remove(h.ctx, ada.ID, pk.ID); err != nil {
 		t.Fatal(err)
 	}
-	if fs, _ := g.MFA.Factors(h.ctx, ada.ID); len(h.list(ada.ID)) != 0 || len(fs) != 0 {
+	if fs, _ := g.MFA().Factors(h.ctx, ada.ID); len(h.list(ada.ID)) != 0 || len(fs) != 0 {
 		t.Fatal("the passkey and its factor are gone")
 	}
 	// A passkey whose factor went under core's route renames and deletes alone.
 	pk = h.register(ada, NewAuthenticator(t), "Phone").passkey
-	if _, err := g.DB.Delete(h.ctx, "auth_mfa_factors", store.Criteria{"id": pk.FactorID}); err != nil {
+	if _, err := g.DB().Delete(h.ctx, "auth_mfa_factors", store.Criteria{"id": pk.FactorID}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := h.p.rename(h.ctx, ada.ID, pk.ID, ""); err != nil {

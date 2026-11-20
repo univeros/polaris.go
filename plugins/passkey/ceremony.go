@@ -95,19 +95,19 @@ func (p *Plugin) register(ctx context.Context, u model.User, credential, name st
 	r := record{ID: repository.NewID(), UserID: u.ID, CredentialID: att.credentialID, PublicKey: att.publicKey, Counter: int64(att.counter),
 		AAGUID: att.aaguid, Transports: att.transports, BackupEligible: att.backupEligible, BackedUp: att.backedUp, Name: name, CreatedAt: now}
 	out := registered{passkey: r, recoveryCodes: []string{}}
-	err = p.g.DB.Tx(ctx, func(ctx context.Context) error {
+	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		if !p.settings.mfaFactor {
 			return p.insert(ctx, r)
 		}
 		f := model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: FactorType, Label: &name, CreatedAt: now, UpdatedAt: now}
 		out.passkey.FactorID = f.ID
-		if err := p.g.Repos.MFAFactors.Insert(ctx, f); err != nil {
+		if err := p.g.Repos().MFAFactors.Insert(ctx, f); err != nil {
 			return err
 		}
 		if err := p.insert(ctx, out.passkey); err != nil {
 			return err
 		}
-		confirmed, err := p.g.MFA.ConfirmFactor(ctx, f)
+		confirmed, err := p.g.MFA().ConfirmFactor(ctx, f)
 		out.recoveryCodes = confirmed.RecoveryCodes
 		return err
 	})
@@ -132,7 +132,7 @@ func (p *Plugin) authenticate(ctx context.Context, credential string, client tok
 	if err != nil {
 		return nil, err
 	}
-	u, err := p.g.Repos.Users.Get(ctx, r.UserID)
+	u, err := p.g.Repos().Users.Get(ctx, r.UserID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, errInvalid("the credential belongs to nobody")
 	}
@@ -213,12 +213,12 @@ func (p *Plugin) rename(ctx context.Context, userID, id, name string) (record, e
 	if name, err = checkName(name); err != nil {
 		return record{}, err
 	}
-	if _, err := p.g.DB.Update(ctx, TablePasskeys, store.Criteria{"id": r.ID}, store.Data{"name": name}); err != nil {
+	if _, err := p.g.DB().Update(ctx, TablePasskeys, store.Criteria{"id": r.ID}, store.Data{"name": name}); err != nil {
 		return record{}, err
 	}
 	if r.FactorID != "" {
 		// The factor may have gone under core's route; the passkey keeps its name.
-		if _, err := p.g.MFA.UpdateFactor(ctx, userID, r.FactorID, &name, false); err != nil && !errors.Is(err, mfa.ErrFactorNotFound) {
+		if _, err := p.g.MFA().UpdateFactor(ctx, userID, r.FactorID, &name, false); err != nil && !errors.Is(err, mfa.ErrFactorNotFound) {
 			return record{}, err
 		}
 	}
@@ -234,7 +234,7 @@ func (p *Plugin) remove(ctx context.Context, userID, id string) error {
 		return err
 	}
 	if r.FactorID != "" {
-		err := p.g.MFA.RemoveFactor(ctx, userID, r.FactorID)
+		err := p.g.MFA().RemoveFactor(ctx, userID, r.FactorID)
 		switch {
 		case errors.Is(err, mfa.ErrLastFactorProtected):
 			return &refusal{kindLastFactor, "Enrol another factor before removing your last one."}
@@ -242,7 +242,7 @@ func (p *Plugin) remove(ctx context.Context, userID, id string) error {
 			return err
 		}
 	}
-	_, err = p.g.DB.Delete(ctx, TablePasskeys, store.Criteria{"id": r.ID})
+	_, err = p.g.DB().Delete(ctx, TablePasskeys, store.Criteria{"id": r.ID})
 	return err
 }
 
@@ -268,7 +268,7 @@ func (p *Plugin) keep(ctx context.Context, challenge []byte, c ceremony) error {
 	if err != nil {
 		return err
 	}
-	return p.g.Cache.Set(ctx, challengeKey(b64(challenge)), raw, p.settings.challengeTTL)
+	return p.g.Cache().Set(ctx, challengeKey(b64(challenge)), raw, p.settings.challengeTTL)
 }
 
 // take consumes the ceremony a challenge was issued for, once: of concurrent takes, only the one
@@ -276,21 +276,21 @@ func (p *Plugin) keep(ctx context.Context, challenge []byte, c ceremony) error {
 func (p *Plugin) take(ctx context.Context, challenge, purpose string) (ceremony, error) {
 	invalid := &refusal{kindChallengeInvalid, "The challenge is unknown, used or expired."}
 	key := challengeKey(challenge)
-	raw, ok, err := p.g.Cache.Get(ctx, key)
+	raw, ok, err := p.g.Cache().Get(ctx, key)
 	if err != nil {
 		return ceremony{}, err
 	}
 	if !ok {
 		return ceremony{}, invalid
 	}
-	won, err := p.g.Cache.Add(ctx, key+".used", []byte{1}, p.settings.challengeTTL)
+	won, err := p.g.Cache().Add(ctx, key+".used", []byte{1}, p.settings.challengeTTL)
 	if err != nil {
 		return ceremony{}, err
 	}
 	if !won {
 		return ceremony{}, invalid
 	}
-	if err := p.g.Cache.Delete(ctx, key); err != nil {
+	if err := p.g.Cache().Delete(ctx, key); err != nil {
 		return ceremony{}, err
 	}
 	var c ceremony

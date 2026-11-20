@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"reflect"
 	"slices"
@@ -10,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/univeros/polaris-go/upstream"
+	"github.com/univeros/polaris-go/internal/upstream"
 )
 
 // pluginDirs is every plugin manifest in upstream.API, in the order packages/client-ts/polaris.php
@@ -62,7 +63,7 @@ func TestEveryUpstreamDirectoryIsAPluginOrCore(t *testing.T) {
 	want := slices.Clone(pluginDirs)
 	sort.Strings(want)
 	if !reflect.DeepEqual(dirs, want) {
-		t.Fatalf("upstream/api has %v, the tests load %v", dirs, want)
+		t.Fatalf("internal/upstream/api has %v, the tests load %v", dirs, want)
 	}
 	if n := len(loadAll(t).Routes()); n != 226 {
 		t.Errorf("%d routes, want 226 (spec §2)", n)
@@ -425,13 +426,13 @@ events: [thing.done]
 	}
 	r, _ := m.Named("polaris.things.do")
 	name, _ := ParseRule("required")
-	max, _ := ParseRule("max:3")
+	maxRule, _ := ParseRule("max:3")
 	want := &Route{
 		Name: "polaris.things.do", File: "things/do.yaml", Method: "POST", Path: "/things/{id}",
 		Summary: "Do a thing", Tags: []string{"things", "3"}, Auth: AuthBearer, RateLimit: "token_consume",
 		Effect: EffectRead, Receipt: true, StepUp: true, Session: SessionIssue, RequiresPermissions: []string{"things.write"},
 		Input: Input{Source: SourceBody, Fields: []Field{
-			{Name: "name", Type: "?string", Rules: []Rule{name, max}, Sensitive: true},
+			{Name: "name", Type: "?string", Rules: []Rule{name, maxRule}, Sensitive: true},
 			{Name: "other", Type: "string"},
 		}},
 		Class: `Polaris\Things\DoEndpoint`, Description: "Does the thing.",
@@ -459,7 +460,7 @@ func TestRouteValidate(t *testing.T) {
 	m := loadCore(t)
 	register, _ := m.Named("polaris.auth.register")
 	err := register.Validate(map[string]any{"email": "nope"})
-	if err == nil || !reflect.DeepEqual(err.(*ValidationError).Errors, []string{"email must be a valid email address.", "password is required."}) {
+	if ve, ok := errors.AsType[*ValidationError](err); !ok || !reflect.DeepEqual(ve.Errors, []string{"email must be a valid email address.", "password is required."}) {
 		t.Errorf("register: %v", err)
 	}
 }

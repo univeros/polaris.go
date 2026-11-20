@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/plugins/oauth"
 	"github.com/univeros/polaris-go/store"
@@ -163,16 +163,16 @@ func locationCapability(a *agentsCase) {
 	ok := callHost(mw, location, key.requestJWT(id, location, nil, nil), bob)
 	a.equal([]any{ok.Code, problemOf(ok)}, []any{200, map[string]any{"invited": "bob@acme.test"}}, "ok")
 	a.equal([]any{h.seen[0].Grant.Capability, *h.seen[0].Grant.BudgetRemaining}, []any{"invite", 1}, "the handler sees the grant")
-	row, _ := a.srv.Graph().DB.FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": ok.Header().Get(agents.ReceiptHeader)})
+	row, _ := a.srv.Graph().DB().FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": ok.Header().Get(agents.ReceiptHeader)})
 	a.equal([]any{row.String("capability"), row.String("outcome"), row.Int("budget_before"), row.Int("budget_after")}, []any{"invite", "success", 2, 1}, "receipt")
 
 	failed := callHost(mw, location, key.requestJWT(id, location, nil, nil), map[string]any{"email": "fail@acme.test"})
 	a.equal(failed.Code, 500, "failed")
-	row, _ = a.srv.Graph().DB.FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": failed.Header().Get(agents.ReceiptHeader)})
+	row, _ = a.srv.Graph().DB().FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": failed.Header().Get(agents.ReceiptHeader)})
 	a.equal(row.String("outcome"), "failed", "the outcome follows the status")
 	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), bob))["error"], "capability_not_granted", "the budget of two is spent")
 	a.equal(callHost(mw, "https://host.polaris.test/other", "", map[string]any{}).Code, 200, "other URLs pass through")
-	n, _ := a.srv.Graph().DB.Count(a.ctx, agents.TableReceipts, store.Criteria{"agent_id": id})
+	n, _ := a.srv.Graph().DB().Count(a.ctx, agents.TableReceipts, store.Criteria{"agent_id": id})
 	a.equal([]any{n, len(h.seen)}, []any{2, 3}, "two receipts; the pass-through reached the handler too")
 	var capsSeen []any
 	for _, e := range a.audited(agents.EventExecuted, agents.EventExecutionDenied) {

@@ -2,10 +2,14 @@ package sqlstore_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/go-sql-driver/mysql"
 
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
@@ -233,5 +237,38 @@ func must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A MySQL pool built by the host without clientFoundRows=true is refused on its first write, with
+// the remedy, instead of silently turning every no-op conditional update into a lost race.
+func TestNewRefusesAMySQLPoolThatCountsChangedRows(t *testing.T) {
+	dsn := os.Getenv(storetest.EnvMySQLDSN)
+	if dsn == "" {
+		t.Skipf("set %s to run", storetest.EnvMySQLDSN)
+	}
+	ctx := context.Background()
+	isolated := storetest.OpenSQL(t, store.MySQL)
+	must(t, isolated.CreateSchema(ctx, schema.Core()))
+	var name string
+	must(t, isolated.DB().QueryRowContext(ctx, "SELECT DATABASE()").Scan(&name))
+	pool := func(foundRows bool) *sqlstore.Store {
+		cfg, err := mysql.ParseDSN(dsn)
+		must(t, err)
+		cfg.DBName, cfg.ClientFoundRows = name, foundRows
+		db, err := sql.Open("mysql", cfg.FormatDSN())
+		must(t, err)
+		t.Cleanup(func() { _ = db.Close() })
+		return sqlstore.New(db, store.MySQL)
+	}
+	bad := pool(false)
+	if _, err := bad.Update(ctx, "auth_users", store.Criteria{"id": "nobody"}, store.Data{"status": "active"}); !errors.Is(err, sqlstore.ErrMySQLFoundRows) {
+		t.Errorf("update on a changed-rows pool: %v; want ErrMySQLFoundRows", err)
+	}
+	if err := bad.Tx(ctx, func(context.Context) error { return nil }); !errors.Is(err, sqlstore.ErrMySQLFoundRows) {
+		t.Errorf("tx on a changed-rows pool: %v; want ErrMySQLFoundRows", err)
+	}
+	if _, err := pool(true).Update(ctx, "auth_users", store.Criteria{"id": "nobody"}, store.Data{"status": "active"}); err != nil {
+		t.Errorf("update on a found-rows pool: %v", err)
 	}
 }

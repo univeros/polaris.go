@@ -26,8 +26,8 @@ _, err = p.Migrate(ctx)                                                  // crea
 mux := http.NewServeMux()
 mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
 mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
-// in the handler: polaris.Principal(r.Context()).Subject() is the user id; .Organization() the active org;
-// .Delegation() reports an API key / OAuth client / agent acting with a subset of the owner's permissions.
+// in the handler: who, ok := polaris.PrincipalFrom(r.Context()) — who.UserID, who.OrganizationID,
+// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated.
 ```
 
 Environment: `APP_KEY` (≥ 32 bytes: `openssl rand -base64 32`), `AUTH_JWT_PRIVATE_KEY` and
@@ -40,10 +40,41 @@ EdDSA instead of RS256: `polaris keys:generate --alg=EdDSA` (base64 keys for the
 Your own permissions: `cfg.Permissions = map[string]string{"invoices.read": "Read invoices"}` before
 `polaris.New`; `Migrate` adds them to the catalog. Grant them to roles through `/orgs/{id}/roles`.
 
+Housekeeping: schedule `p.Prune(ctx)` (hourly is plenty) to delete expired refresh tokens, codes and
+invitations; idempotent on every replica.
+
 Production ports (fields of `polaris.Config`; each has a working default, the logging ones warn):
 `Mailer notify.Mailer` and `SMS notify.SMSSender` (verification / reset / OTP delivery — the
 defaults only log), `Cache cache.Cache` and `RateStore` (share across replicas; a host cache must make
 `Add` atomic, e.g. Redis SET NX), `Events event.Dispatcher`, `Logger *slog.Logger`, `PathPrefix`.
+Host extensions: `Listeners []event.Listener` (your listeners on every domain event), `Middleware`
+(wrapped outermost around `Handler` and every `Protect`: tracing, request ids), `Hooks` (below).
+
+## Your app's own data: hooks, transactions, Go calls
+
+```go
+cfg.Hooks = polaris.Hooks{
+	OnUserCreated: func(ctx context.Context, u polaris.User) error { return createProfile(ctx, u.ID) }, // same transaction as the account
+	OnUserDeleted: func(ctx context.Context, userID string) error { return deleteProfile(ctx, userID) },
+	Claims: func(ctx context.Context, in polaris.ClaimsInput) (map[string]any, error) {
+		return map[string]any{"app_plan": planOf(in.UserID)}, nil // reserved names (sub, org, roles, …) are refused
+	},
+}
+p, err := polaris.New(cfg)
+
+tx, err := db.DB().BeginTx(ctx, nil)                              // your transaction (sqlstore.Store.DB() is the *sql.DB)
+ada, err := p.Users().Create(sqlstore.WithTx(ctx, tx), polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+err = tx.Commit()                                                 // or Rollback: the account and OnUserCreated's rows go too
+org, err := p.Orgs().Create(ctx, ada.ID, "Acme", "")              // ada is its owner
+err = p.Orgs().AddMember(ctx, org.ID, otherUserID, "member")
+tokens, err := p.Sessions().Issue(ctx, polaris.SignIn{UserID: ada.ID}) // your own sign-in; tokens.AccessToken works on Protect
+ok := p.Can(ctx, polaris.Principal{UserID: ada.ID, OrganizationID: org.ID}, "org.read")
+// errors: errors.Is(err, polaris.ErrNotFound), polaris.ErrConflict, polaris.ErrForbidden, polaris.ErrInvalidInput, polaris.ErrInvalidCredentials
+```
+
+`p.Users()`: Get, ByEmail, Create, SetPassword, Disable, Enable, Delete. `p.Orgs()`: Create, Get,
+ListFor, AddMember, SetRoles, RemoveMember. `p.Sessions()`: Issue, Refresh, Revoke, RevokeAll. Same
+rules, events and audit as the HTTP routes; the caller is trusted (no permission check).
 
 ## Plugins (pass to polaris.FromEnv / Config.Plugins)
 
@@ -119,7 +150,8 @@ mux.Handle("/", h) // also serves /.well-known/oauth-protected-resource/mcp; mcp
 
 ```go
 srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) // SQLite in a temp dir, test keys, recorders
-// srv.Handler(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names(), srv.Graph()
+// srv.Handler(), srv.Users(), srv.Sessions(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names()
+// polaristest.WithConfig(func(c *polaris.Config) { c.Hooks = … }) for anything else
 ```
 
 ## CLI
@@ -142,7 +174,8 @@ With your own plugins, build your own binary: `os.Exit(cli.Run(ctx, p, os.Args[1
 
 Core routes answer `{"error": "<code>", "message": "…"}`; plugin routes answer RFC 9457 problems
 (`application/problem+json`, `type` = `https://polaris.univeros.io/problems/<plugin>/<name>`).
-Go APIs return sentinel errors (`errors.Is`) per package.
+Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `ErrForbidden`,
+`ErrInvalidInput`, `ErrInvalidCredentials` (`errors.Is`); other packages have their own sentinels.
 
 ## Where to look
 
@@ -150,5 +183,6 @@ Go APIs return sentinel errors (`errors.Is`) per package.
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris-go/<package>` — every exported identifier is documented.
-- `upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
+- `internal/upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
+- `API.md` — what is stable in v0.x (the host surface, the plugin SDK) and what may change.
 - `docs/port/spec.md`, `docs/port/decisions.md` — design and every departure from the PHP version.

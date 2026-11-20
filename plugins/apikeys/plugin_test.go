@@ -13,8 +13,9 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/apikeys"
 	"github.com/univeros/polaris-go/plugins/audit"
@@ -57,7 +58,7 @@ func boot(t *testing.T, cfg apikeys.Config, withAudit bool) env {
 	}
 	verified := now
 	user := model.User{ID: repository.NewID(), Email: "ada@example.com", EmailVerifiedAt: &verified, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	if err := p.Graph().Repos.Users.Insert(context.Background(), user); err != nil {
+	if err := p.Graph().Repos().Users.Insert(context.Background(), user); err != nil {
 		t.Fatal(err)
 	}
 	return env{p: p, keys: apikeys.Of(p.Graph()).Keys(), clk: clk, db: db, user: user}
@@ -86,11 +87,11 @@ func refused(t *testing.T, err error, want error, msg string) {
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	e := boot(t, apikeys.Config{}, true)
 	g := e.p.Graph()
-	if !slices.ContainsFunc(g.Schema, func(m schema.Model) bool { return m.Table == apikeys.TableKeys }) {
+	if !slices.ContainsFunc(g.Schema(), func(m schema.Model) bool { return m.Table == apikeys.TableKeys }) {
 		t.Fatal("no table")
 	}
 	var routes []string
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if r.Plugin == apikeys.ID {
 			routes = append(routes, r.Method+" "+r.Path)
 		}
@@ -252,7 +253,7 @@ func TestAnOwnerIsBoundedInKeysAndAnErasedUserLeavesNone(t *testing.T) {
 	_, err := e.keys.Create(ctx, apikeys.CreateParams{OwnerType: apikeys.OwnerUser, OwnerID: e.user.ID, CreatedBy: e.user.ID, Name: "three"})
 	refused(t, err, apikeys.ErrTooMany, "too many")
 	e.create(t, apikeys.CreateParams{OwnerType: apikeys.OwnerOrganization, OwnerID: "org-1", OrganizationID: "org-1", Name: "org key"})
-	events := e.p.Graph().Events
+	events := e.p.Graph().Events()
 	events.Dispatch(ctx, event.MemberRemoved{OrganizationID: "org-1", UserID: e.user.ID, ActorUserID: "admin-1"})
 	if k, _ := e.keys.ForOwner(ctx, apikeys.OwnerOrganization, "org-1"); len(k) != 0 {
 		t.Fatal("a member who leaves takes the organization keys they act for")
@@ -280,7 +281,7 @@ func TestTheResolverAnswersTheOwnersPrincipalWithTheDelegatedPermissionsAndRefus
 	issued := e.create(t, apikeys.CreateParams{OrganizationID: "org-1", Name: "CI", Permissions: []string{"org.read"}, Held: []string{"org.read"}, RateLimit: &apikeys.RateLimit{Window: 60, Max: 5}})
 	var seen []string
 	h := e.p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tok := polaris.Principal(r.Context())
+		tok := endpoint.Token(r.Context())
 		perms, delegated := tok.Delegation()
 		amr, _ := tok.Claim("amr").([]any)
 		if !delegated || !slices.Equal(perms, []string{"org.read"}) || tok.Organization() != "org-1" || len(amr) != 1 || amr[0] != apikeys.AMR || tok.IssuedAt().IsZero() {
@@ -332,13 +333,13 @@ func TestProtectAcceptsAnAPIKey(t *testing.T) {
 
 	host := func(perms ...string) *contracttest.Client {
 		return contracttest.NewClient(t, srv.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tok := polaris.Principal(r.Context())
-			delegated, ok := tok.Delegation()
-			if tok.Subject() != userID || tok.Organization() != orgID || !ok || !slices.Equal(delegated, []string{"org.read"}) {
-				t.Errorf("principal %s %s %v", tok.Subject(), tok.Organization(), delegated)
+			who, ok := polaris.PrincipalFrom(r.Context())
+			if !ok || who.UserID != userID || who.OrganizationID != orgID || who.Kind != polaris.KindAPIKey || who.KeyID == "" || !who.Delegated {
+				t.Errorf("principal %+v", who)
 			}
-			if a, ok := polaris.Authority(r.Context()); len(perms) > 0 && (!ok || !a.Allows(perms...)) {
-				t.Error("no authority")
+			// The owner holds every permission of the org; the key delegates org.read only.
+			if !slices.Equal(who.Permissions, []string{"org.read"}) || !srv.Can(r.Context(), who, "org.read") || srv.Can(r.Context(), who, "members.read") {
+				t.Errorf("authority %v", who.Permissions)
 			}
 			w.WriteHeader(http.StatusOK)
 		}), perms...), nil)

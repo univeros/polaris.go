@@ -35,6 +35,11 @@ type Field struct {
 	// and a unique index on up to 3072 characters fits; the other dialects are unchanged. Not part of
 	// upstream's schema-as-data: a Go-only MySQL DDL refinement (same type, length and data).
 	ASCII bool
+	// CaseSensitive marks a String column holding an identifier that compares byte for byte but
+	// may hold any UTF-8 (an IdP's subject, a client_id URL): MySQL declares it CHARACTER SET
+	// utf8mb4 COLLATE utf8mb4_bin instead of its case- and accent-insensitive default; the other
+	// dialects already compare bytes. A Go-only MySQL DDL refinement, like ASCII.
+	CaseSensitive bool
 }
 
 func newField(property string, t FieldType, length int, column ...string) Field {
@@ -70,6 +75,9 @@ func (f Field) AsNullable() Field { f.Nullable = true; return f }
 
 // AsASCII returns a copy marked ASCII (see Field.ASCII).
 func (f Field) AsASCII() Field { f.ASCII = true; return f }
+
+// AsCaseSensitive returns a copy marked CaseSensitive (see Field.CaseSensitive).
+func (f Field) AsCaseSensitive() Field { f.CaseSensitive = true; return f }
 
 // WithDefault returns a copy with a column default.
 func (f Field) WithDefault(v any) Field { f.HasDefault = true; f.Default = v; return f }

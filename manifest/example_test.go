@@ -6,8 +6,8 @@ import (
 	"io/fs"
 	"log"
 
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/upstream"
 )
 
 func Example() {

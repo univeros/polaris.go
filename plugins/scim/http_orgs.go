@@ -110,7 +110,7 @@ func orgProblem(status int, name, title, detail string) endpoint.Result {
 }
 
 func (p *Plugin) failed(ctx context.Context, err error) endpoint.Result {
-	p.g.Logger.ErrorContext(ctx, "polaris scim: operation failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "polaris scim: operation failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 
@@ -153,7 +153,7 @@ func (p *Plugin) recordUser(ctx context.Context, name, userID string, conn Conne
 	c := endpoint.Client(ctx)
 	merged := map[string]any{"connection_name": conn.Name}
 	maps.Copy(merged, data)
-	p.g.Events.Dispatch(ctx, Event{Name: name, ActorType: audit.ActorUser, ActorID: userID, SubjectID: conn.ID,
+	p.g.Events().Dispatch(ctx, Event{Name: name, ActorType: audit.ActorUser, ActorID: userID, SubjectID: conn.ID,
 		OrganizationID: conn.OrganizationID, Data: merged, IP: c.IP, UserAgent: c.UserAgent})
 }
 
@@ -214,7 +214,7 @@ func (p *Plugin) ssoProviderOf(ctx context.Context, providerID, orgID string) (b
 	if p.g.Plugin("sso") == nil {
 		return false, nil
 	}
-	row, err := p.g.DB.FindOne(ctx, ssoProviders, store.Criteria{"id": providerID, "organization_id": orgID})
+	row, err := p.g.DB().FindOne(ctx, ssoProviders, store.Criteria{"id": providerID, "organization_id": orgID})
 	return row != nil, err
 }
 
@@ -309,7 +309,7 @@ func (p *Plugin) adminDelete(ctx context.Context, in *endpoint.Input) endpoint.R
 		actorType = audit.ActorAPIKey
 	}
 	c := endpoint.Client(ctx)
-	p.g.Events.Dispatch(ctx, Event{Name: AuditConnectionDecommissioned, ActorType: actorType, ActorID: op.ID, SubjectID: conn.ID,
+	p.g.Events().Dispatch(ctx, Event{Name: AuditConnectionDecommissioned, ActorType: actorType, ActorID: op.ID, SubjectID: conn.ID,
 		OrganizationID: conn.OrganizationID, IP: c.IP, UserAgent: c.UserAgent,
 		Data: map[string]any{"connection_name": conn.Name, "deleted": true, "actor_role": string(op.Role)}})
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "deleted"})

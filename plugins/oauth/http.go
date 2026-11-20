@@ -44,7 +44,7 @@ func (p *Plugin) fail(ctx context.Context, err error) endpoint.Result {
 	if errors.As(err, &oe) {
 		return refuse(oe)
 	}
-	p.graph.Logger.ErrorContext(ctx, "oauth: request failed", "error", err)
+	p.graph.Logger().ErrorContext(ctx, "oauth: request failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 

@@ -210,15 +210,17 @@ func (p *Pipeline) Endpoints() http.Handler { return http.HandlerFunc(p.dispatch
 
 // Protect guards a host route with Polaris principals: the bearer (resolvers, then the access
 // token), the denylist and, when permissions are given, the Gate, answering core's 401 / 403
-// envelope. next reads the principal with endpoint.Token and the authority with
-// endpoint.Authority. Protect panics when permissions are given and Options.Gate is nil.
+// envelope. With a Gate and no permissions, the caller's authority is recorded lazily: next reads
+// it with endpoint.ResolveAuthority (resolved on first use, once), and the principal with
+// endpoint.Token.
+// Protect panics when permissions are given and Options.Gate is nil.
 func (p *Pipeline) Protect(next http.Handler, permissions ...string) http.Handler {
 	if len(permissions) > 0 && p.opts.Gate == nil {
 		panic("pipeline: Protect with permissions needs Options.Gate")
 	}
 	required := append([]string(nil), permissions...)
 	return chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p.permit(w, r, required, next)
+		p.permit(w, r, required, next, p.opts.Gate != nil)
 	}), append(append([]func(http.Handler) http.Handler{clientContext, p.authenticate}, p.opts.PluginMiddleware...), p.denylist))
 }
 

@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/agents"
 	"github.com/univeros/polaris-go/plugins/audit"
@@ -74,7 +74,7 @@ func capabilities() []agents.Capability {
 // agentsCase is one ported test: a booted server with audit, admin, oauth and agents, and a client
 // replaying the test's fixture.
 type agentsCase struct {
-	t      *testing.T
+	t      testing.TB
 	srv    *polaristest.Server
 	c      *contracttest.Client
 	plugin *agents.Plugin

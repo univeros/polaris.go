@@ -21,11 +21,11 @@ func (p *Plugin) openSession(ctx context.Context, u model.User, client token.Cli
 	if u.Status == model.UserStatusDisabled {
 		return nil, &refusal{kindAccountDisabled, "This account is disabled."}
 	}
-	if p.g.Auth.Flows.RequireVerifiedEmail && u.EmailVerifiedAt == nil {
+	if p.g.Auth().Flows.RequireVerifiedEmail && u.EmailVerifiedAt == nil {
 		return nil, &refusal{kindEmailUnverified, "Verify your email address before signing in."}
 	}
 	if !userVerified {
-		all, err := p.g.MFA.ConfirmedFactors(ctx, u.ID)
+		all, err := p.g.MFA().ConfirmedFactors(ctx, u.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -39,14 +39,14 @@ func (p *Plugin) openSession(ctx context.Context, u model.User, client token.Cli
 			return nil, &refusal{kindUserVerificationReqd, "This passkey is the account's only second factor: the authenticator must verify the user (a PIN, a fingerprint, a face)."}
 		}
 		if len(others) > 0 {
-			c, err := p.g.MFA.BeginLogin(u.ID, others)
+			c, err := p.g.MFA().BeginLogin(u.ID, others)
 			if err != nil {
 				return nil, err
 			}
 			return map[string]any{"mfa_required": true, "mfa_token": c.MFAToken, "factors": c.Factors}, nil
 		}
 	}
-	principal, err := p.g.Principals.Resolve(ctx, u.ID, "")
+	principal, err := p.g.Principals().Resolve(ctx, u.ID, "")
 	if err != nil {
 		return nil, fmt.Errorf("passkey: resolve principal: %w", err)
 	}
@@ -56,17 +56,17 @@ func (p *Plugin) openSession(ctx context.Context, u model.User, client token.Cli
 	next := u
 	next.LastLoginAt, next.UpdatedAt = &now, now
 	var issued token.IssuedTokens
-	err = p.g.DB.Tx(ctx, func(ctx context.Context) error {
-		if err := p.g.Repos.Users.Update(ctx, u, next); err != nil {
+	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if err := p.g.Repos().Users.Update(ctx, u, next); err != nil {
 			return err
 		}
-		issued, err = p.g.Sessions.Issue(ctx, principal, client)
+		issued, err = p.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	p.g.Events.Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: []string{amr}})
+	p.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: []string{amr}})
 	return map[string]any{
 		"access_token": issued.AccessToken, "token_type": "Bearer", "expires_in": issued.AccessExpiresIn, "refresh_token": issued.RefreshToken,
 		"user": map[string]any{"id": u.ID, "email": u.Email, "email_verified": u.EmailVerifiedAt != nil},

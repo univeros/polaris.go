@@ -13,7 +13,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/scim"
 	"github.com/univeros/polaris-go/schema"
@@ -45,8 +45,8 @@ func Example() {
 	g := p.Graph()
 	now := time.Now().UTC()
 	owner := model.User{ID: "u-owner", Email: "owner@acme.example", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
-	_ = g.Repos.Users.Insert(ctx, owner)
-	org, _ := g.Orgs.CreateOrganization(ctx, "Acme", "", owner.ID)
+	_ = g.Repos().Users.Insert(ctx, owner)
+	org, _ := g.Orgs().CreateOrganization(ctx, "Acme", "", owner.ID)
 
 	// What POST /orgs/{id}/scim/connections does for an organization admin:
 	conn, token, err := scim.Of(g).Connections().Create(ctx, org.ID, "Okta", scim.DeprovisionDeactivate, "", owner.ID)

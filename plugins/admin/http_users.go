@@ -24,7 +24,7 @@ var userStatuses = []string{model.UserStatusActive, model.UserStatusDisabled, mo
 
 // user loads the user of a route, or the 404 (or 500) to answer.
 func (p *Plugin) user(ctx context.Context, userID string) (model.User, endpoint.Result, bool) {
-	u, err := p.g.Repos.Users.Get(ctx, userID)
+	u, err := p.g.Repos().Users.Get(ctx, userID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return u, NotFound(msgNoUser), false
 	}
@@ -72,7 +72,7 @@ func (p *Plugin) listUsers(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if cursor := in.String("cursor"); cursor != "" {
 		c["id"] = store.Gt(cursor)
 	}
-	rows, err := p.g.Repos.Users.Find(ctx, c, store.Query{OrderBy: []store.Order{{Column: "id"}}, Limit: limit + 1})
+	rows, err := p.g.Repos().Users.Find(ctx, c, store.Query{OrderBy: []store.Order{{Column: "id"}}, Limit: limit + 1})
 	if err != nil {
 		return p.fail(ctx, "list users", err)
 	}
@@ -122,7 +122,7 @@ func (p *Plugin) banUser(ctx context.Context, in *endpoint.Input) endpoint.Resul
 		return res
 	}
 	userID := in.String("id")
-	if err := p.g.Identity.DisableUser(ctx, op.ID, userID); err != nil {
+	if err := p.g.Identity().DisableUser(ctx, op.ID, userID); err != nil {
 		return p.identityRefusal(ctx, "ban user", err)
 	}
 	return p.recorded(ctx, status(model.UserStatusDisabled), AuditUserBanned, op, userID, "", nil)
@@ -135,7 +135,7 @@ func (p *Plugin) unbanUser(ctx context.Context, in *endpoint.Input) endpoint.Res
 		return res
 	}
 	userID := in.String("id")
-	if err := p.g.Identity.EnableUser(ctx, op.ID, userID); err != nil {
+	if err := p.g.Identity().EnableUser(ctx, op.ID, userID); err != nil {
 		return p.identityRefusal(ctx, "unban user", err)
 	}
 	return p.recorded(ctx, status(model.UserStatusActive), AuditUserUnbanned, op, userID, "", nil)
@@ -156,23 +156,12 @@ func (p *Plugin) setPassword(ctx context.Context, in *endpoint.Input) endpoint.R
 	if !found {
 		return res
 	}
-	policy := identity.PasswordPolicy{MinLength: p.g.Auth.Password.MinLength, Breaches: p.g.Breaches}
-	if violations := policy.Validate(ctx, password); len(violations) > 0 {
-		return Invalid("The password does not meet the policy.", violations...)
-	}
-	hash, err := p.g.Hasher.Hash(password)
-	if err != nil {
+	var violations *identity.PasswordError
+	if err := p.g.Identity().SetPassword(ctx, u.ID, password); errors.As(err, &violations) {
+		return Invalid("The password does not meet the policy.", violations.Violations...)
+	} else if err != nil {
 		return p.fail(ctx, "set password", err)
 	}
-	next := u
-	next.PasswordHash, next.UpdatedAt = &hash, p.g.Clock.Now().UTC()
-	if err := p.g.Repos.Users.Update(ctx, u, next); err != nil {
-		return p.fail(ctx, "set password", err)
-	}
-	if _, err := p.g.Sessions.RevokeAll(ctx, u.ID, model.RevokedPasswordChange); err != nil {
-		return p.fail(ctx, "set password", err)
-	}
-	p.g.Events.Dispatch(ctx, event.PasswordChanged{UserID: u.ID, Method: event.PasswordMethodReset})
 	return p.recorded(ctx, status("password_set"), AuditPasswordSet, op, u.ID, "", nil)
 }
 
@@ -186,7 +175,7 @@ func (p *Plugin) deleteUser(ctx context.Context, in *endpoint.Input) endpoint.Re
 	if userID == op.ID {
 		return Conflict("You cannot delete your own account.")
 	}
-	if err := p.g.Identity.AnonymizeUser(ctx, op.ID, userID); err != nil {
+	if err := p.g.Identity().AnonymizeUser(ctx, op.ID, userID); err != nil {
 		return p.identityRefusal(ctx, "delete user", err)
 	}
 	return p.recorded(ctx, status("deleted"), AuditUserDeleted, op, userID, "", nil)
@@ -206,22 +195,22 @@ func (p *Plugin) impersonate(ctx context.Context, in *endpoint.Input) endpoint.R
 	if cmp.Or(u.Status, model.UserStatusActive) != model.UserStatusActive {
 		return Conflict("The account is not active.")
 	}
-	base, err := p.g.Principals.Resolve(ctx, u.ID, "")
+	base, err := p.g.Principals().Resolve(ctx, u.ID, "")
 	if err != nil {
 		return p.fail(ctx, "impersonate", err)
 	}
 	if slices.Contains(base.Roles, authz.RoleSuperadmin) {
 		return problem(http.StatusForbidden, "impersonation_denied", "Impersonation denied", "A superadmin cannot be impersonated.")
 	}
-	authTime := p.g.Clock.Now().Unix()
-	access, err := p.g.Sessions.Mint(token.SessionPrincipal{
+	authTime := p.g.Clock().Now().Unix()
+	access, err := p.g.Sessions().Mint(ctx, token.SessionPrincipal{
 		UserID: u.ID, Roles: base.Roles, Scope: base.Scope, EmailVerified: base.EmailVerified,
 		AMR: []string{AMRImpersonation}, AuthTime: &authTime,
 	}, "", token.Claims{}.With(ClaimImpersonatedBy, op.ID).With(ClaimImpersonatorType, op.Type))
 	if err != nil {
 		return p.fail(ctx, "impersonate", err)
 	}
-	ttl := int(p.g.Auth.AccessToken.TTL.Seconds())
+	ttl := int(p.g.Auth().AccessToken.TTL.Seconds())
 	data := map[string]any{"access_token": access, "token_type": "Bearer", "expires_in": ttl, "impersonated_by": op.ID}
 	return p.recorded(ctx, endpoint.Data(http.StatusCreated, data), AuditUserImpersonated, op, u.ID, "", map[string]any{"expires_in": ttl})
 }
@@ -235,7 +224,7 @@ func (p *Plugin) listSessions(ctx context.Context, in *endpoint.Input) endpoint.
 	if !found {
 		return res
 	}
-	infos, err := p.g.Sessions.List(ctx, u.ID, "")
+	infos, err := p.g.Sessions().List(ctx, u.ID, "")
 	if err != nil {
 		return p.fail(ctx, "list sessions", err)
 	}
@@ -256,7 +245,7 @@ func (p *Plugin) revokeSession(ctx context.Context, in *endpoint.Input) endpoint
 		return res
 	}
 	userID, sessionID := in.String("id"), in.String("sessionId")
-	revoked, err := p.g.Sessions.Revoke(ctx, userID, sessionID)
+	revoked, err := p.g.Sessions().Revoke(ctx, userID, sessionID)
 	if err != nil {
 		return p.fail(ctx, "revoke session", err)
 	}
@@ -276,7 +265,7 @@ func (p *Plugin) revokeAllSessions(ctx context.Context, in *endpoint.Input) endp
 	if !found {
 		return res
 	}
-	n, err := p.g.Sessions.RevokeAll(ctx, u.ID, model.RevokedAdmin)
+	n, err := p.g.Sessions().RevokeAll(ctx, u.ID, model.RevokedAdmin)
 	if err != nil {
 		return p.fail(ctx, "revoke sessions", err)
 	}
@@ -292,7 +281,7 @@ func (p *Plugin) listFactors(ctx context.Context, in *endpoint.Input) endpoint.R
 	if !found {
 		return res
 	}
-	factors, err := p.g.MFA.Factors(ctx, u.ID)
+	factors, err := p.g.MFA().Factors(ctx, u.ID)
 	if err != nil {
 		return p.fail(ctx, "list factors", err)
 	}
@@ -314,7 +303,7 @@ func (p *Plugin) removeFactor(ctx context.Context, in *endpoint.Input) endpoint.
 		return res
 	}
 	userID, factorID := in.String("id"), in.String("factorId")
-	err := p.g.MFA.RemoveFactor(ctx, userID, factorID)
+	err := p.g.MFA().RemoveFactor(ctx, userID, factorID)
 	var refusal *mfa.PolicyError
 	switch {
 	case errors.Is(err, mfa.ErrFactorNotFound):
@@ -339,22 +328,22 @@ func (p *Plugin) resetMFA(ctx context.Context, in *endpoint.Input) endpoint.Resu
 		return res
 	}
 	var removed []model.MFAFactor
-	err := p.g.DB.Tx(ctx, func(ctx context.Context) error {
+	err := p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		var err error
-		if removed, err = p.g.Repos.MFAFactors.ListByUser(ctx, u.ID); err != nil {
+		if removed, err = p.g.Repos().MFAFactors.ListByUser(ctx, u.ID); err != nil {
 			return err
 		}
-		if _, err = p.g.Repos.MFAFactors.DeleteByUser(ctx, u.ID); err != nil {
+		if _, err = p.g.Repos().MFAFactors.DeleteByUser(ctx, u.ID); err != nil {
 			return err
 		}
-		_, err = p.g.DB.Delete(ctx, "auth_recovery_codes", store.Criteria{"user_id": u.ID})
+		_, err = p.g.DB().Delete(ctx, "auth_recovery_codes", store.Criteria{"user_id": u.ID})
 		return err
 	})
 	if err != nil {
 		return p.fail(ctx, "reset mfa", err)
 	}
 	for _, f := range removed {
-		p.g.Events.Dispatch(ctx, event.MFAFactorRemoved{UserID: u.ID, FactorID: f.ID})
+		p.g.Events().Dispatch(ctx, event.MFAFactorRemoved{UserID: u.ID, FactorID: f.ID})
 	}
 	n := len(removed)
 	return p.recorded(ctx, success(map[string]any{"status": "reset", "factors": n}), AuditMFAReset, op, u.ID, "", map[string]any{"factors": n})

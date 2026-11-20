@@ -67,7 +67,7 @@ func (p *Plugin) answer(ctx context.Context, err error) endpoint.Result {
 	if e, ok := errors.AsType[*Error](err); ok {
 		return problem(e)
 	}
-	p.g.Logger.ErrorContext(ctx, "polaris sso: operation failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "polaris sso: operation failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 
@@ -166,7 +166,7 @@ func (p *Plugin) logout(ctx context.Context, in *endpoint.Input) endpoint.Result
 	if orgID == "" {
 		orgID = endpoint.ActorOrganization(tok)
 	}
-	u, err := p.g.Repos.Users.Get(ctx, tok.Subject())
+	u, err := p.g.Repos().Users.Get(ctx, tok.Subject())
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return p.answer(ctx, err)
 	}

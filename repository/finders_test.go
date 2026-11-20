@@ -314,7 +314,7 @@ func TestReposShareOneTransaction(t *testing.T) {
 			}
 			return abort
 		})
-		if err != abort {
+		if !errors.Is(err, abort) {
 			t.Fatalf("Tx = %v", err)
 		}
 		users, _ := r.Users.Count(context.Background(), nil)

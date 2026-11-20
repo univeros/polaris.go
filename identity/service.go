@@ -73,6 +73,12 @@ type Config struct {
 	Breaches security.BreachedPasswordCheck
 	Clock    clock.Clock      // nil: clock.System
 	Events   event.Dispatcher // nil: event.Nop
+	// OnUserCreated runs inside the transaction that creates an account (every path: InsertUser);
+	// an error aborts the creation. nil: nothing.
+	OnUserCreated func(ctx context.Context, u model.User) error
+	// OnUserDeleted runs inside the transaction that erases or removes an account; an error
+	// aborts it. nil: nothing.
+	OnUserDeleted func(ctx context.Context, userID string) error
 }
 
 // Service runs the identity flows. It is immutable after New and safe for concurrent use.
@@ -89,6 +95,8 @@ type Service struct {
 	auth      config.Auth
 	clock     clock.Clock
 	events    event.Dispatcher
+	onCreated func(ctx context.Context, u model.User) error
+	onDeleted func(ctx context.Context, userID string) error
 	// dummyHash is verified against when the account is missing or passwordless, so a login
 	// costs one Argon2id verify either way (timing parity). Hashed once, lazily.
 	dummyHash func() (string, error)
@@ -123,6 +131,7 @@ func New(cfg Config) (*Service, error) {
 		sessions: cfg.Sessions, mfa: cfg.MFA, tickets: cfg.Tickets, authority: cfg.Authority,
 		policy: PasswordPolicy{MinLength: cfg.Auth.Password.MinLength, Breaches: cfg.Breaches},
 		auth:   cfg.Auth, clock: cfg.Clock, events: cfg.Events,
+		onCreated: cfg.OnUserCreated, onDeleted: cfg.OnUserDeleted,
 	}
 	if s.clock == nil {
 		s.clock = clock.System{}

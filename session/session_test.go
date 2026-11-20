@@ -4,6 +4,7 @@ package session
 // run on memstore and SQLite, plus the concurrent-refresh race.
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"sync"
@@ -304,12 +305,12 @@ func TestRefreshRejectsUnknownAndExpiredTokens(t *testing.T) {
 func TestMintWithoutSession(t *testing.T) {
 	h := newHarness(memstore.New(schema.Core()...), "2026-06-07 12:00:00")
 	s := h.service(t)
-	_, err := s.Mint(principal(), "", token.Claims{}.With("impersonated_by", "admin-1").With("sub", "evil"))
+	_, err := s.Mint(context.Background(), principal(), "", token.Claims{}.With("impersonated_by", "admin-1").With("sub", "evil"))
 	must(t, err)
 	if _, ok := h.issuer.claims[0].Get("sid"); ok || h.issuer.claim(0, "impersonated_by") != "admin-1" || h.issuer.claim(0, "sub") != "user-1" {
 		t.Fatal("mint claims")
 	}
-	if _, err := s.Mint(token.SessionPrincipal{}, "", token.Claims{}); !errors.Is(err, token.ErrInvalidClaims) {
+	if _, err := s.Mint(context.Background(), token.SessionPrincipal{}, "", token.Claims{}); !errors.Is(err, token.ErrInvalidClaims) {
 		t.Fatalf("empty subject: %v", err)
 	}
 }

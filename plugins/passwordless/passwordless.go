@@ -33,8 +33,8 @@ import (
 	"time"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -121,7 +121,7 @@ func (c Config) settings(g *wiring.Graph) (settings, error) {
 		respectMFA: !c.SkipMFAGate, otpLength: c.OTPLength, maxAttempts: c.MaxAttempts,
 	}
 	if s.baseURL == "" {
-		s.baseURL = strings.TrimRight(g.Auth.Issuer, "/") + "/" + strings.Trim(g.Config.PathPrefix, "/")
+		s.baseURL = strings.TrimRight(g.Auth().Issuer, "/") + "/" + strings.Trim(g.Config().PathPrefix, "/")
 	}
 	var errs []error
 	if u, err := url.Parse(s.baseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
@@ -193,7 +193,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if err != nil {
 		return err
 	}
-	p.svc = &service{g: g, s: s, secrets: &secrets{db: g.DB, pepper: g.Pepper, clock: g.Clock, maxAttempts: s.maxAttempts}}
+	p.svc = &service{g: g, s: s, secrets: &secrets{db: g.DB(), pepper: g.Pepper(), clock: g.Clock(), maxAttempts: s.maxAttempts}}
 	return nil
 }
 

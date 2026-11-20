@@ -14,7 +14,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/apikeys"
 	"github.com/univeros/polaris-go/plugins/audit"
@@ -93,7 +93,7 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 		t.Fatalf("plugin: %+v", p)
 	}
 	for _, pattern := range [][2]string{{"POST", "/mcp"}, {"GET", "/.well-known/oauth-protected-resource/mcp"}} {
-		if _, ok := g.Manifest.Find(pattern[0], pattern[1]); !ok {
+		if _, ok := g.Manifest().Find(pattern[0], pattern[1]); !ok {
 			t.Errorf("%v not in the manifest", pattern)
 		}
 	}
@@ -111,7 +111,7 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	}
 
 	// Configuration errors name their fix; ServeStdio needs the plugin.
-	_, err := polaris.New(polaris.Config{Secrets: g.Config.Secrets, Auth: g.Auth, DB: g.DB, Plugins: []polaris.Plugin{mcp.New(mcp.Config{BaseURL: "auth.polaris.test"})}})
+	_, err := polaris.New(polaris.Config{Secrets: g.Config().Secrets, Auth: g.Auth(), DB: g.DB(), Plugins: []polaris.Plugin{mcp.New(mcp.Config{BaseURL: "auth.polaris.test"})}})
 	if err == nil || !strings.Contains(err.Error(), "Config.BaseURL") {
 		t.Errorf("bad BaseURL: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestToolNamesAreUniqueOverEveryPluginOfTheRepository(t *testing.T) {
 	g := srv.Graph()
 	names := map[string]bool{}
 	valid := regexp.MustCompile(`^polaris(\.[a-z0-9_]+)+$`)
-	for _, rt := range g.Manifest.Routes() {
+	for _, rt := range g.Manifest().Routes() {
 		name := mcp.ToolName(rt)
 		if names[name] {
 			t.Errorf("%s twice", name)

@@ -64,7 +64,7 @@ func (p *Plugin) guard(next http.Handler) http.Handler {
 		}
 		d, err := p.engine.Evaluate(ctx, a)
 		if err != nil {
-			p.g.Logger.ErrorContext(ctx, "sentinel: evaluation failed", "error", err)
+			p.g.Logger().ErrorContext(ctx, "sentinel: evaluation failed", "error", err)
 			endpoint.Write(w, endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request."))
 			return
 		}
@@ -165,7 +165,7 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 }
 
 func (p *Plugin) fail(ctx context.Context, what string, err error) endpoint.Result {
-	p.g.Logger.ErrorContext(ctx, "sentinel: "+what+" failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "sentinel: "+what+" failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 

@@ -16,6 +16,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/agents"
@@ -34,7 +35,6 @@ import (
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/sqlstore"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -149,7 +149,7 @@ func (s *source) plugins() ([]polaris.Plugin, error) {
 // models is the schema of core and the plugins.
 func (s *source) models() ([]schema.Model, error) {
 	if s.host != nil {
-		return s.host.Graph().Schema, nil
+		return s.host.Graph().Schema(), nil
 	}
 	plugs, err := s.plugins()
 	if err != nil {
@@ -171,7 +171,7 @@ func (s *source) models() ([]schema.Model, error) {
 // manifest is the routes of core and the plugins, loaded as polaris.New loads them.
 func (s *source) manifest() (*manifest.Manifest, error) {
 	if s.host != nil {
-		return s.host.Graph().Manifest, nil
+		return s.host.Graph().Manifest(), nil
 	}
 	plugs, err := s.plugins()
 	if err != nil {
@@ -198,7 +198,7 @@ func (s *source) manifest() (*manifest.Manifest, error) {
 func (s *source) config() (config.Secrets, config.Auth, error) {
 	if s.host != nil {
 		g := s.host.Graph()
-		return g.Config.Secrets, g.Auth, nil
+		return g.Config().Secrets, g.Auth(), nil
 	}
 	secrets, auth, err := config.FromLookup(s.getenv)
 	if err != nil {
@@ -207,12 +207,28 @@ func (s *source) config() (config.Secrets, config.Auth, error) {
 	return secrets, auth, nil
 }
 
+// sqlStore finds the *sqlstore.Store under a, unwrapping decorators (telemetry/otel.Store) that
+// expose Unwrap() store.Adapter.
+func sqlStore(a store.Adapter) (*sqlstore.Store, bool) {
+	for a != nil {
+		if db, ok := a.(*sqlstore.Store); ok {
+			return db, true
+		}
+		u, ok := a.(interface{ Unwrap() store.Adapter })
+		if !ok {
+			return nil, false
+		}
+		a = u.Unwrap()
+	}
+	return nil, false
+}
+
 // database is the SQL store the schema commands work on.
 func (s *source) database(ctx context.Context) (*sqlstore.Store, error) {
 	if s.host != nil {
-		db, ok := s.host.Graph().DB.(*sqlstore.Store)
+		db, ok := sqlStore(s.host.Graph().DB())
 		if !ok {
-			return nil, fail(fmt.Sprintf("the instance's database adapter (%s) is not an SQL store", s.host.Graph().DB.Dialect()), "the schema commands need a store/sqlstore database: build the instance with sqlstore.Open")
+			return nil, fail(fmt.Sprintf("the instance's database adapter (%s) is not an SQL store", s.host.Graph().DB().Dialect()), "the schema commands need a store/sqlstore database: build the instance with sqlstore.Open")
 		}
 		return db, nil
 	}

@@ -5,6 +5,9 @@
 // The wire format is frozen (spec §3.3): for the same key, clock and claims, Codec.Issue
 // produces the same bytes as upstream's PolarisTokenGenerator (lcobucci/jwt), and Codec.Parse
 // accepts and rejects exactly what upstream's PolarisTokenParser does.
+//
+// Package token is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
+// third-party plugin builds on. API.md states what is stable.
 package token
 
 import (

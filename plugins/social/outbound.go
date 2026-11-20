@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -256,7 +257,7 @@ func (o *outbound) decode(ctx context.Context, jwksURL, raw string) (map[string]
 		if err == nil {
 			return claims, nil
 		}
-		if _, unknown := err.(errUnknownKey); fresh || !unknown {
+		if _, unknown := errors.AsType[errUnknownKey](err); fresh || !unknown {
 			return nil, refuse(kindTokenInvalid, "the id_token does not verify: "+err.Error())
 		}
 	}
@@ -300,7 +301,7 @@ func (o *outbound) keySet(ctx context.Context, jwksURL string, fresh bool) ([]jo
 // of the set of the header's algorithm (a key without alg is RS256), a valid signature, a JSON
 // object payload, and nbf / iat / exp within a minute of leeway.
 func verifyJWT(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {
-	jws, err := jose.ParseSigned(raw, idTokenAlgorithms)
+	jws, err := jose.ParseSignedCompact(raw, idTokenAlgorithms)
 	if err != nil {
 		return nil, err
 	}

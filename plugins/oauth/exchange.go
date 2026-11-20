@@ -105,14 +105,14 @@ func (p *Plugin) subject(ctx context.Context, raw string) (subject, error) {
 				return subject{}, err
 			}
 		}
-		if rec == nil || !rec.live(p.graph.Clock.Now()) {
+		if rec == nil || !rec.live(p.graph.Clock().Now()) {
 			return subject{}, refusal(CodeInvalidGrant, "The subject token is revoked or unknown.")
 		}
 		sub, _ := claims["sub"].(string)
 		return subject{sub: sub, user: rec.UserID, org: rec.OrganizationID, clientID: rec.ClientID,
 			scopes: rec.Scopes, act: rec.Actor, authTime: rec.AuthTime, jkt: rec.DPoPJKT}, nil
 	}
-	session, err := p.graph.Tokens.Parse(raw)
+	session, err := p.graph.Tokens().Parse(raw)
 	if err != nil {
 		return subject{}, refusal(CodeInvalidGrant, "The subject token is not a token this server knows.")
 	}

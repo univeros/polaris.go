@@ -68,7 +68,7 @@ func (r record) wire() map[string]any {
 		"factor_id": factorID, "last_used_at": lastUsed, "created_at": r.CreatedAt.Format(dateAtom)}
 }
 
-func (p *Plugin) now() time.Time { return p.g.Clock.Now().UTC().Truncate(time.Second) }
+func (p *Plugin) now() time.Time { return p.g.Clock().Now().UTC().Truncate(time.Second) }
 
 func (p *Plugin) insert(ctx context.Context, r record) error {
 	transports, err := store.JSONValue(r.Transports)
@@ -79,7 +79,7 @@ func (p *Plugin) insert(ctx context.Context, r record) error {
 	if r.FactorID != "" {
 		factorID = r.FactorID
 	}
-	err = p.g.DB.Insert(ctx, TablePasskeys, store.Row{
+	err = p.g.DB().Insert(ctx, TablePasskeys, store.Row{
 		"id": r.ID, "user_id": r.UserID, "credential_id": r.CredentialID, "public_key": r.PublicKey, "counter": r.Counter,
 		"aaguid": r.AAGUID, "transports": transports, "backup_eligible": r.BackupEligible, "backed_up": r.BackedUp,
 		"name": r.Name, "factor_id": factorID, "last_used_at": nil, "created_at": r.CreatedAt,
@@ -91,7 +91,7 @@ func (p *Plugin) insert(ctx context.Context, r record) error {
 }
 
 func (p *Plugin) find(ctx context.Context, c store.Criteria) (*record, error) {
-	row, err := p.g.DB.FindOne(ctx, TablePasskeys, c)
+	row, err := p.g.DB().FindOne(ctx, TablePasskeys, c)
 	if err != nil || row == nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (p *Plugin) find(ctx context.Context, c store.Criteria) (*record, error) {
 }
 
 func (p *Plugin) forUser(ctx context.Context, userID string) ([]record, error) {
-	rows, err := p.g.DB.FindMany(ctx, TablePasskeys, store.Criteria{"user_id": userID}, store.Query{OrderBy: []store.Order{{Column: "id"}}})
+	rows, err := p.g.DB().FindMany(ctx, TablePasskeys, store.Criteria{"user_id": userID}, store.Query{OrderBy: []store.Order{{Column: "id"}}})
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (p *Plugin) forUser(ctx context.Context, userID string) ([]record, error) {
 // used records an assertion: the new counter and backup state, the time. It is conditional on the
 // counter the assertion was checked against, so two concurrent assertions cannot both move it.
 func (p *Plugin) used(ctx context.Context, r record, a asserted) error {
-	n, err := p.g.DB.Update(ctx, TablePasskeys, store.Criteria{"id": r.ID, "counter": r.Counter},
+	n, err := p.g.DB().Update(ctx, TablePasskeys, store.Criteria{"id": r.ID, "counter": r.Counter},
 		store.Data{"counter": int64(a.counter), "backed_up": a.backedUp, "last_used_at": p.now()})
 	if err == nil && n != 1 {
 		return errInvalid("the passkey was used concurrently")
@@ -123,12 +123,12 @@ func (p *Plugin) used(ctx context.Context, r record, a asserted) error {
 }
 
 func (p *Plugin) detachFactor(ctx context.Context, factorID string) error {
-	_, err := p.g.DB.Update(ctx, TablePasskeys, store.Criteria{"factor_id": factorID}, store.Data{"factor_id": nil})
+	_, err := p.g.DB().Update(ctx, TablePasskeys, store.Criteria{"factor_id": factorID}, store.Data{"factor_id": nil})
 	return err
 }
 
 func (p *Plugin) deleteForUser(ctx context.Context, userID string) error {
-	_, err := p.g.DB.Delete(ctx, TablePasskeys, store.Criteria{"user_id": userID})
+	_, err := p.g.DB().Delete(ctx, TablePasskeys, store.Criteria{"user_id": userID})
 	return err
 }
 

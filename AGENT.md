@@ -18,7 +18,11 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
   database matrix (PostgreSQL, MySQL), fuzzing (manifest input, token parsing, passkey
   CBOR/attestation); then `v1.0.0`.
 - Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
-  compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`.
+  compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`. A host imports only package
+  `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`); `wiring`, `endpoint`,
+  `manifest`, `event`, `token` are the plugin SDK; `API.md` says what is stable. Every new path that
+  creates or deletes an account goes through `identity.Service.InsertUser` / `OnUserDeleted` (the
+  host's hooks; `TestEveryAccountIsCreatedThroughInsertUser` guards it).
 
 ## The rules
 
@@ -26,13 +30,13 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
    `scripts/hooks/pre-push` hook enforces it; do not bypass it with `--no-verify`), never paste code,
    paths or names from here into external services. `GOPRIVATE=github.com/univeros/polaris-go`.
 2. **Upstream decides observable behaviour, not design.** The PHP code at `../polaris-core` (pinned
-   ref in `upstream/REF`) defines what a client or a shared database sees: responses, tables, hash /
+   ref in `internal/upstream/REF`) defines what a client or a shared database sees: responses, tables, hash /
    cipher / JWT formats, event names. How the Go code achieves it is designed fresh, the way the best
    Go library would (spec G6, §3.4): read the PHP to learn the behaviour and its edge cases, then
    write Go, not translated PHP. Log notable departures in `decisions.md`. Never modify
    `../polaris-core` from here.
-3. **`upstream/` is generated.** Only `scripts/sync-upstream.sh` writes `upstream/api` and
-   `upstream/fixtures`.
+3. **`internal/upstream/` is generated.** Only `scripts/sync-upstream.sh` writes `internal/upstream/api` and
+   `internal/upstream/fixtures`.
 4. **The wire, the database and the secrets are frozen** (spec §3): same responses as the fixtures,
    same tables, same hash/cipher/JWT formats. The Go API is free; the behaviour is not.
 5. **Security-critical semantics are kept exactly** (`security`, `token`, refresh rotation, OTP,
@@ -57,6 +61,6 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
 
 ```
 make qa                              # gofmt check, go vet, go test -race -cover
-make sync REF=<polaris-core ref>     # refresh upstream/ from ../polaris-core
+make sync REF=<polaris-core ref>     # refresh internal/upstream/ from ../polaris-core
 scripts/e2e-agent-ts.sh               # @polaris-auth/agent walkthrough against a Go server
 ```

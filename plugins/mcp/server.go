@@ -269,7 +269,7 @@ func (s *session) tools(ctx context.Context) ([]wiring.Tool, error) {
 }
 
 func (s *session) internal(ctx context.Context, method string, err error) *rpcError {
-	s.p.g.Logger.ErrorContext(ctx, "polaris mcp: "+method+" failed", "error", err)
+	s.p.g.Logger().ErrorContext(ctx, "polaris mcp: "+method+" failed", "error", err)
 	return newError(codeInternal, http.StatusInternalServerError, "Internal server error.")
 }
 

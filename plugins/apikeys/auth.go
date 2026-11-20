@@ -63,7 +63,7 @@ func (res resolver) Resolve(r *http.Request) (*token.Token, error) {
 	if !ok {
 		return nil, ErrRefused
 	}
-	user, err := res.p.g.Repos.Users.Get(ctx, key.Subject())
+	user, err := res.p.g.Repos().Users.Get(ctx, key.Subject())
 	if err != nil || user.Status != model.UserStatusActive && user.Status != "" {
 		return nil, errors.Join(ErrRefused, err)
 	}
@@ -127,13 +127,13 @@ func (p *Plugin) middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		res, err := p.g.RateStore.Hit(r.Context(), "api_keys.key."+id, int(maxHits), time.Duration(window)*time.Second)
+		res, err := p.g.RateStore().Hit(r.Context(), "api_keys.key."+id, int(maxHits), time.Duration(window)*time.Second)
 		if err != nil {
-			p.g.Logger.ErrorContext(r.Context(), "apikeys: rate limit failed", "error", err)
+			p.g.Logger().ErrorContext(r.Context(), "apikeys: rate limit failed", "error", err)
 			endpoint.Write(w, endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request."))
 			return
 		}
-		headers := ratelimit.Headers(res, p.g.Clock.Now())
+		headers := ratelimit.Headers(res, p.g.Clock().Now())
 		if !res.Allowed {
 			for name, values := range headers {
 				w.Header()[name] = values

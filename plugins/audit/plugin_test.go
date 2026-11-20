@@ -8,8 +8,8 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/polaristest"
 	"github.com/univeros/polaris-go/schema"
@@ -33,12 +33,12 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	srv := polaristest.New(t, polaristest.WithPlugins(p))
 	g := srv.Graph()
 
-	if audit.Of(g) != p || len(g.Schema) != len(schema.Core())+3 {
-		t.Fatalf("plugin or schema (%d tables)", len(g.Schema))
+	if audit.Of(g) != p || len(g.Schema()) != len(schema.Core())+3 {
+		t.Fatalf("plugin or schema (%d tables)", len(g.Schema()))
 	}
 	for _, name := range []string{audit.RouteMe, audit.RouteOrganization, audit.RouteTypes} {
 		found := false
-		for _, r := range g.Manifest.Routes() {
+		for _, r := range g.Manifest().Routes() {
 			found = found || (r.Name == name && r.Plugin == audit.ID)
 		}
 		if !found {

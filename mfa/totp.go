@@ -62,7 +62,7 @@ func NewTOTP(cfg config.TOTP, clk clock.Clock) (*TOTP, error) {
 		cfg:    cfg,
 		clock:  clk,
 		period: period,
-		opts:   totp.ValidateOpts{Period: uint(period), Digits: otp.Digits(cfg.Digits), Algorithm: algorithm},
+		opts:   totp.ValidateOpts{Period: uint(period), Digits: otp.Digits(cfg.Digits), Algorithm: algorithm}, //nolint:gosec // G115: period is validated positive
 	}, nil
 }
 

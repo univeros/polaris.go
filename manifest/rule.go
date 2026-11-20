@@ -109,8 +109,8 @@ func (r Rule) check(field string, present bool, value any) (string, bool) {
 	case "email":
 		return field + " must be a valid email address.", isString && IsEmail(s)
 	case "max":
-		max := phpInt(r.arg)
-		return fmt.Sprintf("%s must be at most %d characters.", field, max), isString && utf8.RuneCountInString(s) <= max
+		limit := phpInt(r.arg)
+		return fmt.Sprintf("%s must be at most %d characters.", field, limit), isString && utf8.RuneCountInString(s) <= limit
 	case "in":
 		return fmt.Sprintf("%s must be one of %s.", field, r.arg), isString && slices.Contains(strings.Split(r.arg, ","), s)
 	case "regex":

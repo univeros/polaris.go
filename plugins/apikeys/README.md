@@ -18,7 +18,7 @@ _, err = p.Migrate(ctx) // creates polaris_api_key
 
 mux.Handle("/", p.Handler())                                 // serves /api-keys
 mux.Handle("GET /api/invoices", p.Protect(h, "invoices.read")) // keys pass, as their owner
-// in h: perms, delegated := polaris.Principal(r.Context()).Delegation()
+// in h: who, _ := polaris.PrincipalFrom(r.Context()); who.Kind == polaris.KindAPIKey, who.KeyID, who.Permissions
 ```
 
 ## Config
@@ -64,8 +64,9 @@ step-up route called with a key).
 
 ## Host integration
 
-- In a handler: `polaris.Principal(ctx).Delegation()` reports the key's permissions;
-  `Claim(apikeys.ClaimKey)` is the key id; the AMR is `apikeys.AMR`.
+- In a handler: `who, _ := polaris.PrincipalFrom(r.Context())` — `who.Kind` is
+  `polaris.KindAPIKey`, `who.KeyID` the key id, `who.UserID` its owner, `who.Permissions` the
+  key's permissions intersected with the owner's; the AMR is `apikeys.AMR`.
 - Mint, rotate, revoke from code: `apikeys.Of(g).Keys()` (`Create(ctx, apikeys.CreateParams{…})`
   returns `apikeys.Issued` with `Secret`, shown once; `Rotate`, `Revoke`, `Update`, `Authenticate`).
   Refusals match `apikeys.ErrNotFound`, `ErrTooMany`, `ErrPermissionNotHeld`, … with `errors.Is`.

@@ -52,7 +52,7 @@ func (p *Plugin) answer(ctx context.Context, data any, err error) endpoint.Resul
 	}
 	r, ok := asRefusal(err)
 	if !ok {
-		p.g.Logger.ErrorContext(ctx, "polaris social: operation failed", "error", err)
+		p.g.Logger().ErrorContext(ctx, "polaris social: operation failed", "error", err)
 		return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 	}
 	pr, known := problems[r.kind]

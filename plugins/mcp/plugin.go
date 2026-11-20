@@ -13,9 +13,9 @@ import (
 	"sync"
 
 	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/internal/upstream"
 	"github.com/univeros/polaris-go/pipeline"
 	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/upstream"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -89,7 +89,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	}
 	p.g, p.resource = g, base+Path
 	supported := slices.Clone(p.cfg.Scopes)
-	for _, perm := range g.Catalog.Permissions() {
+	for _, perm := range g.Catalog().Permissions() {
 		if !slices.Contains(supported, perm.Key) {
 			supported = append(supported, perm.Key)
 		}
@@ -97,18 +97,18 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	pr, err := NewProtectedResource(ProtectConfig{
 		Resource:        p.resource,
 		Graph:           g,
-		Audiences:       []string{g.Auth.Issuer},
+		Audiences:       []string{g.Auth().Issuer},
 		Scopes:          p.cfg.Scopes,
 		ScopesSupported: supported,
 		MetadataURL:     base + WellKnown + Path,
 		ResourceName:    p.cfg.ServerName,
-		Logger:          g.Logger,
+		Logger:          g.Logger(),
 	})
 	if err != nil {
 		return err
 	}
 	p.protected = pr
-	p.schemas = sync.OnceValue(func() map[string]toolSchema { return schemasOf(g.Manifest) })
+	p.schemas = sync.OnceValue(func() map[string]toolSchema { return schemasOf(g.Manifest()) })
 	return nil
 }
 
@@ -190,7 +190,7 @@ func (p *Plugin) serveHTTP(ctx context.Context, in *endpoint.Input) endpoint.Res
 			w.Header().Set("Content-Type", "application/json")
 		}
 		w.WriteHeader(status)
-		_, _ = w.Write(out)
+		_, _ = w.Write(out) //nolint:gosec // G705: a JSON-RPC body served as application/json
 	})).ServeHTTP(rec, r)
 	return endpoint.Result{Status: rec.code(), Header: rec.header, Raw: rec.buf.Bytes()}
 }
@@ -227,7 +227,7 @@ func (p *Plugin) callerOf(r *http.Request, credential string) (caller, error) {
 			}
 		}
 	}
-	tok, err := p.g.Tokens.Parse(credential)
+	tok, err := p.g.Tokens().Parse(credential)
 	return p.withOperator(r.Context(), caller{token: tok, credential: credential}, err)
 }
 

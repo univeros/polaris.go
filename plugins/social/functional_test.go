@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/social"
 	"github.com/univeros/polaris-go/polaristest"
@@ -110,7 +110,7 @@ func (f *flow) signIn(provider string) map[string]any {
 
 func (f *flow) amr(access string) []any {
 	f.t.Helper()
-	tok, err := f.srv.Graph().Tokens.Parse(access)
+	tok, err := f.srv.Graph().Tokens().Parse(access)
 	if err != nil {
 		f.t.Fatal(err)
 	}

@@ -12,7 +12,7 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/authz"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/plugins/oauth"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store/memstore"
@@ -57,5 +57,16 @@ func Example() {
 	var tokens oauth.TokenResponse
 	_ = json.Unmarshal(rec.Body.Bytes(), &tokens)
 	fmt.Println(rec.Code, tokens.TokenType, tokens.Scope, tokens.ExpiresIn)
-	// Output: 200 Bearer deploy 3600
+
+	// The token opens the service's own routes: the principal is the client, acting for no user.
+	api := p.Protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		who, _ := polaris.PrincipalFrom(r.Context())
+		fmt.Printf("%s client=%v user=%q delegated=%v\n", who.Kind, who.ClientID == bot.Client.ClientID, who.UserID, who.Delegated)
+	}))
+	req = httptest.NewRequest(http.MethodGet, "/deployments", nil)
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	api.ServeHTTP(httptest.NewRecorder(), req)
+	// Output:
+	// 200 Bearer deploy 3600
+	// oauth_client client=true user="" delegated=true
 }

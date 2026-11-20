@@ -295,7 +295,7 @@ type UserLoginFailed struct {
 	Reason    string
 }
 
-// UserRegistered: an account was created. VerificationToken is the plaintext email-verification
+// UserRegistered: an account was created. VerificationToken ("" when created verified) is the plaintext email-verification
 // secret for the notification listener; it never reaches fmt or slog output.
 type UserRegistered struct {
 	UserID            string

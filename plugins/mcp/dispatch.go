@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/httpapi"
+	"github.com/univeros/polaris-go/internal/httpapi"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/pipeline"
 	"github.com/univeros/polaris-go/wiring"
@@ -70,7 +70,7 @@ func (p *Plugin) call(ctx context.Context, rt *manifest.Route, args map[string]a
 		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20") // PHP's rawurlencode
 	})
 	u, _ := url.Parse(strings.TrimRight(p.cfg.BaseURL, "/"))
-	u.Path = strings.TrimRight(p.g.Config.PathPrefix, "/") + path
+	u.Path = strings.TrimRight(p.g.Config().PathPrefix, "/") + path
 	var body []byte
 	switch rt.Input.Source {
 	case manifest.SourceQuery:
@@ -91,7 +91,7 @@ func (p *Plugin) call(ctx context.Context, rt *manifest.Route, args map[string]a
 	if c.token != nil {
 		inner = context.WithValue(inner, principalKey{}, c.token)
 	}
-	r, err := http.NewRequestWithContext(inner, rt.Method, u.String(), bytes.NewReader(body))
+	r, err := http.NewRequestWithContext(inner, rt.Method, u.String(), bytes.NewReader(body)) //nolint:gosec,contextcheck // served in process by Polaris's own handler below, never over the network (G704); fresh context values on purpose, cancellation linked above
 	if err != nil {
 		return wiring.ToolResult{}, err
 	}

@@ -33,9 +33,9 @@ func TestParseRuleEveryFormTheSpecsUse(t *testing.T) {
 			t.Errorf("String() = %q, want %q", rule.String(), text)
 		}
 	}
-	max, _ := ParseRule("max:320")
-	if max.Name() != "max" || max.Arg() != "320" {
-		t.Errorf("max:320 = %q %q", max.Name(), max.Arg())
+	maxRule, _ := ParseRule("max:320")
+	if maxRule.Name() != "max" || maxRule.Arg() != "320" {
+		t.Errorf("max:320 = %q %q", maxRule.Name(), maxRule.Arg())
 	}
 	if _, err := ParseRule("between:1,2"); err == nil || err.Error() != `Unknown validation rule "between:1,2".` {
 		t.Errorf("between: %v", err)
@@ -129,7 +129,8 @@ func TestValidateValueKinds(t *testing.T) {
 		err := Validate(field(c.rules...), map[string]any{"f": c.value})
 		got := ""
 		if err != nil {
-			got = strings.Join(err.(*ValidationError).Errors, "|")
+			ve, _ := errors.AsType[*ValidationError](err)
+			got = strings.Join(ve.Errors, "|")
 		}
 		if got != c.want {
 			t.Errorf("%v on %#v = %q, want %q", c.rules, c.value, got, c.want)

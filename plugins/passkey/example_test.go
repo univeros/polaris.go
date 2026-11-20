@@ -13,7 +13,7 @@ import (
 
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/passkey"
 	"github.com/univeros/polaris-go/schema"
@@ -55,9 +55,9 @@ func Example() {
 
 	// A signed-in user (POST /auth/login in a real flow).
 	ctx, now := context.Background(), time.Now()
-	_ = p.Graph().Repos.Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
+	_ = p.Graph().Repos().Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
 	authTime := now.Unix()
-	session, _ := p.Graph().Sessions.Issue(ctx, token.SessionPrincipal{UserID: "user-1", EmailVerified: true, AMR: []string{"pwd"}, AuthTime: &authTime}, token.ClientContext{})
+	session, _ := p.Graph().Sessions().Issue(ctx, token.SessionPrincipal{UserID: "user-1", EmailVerified: true, AMR: []string{"pwd"}, AuthTime: &authTime}, token.ClientContext{})
 
 	browser := passkey.NewAuthenticator(nil) // a test-only software authenticator: the browser in production
 	options := call("/passkey/register/options", nil, session.AccessToken)

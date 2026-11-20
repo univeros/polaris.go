@@ -75,7 +75,7 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 
 // fail logs err and answers core's 500.
 func (p *Plugin) fail(ctx context.Context, what string, err error) endpoint.Result {
-	p.g.Logger.ErrorContext(ctx, "admin: "+what+" failed", "error", err)
+	p.g.Logger().ErrorContext(ctx, "admin: "+what+" failed", "error", err)
 	return serverError()
 }
 

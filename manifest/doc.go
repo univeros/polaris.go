@@ -13,4 +13,7 @@
 //	m, err := manifest.Load(core, audit)
 //
 // Validation errors encode as the 422 body core routes answer: {"errors": ["email is required."]}.
+//
+// Package manifest is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
+// third-party plugin builds on. API.md states what is stable.
 package manifest

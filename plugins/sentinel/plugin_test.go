@@ -19,9 +19,9 @@ import (
 	polaris "github.com/univeros/polaris-go"
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/endpoint"
 	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/internal/contracttest"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/admin"
@@ -114,7 +114,7 @@ func TestEverythingIsWiredThroughTheGraphAndMessagingTakesTheQuietMode(t *testin
 	g := e.p.Graph()
 
 	var routes []string
-	for _, r := range g.Manifest.Routes() {
+	for _, r := range g.Manifest().Routes() {
 		if slices.Contains(r.Tags, "sentinel") {
 			want(t, r.Auth == manifest.AuthPublic && slices.Contains(r.Tags, "admin") && strings.HasPrefix(r.Path, "/admin/sentinel"), "%s", r.File)
 			routes = append(routes, r.Method+" "+r.Path)
@@ -226,7 +226,7 @@ func TestTheListenerRecordsDevicesAndFailuresForTheDeviceTravelAndStuffingSignal
 	big := map[string]sentinel.Limit{"ip": {100, 10 * time.Minute}, "email": {100, 10 * time.Minute}, "device": {100, 10 * time.Minute}}
 	e := boot(t, sentinel.Config{Geo: geo{}, Velocity: big})
 	g := e.p.Graph()
-	if err := g.Repos.Users.Insert(ctx, model.User{ID: "u1", Email: "ada@example.com", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := g.Repos().Users.Insert(ctx, model.User{ID: "u1", Email: "ada@example.com", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 	engine := e.sentinel.Engine()
@@ -242,7 +242,7 @@ func TestTheListenerRecordsDevicesAndFailuresForTheDeviceTravelAndStuffingSignal
 		t.Helper()
 		e.guarded(t, "/auth/login", `{"email":"ada@example.com"}`, addr, device, func(ctx context.Context) {
 			a := addr
-			g.Events.Dispatch(ctx, event.UserLoggedIn{UserID: "u1", SessionID: "s", IP: &a})
+			g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: "u1", SessionID: "s", IP: &a})
 		})
 	}
 
@@ -256,16 +256,16 @@ func TestTheListenerRecordsDevicesAndFailuresForTheDeviceTravelAndStuffingSignal
 	want(t, slices.Equal(eval("ada@example.com", ip, "").Reasons(), []string{"no device cookie"}), "no cookie")
 	want(t, eval("bob@example.com", "198.51.100.9", "dev-9").Score == 0, "an unknown user has no devices")
 	signIn("198.51.100.9", "dev-2")
-	n, _ := g.DB.Count(ctx, sentinel.TableDevices, map[string]any{"user_id": "u1"})
+	n, _ := g.DB().Count(ctx, sentinel.TableDevices, map[string]any{"user_id": "u1"})
 	want(t, n == 2, "the device of the attempt in flight: %d", n)
 	signIn("198.51.100.9", "dev-2")
-	n, _ = g.DB.Count(ctx, sentinel.TableDevices, map[string]any{"user_id": "u1"})
+	n, _ = g.DB().Count(ctx, sentinel.TableDevices, map[string]any{"user_id": "u1"})
 	want(t, n == 2, "a known device is updated, not duplicated: %d", n)
 
 	failed := "192.0.2.1"
 	for range 10 {
 		eval("ada@example.com", failed, "dev-1")
-		g.Events.Dispatch(ctx, event.UserLoginFailed{UserID: "u1", IP: &failed})
+		g.Events().Dispatch(ctx, event.UserLoginFailed{UserID: "u1", IP: &failed})
 	}
 	stuffed := eval("ada@example.com", failed, "dev-1")
 	want(t, slices.Contains(stuffed.Signals(), sentinel.SignalCredentialStuffing) && stuffed.Reasons()[0] == "10 of 11 sign-ins from the address failed", "stuffed %+v", stuffed)
@@ -354,11 +354,11 @@ func TestStartupErrorsNameTheirFix(t *testing.T) {
 func TestTheBreachCheckerServesCoresPortAndTheSignal(t *testing.T) {
 	checker := breachedOnly("password1")
 	e := boot(t, sentinel.Config{Breaches: checker})
-	want(t, e.p.Graph().Breaches.IsBreached(context.Background(), "password1"), "core's port is the sentinel's checker")
+	want(t, e.p.Graph().Breaches().IsBreached(context.Background(), "password1"), "core's port is the sentinel's checker")
 	d, _ := e.sentinel.Engine().Evaluate(context.Background(), sentinel.Attempt{Kind: sentinel.SignUp, Password: "password1"})
 	want(t, slices.Equal(d.Signals(), []string{sentinel.SignalBreachedPassword}), "%v", d.Signals())
 	plain := boot(t, sentinel.Config{})
-	_, none := plain.p.Graph().Breaches.(security.NoBreachCheck)
+	_, none := plain.p.Graph().Breaches().(security.NoBreachCheck)
 	want(t, none, "no checker, core's default")
 }
 
