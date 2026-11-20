@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
@@ -15,33 +14,18 @@ import (
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 var now = time.Date(2026, 6, 7, 10, 0, 0, 0, time.UTC)
 
 func ptr[T any](v T) *T { return &v }
 
-// backends runs fn on memstore and on a fresh SQLite database (foreign keys on), both holding core's
-// schema.
+// backends runs fn on every storetest backend (memstore, SQLite with foreign keys on, and
+// PostgreSQL / MySQL when configured), each a fresh database holding core's schema.
 func backends(t *testing.T, fn func(t *testing.T, r *Repos)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, New(memstore.New(schema.Core()...))) })
-	t.Run("sqlite", func(t *testing.T) { fn(t, New(openSQLite(t))) })
-}
-
-func openSQLite(t *testing.T) *sqlstore.Store {
-	t.Helper()
-	ctx := context.Background()
-	s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.DB().Close() })
-	if err := s.CreateSchema(ctx, schema.Core()); err != nil {
-		t.Fatal(err)
-	}
-	return s
+	storetest.Each(t, func(t *testing.T, db store.Adapter) { fn(t, New(db)) })
 }
 
 func must(t *testing.T, err error) {
@@ -130,7 +114,17 @@ func TestEveryModelRoundTrips(t *testing.T) {
 		rt := fullRefreshToken(u.ID)
 		roundTrip(t, r.RefreshTokens.Table, rt, func() (model.RefreshToken, error) { return r.RefreshTokens.Get(ctx, rt.ID) })
 		entry := model.AuditLogEntry{ID: NewID(), ActorUserID: ptr(u.ID), OrganizationID: ptr(NewID()), Event: "user.login", IP: ptr("::1"), UserAgent: ptr("ua"), Metadata: json.RawMessage(`{"factor_id":"f","channel":"sms"}`), CreatedAt: now}
-		roundTrip(t, r.AuditLog.Table, entry, func() (model.AuditLogEntry, error) { return r.AuditLog.Get(ctx, entry.ID) })
+		roundTrip(t, r.AuditLog.Table, entry, func() (model.AuditLogEntry, error) {
+			got, err := r.AuditLog.Get(ctx, entry.ID)
+			if storetest.JSONNormalized(r.DB.Dialect()) {
+				// jsonb / MySQL JSON hand back an equal value in their own form.
+				var g, w any
+				if json.Unmarshal(got.Metadata, &g) == nil && json.Unmarshal(entry.Metadata, &w) == nil && reflect.DeepEqual(g, w) {
+					got.Metadata = entry.Metadata
+				}
+			}
+			return got, err
+		})
 		f := fullFactor(u.ID)
 		roundTrip(t, r.MFAFactors.Table, f, func() (model.MFAFactor, error) { return r.MFAFactors.Get(ctx, f.ID) })
 		c := fullChallenge(u.ID)

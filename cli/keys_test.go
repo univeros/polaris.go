@@ -117,7 +117,7 @@ func TestKeysGenerate(t *testing.T) {
 	}
 
 	standalone(t, noEnvFile(t), "keys:generate").want(t, exitOK, "APP_KEY=\"", "-----BEGIN PRIVATE KEY-----", "-----BEGIN PUBLIC KEY-----")
-	standalone(t, noEnvFile(t), "keys:generate", "--alg=EdDSA").want(t, exitOK, "# EdDSA keys are base64")
+	standalone(t, noEnvFile(t), "keys:generate", "--alg=EdDSA").want(t, exitOK, "# EdDSA: set cfg.Auth.AccessToken.Signer = config.SignerEdDSA")
 }
 
 func TestDotenv(t *testing.T) {

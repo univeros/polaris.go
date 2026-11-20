@@ -38,6 +38,7 @@ func Run(t *testing.T, newAdapter func(t *testing.T) store.Adapter) {
 		{"CriteriaForms", testCriteriaForms},
 		{"OrderLimitOffset", testOrderLimitOffset},
 		{"ConditionalUpdateWithIncrementIsCompareAndSwap", testConditionalUpdateWithIncrement},
+		{"UpdateCountsMatchedRowsEvenWhenNothingChanges", testUpdateCountsMatchedRows},
 		{"TransactionCommits", testTransactionCommits},
 		{"TransactionRollsBackAndReturnsTheError", testTransactionRollsBack},
 		{"NestedTransactionRollsBackOnlyTheSavepoint", testNestedTransaction},
@@ -294,6 +295,23 @@ func testConditionalUpdateWithIncrement(t *testing.T, a store.Adapter) {
 	}
 	if first, second := claim(), claim(); first != 1 || second != 0 {
 		t.Errorf("claims = %d %d, want 1 0: a second consumer loses the race", first, second)
+	}
+}
+
+// testUpdateCountsMatchedRows: a conditional update that writes the values a row already holds
+// (a no-op lock, a timestamp in the same second) still reports the row, or callers that read
+// "0 rows" as "lost the race" misbehave. MySQL counts changed rows unless the client asks for
+// found rows (clientFoundRows=true, which sqlstore.Open sets).
+func testUpdateCountsMatchedRows(t *testing.T, a store.Adapter) {
+	ctx := context.Background()
+	u := user("same@example.com")
+	insert(t, a, "auth_users", u)
+	for _, d := range []store.Data{{"id": u["id"]}, {"updated_at": base}, {"status": "active", "updated_at": base}} {
+		n, err := a.Update(ctx, "auth_users", store.Criteria{"id": u["id"], "status": "active"}, d)
+		must(t, err)
+		if n != 1 {
+			t.Errorf("update writing unchanged %v reported %d rows, want 1 (matched, not changed)", d, n)
+		}
 	}
 }
 

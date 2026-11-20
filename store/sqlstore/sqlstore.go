@@ -29,7 +29,9 @@ var _ store.Adapter = (*Store)(nil)
 
 // New returns a Store over db, which speaks dialect d (store.Postgres, store.MySQL or store.SQLite).
 // For SQLite, enable foreign keys and a busy timeout on every pooled connection through the DSN,
-// e.g. "file:polaris.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)".
+// e.g. "file:polaris.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)". For MySQL, the DSN
+// must set clientFoundRows=true (Open does): Update reports matched rows on every dialect, and
+// Polaris's conditional updates read 0 as "another request won".
 func New(db *sql.DB, d store.Dialect) *Store {
 	return &Store{db: db, dialect: d}
 }
@@ -40,6 +42,14 @@ func Open(ctx context.Context, d store.Dialect, dsn string) (*Store, error) {
 	driver, ok := map[store.Dialect]string{store.Postgres: "pgx", store.MySQL: "mysql", store.SQLite: "sqlite"}[d]
 	if !ok {
 		return nil, fmt.Errorf("sqlstore: unsupported dialect %q; use store.Postgres, store.MySQL or store.SQLite", d)
+	}
+	if d == store.MySQL {
+		cfg, err := mysql.ParseDSN(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("sqlstore: open %s: %w", d, err)
+		}
+		cfg.ClientFoundRows = true // Update counts matched rows, as on PostgreSQL and SQLite
+		dsn = cfg.FormatDSN()
 	}
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
@@ -92,8 +102,8 @@ func (s *Store) Insert(ctx context.Context, table string, row store.Row) error {
 	return err
 }
 
-// Update writes d to the matching rows and returns the driver's affected-row count (on MySQL,
-// rows actually changed).
+// Update writes d to the matching rows and returns how many matched, even those it left unchanged
+// (on MySQL this needs clientFoundRows=true; see New).
 func (s *Store) Update(ctx context.Context, table string, c store.Criteria, d store.Data) (int64, error) {
 	q, err := updateQuery(s.dialect, table, c, d)
 	if err != nil {

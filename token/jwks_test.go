@@ -1,9 +1,12 @@
 package token
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -58,5 +61,23 @@ func TestJWKSetPublishesBothKeysDuringRotation(t *testing.T) {
 	dup, _ := NewJWKSet(RS256, PublicKey{KeyID: "a", PEM: k.RSA.Public}, PublicKey{KeyID: "b", PEM: k.RSA.Public}, PublicKey{KeyID: "a", PEM: k.RSAAlternate.Public})
 	if len(dup.Keys) != 2 || dup.Keys[0].Kid != "a" || dup.Keys[0].N != set.Keys[1].N {
 		t.Fatalf("dup = %+v", dup)
+	}
+}
+
+func TestJWKSetRendersEd25519AsOKP(t *testing.T) {
+	pub := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize)).Public().(ed25519.PublicKey)
+	set, err := NewJWKSet(EdDSA, PublicKey{KeyID: "ed", PEM: string(pub)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, _ := json.Marshal(set)
+	want := `{"keys":[{"kty":"OKP","crv":"Ed25519","use":"sig","alg":"EdDSA","kid":"ed","x":"` + base64.RawURLEncoding.EncodeToString(pub) + `"}]}`
+	if string(doc) != want {
+		t.Errorf("got %s\nwant %s", doc, want)
+	}
+	for _, bad := range []string{"short", strings.Repeat("\x00", ed25519.PublicKeySize)} {
+		if _, err := NewJWKSet(EdDSA, PublicKey{KeyID: "bad", PEM: bad}); !errors.Is(err, ErrInvalidConfig) {
+			t.Errorf("%q: %v", bad, err)
+		}
 	}
 }

@@ -61,13 +61,13 @@ func keysGenerate(_ *app, fs *flag.FlagSet) runFunc {
 		case "RS256":
 			pair, err = rsaPair()
 		case "EdDSA":
-			// The token package takes the raw libsodium keys (64-byte secret, 32-byte public), which
-			// an environment variable cannot hold: they are printed base64-encoded.
+			// Upstream reads the raw libsodium keys (64-byte secret, 32-byte public), which an
+			// environment variable often cannot hold; config.FromEnv also takes them base64-encoded.
 			var pub ed25519.PublicKey
 			var priv ed25519.PrivateKey
 			pub, priv, err = ed25519.GenerateKey(rand.Reader)
 			pair = keyPair{base64.StdEncoding.EncodeToString(priv), base64.StdEncoding.EncodeToString(pub)}
-			note = "EdDSA keys are base64 of the raw libsodium keys: decode them into config.Secrets and set Auth.AccessToken.Signer = config.SignerEdDSA (polaris.FromEnv reads RS256 PEMs only)"
+			note = "EdDSA: set cfg.Auth.AccessToken.Signer = config.SignerEdDSA after polaris.FromEnv (FromEnv decodes these base64 keys; PHP Polaris reads raw bytes only)"
 		default:
 			return report{}, usage(fmt.Sprintf("unknown algorithm %q", *alg), "use --alg=RS256 or --alg=EdDSA")
 		}

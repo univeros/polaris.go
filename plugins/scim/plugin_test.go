@@ -181,7 +181,9 @@ func TestPlugin(t *testing.T) {
 		orgID := f.organization()
 		conn := f.connection(orgID, DeprovisionDeactivate)
 		d := f.p.dir
+		d.domains = func() any { return verifiedDomains{orgID: "acme.example"} }
 		res := d.resources
+		activeIn := func(c Connection, u model.User) bool { return must(d.active(f.ctx, c, u)) }
 		patch := func(user model.User, ops ...any) (model.User, error) {
 			parsed, err := parsePatch(map[string]any{"schemas": []any{PatchSchema}, "Operations": ops})
 			if err != nil {
@@ -222,8 +224,8 @@ func TestPlugin(t *testing.T) {
 		refused(t, err, 409, "the owner is a member already")
 		f.user("u-grace", "grace@acme.example")
 		grace := must(d.createUser(f.ctx, conn, map[string]any{"userName": "grace@acme.example", "name": map[string]any{"givenName": "Grace", "familyName": "Hopper"}}))
-		if grace.ID != "u-grace" || *grace.DisplayName != "Grace Hopper" || !must(res.createdMembership(f.ctx, conn, grace.ID)) {
-			t.Fatalf("an existing account joins rather than duplicating: %+v", grace)
+		if grace.ID != "u-grace" || grace.DisplayName != nil || !must(res.createdMembership(f.ctx, conn, grace.ID)) {
+			t.Fatalf("an existing account on a verified domain joins, its profile untouched: %+v", grace)
 		}
 		if err := res.forgetMembership(f.ctx, conn, grace.ID); err != nil {
 			t.Fatal(err)
@@ -252,12 +254,12 @@ func TestPlugin(t *testing.T) {
 		}
 
 		patched := must(patch(ada, map[string]any{"op": "replace", "path": "active", "value": false}))
-		if patched.Status != model.UserStatusDisabled {
-			t.Fatalf("status %s", patched.Status)
+		if patched.Status != model.UserStatusActive || activeIn(conn, patched) {
+			t.Fatalf("active false suspends the membership, never the account: %s", patched.Status)
 		}
 		patched = must(patch(patched, map[string]any{"op": "replace", "value": map[string]any{"active": "True",
 			"name": map[string]any{"givenName": "Ada", "familyName": "King"}, "externalId": "ext-2"}}))
-		if patched.Status != model.UserStatusActive || *patched.DisplayName != "Ada King" || externalID(ada.ID) != "ext-2" {
+		if !activeIn(conn, patched) || *patched.DisplayName != "Ada King" || externalID(ada.ID) != "ext-2" {
 			t.Fatalf("patched %+v %s", patched, externalID(ada.ID))
 		}
 		patched = must(patch(patched, map[string]any{"op": "replace", "path": "userName", "value": "ada.king@acme.example"},
@@ -270,7 +272,7 @@ func TestPlugin(t *testing.T) {
 		_, err = patch(patched, map[string]any{"op": "replace", "path": "userName", "value": "nope"})
 		refused(t, err, 400, "not an email")
 		replaced := must(d.replaceUser(f.ctx, conn, patched, map[string]any{"userName": "ada@acme.example", "displayName": "Ada", "active": false, "externalId": "ext-3"}))
-		if replaced.Email != "ada@acme.example" || *replaced.DisplayName != "Ada" || replaced.Status != model.UserStatusDisabled || externalID(ada.ID) != "ext-3" {
+		if replaced.Email != "ada@acme.example" || *replaced.DisplayName != "Ada" || activeIn(conn, replaced) || externalID(ada.ID) != "ext-3" {
 			t.Fatalf("replaced %+v", replaced)
 		}
 
@@ -286,13 +288,16 @@ func TestPlugin(t *testing.T) {
 		if must(d.deleteUser(f.ctx, conn, grace)) != "deactivated" {
 			t.Fatal("grace")
 		}
-		if _, err := g.Repos.Memberships.ByUserAndOrganization(f.ctx, grace.ID, orgID); err != nil {
-			t.Fatal("a membership the connection did not create is gone")
+		if _, err := g.Repos.Memberships.ByUserAndOrganization(f.ctx, grace.ID, orgID); err == nil {
+			t.Fatal("deprovisioning an account the directory does not own leaves its membership")
+		}
+		if must(g.Repos.Users.Get(f.ctx, grace.ID)).Status != model.UserStatusActive {
+			t.Fatal("deprovisioning disabled an account the directory does not own")
 		}
 		purge := f.connection(orgID, DeprovisionDelete)
 		bob := must(d.createUser(f.ctx, purge, map[string]any{"userName": "bob@acme.example", "active": false}))
-		if bob.Status != model.UserStatusDisabled {
-			t.Fatal("active false is not deactivated")
+		if bob.Status != model.UserStatusActive || activeIn(purge, bob) {
+			t.Fatal("active false does not suspend the membership")
 		}
 		if must(d.deleteUser(f.ctx, purge, bob)) != "deleted" || must(g.Repos.Users.Get(f.ctx, bob.ID)).Email == "bob@acme.example" {
 			t.Fatal("not anonymised")
@@ -416,4 +421,11 @@ func must2(t *testing.T) func(Connection, string, error) (Connection, string) {
 		}
 		return c, s
 	}
+}
+
+// verifiedDomains is the sso plugin's VerifiedDomains: organization id to its one verified domain.
+type verifiedDomains map[string]string
+
+func (v verifiedDomains) DomainVerified(_ context.Context, organizationID, domain string) (bool, error) {
+	return v[organizationID] == domain, nil
 }

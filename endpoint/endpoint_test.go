@@ -16,8 +16,12 @@ func TestInputMergeOrder(t *testing.T) {
 	r := httptest.NewRequest("POST", "/orgs/p?q=query&id=query", strings.NewReader(`{"id":"body","q":"body","b":"body","n":5,"l":["a",1,"b"],"m":{"k":true},"t":true}`))
 	r.Header.Set("Content-Type", "application/json")
 	r.AddCookie(&http.Cookie{Name: "c", Value: "cookie"})
+	r.AddCookie(&http.Cookie{Name: "b", Value: "cookie"})
 	in := NewInput(r, map[string]string{"id": "path"})
-	cases := map[string]string{"id": "path", "q": "query", "b": "body", "c": "cookie"}
+	if in.Has("c") {
+		t.Error("a cookie is not input: a cookie tossed from a sibling subdomain could override a body field")
+	}
+	cases := map[string]string{"id": "path", "q": "query", "b": "body"}
 	for k, want := range cases {
 		if got := in.String(k); got != want {
 			t.Errorf("%s = %q, want %q", k, got, want)

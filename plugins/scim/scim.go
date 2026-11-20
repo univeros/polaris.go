@@ -69,7 +69,8 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	p.g, p.base = g, strings.TrimRight(base, "/")
 	p.conns = &Connections{db: g.DB, pepper: g.Pepper, clock: g.Clock}
 	res := &resources{db: g.DB, clock: g.Clock}
-	p.dir = &directory{db: g.DB, repos: g.Repos, identity: g.Identity, resources: res, events: g.Events, clock: g.Clock}
+	p.dir = &directory{db: g.DB, repos: g.Repos, identity: g.Identity, orgs: g.Orgs, resources: res, events: g.Events, clock: g.Clock,
+		domains: func() any { return g.Plugin("sso") }}
 	return nil
 }
 

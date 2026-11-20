@@ -443,3 +443,93 @@ answer 401). Filters accept the subset directories send (`attr eq|co|sw "value"`
 anything else `invalidFilter`, as upstream. Built-in owner/admin/member roles take members but are
 never renamed or deleted. (The porting agent was stopped at the pause before reporting; departures
 beyond these to be confirmed in the WP8 review.)
+
+## 38. 2026-11-20 — SECURITY: SCIM connections were global account takeover (fixed; report upstream)
+
+**Severity high, present in upstream `polaris/scim`** (`Users.php` create / rename / setActive). A
+SCIM bearer for organization A could: join any existing account (even the owner of org B) to A by
+`POST /Users {userName: victim}` and overwrite its name; `PATCH userName` to change the victim's
+**global** email, then reset the password to take over the account and every org it holds;
+`active:false` disabled the user globally. Go behaviour (deliberate departure):
+1. Global profile/status writes only for users this connection created that belong to no other org;
+   otherwise SCIM acts on the membership in A only.
+2. An existing account is linked (membership only) only when its email domain is a verified domain of
+   A (`plugins/sso`); otherwise 409 `uniqueness`.
+3. `active:false` suspends the membership in A (revoking A's sessions), never a global disable;
+   delete-deprovisioning anonymises only rule-1 users, else removes the membership.
+4. Group writes on the built-in owner role go through the last-owner guard (#17).
+**Action for the owner:** report to polaris-core (same fix applies).
+**Severity raised to critical (#38):** any registered user can create an organization and, as its
+owner, a SCIM connection (`POST /orgs/{id}/scim/connections`), so before the fix anyone could take
+over any account. "Created by this connection" needs no schema change: the connection's provenance
+row and the user row are written in one transaction with one timestamp, and a user counts as created
+by the connection when both exist with equal `created_at`. The sso plugin answers
+`DomainVerified(ctx, organizationID, domain)` for rule 2.
+
+## 39. 2026-11-20 — SECURITY: social login/link CSRF; cookies out of endpoint input
+
+- **Medium, present upstream:** social state lived only in the cache, unbound to the browser that
+  started the flow, so an attacker could have a victim complete the attacker's sign-in (session
+  fixation) or link the victim's provider identity to the attacker's account (later "Sign in with
+  Google" by the victim opens the attacker's account). Go binds the flow to the browser with a
+  `__Host-` (on HTTPS) HttpOnly SameSite=Lax cookie holding a nonce stored in the state entry,
+  compared in constant time at the callback; otherwise `state_invalid`. The added `Set-Cookie` and
+  the callback's cookie requirement are recorded as known changes against upstream's social fixtures.
+  **Report upstream.**
+- `endpoint.NewInput` no longer merges cookies into input (upstream: body < cookies < query), so a
+  cookie tossed from a sibling subdomain cannot override body fields; endpoints that need a cookie
+  read it explicitly. (Refines #12.)
+- `social.Config.TrustedProviders` documents that a provider treating any returned email as verified
+  must never be trusted for linking by email (defaults google, apple are safe).
+
+## 40. 2026-11-20 — EdDSA keys; dependency and doc corrections
+
+- EdDSA keys via the environment are the raw libsodium bytes as upstream reads them, or their base64
+  (Go-only; an environment variable cannot hold a NUL byte and PHP's `trim` can cut edge bytes);
+  `keys:generate --alg=EdDSA` prints base64. The signer stays code configuration
+  (`cfg.Auth.AccessToken.Signer = config.SignerEdDSA`), as upstream. Upstream's JWKS route fails
+  under EdDSA (RSA-only renderer); Go publishes Ed25519 keys as RFC 8037 OKP JWKs and every JWKS
+  consumer in the repo accepts them (closes #34's open item).
+- Corrections to earlier entries: the CLI now exists, so the commands #21 (`audit:prune` /
+  `audit:verify`), #25 (`admin:key` / `admin:grant`) and #33 (`anonymous:prune`) say are missing are
+  served by `polaris`; #35's `x/oauth2` stays (the MCP go-sdk needs it); go-oidc and go-webauthn are
+  dropped by `go mod tidy`.
+- Dependencies added outside spec §5's list: `github.com/beevik/etree` and
+  `github.com/russellhaering/goxmldsig` (XML canonicalization and signature verification for SAML,
+  `plugins/sso`); `github.com/modelcontextprotocol/go-sdk` (spec §5 listed it; used by the
+  `mcp.Protect` example).
+- `llms_test.go` keeps every `llms.txt` snippet compiling; per-plugin READMEs are checked against
+  `go doc`.
+
+## 41. 2026-11-20 — MySQL: passkey credential ids are ASCII (upstream bug)
+
+Upstream's passkey schema (`credential_id VARCHAR(1024)` with a unique index) cannot be installed on
+MySQL 8.4 under utf8mb4 (4096-byte key > 3072-byte limit: error 1071) — the passkey plugin never
+worked on MySQL upstream. Credential ids are base64url, so on MySQL only the column is declared
+`CHARACTER SET ascii COLLATE ascii_bin` (1024-byte key; case-sensitive uniqueness as base64url
+requires). Type, length and data are unchanged, so PHP reads and writes the same rows; PostgreSQL and
+SQLite DDL stay byte-identical. Report upstream. The matrix run also found and fixed a Go bug on
+MySQL (`clientFoundRows`: affected-row counts for unchanged rows broke conditional updates).
+
+## 42. 2026-11-20 — Security review (WP8) results
+
+- Fixed with regression tests: the SCIM takeover (#38; ownership = provenance row with the user's
+  `created_at`, linking only on an sso-verified domain via `DomainVerified`, membership suspension,
+  owner guard `orgs.KeepOwner`; `plugins/scim/takeover_test.go`); social login/link CSRF (#39) — the
+  binding cookie is `__Host-`, HttpOnly, Secure, **SameSite=None** on HTTPS because Apple's
+  `form_post` callback is a cross-site POST that would drop a Lax cookie (the cookie only proves the
+  browser holds the nonce), Lax over plain http; 11 social fixture steps record the added
+  `Set-Cookie` in `contracttest.knownHeaders`; `mcp.Protect` refuses tokens with a `purpose` claim
+  and any `typ` other than `at+jwt` / `JWT` / none (a password-only login-MFA ticket was accepted
+  where the issuer was also a configured audience); passkey RSA keys checked by modulus bit length
+  (≥ 2048) and odd exponent ≥ 3; social `TrustedProviders` warns against facebook, x, notion, kick.
+- Checked clean: constant-time / hashed-lookup secret compares; single-use refresh, codes and
+  challenges; exact OAuth `redirect_uri`, S256-only PKCE, codes bound to client and redirect;
+  delegated permissions intersected at use; impersonation tokens never operators; client IP from
+  `RemoteAddr` only; bounded outbound reads; dummy hash for unknown users; passkey type, origin,
+  crossOrigin, rpIdHash, UP/UV, BE/BS, AT flag, credential-id length, counter, alg allow-list,
+  "none"-only attestation.
+- Fuzz targets (≥ 60 s each, no crashes): token `FuzzParseRaw`, `FuzzSignedClaims`; passkey
+  `FuzzCBOR`, `FuzzAuthData`, `FuzzCOSEVerify`, `FuzzCredential`, `FuzzAssertion`; `FuzzDPoPProof`
+  (oauth, mcp); agents `FuzzRequestJWT`; endpoint `FuzzInput`; pipeline `FuzzCookieCSRF`; scim
+  `FuzzPatch`, `FuzzFilter`.

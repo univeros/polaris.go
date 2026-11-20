@@ -3,7 +3,6 @@ package identity
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,12 +15,10 @@ import (
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/session"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/token"
 )
 
@@ -52,20 +49,11 @@ func isErr(t *testing.T, err, want error) {
 	}
 }
 
-// backends runs fn on memstore and on SQLite (foreign keys on), both holding core's schema.
+// backends runs fn on every storetest backend (memstore, SQLite, PostgreSQL / MySQL when configured),
+// each a fresh database holding core's schema.
 func backends(t *testing.T, fn func(t *testing.T, h *harness)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, newHarness(t, memstore.New(schema.Core()...))) })
-	t.Run("sqlite", func(t *testing.T) { fn(t, newHarness(t, openSQLite(t))) })
-}
-
-func openSQLite(t *testing.T) *sqlstore.Store {
-	t.Helper()
-	s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-	must(t, err)
-	t.Cleanup(func() { _ = s.DB().Close() })
-	must(t, s.CreateSchema(ctx, schema.Core()))
-	return s
+	storetest.Each(t, func(t *testing.T, db store.Adapter) { fn(t, newHarness(t, db)) })
 }
 
 // countingHasher is a cheap Argon2id that counts its calls.

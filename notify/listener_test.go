@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,28 +19,17 @@ import (
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 var bg = context.Background()
 
 func ptr[T any](v T) *T { return &v }
 
-// usersOn runs fn with a users repository on memstore and on SQLite.
+// usersOn runs fn with a users repository on every storetest backend.
 func usersOn(t *testing.T, fn func(t *testing.T, users repository.Users)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, repository.New(memstore.New(schema.Core()...)).Users) })
-	t.Run("sqlite", func(t *testing.T) {
-		s, err := sqlstore.Open(bg, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = s.DB().Close() })
-		if err := s.CreateSchema(bg, schema.Core()); err != nil {
-			t.Fatal(err)
-		}
-		fn(t, repository.New(s).Users)
-	})
+	storetest.Each(t, func(t *testing.T, db store.Adapter) { fn(t, repository.New(db).Users) })
 }
 
 func seedUser(t *testing.T, users repository.Users, email string) string {

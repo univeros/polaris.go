@@ -243,12 +243,19 @@ func (p *Plugin) changeUser(ctx context.Context, in *endpoint.Input, conn Connec
 	if err != nil {
 		return p.refuse(ctx, conn, err, true)
 	}
-	was := user.Status != model.UserStatusDisabled
+	was, err := p.dir.active(ctx, conn, user)
+	if err != nil {
+		return p.serverError(ctx, err)
+	}
 	if user, err = change(user); err != nil {
 		return p.refuse(ctx, conn, err, true)
 	}
+	is, err := p.dir.active(ctx, conn, user)
+	if err != nil {
+		return p.serverError(ctx, err)
+	}
 	name := AuditUserUpdated
-	switch is := user.Status != model.UserStatusDisabled; {
+	switch {
 	case was && !is:
 		name = AuditUserDeactivated
 	case !was && is:
@@ -265,7 +272,7 @@ func (p *Plugin) deleteUser(ctx context.Context, in *endpoint.Input, conn Connec
 	}
 	outcome, err := p.dir.deleteUser(ctx, conn, user)
 	if err != nil {
-		return p.serverError(ctx, err)
+		return p.refuse(ctx, conn, err, true)
 	}
 	name := AuditUserDeactivated
 	if outcome == "deleted" {

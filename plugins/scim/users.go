@@ -14,6 +14,7 @@ import (
 	"github.com/univeros/polaris-go/identity"
 	"github.com/univeros/polaris-go/manifest"
 	"github.com/univeros/polaris-go/model"
+	"github.com/univeros/polaris-go/orgs"
 	"github.com/univeros/polaris-go/repository"
 	"github.com/univeros/polaris-go/store"
 )
@@ -37,6 +38,8 @@ type directory struct {
 	db        store.Adapter
 	repos     *repository.Repos
 	identity  *identity.Service
+	orgs      *orgs.Service
+	domains   func() any // the sso plugin, when registered: a VerifiedDomains
 	resources *resources
 	events    event.Dispatcher
 	clock     clock.Clock
@@ -100,8 +103,10 @@ func (d *directory) findUser(ctx context.Context, conn Connection, id string) (m
 	return user, err
 }
 
-// createUser provisions a member: a new user (verified, no password) or the account the email
-// already has, joined to the organization with the member role.
+// createUser provisions a member: a new user (verified, no password) owned by the connection, or
+// the account the email already has when its domain is one the organization verified, joined to
+// the organization with the member role (its profile left as it is). Any other existing account
+// is a uniqueness conflict: a directory never takes over another organization's user.
 func (d *directory) createUser(ctx context.Context, conn Connection, body map[string]any) (model.User, error) {
 	email, err := emailOf(body)
 	if err != nil {
@@ -121,27 +126,27 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 		if err != nil {
 			return model.User{}, err
 		}
+		linkable, err := d.mayLink(ctx, conn, email)
+		if err != nil {
+			return model.User{}, err
+		}
+		if !linkable {
+			return model.User{}, conflict("Another account uses this userName.")
+		}
 	}
 	now := d.now()
 	joined := false
 	err = d.db.Tx(ctx, func(ctx context.Context) error {
-		next := user
-		if name := displayNameOf(body); name != nil {
-			next.DisplayName = name
+		if !exists {
+			next := model.User{ID: repository.NewID(), Email: email, DisplayName: displayNameOf(body), EmailVerifiedAt: &now,
+				Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
+			if err := d.repos.Users.Insert(ctx, next); err != nil {
+				return err
+			}
+			user = next
 		}
-		next.UpdatedAt = now
 		var err error
-		if exists {
-			err = d.repos.Users.Update(ctx, user, next)
-		} else {
-			next.ID, next.Email, next.EmailVerifiedAt, next.Status, next.CreatedAt = repository.NewID(), email, &now, model.UserStatusActive, now
-			err = d.repos.Users.Insert(ctx, next)
-		}
-		if err != nil {
-			return err
-		}
-		user = next
-		if joined, err = d.join(ctx, conn, user.ID); err != nil {
+		if joined, err = d.join(ctx, conn, user.ID, now); err != nil {
 			return err
 		}
 		return d.resources.setExternalID(ctx, conn, KindUser, user.ID, externalIDOf(body))
@@ -156,7 +161,7 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 		d.events.Dispatch(ctx, event.MemberJoined{OrganizationID: conn.OrganizationID, UserID: user.ID, Email: user.Email})
 	}
 	if body["active"] == false {
-		if err := d.identity.DisableUser(ctx, actor, user.ID); err != nil {
+		if err := d.setMembershipActive(ctx, conn, user, false); err != nil {
 			return model.User{}, err
 		}
 	}
@@ -221,7 +226,18 @@ type userChange struct {
 }
 
 func (d *directory) writeUser(ctx context.Context, conn Connection, user model.User, c userChange) (model.User, error) {
-	err := d.db.Tx(ctx, func(ctx context.Context) error {
+	owned, err := d.owns(ctx, conn, user)
+	if err != nil {
+		return model.User{}, err
+	}
+	if !owned {
+		// Not this directory's account: its email and name are the user's own.
+		if c.email != nil && *c.email != user.Email {
+			return model.User{}, immutable("userName is managed by the account's owner, not by this directory.")
+		}
+		c.email, c.setName = nil, false
+	}
+	err = d.db.Tx(ctx, func(ctx context.Context) error {
 		next := user
 		if c.email != nil && *c.email != user.Email {
 			other, err := d.repos.Users.ByEmail(ctx, *c.email)
@@ -252,61 +268,63 @@ func (d *directory) writeUser(ctx context.Context, conn Connection, user model.U
 		return model.User{}, err
 	}
 	if c.setActive {
-		if err := d.setActive(ctx, user.ID, user.Status, c.active); err != nil {
+		if err := d.setMembershipActive(ctx, conn, user, c.active); err != nil {
 			return model.User{}, err
 		}
 	}
 	return d.repos.Users.Get(ctx, user.ID)
 }
 
-func (d *directory) setActive(ctx context.Context, userID, status string, active bool) error {
-	switch disabled := status == model.UserStatusDisabled; {
-	case active && disabled:
-		return d.identity.EnableUser(ctx, actor, userID)
-	case !active && !disabled:
-		return d.identity.DisableUser(ctx, actor, userID)
-	}
-	return nil
-}
-
-// deleteUser deprovisions as the connection says: DeprovisionDelete anonymises the account;
-// DeprovisionDeactivate disables it and removes the membership only when this connection
-// created it. It returns "deleted" or "deactivated".
+// deleteUser deprovisions as the connection says. An account the connection owns is anonymised
+// (DeprovisionDelete) or disabled (DeprovisionDeactivate, its membership removed); any other
+// account only leaves the organization: its membership is suspended (ending the organization's
+// sessions, never its last active owner) and then removed. It returns "deleted" or "deactivated".
 func (d *directory) deleteUser(ctx context.Context, conn Connection, user model.User) (string, error) {
+	owned, err := d.owns(ctx, conn, user)
+	if err != nil {
+		return "", err
+	}
+	outcome := "deactivated"
+	if conn.Deprovision == DeprovisionDelete {
+		outcome = "deleted"
+	}
+	if !owned {
+		if err := d.setMembershipActive(ctx, conn, user, false); err != nil {
+			return "", err
+		}
+		return outcome, d.leave(ctx, conn, user.ID)
+	}
 	if conn.Deprovision == DeprovisionDelete {
 		if err := d.identity.AnonymizeUser(ctx, actor, user.ID); err != nil {
 			return "", err
 		}
-		return "deleted", d.db.Tx(ctx, func(ctx context.Context) error {
+		return outcome, d.db.Tx(ctx, func(ctx context.Context) error {
 			return errors.Join(d.resources.forget(ctx, conn, KindUser, user.ID), d.resources.forgetMembership(ctx, conn, user.ID))
 		})
 	}
-	if err := d.identity.DisableUser(ctx, actor, user.ID); err != nil {
+	if err := d.leave(ctx, conn, user.ID); err != nil {
 		return "", err
 	}
-	return "deactivated", d.db.Tx(ctx, func(ctx context.Context) error {
-		created, err := d.resources.createdMembership(ctx, conn, user.ID)
+	return outcome, d.identity.DisableUser(ctx, actor, user.ID)
+}
+
+// leave removes userID's membership (and role links) and what the connection remembers of them,
+// keeping the organization's last active owner.
+func (d *directory) leave(ctx context.Context, conn Connection, userID string) error {
+	return d.keepOwner(ctx, conn, func(ctx context.Context) error {
+		m, found, err := d.membership(ctx, conn, userID)
 		if err != nil {
 			return err
 		}
-		if created {
-			m, found, err := d.membership(ctx, conn, user.ID)
-			if err != nil {
+		if found {
+			if _, err := d.db.Delete(ctx, "auth_membership_roles", store.Criteria{"membership_id": m.ID}); err != nil {
 				return err
 			}
-			if found {
-				if _, err := d.db.Delete(ctx, "auth_membership_roles", store.Criteria{"membership_id": m.ID}); err != nil {
-					return err
-				}
-				if err := d.repos.Memberships.Delete(ctx, m); err != nil {
-					return err
-				}
-			}
-			if err := d.resources.forgetMembership(ctx, conn, user.ID); err != nil {
+			if err := d.repos.Memberships.Delete(ctx, m); err != nil {
 				return err
 			}
 		}
-		return d.resources.forget(ctx, conn, KindUser, user.ID)
+		return errors.Join(d.resources.forgetMembership(ctx, conn, userID), d.resources.forget(ctx, conn, KindUser, userID))
 	})
 }
 
@@ -345,7 +363,7 @@ func (d *directory) userResource(ctx context.Context, conn Connection, user mode
 		"displayName": name,
 		"name":        map[string]any{"formatted": name},
 		"emails":      []map[string]any{{"value": user.Email, "primary": true}},
-		"active":      user.Status != model.UserStatusDisabled,
+		"active":      user.Status != model.UserStatusDisabled && found && m.Status == model.MembershipStatusActive,
 		"groups":      groups,
 		"meta": map[string]any{"resourceType": KindUser, "created": atom(user.CreatedAt), "lastModified": atom(user.UpdatedAt),
 			"location": location + "/Users/" + user.ID},
@@ -380,11 +398,10 @@ func (d *directory) membership(ctx context.Context, conn Connection, userID stri
 
 // join makes the user an active member with the member role, recording that conn created the
 // membership; false when they were a member already.
-func (d *directory) join(ctx context.Context, conn Connection, userID string) (bool, error) {
+func (d *directory) join(ctx context.Context, conn Connection, userID string, now time.Time) (bool, error) {
 	if _, found, err := d.membership(ctx, conn, userID); err != nil || found {
 		return false, err
 	}
-	now := d.now()
 	m := model.Membership{ID: repository.NewID(), UserID: userID, OrganizationID: conn.OrganizationID,
 		Status: model.MembershipStatusActive, JoinedAt: &now, CreatedAt: now, UpdatedAt: now}
 	if err := d.repos.Memberships.Insert(ctx, m); err != nil {
@@ -400,7 +417,7 @@ func (d *directory) join(ctx context.Context, conn Connection, userID string) (b
 	case !errors.Is(err, repository.ErrNotFound):
 		return false, err
 	}
-	return true, d.resources.recordMembership(ctx, conn, userID)
+	return true, d.resources.recordMembership(ctx, conn, userID, now)
 }
 
 // emailOf is the member's email: userName, else the primary (or last) of emails.

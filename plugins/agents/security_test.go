@@ -123,7 +123,7 @@ func everySpelling(a *agentsCase) {
 	ok := callHost(bound, route, key.requestJWT(id, route, nil, nil), bob)
 	a.equal(ok.Code, 200, "bound ok")
 	row, _ := a.srv.Graph().DB.FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": ok.Header().Get(agents.ReceiptHeader)})
-	a.equal(row["capability"], "invite", "receipt")
+	a.equal(row.String("capability"), "invite", "receipt")
 	a.equal(len(h.seen), 3, "three calls")
 }
 

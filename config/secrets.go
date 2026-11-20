@@ -16,7 +16,7 @@ const MinAppKeyBytes = 32
 
 const (
 	fixAppKey  = `generate one with "openssl rand -base64 32"`
-	fixJWTKeys = `generate a pair with "polaris keys:generate" (RS256 PEMs; --alg=EdDSA for base64 Ed25519 keys)`
+	fixJWTKeys = `generate a pair with "openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem && openssl pkey -in private.pem -pubout -out public.pem" and export the PEM contents (EdDSA: "polaris keys:generate --alg=EdDSA")`
 )
 
 // Secrets are the cryptographic secrets Polaris needs at boot. They are never defaulted.

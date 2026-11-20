@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,6 +55,14 @@ func (v *verifier) verify(ctx context.Context, raw string) (map[string]any, erro
 	if kid == "" || !slices.Contains(Algorithms, alg) {
 		return nil, invalid("The token needs a kid and an asymmetric alg.")
 	}
+	// The issuer signs more than access tokens with this key (DPoP proofs, agent request JWTs,
+	// receipts, login-MFA tickets): only an at+jwt or a session access token (typ JWT or none) is
+	// one, and a single-purpose ticket never is.
+	if typHeader, present := header["typ"]; present {
+		if typ, _ := typHeader.(string); !strings.EqualFold(typ, "at+jwt") && !strings.EqualFold(typ, "JWT") {
+			return nil, invalid("The token is not an access token.")
+		}
+	}
 	key, err := v.key(ctx, kid, alg)
 	if err != nil {
 		return nil, err
@@ -67,6 +76,9 @@ func (v *verifier) verify(ctx context.Context, raw string) (map[string]any, erro
 	}
 	if _, ok := number(claims["exp"]); !ok {
 		return nil, invalid("The token has no expiry.")
+	}
+	if claims["purpose"] != nil {
+		return nil, invalid("A single-purpose token is not an access token.")
 	}
 	if !audienceIncludes(claims["aud"], v.audiences) {
 		return nil, invalid("The token is meant for another resource.")

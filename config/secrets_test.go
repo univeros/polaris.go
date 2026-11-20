@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -147,5 +149,27 @@ func TestSecretsNeverPrintOrLogTheirValues(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), s.KeyID()) {
 		t.Errorf("the kid is public and helps debugging; want it logged: %s", buf.String())
+	}
+}
+
+func TestSecretsDecodeBase64EdDSAKeys(t *testing.T) {
+	priv := ed25519.NewKeyFromSeed([]byte("seed-0123456789abcdef0123456789a")) // no byte PHP's trim() cuts at the edges
+	pub := string(priv.Public().(ed25519.PublicKey))
+	b64 := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
+	for name, env := range map[string]map[string]string{
+		"base64": {"AUTH_JWT_PRIVATE_KEY": b64(string(priv)), "AUTH_JWT_PUBLIC_KEY": b64(pub), "AUTH_JWT_PREVIOUS_PUBLIC_KEY": b64(pub)},
+		"raw":    {"AUTH_JWT_PRIVATE_KEY": string(priv), "AUTH_JWT_PUBLIC_KEY": pub, "AUTH_JWT_PREVIOUS_PUBLIC_KEY": pub},
+	} {
+		env["APP_KEY"] = testAppKey
+		s, err := SecretsFromLookup(func(k string) (string, bool) { v, ok := env[k]; return v, ok })
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if s.JWTPrivateKey != string(priv) || s.JWTPublicKey != pub || s.JWTPreviousPublicKey != pub {
+			t.Errorf("%s: keys are not the raw libsodium bytes", name)
+		}
+		if s.KeyID() != fingerprint(pub) { // upstream: hash('sha256', raw public key)
+			t.Errorf("%s: kid %s", name, s.KeyID())
+		}
 	}
 }

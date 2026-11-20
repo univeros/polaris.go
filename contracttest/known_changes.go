@@ -14,3 +14,28 @@ var knownChanges = map[string]map[int]normalized{
 		},
 	},
 }
+
+// knownHeaders are headers Go adds, deliberately, to recorded responses: the replay expects the
+// recording's headers plus these (already normalized) on the 1-based step, everything else
+// compared as recorded. Each is a decision in docs/port/decisions.md.
+var knownHeaders = map[string]map[int]map[string][]string{}
+
+// socialBinding is the browser-binding cookie POST /social/{provider}/start and /link set over
+// plain http with the default 600 s state lifetime (decision #39: login and link CSRF).
+var socialBinding = map[string][]string{"set-cookie": {"polaris_social_<state>=<binding>; Path=/; Max-Age=600; HttpOnly; SameSite=Lax"}}
+
+func init() {
+	const flow = `Polaris\Social\Tests\Functional\SocialFlowTest::`
+	for test, steps := range map[string][]int{
+		"testGoogleSignsUpThenSignsIn":                                             {4, 12},
+		"testTheAccountsAreManagedFromTheSession":                                  {1, 10, 16},
+		"testAppleAnswersByFormPostOneTapVerifiesOfflineAndAnyOAuth2ServerSignsIn": {1, 8, 11},
+		"testAnUntrustedProviderLinksOnlyFromASession":                             {4, 6, 9},
+	} {
+		byStep := map[int]map[string][]string{}
+		for _, n := range steps {
+			byStep[n] = socialBinding
+		}
+		knownHeaders[flow+test] = byStep
+	}
+}

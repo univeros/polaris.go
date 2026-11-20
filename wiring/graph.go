@@ -93,11 +93,8 @@ type Graph struct {
 	Hasher    security.PasswordHasher
 	Breaches  security.BreachedPasswordCheck
 
-	Tokens *token.Codec // access tokens
-	JWKS   token.JWKSet
-	// JWKSErr is why JWKS could not be rendered: upstream renders RSA keys only, so with the EdDSA
-	// signer the JWKS route answers 500, as upstream. Nil with RS256 (a bad key fails New).
-	JWKSErr  error
+	Tokens   *token.Codec // access tokens
+	JWKS     token.JWKSet
 	Tickets  *session.MFATickets
 	Denylist *session.Denylist
 
@@ -334,10 +331,7 @@ func (g *Graph) buildTokens() error {
 		keys = append(keys, token.PublicKey{KeyID: s.PreviousKeyID(), PEM: s.JWTPreviousPublicKey})
 	}
 	if g.JWKS, err = token.NewJWKSet(codecCfg.Algorithm, keys...); err != nil {
-		if codecCfg.Algorithm != token.EdDSA {
-			return fmt.Errorf("polaris: JWKS: %w", err)
-		}
-		g.JWKSErr = err
+		return fmt.Errorf("polaris: JWKS: %w", err)
 	}
 	if g.Tickets, err = session.NewMFATickets(codecCfg, a.MFA.LoginTokenTTL); err != nil {
 		return fmt.Errorf("polaris: MFA tickets: %w", err)

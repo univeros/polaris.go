@@ -142,6 +142,66 @@ func (s *Service) ChangeMemberRoles(ctx context.Context, actorUserID, organizati
 // member is still invited), forbidden (a non-owner changing an owner), ErrConflict (suspending
 // the last active owner).
 func (s *Service) ChangeMemberStatus(ctx context.Context, actorUserID, organizationID, targetUserID, status string) error {
+	return s.changeMemberStatus(ctx, actorUserID, organizationID, targetUserID, status, true)
+}
+
+// SetMemberStatus is ChangeMemberStatus for a trusted system actor acting for the organization,
+// such as its SCIM directory: actor ("scim") is only recorded in the event, no actor authority is
+// checked, and the last-active-owner guard and the session revocation still apply.
+func (s *Service) SetMemberStatus(ctx context.Context, actor, organizationID, targetUserID, status string) error {
+	return s.changeMemberStatus(ctx, actor, organizationID, targetUserID, status, false)
+}
+
+// KeepOwner runs fn in a transaction with the organization locked (as every owner-changing write
+// here) and refuses with ErrConflict, rolling fn back, when fn left an organization that had an
+// active owner without one. It lets a trusted system actor (a SCIM directory) change role links
+// and memberships under the same guarantee as the member routes.
+func (s *Service) KeepOwner(ctx context.Context, organizationID string, fn func(ctx context.Context) error) error {
+	return s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.lockOrganization(ctx, organizationID); err != nil {
+			return err
+		}
+		before, err := s.activeOwners(ctx, organizationID)
+		if err != nil {
+			return err
+		}
+		if err := fn(ctx); err != nil {
+			return err
+		}
+		after, err := s.activeOwners(ctx, organizationID)
+		if err != nil {
+			return err
+		}
+		if before > 0 && after == 0 {
+			return refuse(ErrConflict, MsgLastActiveOwner)
+		}
+		return nil
+	})
+}
+
+// activeOwners counts the active memberships holding the organization's owner role.
+func (s *Service) activeOwners(ctx context.Context, organizationID string) (int, error) {
+	ownerRoleID, err := s.ownerRoleID(ctx, organizationID)
+	if err != nil || ownerRoleID == "" {
+		return 0, err
+	}
+	links, err := s.r.MembershipRoles.ListByRole(ctx, ownerRoleID)
+	if err != nil {
+		return 0, err
+	}
+	active := 0
+	for _, link := range links {
+		m, err := s.r.Memberships.Get(ctx, link.MembershipID)
+		if ok, err := found(err); err != nil {
+			return 0, err
+		} else if ok && m.Status == model.MembershipStatusActive {
+			active++
+		}
+	}
+	return active, nil
+}
+
+func (s *Service) changeMemberStatus(ctx context.Context, actorUserID, organizationID, targetUserID, status string, checkActor bool) error {
 	if status != model.MembershipStatusActive && status != model.MembershipStatusSuspended {
 		return refuse(ErrInvalid, MsgBadStatus)
 	}
@@ -157,7 +217,7 @@ func (s *Service) ChangeMemberStatus(ctx context.Context, actorUserID, organizat
 		if target.Status == model.MembershipStatusInvited {
 			return refuse(ErrInvalid, MsgInvitationNotYetUsed)
 		}
-		_, targetIsOwner, err := s.actorAndTarget(ctx, actorUserID, organizationID, target.ID, MsgOwnerStatus)
+		targetIsOwner, err := s.isOwner(ctx, actorUserID, organizationID, target.ID, checkActor)
 		if err != nil {
 			return err
 		}
@@ -294,6 +354,17 @@ func (s *Service) ownerRoleID(ctx context.Context, organizationID string) (strin
 		return "", err
 	}
 	return role.ID, nil
+}
+
+// isOwner is whether the target membership holds the owner role, after actorAndTarget's check
+// of the actor when checkActor.
+func (s *Service) isOwner(ctx context.Context, actorUserID, organizationID, targetMembershipID string, checkActor bool) (bool, error) {
+	if checkActor {
+		_, owner, err := s.actorAndTarget(ctx, actorUserID, organizationID, targetMembershipID, MsgOwnerStatus)
+		return owner, err
+	}
+	slugs, err := s.roleSlugsOf(ctx, targetMembershipID)
+	return slices.Contains(slugs, authz.RoleOwner), err
 }
 
 // keepsAnotherOwner refuses (ErrConflict, message) unless the owner role is held by more than one

@@ -30,6 +30,11 @@ type Field struct {
 	Primary    bool
 	HasDefault bool
 	Default    any
+	// ASCII marks a String column that only ever holds ASCII and compares byte for byte (base64url
+	// identifiers): MySQL declares it CHARACTER SET ascii COLLATE ascii_bin, so it is case-sensitive
+	// and a unique index on up to 3072 characters fits; the other dialects are unchanged. Not part of
+	// upstream's schema-as-data: a Go-only MySQL DDL refinement (same type, length and data).
+	ASCII bool
 }
 
 func newField(property string, t FieldType, length int, column ...string) Field {
@@ -62,6 +67,9 @@ func (f Field) AsPrimary() Field { f.Primary = true; return f }
 
 // AsNullable returns a copy that accepts NULL.
 func (f Field) AsNullable() Field { f.Nullable = true; return f }
+
+// AsASCII returns a copy marked ASCII (see Field.ASCII).
+func (f Field) AsASCII() Field { f.ASCII = true; return f }
 
 // WithDefault returns a copy with a column default.
 func (f Field) WithDefault(v any) Field { f.HasDefault = true; f.Default = v; return f }

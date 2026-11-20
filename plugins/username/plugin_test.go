@@ -20,12 +20,12 @@ import (
 	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/plugins/username"
-	"github.com/univeros/polaris-go/polaristest"
 	"github.com/univeros/polaris-go/repository"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/token"
 )
 
@@ -248,16 +248,12 @@ func (r *racing) Insert(ctx context.Context, table string, row store.Row) error 
 	return r.Adapter.Insert(ctx, table, row)
 }
 
-// TestUniqueness runs on a real database (SQLite) and on memstore.
+// TestUniqueness runs on every storetest backend (memstore, SQLite, PostgreSQL / MySQL when
+// configured).
 func TestUniqueness(t *testing.T) {
-	dbs := map[string]func(t *testing.T) store.Adapter{
-		"sqlite": func(t *testing.T) store.Adapter {
-			return polaristest.New(t, polaristest.WithPlugins(username.New(username.Config{}))).DB
-		},
-		"memstore": func(*testing.T) store.Adapter { return memstore.New(append(schema.Core(), username.Models()...)...) },
-	}
-	for name, open := range dbs {
-		t.Run(name, func(t *testing.T) {
+	for _, b := range storetest.Backends() {
+		open := func(t *testing.T) store.Adapter { return b.Open(t, append(schema.Core(), username.Models()...)...) }
+		t.Run(b.Name, func(t *testing.T) {
 			t.Run("testAUsernameIsUniqueWithoutRegardToCase", func(t *testing.T) {
 				ctx := context.Background()
 				db := open(t)

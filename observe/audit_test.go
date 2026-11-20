@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"path/filepath"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,10 +16,8 @@ import (
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 var (
@@ -49,14 +47,7 @@ func auditBackends(t *testing.T, fn func(t *testing.T, listen event.Listener, ro
 		}
 		fn(t, AuditLog(r.AuditLog, clock.NewFrozen(now), nil), rows)
 	}
-	t.Run("memory", func(t *testing.T) { run(t, memstore.New(schema.Core()...)) })
-	t.Run("sqlite", func(t *testing.T) {
-		s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)")
-		must(t, err)
-		t.Cleanup(func() { _ = s.DB().Close() })
-		must(t, s.CreateSchema(ctx, schema.Core()))
-		run(t, s)
-	})
+	storetest.Each(t, run)
 }
 
 func metadata(t *testing.T, e model.AuditLogEntry) map[string]any {
@@ -69,11 +60,22 @@ func metadata(t *testing.T, e model.AuditLogEntry) map[string]any {
 	return m
 }
 
+// wantMeta checks e's metadata is exactly want (PHP's JSON escaping) or, on PostgreSQL and MySQL
+// (which store JSON parsed and hand back their own form), an equal JSON value.
 func wantMeta(t *testing.T, e model.AuditLogEntry, want string) {
 	t.Helper()
-	if string(e.Metadata) != want {
+	if !sameMeta(t, e.Metadata, want) {
 		t.Errorf("%s metadata = %s; want %s", e.Event, e.Metadata, want)
 	}
+}
+
+func sameMeta(t *testing.T, got json.RawMessage, want string) bool {
+	t.Helper()
+	if string(got) == want || !storetest.JSONNormalized(store.Dialect(path.Base(t.Name()))) {
+		return string(got) == want
+	}
+	var g, w any
+	return json.Unmarshal(got, &g) == nil && json.Unmarshal([]byte(want), &w) == nil && reflect.DeepEqual(g, w)
 }
 
 func str(p *string) string {
@@ -173,7 +175,8 @@ func TestRecordsOrganizationContextAndActors(t *testing.T) {
 			t.Fatalf("rows = %d", len(got))
 		}
 		for i, w := range want {
-			if g := (row{got[i].Event, str(got[i].ActorUserID), str(got[i].OrganizationID), string(got[i].Metadata)}); g != w {
+			g := row{got[i].Event, str(got[i].ActorUserID), str(got[i].OrganizationID), string(got[i].Metadata)}
+			if g.event != w.event || g.actor != w.actor || g.org != w.org || !sameMeta(t, got[i].Metadata, w.meta) {
 				t.Errorf("row %d = %+v; want %+v", i, g, w)
 			}
 		}

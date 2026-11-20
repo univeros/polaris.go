@@ -33,7 +33,7 @@ func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, idp: social.NewRecorded(t)}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), social.New(social.RecordedConfig(t, base, f.idp))))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "social"), flowClass, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "social"), flowClass, method)).KeepCookies()
 	return f
 }
 

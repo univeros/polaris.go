@@ -63,13 +63,15 @@ func (r *resources) count(ctx context.Context, conn Connection, kind string) (in
 }
 
 // recordMembership notes that conn created userID's membership, unless one is recorded already.
-func (r *resources) recordMembership(ctx context.Context, conn Connection, userID string) error {
+// now is the membership's creation time, the provenance's created_at (owns compares it with the
+// user's).
+func (r *resources) recordMembership(ctx context.Context, conn Connection, userID string, now time.Time) error {
 	found, err := r.db.FindOne(ctx, TableProvenance, store.Criteria{"organization_id": conn.OrganizationID, "user_id": userID})
 	if err != nil || found != nil {
 		return err
 	}
 	return r.db.Insert(ctx, TableProvenance, store.Row{"id": repository.NewID(), "organization_id": conn.OrganizationID,
-		"user_id": userID, "connection_id": conn.ID, "created_at": r.now()})
+		"user_id": userID, "connection_id": conn.ID, "created_at": now})
 }
 
 func (r *resources) createdMembership(ctx context.Context, conn Connection, userID string) (bool, error) {

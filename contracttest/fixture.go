@@ -183,6 +183,9 @@ func (f *Fixture) check(req *http.Request, status int, header http.Header, body 
 	if !changed {
 		expected = normalizeResponse(s.status, s.headers, s.body)
 	}
+	for name, values := range knownHeaders[f.test][n] {
+		expected.Headers[name] = values
+	}
 	if !reflect.DeepEqual(expected, actual) {
 		return fmt.Errorf("%s: response differs at %s\nexpected: %s\nactual:   %s",
 			label, firstDiff(toJSON(expected), toJSON(actual), "$"), pretty(expected), pretty(actual))

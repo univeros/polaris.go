@@ -1,5 +1,5 @@
-// Package polaristest boots a complete Polaris server for tests: SQLite in a temp file with the
-// schema and permission catalog installed, test RSA keys, recording mailer, SMS sender and event
+// Package polaristest boots a complete Polaris server for tests: a fresh database (SQLite in a temp
+// file by default; see WithDialect and EnvDB) with the schema and permission catalog installed, test RSA keys, recording mailer, SMS sender and event
 // log, and a frozen rate-limit clock — the environment upstream's functional suite uses, so the
 // contract fixtures replay. Applications built on Polaris use it for their own tests too.
 //
@@ -11,7 +11,7 @@ package polaristest
 
 import (
 	"context"
-	"path/filepath"
+	"os"
 	"sync"
 	"testing"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/wiring"
 )
 
@@ -49,7 +50,18 @@ type options struct {
 	db      *sqlstore.Store
 	secrets func(*config.Secrets)
 	noRec   bool
+	dialect store.Dialect
 }
+
+// EnvDB names the environment variable that picks the database every server boots on when no
+// WithDialect is given: "sqlite" (default), "postgres" or "mysql". PostgreSQL and MySQL also need
+// storetest.EnvPostgresDSN / storetest.EnvMySQLDSN; each server gets its own schema / database,
+// dropped when the test ends. scripts/test-db-matrix.sh runs the suites this way.
+const EnvDB = "POLARIS_TEST_DB"
+
+// WithDialect boots on a fresh database of dialect d (store.SQLite, store.Postgres or store.MySQL),
+// overriding EnvDB.
+func WithDialect(d store.Dialect) Option { return func(o *options) { o.dialect = d } }
 
 // WithAuth edits the auth configuration (start: config.Defaults with the test issuer).
 func WithAuth(f func(*config.Auth)) Option { return func(o *options) { o.auth = f } }
@@ -97,7 +109,7 @@ func New(t testing.TB, opts ...Option) *Server {
 
 	db := o.db
 	if db == nil {
-		db = openSQLite(t, ctx, o.plugins)
+		db = openDB(t, ctx, o.dialect, o.plugins)
 	}
 	srv := &Server{DB: db, Mailer: &notifytest.Mailer{}, SMS: &notifytest.SMSSender{}, Events: &Events{}}
 	cfg := polaris.Config{
@@ -134,13 +146,15 @@ func New(t testing.TB, opts ...Option) *Server {
 // Graph is the server's service graph.
 func (s *Server) Graph() *wiring.Graph { return s.Polaris.Graph() }
 
-func openSQLite(t testing.TB, ctx context.Context, plugins []polaris.Plugin) *sqlstore.Store {
+func openDB(t testing.TB, ctx context.Context, d store.Dialect, plugins []polaris.Plugin) *sqlstore.Store {
 	t.Helper()
-	db, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "polaris.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-	if err != nil {
-		t.Fatalf("polaristest: %v", err)
+	if d == "" {
+		d = store.Dialect(os.Getenv(EnvDB))
 	}
-	t.Cleanup(func() { _ = db.DB().Close() })
+	if d == "" {
+		d = store.SQLite
+	}
+	db := storetest.OpenSQL(t, d)
 	var extra [][]schema.Model
 	for _, p := range plugins {
 		if sp, ok := p.(wiring.SchemaProvider); ok {

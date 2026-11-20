@@ -19,7 +19,8 @@ func Models() []schema.Model {
 		schema.Table(TablePasskeys,
 			schema.StringField("id", 36).AsPrimary(),
 			schema.StringField("userId", 36),
-			schema.StringField("credentialId", 1024),
+			// ASCII: base64url, case-sensitive; on MySQL a utf8mb4 VARCHAR(1024) is too long to index.
+			schema.StringField("credentialId", 1024).AsASCII(),
 			schema.TextField("publicKey"),
 			schema.IntField("counter").WithDefault(0),
 			schema.StringField("aaguid", 36),

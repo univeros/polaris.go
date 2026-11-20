@@ -3,7 +3,6 @@ package orgs
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -14,12 +13,10 @@ import (
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/session"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 // *session.Service is the production Sessions.
@@ -39,20 +36,11 @@ func must(t *testing.T, err error) {
 	}
 }
 
-// backends runs fn on memstore and on SQLite, both holding core's schema and the seeded catalog.
+// backends runs fn on every storetest backend (memstore, SQLite, PostgreSQL / MySQL when configured),
+// each a fresh database holding core's schema and the seeded catalog.
 func backends(t *testing.T, fn func(t *testing.T, f *fixture)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, newFixture(t, memstore.New(schema.Core()...))) })
-	t.Run("sqlite", func(t *testing.T) { fn(t, newFixture(t, openSQLite(t))) })
-}
-
-func openSQLite(t *testing.T) store.Adapter {
-	t.Helper()
-	s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-	must(t, err)
-	t.Cleanup(func() { _ = s.DB().Close() })
-	must(t, s.CreateSchema(ctx, schema.Core()))
-	return s
+	storetest.Each(t, func(t *testing.T, db store.Adapter) { fn(t, newFixture(t, db)) })
 }
 
 type fixture struct {

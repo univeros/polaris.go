@@ -37,6 +37,9 @@ var (
 	datetimeRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`)
 	opaqueRe    = regexp.MustCompile(`^[A-Za-z0-9_\-+/=]{32,}\n?$`)
 	phpIntKeyRe = regexp.MustCompile(`^(0|-?[1-9][0-9]*)$`)
+	// socialBindingRe is the social plugin's browser-binding cookie (decision #39): its name and
+	// value are per flow.
+	socialBindingRe = regexp.MustCompile(`^(__Host-)?polaris_social_[0-9a-f]{16}=[0-9a-f]{32};`)
 )
 
 // timestampKeys hold epoch claims minted per run (an OAuth introspection, a userinfo document).
@@ -65,6 +68,9 @@ func normalizeResponse(status int, headers map[string][]string, body any) normal
 		masked := make([]string, len(values))
 		for i, v := range values {
 			masked[i] = maskQuery(v)
+			if lower == "set-cookie" {
+				masked[i] = socialBindingRe.ReplaceAllString(masked[i], "${1}polaris_social_<state>=<binding>;")
+			}
 		}
 		out[lower] = masked
 	}

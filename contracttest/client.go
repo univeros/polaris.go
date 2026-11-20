@@ -27,6 +27,15 @@ type Client struct {
 	t       testing.TB
 	handler http.Handler
 	fixture *Fixture
+	jar     map[string]string // nil unless KeepCookies
+}
+
+// KeepCookies makes the Client behave like one browser: every cookie a response sets is sent with
+// the following requests (a Max-Age of 0 or less removes it). Off by default, so explicit Cookie
+// options stay the only cookies sent.
+func (c *Client) KeepCookies() *Client {
+	c.jar = map[string]string{}
+	return c
 }
 
 // NewClient returns a Client for handler. fixture may be nil: the requests are then not compared.
@@ -116,6 +125,9 @@ func (c *Client) NewRequest(method, target string, body []byte, opts ...Option) 
 		req.Body = http.NoBody
 	}
 	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	for name, value := range c.jar {
+		req.AddCookie(&http.Cookie{Name: name, Value: value})
+	}
 	for _, opt := range opts {
 		opt(req)
 	}
@@ -129,6 +141,15 @@ func (c *Client) Do(req *http.Request) *http.Response {
 	c.handler.ServeHTTP(rec, req)
 	resp := rec.Result()
 	resp.Request = req
+	if c.jar != nil {
+		for _, ck := range resp.Cookies() {
+			if ck.MaxAge < 0 {
+				delete(c.jar, ck.Name)
+			} else {
+				c.jar[ck.Name] = ck.Value
+			}
+		}
+	}
 	c.fixture.Compare(c.t, req, resp)
 	return resp
 }

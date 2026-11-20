@@ -67,7 +67,10 @@ type Config struct {
 	// RedirectURIs are the exact application URLs a sign-in may end on; the first is the default.
 	RedirectURIs []string
 	// TrustedProviders link a verified provider email to the existing user with that email by
-	// themselves. nil means google and apple; an empty, non-nil list trusts none.
+	// themselves. nil means google and apple; an empty, non-nil list trusts none. Never trust a
+	// provider whose profile counts any returned email as verified (facebook, x, notion, kick, or
+	// a Definition whose Profile does): anyone who can put a victim's address on such an account
+	// would be linked to, and sign in as, the victim's existing user.
 	TrustedProviders []string
 	// AllowDifferentEmails lists the providers that may be linked from a session with an email
 	// other than the account's.

@@ -317,10 +317,15 @@ func parseCOSEKey(raw []byte) (coseKey, error) {
 	case kty == int64(3) && alg == int64(algRS256):
 		n, _ := m[int64(-1)].([]byte)
 		e, _ := m[int64(-2)].([]byte)
-		if len(n) < 256 || len(e) == 0 || len(e) > 4 {
+		if len(e) == 0 || len(e) > 4 {
 			return coseKey{}, errInvalid("an RS256 key has a 2048-bit modulus or more")
 		}
-		return coseKey{rsa: &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}}, nil
+		// The bit length, not the encoded length: zero padding does not make a key stronger.
+		key := &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}
+		if key.N.BitLen() < 2048 || key.E < 3 || key.E%2 == 0 {
+			return coseKey{}, errInvalid("an RS256 key has a 2048-bit modulus or more")
+		}
+		return coseKey{rsa: key}, nil
 	}
 	return coseKey{}, errInvalid("only ES256 and RS256 credentials are accepted")
 }

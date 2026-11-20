@@ -2,12 +2,14 @@ package agents_test
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/univeros/polaris-go/agent"
+	"github.com/univeros/polaris-go/config"
 	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/plugins/admin"
 	"github.com/univeros/polaris-go/plugins/agents"
@@ -18,14 +20,31 @@ import (
 
 // The Go agent SDK walks the protocol against this server: enrol through a host, ask for a
 // grant the policy approves, execute with signed request JWTs, read the session and verify the
-// receipt chain locally (the WP5 acceptance walkthrough).
+// receipt chain locally (the WP5 acceptance walkthrough). It runs with each access-token signer:
+// with EdDSA the receipts are Ed25519-signed and the SDK reads the key from the OKP JWKS.
 func TestTheGoAgentSDKWalksThrough(t *testing.T) {
+	for _, signer := range []config.Signer{config.SignerRS256, config.SignerEdDSA} {
+		t.Run(string(signer), func(t *testing.T) { walkThrough(t, signer) })
+	}
+}
+
+func walkThrough(t *testing.T, signer config.Signer) {
 	var handler http.Handler
 	web := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
 	defer web.Close()
-	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
-		oauth.New(oauth.Config{BaseURL: web.URL}), agents.New(agents.Config{Capabilities: capabilities()})))
+	opts := []polaristest.Option{polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
+		oauth.New(oauth.Config{BaseURL: web.URL}), agents.New(agents.Config{Capabilities: capabilities()}))}
+	if signer == config.SignerEdDSA {
+		pub, priv, _ := ed25519.GenerateKey(nil)
+		opts = append(opts,
+			polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Signer = signer }),
+			polaristest.WithSecrets(func(s *config.Secrets) { s.JWTPrivateKey, s.JWTPublicKey = string(priv), string(pub) }))
+	}
+	srv := polaristest.New(t, opts...)
 	handler = srv.Handler()
+	if alg := srv.Graph().JWKS.Keys[0].Alg; alg != string(signer) {
+		t.Fatalf("JWKS alg %s", alg)
+	}
 
 	ctx := context.Background()
 	a := &agentsCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), nil), ctx: ctx}

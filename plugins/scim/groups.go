@@ -98,7 +98,7 @@ func (d *directory) replaceGroup(ctx context.Context, conn Connection, role mode
 	if err != nil {
 		return role, err
 	}
-	err = d.db.Tx(ctx, func(ctx context.Context) error {
+	err = d.keepOwner(ctx, conn, func(ctx context.Context) error {
 		if err := d.rename(ctx, role, name); err != nil {
 			return err
 		}
@@ -114,9 +114,10 @@ func (d *directory) replaceGroup(ctx context.Context, conn Connection, role mode
 }
 
 // patchGroup applies PatchOp operations on displayName, externalId and members (add, replace,
-// remove with a value list or members[value eq "id"]), atomically.
+// remove with a value list or members[value eq "id"]), atomically, never leaving the organization
+// without an active owner.
 func (d *directory) patchGroup(ctx context.Context, conn Connection, role model.Role, ops []operation) (model.Role, error) {
-	err := d.db.Tx(ctx, func(ctx context.Context) error {
+	err := d.keepOwner(ctx, conn, func(ctx context.Context) error {
 		for _, op := range ops {
 			if err := d.applyGroupOp(ctx, conn, &role, op); err != nil {
 				return err

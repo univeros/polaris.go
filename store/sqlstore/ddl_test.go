@@ -147,3 +147,23 @@ func TestCircularForeignKeysAreRejected(t *testing.T) {
 		t.Errorf("DropAll: %v", err)
 	}
 }
+
+// An ASCII string column is byte-exact and case-sensitive on MySQL (and fits a unique index at
+// 1024 characters: 1024 bytes, not utf8mb4's 4096); the other dialects declare it as any string.
+func TestASCIIColumnsAreBinaryOnMySQLOnly(t *testing.T) {
+	m := schema.Table("t", schema.StringField("credentialId", 1024).AsASCII()).Unique([]string{"credential_id"})
+	want := map[store.Dialect]string{
+		store.MySQL:    "`credential_id` VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+		store.Postgres: `"credential_id" VARCHAR(1024) NOT NULL`,
+		store.SQLite:   `"credential_id" VARCHAR(1024) NOT NULL`,
+	}
+	for _, d := range dialects {
+		got, err := sqlstore.DDL([]schema.Model{m}, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got, want[d]) {
+			t.Errorf("%s:\n%s\nwant a column %s", d, got, want[d])
+		}
+	}
+}

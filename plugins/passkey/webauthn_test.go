@@ -237,3 +237,32 @@ func TestRSAKeySanity(t *testing.T) {
 		t.Fatalf("a sound key: %v", err)
 	}
 }
+
+// A modulus padded with zero bytes to 256 bytes is still a small key, and an even or tiny
+// exponent is no RSA key: both are refused at registration.
+func TestAWeakRSAKeyIsRefusedWhateverItsEncodedLength(t *testing.T) {
+	rsaKey := func(n, e []byte) []byte {
+		return cborMap(cborInt(1), cborInt(3), cborInt(3), cborInt(algRS256), cborInt(-1), cborBytes(n), cborInt(-2), cborBytes(e))
+	}
+	small, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	padded := append(make([]byte, 256-len(small.N.Bytes())), small.N.Bytes()...)
+	big2048, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, cose := range map[string][]byte{
+		"1024-bit modulus padded": rsaKey(padded, []byte{1, 0, 1}),
+		"exponent 1":              rsaKey(big2048.N.Bytes(), []byte{1}),
+		"even exponent":           rsaKey(big2048.N.Bytes(), []byte{1, 0, 0}),
+	} {
+		if _, err := parseCOSEKey(cose); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := parseCOSEKey(rsaKey(big2048.N.Bytes(), []byte{1, 0, 1})); err != nil {
+		t.Fatalf("a 2048-bit key: %v", err)
+	}
+}

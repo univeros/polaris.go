@@ -102,6 +102,9 @@ func TestEveryFixtureReplaysItsOwnRecording(t *testing.T) {
 			if change, ok := knownChanges[test][i+1]; ok {
 				status, h, body = change.Status, change.Headers, encode(change.Body)
 			}
+			for name, values := range knownHeaders[test][i+1] {
+				h[name] = values // as Go answers it, already normalized
+			}
 			if err := f.check(req, status, h, body); err != nil {
 				t.Fatal(err)
 			}

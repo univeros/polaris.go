@@ -100,26 +100,22 @@ func OpenSQL(t testing.TB, d store.Dialect) *sqlstore.Store {
 		t.Fatalf("storetest: set %s to run on %s (scripts/test-db-matrix.sh starts one)", env, d)
 	}
 	name := "polaris_t_" + strings.ToLower(rand.Text())
-	db, drop, err := isolate(ctx, d, dsn, name)
+	s, drop, err := isolate(ctx, d, dsn, name)
 	if err != nil {
 		t.Fatalf("storetest: %s: %v", d, err)
 	}
-	s := sqlstore.New(db, d)
 	t.Cleanup(func() {
-		_ = db.Close()
+		_ = s.DB().Close()
 		if err := drop(); err != nil {
 			t.Errorf("storetest: drop %s: %v", name, err)
 		}
 	})
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("storetest: connect to %s: %v", d, err)
-	}
 	return s
 }
 
 // isolate creates the schema (PostgreSQL) or database (MySQL) name on the server behind dsn and
-// returns a pool bound to it and the function that drops it.
-func isolate(ctx context.Context, d store.Dialect, dsn, name string) (*sql.DB, func() error, error) {
+// returns a store bound to it and the function that drops it.
+func isolate(ctx context.Context, d store.Dialect, dsn, name string) (*sqlstore.Store, func() error, error) {
 	driver := map[store.Dialect]string{store.Postgres: "pgx", store.MySQL: "mysql"}[d]
 	admin, err := sql.Open(driver, dsn)
 	if err != nil {
@@ -139,27 +135,38 @@ func isolate(ctx context.Context, d store.Dialect, dsn, name string) (*sql.DB, f
 		_, err := admin.ExecContext(context.Background(), dropStmt)
 		return err
 	}
-	db, err := bind(d, dsn, name)
+	s, err := bind(ctx, d, dsn, name)
 	if err != nil {
 		return nil, nil, errors.Join(err, drop())
 	}
-	return db, drop, nil
+	return s, drop, nil
 }
 
-// bind opens a pool whose connections use name: search_path on PostgreSQL, the database on MySQL.
-func bind(d store.Dialect, dsn, name string) (*sql.DB, error) {
+// bind opens a store whose connections use name: the database on MySQL (through sqlstore.Open, as
+// a host does), search_path on PostgreSQL.
+func bind(ctx context.Context, d store.Dialect, dsn, name string) (*sqlstore.Store, error) {
 	if d == store.MySQL {
 		cfg, err := mysql.ParseDSN(dsn)
 		if err != nil {
 			return nil, err
 		}
 		cfg.DBName = name
-		return sql.Open("mysql", cfg.FormatDSN())
+		return sqlstore.Open(ctx, d, cfg.FormatDSN())
 	}
 	cfg, err := pgx.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
 	}
 	cfg.RuntimeParams["search_path"] = name
-	return stdlib.OpenDB(*cfg), nil
+	db := stdlib.OpenDB(*cfg)
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return sqlstore.New(db, d), nil
 }
+
+// JSONNormalized reports whether d stores JSON columns parsed (PostgreSQL jsonb, MySQL JSON), so a
+// read returns an equal value in the database's own form (key order, spacing, escapes) rather than
+// the bytes written, as SQLite and memstore do.
+func JSONNormalized(d store.Dialect) bool { return d == store.Postgres || d == store.MySQL }

@@ -16,12 +16,12 @@ import (
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/wiring"
 )
 
-// bootMemory is bootUnit on memstore instead of SQLite.
-func bootMemory(t *testing.T, cfg Config) *Plugin {
+// bootOn is bootUnit on a fresh database of backend b.
+func bootOn(t *testing.T, b storetest.Backend, cfg Config) *Plugin {
 	t.Helper()
 	ctx := context.Background()
 	p := New(cfg)
@@ -34,7 +34,7 @@ func bootMemory(t *testing.T, cfg Config) *Plugin {
 	}
 	models, err := schema.Merge(schema.Core(), extra...)
 	must(t, err)
-	db := memstore.New(models...)
+	db := b.Open(t, models...)
 	auth := config.Defaults()
 	auth.Issuer, auth.Audience = contracttest.Issuer, contracttest.Audience
 	private, public := contracttest.TestRSAKeyPEM()
@@ -71,13 +71,9 @@ func TestConcurrentGrantRequestsRespectTheApprovalCap(t *testing.T) {
 	for i := range 10 {
 		caps = append(caps, unitCapability(fmt.Sprintf("c%d", i), RiskHigh, "deploy.staging"))
 	}
-	backends := map[string]func(t *testing.T) *Plugin{
-		"memory": func(t *testing.T) *Plugin { return bootMemory(t, Config{Capabilities: caps}) },
-		"sqlite": func(t *testing.T) *Plugin { p, _ := bootUnit(t, Config{Capabilities: caps}); return p },
-	}
-	for name, boot := range backends {
-		t.Run(name, func(t *testing.T) {
-			p := boot(t)
+	for _, b := range storetest.Backends() {
+		t.Run(b.Name, func(t *testing.T) {
+			p := bootOn(t, b, Config{Capabilities: caps})
 			ctx := context.Background()
 			a := newAgent(t, p, nil)
 			ask := func(capability string) func() error {

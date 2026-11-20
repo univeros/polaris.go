@@ -6,7 +6,6 @@ package authz
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -14,10 +13,8 @@ import (
 	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 var (
@@ -27,21 +24,15 @@ var (
 
 const org = "01910000-0000-7000-8000-0000000000aa"
 
-// backends runs fn on memstore and SQLite (foreign keys on), both seeded with the core catalog.
+// backends runs fn on every storetest backend (memstore, SQLite, PostgreSQL / MySQL when configured),
+// each seeded with the core catalog.
 func backends(t *testing.T, fn func(t *testing.T, db store.Adapter, r *repository.Repos)) {
 	t.Helper()
 	run := func(t *testing.T, db store.Adapter) {
 		must(t, Seed(ctx, db, NewCatalog(), clock.NewFrozen(now)))
 		fn(t, db, repository.New(db))
 	}
-	t.Run("memory", func(t *testing.T) { run(t, memstore.New(schema.Core()...)) })
-	t.Run("sqlite", func(t *testing.T) {
-		s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-		must(t, err)
-		t.Cleanup(func() { _ = s.DB().Close() })
-		must(t, s.CreateSchema(ctx, schema.Core()))
-		run(t, s)
-	})
+	storetest.Each(t, run)
 }
 
 func must(t *testing.T, err error) {

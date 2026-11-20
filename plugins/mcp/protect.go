@@ -5,9 +5,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/subtle"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -219,23 +217,24 @@ func cmp[T comparable](a, b T) T {
 	return b
 }
 
-// graphKeys are the graph's verification keys: the active one and, during a rotation, the previous.
+// graphKeys are the graph's verification keys, read from its JWK Set: the active one and, during a
+// rotation, the previous (RSA for RS256, Ed25519 for EdDSA).
 func graphKeys(g *wiring.Graph) (map[string]any, error) {
-	s := g.Config.Secrets
 	keys := map[string]any{}
-	for kid, text := range map[string]string{s.KeyID(): s.JWTPublicKey, s.PreviousKeyID(): s.JWTPreviousPublicKey} {
-		if kid == "" || text == "" {
-			continue
-		}
-		block, _ := pem.Decode([]byte(text))
-		if block == nil {
-			return nil, fmt.Errorf("the graph's public key %q is not PEM (AUTH_JWT_PUBLIC_KEY)", kid)
-		}
-		key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	for _, jwk := range g.JWKS.Keys {
+		raw, err := json.Marshal(jwk)
 		if err != nil {
-			return nil, fmt.Errorf("the graph's public key %q: %v (AUTH_JWT_PUBLIC_KEY)", kid, err)
+			return nil, err
 		}
-		keys[kid] = key
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, err
+		}
+		key, err := parseJWK(m, jwk.Alg)
+		if err != nil {
+			return nil, fmt.Errorf("the graph's public key %q: %v (AUTH_JWT_PUBLIC_KEY)", jwk.Kid, err)
+		}
+		keys[jwk.Kid] = key
 	}
 	return keys, nil
 }

@@ -76,35 +76,37 @@ func inputText(in *endpoint.Input, field string) string { return strings.TrimSpa
 // startRoute answers POST /social/{provider}/start.
 func (p *Plugin) startRoute(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), "")
-	return p.answer(ctx, s, err)
+	return p.started(ctx, in, s, err)
 }
 
 // linkRoute answers POST /social/{provider}/link: the same flow, linking to the caller.
 func (p *Plugin) linkRoute(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
 	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), tok.Subject())
-	return p.answer(ctx, s, err)
+	return p.started(ctx, in, s, err)
+}
+
+// started answers a started flow and binds it to the calling browser.
+func (p *Plugin) started(ctx context.Context, in *endpoint.Input, s started, err error) endpoint.Result {
+	if err != nil {
+		return p.answer(ctx, nil, err)
+	}
+	return p.answer(ctx, s, nil).WithHeader("Set-Cookie", bindingHeader(in.Request, s.State, s.binding, p.settings.stateTTL))
 }
 
 // callbackRoute answers GET and POST /social/{provider}/callback with a 302.
 func (p *Plugin) callbackRoute(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	location, err := p.callback(ctx, in.String("provider"), callbackParams(in), endpoint.Client(ctx))
+	location, err := p.callback(ctx, in.String("provider"), callbackParams(in), in.Request, endpoint.Client(ctx))
 	if err != nil {
 		return p.answer(ctx, nil, err)
 	}
 	return endpoint.Result{Status: http.StatusFound}.WithHeader("Location", location)
 }
 
-// callbackParams is what the provider sent (query and body): the route parameter and the
-// browser's cookies stay out, so a proxy forward never copies a cookie into a URL.
+// callbackParams is what the provider sent (query and body), without the route parameter.
+// Cookies are never input, so a proxy forward never copies one into a URL.
 func callbackParams(in *endpoint.Input) map[string]any {
 	params := in.All()
 	delete(params, "provider")
-	r := in.Request
-	for _, c := range r.Cookies() {
-		if !r.URL.Query().Has(c.Name) && !r.PostForm.Has(c.Name) {
-			delete(params, c.Name)
-		}
-	}
 	return params
 }
 

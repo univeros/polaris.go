@@ -81,9 +81,6 @@ func authSessionID(tok *token.Token) string {
 	return sid
 }
 
-func (a *authAPI) jwks(ctx context.Context, _ *endpoint.Input) endpoint.Result {
-	if a.g.JWKSErr != nil {
-		return a.fail(ctx, "jwks", a.g.JWKSErr)
-	}
+func (a *authAPI) jwks(_ context.Context, _ *endpoint.Input) endpoint.Result {
 	return endpoint.JSON(http.StatusOK, a.g.JWKS)
 }

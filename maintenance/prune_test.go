@@ -3,7 +3,6 @@ package maintenance
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,7 +12,7 @@ import (
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 )
 
 var ctx = context.Background()
@@ -37,14 +36,7 @@ func must(t *testing.T, err error) {
 
 func backends(t *testing.T, fn func(t *testing.T, db store.Adapter)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, memstore.New(schema.Core()...)) })
-	t.Run("sqlite", func(t *testing.T) {
-		s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db"))
-		must(t, err)
-		t.Cleanup(func() { _ = s.DB().Close() })
-		must(t, s.CreateSchema(ctx, schema.Core()))
-		fn(t, s)
-	})
+	storetest.Each(t, fn)
 }
 
 func timeOrNil(s string) any {
@@ -94,7 +86,7 @@ func ids(t *testing.T, db store.Adapter, table string) []string {
 	must(t, err)
 	out := []string{}
 	for _, r := range rows {
-		out = append(out, r["id"].(string))
+		out = append(out, r.String("id"))
 	}
 	slices.Sort(out)
 	return out

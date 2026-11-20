@@ -62,18 +62,24 @@ func Example() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var cookies []*http.Cookie // the browser's: start binds the flow to it with a cookie
 	call := func(method, target string, body any) *httptest.ResponseRecorder {
 		raw, _ := json.Marshal(body)
 		r := httptest.NewRequest(method, target, bytes.NewReader(raw))
 		r.Header.Set("Content-Type", "application/json")
+		for _, c := range cookies {
+			r.AddCookie(c)
+		}
 		w := httptest.NewRecorder()
 		p.Handler().ServeHTTP(w, r)
+		cookies = append(cookies, w.Result().Cookies()...)
 		return w
 	}
 
 	var started struct{ Data struct{ URL, State string } }
 	_ = json.Unmarshal(call("POST", "/social/acme/start", nil).Body.Bytes(), &started)
-	// The browser goes to started.Data.URL; the provider sends it back to the callback.
+	// The browser goes to started.Data.URL; the provider sends it back to the callback, in the
+	// same browser (another browser's callback is refused: login CSRF).
 	back := call("GET", "/social/acme/callback?code=from-acme&state="+url.QueryEscape(started.Data.State), nil)
 	landed, _ := url.Parse(back.Header().Get("Location"))
 	fmt.Println(back.Code, landed.Host+landed.Path, landed.Query().Get("state") == started.Data.State)

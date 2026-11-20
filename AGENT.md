@@ -8,11 +8,17 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
 
 ## Status
 
-- Core (WP1–WP3) and the agent stack (WP4–WP5) are ported: all 52 core routes (184 fixtures) plus
-  `plugins/{audit,admin,apikeys,oauth,agents,mcp}` and the Go agent SDK `agent/`, every upstream
-  fixture of those packages replaying. Next: WP6 (passwordless, username, anonymous, multisession,
-  social, passkey), WP7 (messaging, sentinel, sso, scim), `cmd/polaris`, WP8.
-- Integration surface for hosts: `llms.txt` (read it first), `examples/`, `polaristest`.
+- Ported, every upstream fixture of each package replaying: core (WP1–WP3, all 52 routes, 184
+  fixtures); `plugins/{audit,admin,apikeys,oauth,agents,mcp}` and the Go agent SDK `agent/` (WP4–WP5);
+  `plugins/{passwordless,username,anonymous,multisession,social,passkey}` (WP6);
+  `plugins/{messaging,sentinel,scim}` (WP7); the CLI (`cli`, `cmd/polaris`); EdDSA keys through the
+  environment. Departures are in `docs/port/decisions.md`.
+- Left: `plugins/sso` (in progress). WP8 under way, results pending: re-sync with upstream head,
+  security review (`security`, `token`, `oauth`, `agents`, `mcp`, `passkey`, `social`, `sso`), the
+  database matrix (PostgreSQL, MySQL), fuzzing (manifest input, token parsing, passkey
+  CBOR/attestation); then `v1.0.0`.
+- Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
+  compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`.
 
 ## The rules
 

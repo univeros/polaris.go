@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -14,11 +13,9 @@ import (
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/model"
 	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/security"
 	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris-go/store/storetest"
 	"github.com/univeros/polaris-go/token"
 )
 
@@ -39,20 +36,11 @@ func must(t *testing.T, err error) {
 	}
 }
 
-// backends runs fn on memstore and on SQLite, both holding core's schema.
+// backends runs fn on every storetest backend (memstore, SQLite, PostgreSQL / MySQL when configured),
+// each a fresh database holding core's schema.
 func backends(t *testing.T, fn func(t *testing.T, db store.Adapter)) {
 	t.Helper()
-	t.Run("memory", func(t *testing.T) { fn(t, memstore.New(schema.Core()...)) })
-	t.Run("sqlite", func(t *testing.T) { fn(t, openSQLite(t)) })
-}
-
-func openSQLite(t *testing.T) *sqlstore.Store {
-	t.Helper()
-	s, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "p.db")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)")
-	must(t, err)
-	t.Cleanup(func() { _ = s.DB().Close() })
-	must(t, s.CreateSchema(ctx, schema.Core()))
-	return s
+	storetest.Each(t, fn)
 }
 
 // recordingIssuer records every claim set minted (RecordingTokenGenerator).

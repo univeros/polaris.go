@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -34,12 +35,15 @@ type stateEntry struct {
 	Nonce       string `json:"nonce"`
 	LinkUserID  string `json:"link_user_id,omitempty"`
 	Verifier    string `json:"verifier,omitempty"`
+	Binding     string `json:"binding,omitempty"` // the nonce of the browser that started the flow
 }
 
 // started is where the browser goes and the state the application compares at the end.
 type started struct {
 	URL   string `json:"url"`
 	State string `json:"state"`
+
+	binding string // the nonce the starting browser must present at the callback
 }
 
 func (p *Plugin) provider(ctx context.Context, id string) (*provider, error) {
@@ -76,7 +80,8 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 		state += proxySeparator + p.proxySignature(state)
 		callback = p.settings.proxy + "/social/" + providerID + "/callback"
 	}
-	entry := stateEntry{Provider: providerID, RedirectURI: redirectURI, Callback: callback, Nonce: hex.EncodeToString(random(16)), LinkUserID: linkUserID}
+	entry := stateEntry{Provider: providerID, RedirectURI: redirectURI, Callback: callback, Nonce: hex.EncodeToString(random(16)), LinkUserID: linkUserID,
+		Binding: hex.EncodeToString(random(16))}
 	challenge := ""
 	if !prov.def.NoPKCE {
 		entry.Verifier = b64(random(48))
@@ -86,7 +91,7 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 	if err := p.keep(ctx, "state", state, entry, p.settings.stateTTL); err != nil {
 		return started{}, err
 	}
-	return started{URL: prov.authorizationURL(callback, state, scopes, challenge, entry.Nonce), State: state}, nil
+	return started{URL: prov.authorizationURL(callback, state, scopes, challenge, entry.Nonce), State: state, binding: entry.Binding}, nil
 }
 
 // proxySignature signs random.payload under the pepper the deployments share (as upstream: the
@@ -111,8 +116,9 @@ func (p *Plugin) redirectURI(requested string) (string, error) {
 
 // callback handles the provider's answer: the URL to send the browser to, the application's
 // redirect URI with a one-minute hand-off code and the state; or, on the proxy's stable origin,
-// the preview's callback with everything the provider sent.
-func (p *Plugin) callback(ctx context.Context, providerID string, params map[string]any, client token.ClientContext) (string, error) {
+// the preview's callback with everything the provider sent. browser is the callback request: the
+// flow must have been started in it (bound).
+func (p *Plugin) callback(ctx context.Context, providerID string, params map[string]any, browser *http.Request, client token.ClientContext) (string, error) {
 	state, _ := params["state"].(string)
 	forward, err := p.forwardTo(state, providerID)
 	if err != nil {
@@ -124,6 +130,9 @@ func (p *Plugin) callback(ctx context.Context, providerID string, params map[str
 	entry, err := p.takeState(ctx, providerID, state)
 	if err != nil {
 		return "", err
+	}
+	if !bound(browser, state, entry) {
+		return "", refuse(kindStateInvalid, "The flow was started in another browser.")
 	}
 	prov, err := p.provider(ctx, providerID)
 	if err != nil {

@@ -3,7 +3,6 @@ package sqlstore_test
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -32,13 +31,13 @@ func open(t *testing.T, d store.Dialect, dsn string) *sqlstore.Store {
 }
 
 // backends returns a constructor per available database: SQLite always, PostgreSQL and MySQL
-// when POLARIS_TEST_PG_DSN / POLARIS_TEST_MYSQL_DSN are set.
+// (a fresh schema / database each, see storetest.OpenSQL) when POLARIS_TEST_PG_DSN /
+// POLARIS_TEST_MYSQL_DSN are set.
 func backends() map[string]func(t *testing.T) *sqlstore.Store {
 	out := map[string]func(t *testing.T) *sqlstore.Store{"sqlite": openSQLite}
-	for name, env := range map[string]string{"postgres": "POLARIS_TEST_PG_DSN", "mysql": "POLARIS_TEST_MYSQL_DSN"} {
-		if dsn := os.Getenv(env); dsn != "" {
-			d := store.Dialect(name)
-			out[name] = func(t *testing.T) *sqlstore.Store { return open(t, d, dsn) }
+	for _, b := range storetest.Backends() {
+		if b.Dialect == store.Postgres || b.Dialect == store.MySQL {
+			out[b.Name] = func(t *testing.T) *sqlstore.Store { return storetest.OpenSQL(t, b.Dialect) }
 		}
 	}
 	return out

@@ -34,6 +34,8 @@ Environment: `APP_KEY` (≥ 32 bytes: `openssl rand -base64 32`), `AUTH_JWT_PRIV
 `AUTH_JWT_PUBLIC_KEY` (PEM; `openssl genrsa -out jwt.key 2048 && openssl rsa -in jwt.key -pubout -out jwt.pub`),
 `AUTH_ISSUER` (your public base URL). Optional: `AUTH_AUDIENCE`, `AUTH_JWT_PREVIOUS_PUBLIC_KEY` (key
 rotation), `AUTH_ACCESS_TOKEN_DENYLIST`, … — every option is in package `config` (`go doc config.Auth`).
+EdDSA instead of RS256: `polaris keys:generate --alg=EdDSA` (base64 keys for the same two variables), then
+`cfg.Auth.AccessToken.Signer = config.SignerEdDSA` before `polaris.New`; the JWKS publishes it as an OKP key.
 
 Your own permissions: `cfg.Permissions = map[string]string{"invoices.read": "Read invoices"}` before
 `polaris.New`; `Migrate` adds them to the catalog. Grant them to roles through `/orgs/{id}/roles`.
@@ -58,7 +60,7 @@ defaults only log), `Cache cache.Cache` and `RateStore` (share across replicas; 
 - `plugins/social` — `social.New(social.Config{Providers: map[string]social.Provider{"google": {ClientID: …, ClientSecret: …}}})`: 19 OAuth/OIDC providers + generic, linking, One Tap.
 - `plugins/passkey` — `passkey.New(passkey.Config{RPID: "example.com", Origins: []string{"https://example.com"}})`: WebAuthn sign-in; a passkey is also an MFA factor.
 - `plugins/messaging` — `messaging.New(messaging.Config{Email: &messaging.SMTP{…}, SMS: &messaging.Twilio{…}})`: becomes core's mailer and SMS sender; templates per instance/org, translations, send caps.
-- `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); `Mode: "observe"` records without enforcing.
+- `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); observes by default, `Mode: sentinel.Enforce` blocks and challenges.
 
 ## Agents: declare what agents may do
 
@@ -114,7 +116,7 @@ mux.Handle("/", h) // also serves /.well-known/oauth-protected-resource/mcp; mcp
 ## Testing your app
 
 ```go
-srv := polaristest.New(t, polaristest.WithPlugins(...)) // SQLite in a temp dir, test keys, recorders
+srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) // SQLite in a temp dir, test keys, recorders
 // srv.Handler(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names(), srv.Graph()
 ```
 
@@ -143,6 +145,7 @@ Go APIs return sentinel errors (`errors.Is`) per package.
 ## Where to look
 
 - `examples/minimal`, `examples/api-keys` — complete programs.
+- `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris-go/<package>` — every exported identifier is documented.
 - `upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.

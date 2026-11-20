@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"slices"
 	"strings"
@@ -62,8 +64,28 @@ func (h *harness) restart(provider string) started {
 	return s
 }
 
+// callback answers the provider's callback in the browser that started the flow.
 func (h *harness) callback(provider string, params map[string]any) (string, error) {
-	return h.p.callback(h.ctx, provider, params, h.client)
+	state, _ := params["state"].(string)
+	return h.p.callback(h.ctx, provider, params, h.browser(state), h.client)
+}
+
+// browser is a callback request from the browser that started state: it presents the binding
+// cookie the start handed out (read back from the flow's cache entry, without spending it).
+func (h *harness) browser(state string) *http.Request {
+	h.t.Helper()
+	r := httptest.NewRequest(http.MethodGet, unitBase+"/social/x/callback", nil)
+	sealed, ok, err := h.srv.Graph().Cache.Get(h.ctx, cacheKey("state", state))
+	if err != nil || !ok {
+		return r
+	}
+	raw, err := h.srv.Graph().Encrypter.Decrypt(string(sealed))
+	var entry stateEntry
+	if err != nil || json.Unmarshal([]byte(raw), &entry) != nil {
+		return r
+	}
+	r.AddCookie(&http.Cookie{Name: bindingCookie(state, r.TLS != nil), Value: entry.Binding})
+	return r
 }
 
 // signIn runs a whole flow: the exchanged outcome.
