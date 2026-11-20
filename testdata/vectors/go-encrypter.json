@@ -1,0 +1,25 @@
+{
+    "generator": "go",
+    "cases": [
+        {
+            "app_key": "polaris-cross-language-vector-app-key-0123456789",
+            "plaintext": "JBSWY3DPEHPK3PXP",
+            "payload": "Ab3e4mx1UcIAzu7KCKGe39y4FbJTEmx8iSbKHMo3j560EKfn3PJGRvKVolquI0/lce3cJGVVWhMB"
+        },
+        {
+            "app_key": "polaris-cross-language-vector-app-key-0123456789",
+            "plaintext": "",
+            "payload": "AXe/CSQJ11HgAL63GXeBzEiJNhT9xUAFBwpeQxr21GmA2ZOu2hIoHFQ="
+        },
+        {
+            "app_key": "polaris-cross-language-vector-app-key-0123456789",
+            "plaintext": "üñí©ødé 🔐",
+            "payload": "AdhUBOZ37rvIi3mEZKGnaDOdobfoLedIL1KFN23j3jUuUls6r4dR31CvTDT5DMFjkoN7D6h1LquFz8g="
+        },
+        {
+            "app_key": "k",
+            "plaintext": "short key",
+            "payload": "AbQLCx2w09hvfz1PP1SUSh3owYPNlSXY/MoQiIrVG3S8mfMyUzQDF11pMbT23wcfJe0="
+        }
+    ]
+}

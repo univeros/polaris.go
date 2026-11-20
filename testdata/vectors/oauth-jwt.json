@@ -1,0 +1,240 @@
+{
+    "generator": "php",
+    "cases": [
+        {
+            "issuer": "https://auth.polaris.test",
+            "regenerate": true,
+            "name": "at-jwt-rs256",
+            "alg": "RS256",
+            "typ": "at+jwt",
+            "now": "1780833600.250000",
+            "expires_at": "1780833900.250000",
+            "minter": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "verifier": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "claims": {
+                "iss": "dropped",
+                "sub": "user-1",
+                "jti": "at-0197a1b2",
+                "aud": "https://rs.example",
+                "client_id": "client-1",
+                "scope": "openid profile",
+                "cnf": {
+                    "jkt": "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+                },
+                "exp": 5
+            },
+            "check_at": [
+                "1780833539.250000",
+                "1780833540.250000",
+                "1780833600.250000",
+                "1780833959.250000",
+                "1780833960.250000"
+            ],
+            "token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImtpZC0yMDI2LTAxIn0.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzgwODMzNjAwLjI1LCJuYmYiOjE3ODA4MzM2MDAuMjUsImV4cCI6MTc4MDgzMzkwMC4yNSwic3ViIjoidXNlci0xIiwianRpIjoiYXQtMDE5N2ExYjIiLCJhdWQiOiJodHRwczovL3JzLmV4YW1wbGUiLCJjbGllbnRfaWQiOiJjbGllbnQtMSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJjbmYiOnsiamt0IjoiTnpiTHNYaDh1RENjZC02TU53WEY0V183bm9XWEZaQWZIa3hac1JHQzlYcyJ9fQ.Idr0nxd_DguXkcMhnZ9QCW5ZAujTkEU1K0BOWB8DDGivz4dO5wLiNKHGXs78xJqkEPmN-1lc01xee41VrW61U9dH1Rkrl0Eq7X_hW0YwkLreshXsIVoKNolk8JGShKlu9z8augnzTKoV4n_R85DqTg4aRAjQz-buw2nRhNsREvCc4vuyZE-ODProFgEIdVoSAQzNhr6Iw2Wc3hkMKAtwIjusQ9vPsuRBDxJePU_b2a2nj44a5vJuSuwy5yrKIPj7wfhhmEIWPvfgqpvm6pzJjoSGCACNp_F-dxvRhKD-WFqQlHkwpV6QPh7F55BFjm_ZydJpIi-fHWfIUEnnMO5MwA",
+            "checks": {
+                "1780833539.250000": false,
+                "1780833540.250000": true,
+                "1780833600.250000": true,
+                "1780833959.250000": true,
+                "1780833960.250000": false
+            }
+        },
+        {
+            "issuer": "https://auth.polaris.test",
+            "regenerate": true,
+            "name": "id-token-eddsa-audience-list",
+            "alg": "EdDSA",
+            "typ": "",
+            "now": "1780833600.000000",
+            "expires_at": "1780837200.000000",
+            "minter": {
+                "keys": "eddsa",
+                "kid": "ed-1",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "verifier": {
+                "keys": "eddsa",
+                "kid": "ed-1",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "check_at": [
+                "1780833539.000000",
+                "1780833540.000000",
+                "1780833600.000000",
+                "1780837259.000000",
+                "1780837260.000000"
+            ],
+            "claims": {
+                "sub": "user-1",
+                "aud": [
+                    "client-1",
+                    "client-2"
+                ],
+                "nonce": "n-0S6_WzA2Mj",
+                "auth_time": 1780833500,
+                "at_hash": "MTIzNDU2Nzg5MDEyMzQ1Ng",
+                "email": "ana/b@example.com",
+                "name": "Ana Ñúñez"
+            },
+            "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSIsImtpZCI6ImVkLTEifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzgwODMzNjAwLCJuYmYiOjE3ODA4MzM2MDAsImV4cCI6MTc4MDgzNzIwMCwic3ViIjoidXNlci0xIiwiYXVkIjpbImNsaWVudC0xIiwiY2xpZW50LTIiXSwibm9uY2UiOiJuLTBTNl9XekEyTWoiLCJhdXRoX3RpbWUiOjE3ODA4MzM1MDAsImF0X2hhc2giOiJNVEl6TkRVMk56ZzVNREV5TXpRMU5nIiwiZW1haWwiOiJhbmEvYkBleGFtcGxlLmNvbSIsIm5hbWUiOiJBbmEgw5HDusOxZXoifQ.egJ-joDK9VgH0AO7sof7UKYLmtKEdcRpJUWOwWAjHLtHDVFUdPUZVCrl60Yq3kAH56REM3I6dbKs-7Ge6B4UBw",
+            "checks": {
+                "1780833539.000000": false,
+                "1780833540.000000": true,
+                "1780833600.000000": true,
+                "1780837259.000000": true,
+                "1780837260.000000": false
+            }
+        },
+        {
+            "issuer": "https://auth.polaris.test",
+            "regenerate": true,
+            "name": "id-token-single-audience",
+            "alg": "RS256",
+            "typ": "",
+            "now": "1780833600.000001",
+            "expires_at": "1780834200.000000",
+            "minter": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "verifier": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "claims": {
+                "sub": "user-1",
+                "aud": [
+                    "client-1"
+                ],
+                "jti": "id-1"
+            },
+            "check_at": [
+                "1780833539.000001",
+                "1780833540.000001",
+                "1780833600.000001",
+                "1780834259.000000",
+                "1780834260.000000"
+            ],
+            "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImtpZC0yMDI2LTAxIn0.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzgwODMzNjAwLjAwMDAwMSwibmJmIjoxNzgwODMzNjAwLjAwMDAwMSwiZXhwIjoxNzgwODM0MjAwLCJzdWIiOiJ1c2VyLTEiLCJhdWQiOiJjbGllbnQtMSIsImp0aSI6ImlkLTEifQ.CUW1nFVD6wnDrjXH0q-99PLVJtl0fJuH9ab69thXSqMFBHG7PNQfHy_lj1KKc97h29SqvmS2L56M8hG43ZVxWgwN__y98aSvZHT0VCrNeadbUHjEmhbha34JGvjvP_EL4hXVlooV5UcuvIpTWBltFYnbx7V9l36jK_cxEqI8NugEMigqHg71foGf_bxP_S-ShUOuX_ETZzOg33Lh9P-Im0mYrT4XQQcglQdVA3v-VYSKpZ8wkCnv__aVTilVMojA3SPMoDet2Fe5svouh1vBmPyRVj1IMRI85GERi3tNGY90M6-FyKt_ZJzgP9urEaT2AenvW-Jr2cgZUK50XMxJnQ",
+            "checks": {
+                "1780833539.000001": false,
+                "1780833540.000001": true,
+                "1780833600.000001": true,
+                "1780834259.000000": true,
+                "1780834260.000000": false
+            }
+        },
+        {
+            "issuer": "https://auth.polaris.test",
+            "regenerate": true,
+            "name": "at-jwt-previous-key",
+            "alg": "RS256",
+            "typ": "at+jwt",
+            "now": "1780833600.000000",
+            "expires_at": "1780833900.000000",
+            "minter": {
+                "keys": "rsa_alternate",
+                "kid": "kid-2025-12",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "verifier": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "rsa_alternate",
+                "previous_kid": "kid-2025-12"
+            },
+            "claims": {
+                "iss": "dropped",
+                "sub": "user-1",
+                "jti": "at-0197a1b2",
+                "aud": "https://rs.example",
+                "client_id": "client-1",
+                "scope": "openid profile",
+                "cnf": {
+                    "jkt": "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+                },
+                "exp": 5
+            },
+            "check_at": [
+                "1780833539.000000",
+                "1780833540.000000",
+                "1780833600.000000",
+                "1780833959.000000",
+                "1780833960.000000"
+            ],
+            "token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImtpZC0yMDI1LTEyIn0.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzgwODMzNjAwLCJuYmYiOjE3ODA4MzM2MDAsImV4cCI6MTc4MDgzMzkwMCwic3ViIjoidXNlci0xIiwianRpIjoiYXQtMDE5N2ExYjIiLCJhdWQiOiJodHRwczovL3JzLmV4YW1wbGUiLCJjbGllbnRfaWQiOiJjbGllbnQtMSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJjbmYiOnsiamt0IjoiTnpiTHNYaDh1RENjZC02TU53WEY0V183bm9XWEZaQWZIa3hac1JHQzlYcyJ9fQ.N59jV-7TzHJXPX9VnfLx1Dk8cPDDHS_Kfty2dCgANPmSki0AMmaGG6Vpgc7_vjP-AcmgkVQS98jq883h326cYEvCplOLri8gP12fhihY2WquK0pft4sRG4Kqa7nPuZ7CzBBec9IF_F1C_cgsYv5MJHIRRyTDfYQrR4gxouXVZsQaVa2vH9XOH2IIQuKQ_QBlO7xXZeKOkDXNX7h6D4HeTFNDmpGoPt4nNDuYKvZS_Jm0a_UIQixP4dJLcNrvq6-L2TX2oolvvmYtfu3U7Tm78wO9BSjE0PaQJS4T2x64lA3duy7V8w6g57UmcrbT_SLmgJl-rXS4fQLO2dO9aL8BvA",
+            "checks": {
+                "1780833539.000000": false,
+                "1780833540.000000": true,
+                "1780833600.000000": true,
+                "1780833959.000000": true,
+                "1780833960.000000": false
+            }
+        },
+        {
+            "issuer": "https://auth.polaris.test",
+            "regenerate": true,
+            "name": "at-jwt-unknown-kid",
+            "alg": "RS256",
+            "typ": "at+jwt",
+            "now": "1780833600.000000",
+            "expires_at": "1780833900.000000",
+            "minter": {
+                "keys": "rsa",
+                "kid": "kid-unknown",
+                "previous_keys": "",
+                "previous_kid": ""
+            },
+            "verifier": {
+                "keys": "rsa",
+                "kid": "kid-2026-01",
+                "previous_keys": "rsa_alternate",
+                "previous_kid": "kid-2025-12"
+            },
+            "claims": {
+                "iss": "dropped",
+                "sub": "user-1",
+                "jti": "at-0197a1b2",
+                "aud": "https://rs.example",
+                "client_id": "client-1",
+                "scope": "openid profile",
+                "cnf": {
+                    "jkt": "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+                },
+                "exp": 5
+            },
+            "check_at": [
+                "1780833539.000000",
+                "1780833540.000000",
+                "1780833600.000000",
+                "1780833959.000000",
+                "1780833960.000000"
+            ],
+            "token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImtpZC11bmtub3duIn0.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzgwODMzNjAwLCJuYmYiOjE3ODA4MzM2MDAsImV4cCI6MTc4MDgzMzkwMCwic3ViIjoidXNlci0xIiwianRpIjoiYXQtMDE5N2ExYjIiLCJhdWQiOiJodHRwczovL3JzLmV4YW1wbGUiLCJjbGllbnRfaWQiOiJjbGllbnQtMSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJjbmYiOnsiamt0IjoiTnpiTHNYaDh1RENjZC02TU53WEY0V183bm9XWEZaQWZIa3hac1JHQzlYcyJ9fQ.c_zpv0uiN-o2B-uyPSb_kPaRh9rUUUbMcl-0d9EtNCvPtljNE8st5A_3pY4V5DqQkuU5C-2ixqSr_aF_cPk2gnyjr70QZJbMapGjTCldBt6UcH8aJ7U4WG1ZnO7SfjbuGsvQPgFqubzQqKK3VVy91b3VXXOmPVTeAa1JdWNbAvavdVvEYrirGflR_k0zK7HqgQOrspl5xbjvM0wYKBRDotBJVLw9eCN-0kZ0K_mykN4DAI82s1JN26Scpr9h4X2SR2JBBg7FVTzCwQ1cyvvaFSLh9m8GzDtaIJEJsxDfpDasOFK6Z7wlKP3g8uYyi98EhayZYjEKLXvWjwK_edsBeA",
+            "checks": {
+                "1780833539.000000": false,
+                "1780833540.000000": false,
+                "1780833600.000000": false,
+                "1780833959.000000": false,
+                "1780833960.000000": false
+            }
+        }
+    ]
+}

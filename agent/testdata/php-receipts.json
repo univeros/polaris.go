@@ -1,0 +1,125 @@
+{
+    "generator": "php",
+    "chains": [
+        {
+            "alg": "RS256",
+            "jwks": [
+                {
+                    "kty": "RSA",
+                    "n": "xfcSN4eQAOl3Z1kNjawhD78ge4byKWwtkh2qrlf40CMRC786Ts-7g7rdS19H-GWRjLjgmctn6mHBV0F9kEIpmKyubGKoMeq8l7Z6hJgg777qk-o28eFWirwgPUymZFO7MliHGSlfNxrTU7-aSHCCRU0nyfIyhbDkvC9tmApPpxPP9cAWm-HbGjqULEldeRaEWYOw0t2fshG7IIkE8V-ZqQxb1QGIzlxTE-2MAhL2YTp_DZHdgGe3nh67NYA2OpmRuE8lqVebAGKzEXU79tTjuxoc-ROyolQAXDkMoe2fuW1pNkoIc3oxJMzRokdkjpim7-V4pJf1zGXklxmv6JBSJQ",
+                    "e": "AQAB",
+                    "alg": "RS256",
+                    "kid": "server-key",
+                    "use": "sig"
+                }
+            ],
+            "receipts": [
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": 99,
+                    "budget_before": 100,
+                    "capability": "billing.refund/caf\u00e9",
+                    "created_at": "2026-10-12T13:36:33+00:00",
+                    "grant_id": "g1",
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d00",
+                    "input_hash": "3a688d1da0ad0b6dfd4bb74e1c5ffc51a3e30c8f5195fa6e2b05d6bb2a16ca5f",
+                    "outcome": "success",
+                    "prev_hash": null,
+                    "seq": 1,
+                    "hash": "9c0a4d33cedc194bc8ed85abcf487ef43d70c8f6d0bf5deb7820d9b7ba5c3692",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTkzLCJyZWNlaXB0X2hhc2giOiI5YzBhNGQzM2NlZGMxOTRiYzhlZDg1YWJjZjQ4N2VmNDNkNzBjOGY2ZDBiZjVkZWI3ODIwZDliN2JhNWMzNjkyIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMCIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjoxfQ.mohMVbPU_UafDffLv1TV8Ch0OSUmooB3vFshjDyxE5Y1F5U4cQeHWDuj_pIZZwVC0e-dMgsgpLp_ZFsypNQHGVDTp7Jb5qD1z7-1ZYU8n9A7LFPZZrGwzp92WvPRCoXkUEjJGm2L37mPZT7i0sFeVtLD3heO1OZYFpjGjmanPCUd_hIicEdGRLWqCjQ8qnJjs17GP7aZAJnJfsv6BxSy7hVPcbW4Bk19rvTsOIe8CwAkfuGmwoEsAe2H7grvs2F1B3lNSBKxG79R44WufC1Q0LVt-AJqFY2T5dn-CYVgwZWcPzQ-rYCLAxD8lRmh2zSk1HNd_JR38nJEhfhb7C2F-g"
+                },
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": 99,
+                    "budget_before": 99,
+                    "capability": "billing.refund/caf\u00e9",
+                    "created_at": "2026-10-12T13:36:34+00:00",
+                    "grant_id": "g1",
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d01",
+                    "input_hash": "b4051a04aa0ed247bd39ffd9d51fff57bd8ae445538c7e80b07d725eb3479b46",
+                    "outcome": "failed",
+                    "prev_hash": "9c0a4d33cedc194bc8ed85abcf487ef43d70c8f6d0bf5deb7820d9b7ba5c3692",
+                    "seq": 2,
+                    "hash": "8c12d00979a9b352838c38730dcfb08a9bcb3699e8b92c67d9a9fdb573ac9853",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTk0LCJyZWNlaXB0X2hhc2giOiI4YzEyZDAwOTc5YTliMzUyODM4YzM4NzMwZGNmYjA4YTliY2IzNjk5ZThiOTJjNjdkOWE5ZmRiNTczYWM5ODUzIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMSIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjoyfQ.nNkTtBcjIB1I63wySSYsMpghFE2Aata-bz57fbFrDUHHkRILt-jdJTNjAJN2xK4h3ne5ZTDuMun8k9awOtE2jYS-teN1MPin8cnBzB_YtN3WVOnA1OWq_5KM5nv01IRWQHFD4sXgcIdMLRb8c7Zn70uffjI58Yk0av_6BeZvS9DRhCDg-EGGhs0Koij2PsGH8WB4Zk8GSiZFGVhH_hfsQbvpONkyHaYwidm14ZE8oLNCQFzsvTYia-LgfqhbY7mPDJyyclN1LKaIN7ETIDnppEH5zlturzcjhDMXB4aS4_aDhAZgghzIwCAh-UkHlZkVfCIKfNdUK_zMb1gSo_gexQ"
+                },
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": null,
+                    "budget_before": null,
+                    "capability": null,
+                    "created_at": "2026-10-12T13:36:35+00:00",
+                    "grant_id": null,
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d02",
+                    "input_hash": "32648da12bc9675dfbc48e3e90e60e5ba02eceb9366cf3ede34196cfae19c750",
+                    "outcome": "sealed",
+                    "prev_hash": "8c12d00979a9b352838c38730dcfb08a9bcb3699e8b92c67d9a9fdb573ac9853",
+                    "seq": 3,
+                    "hash": "3feed817ec31a988d8e7e27b6090c5390064b062e27928c8eef58496b9d2b68d",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTk1LCJyZWNlaXB0X2hhc2giOiIzZmVlZDgxN2VjMzFhOTg4ZDhlN2UyN2I2MDkwYzUzOTAwNjRiMDYyZTI3OTI4YzhlZWY1ODQ5NmI5ZDJiNjhkIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMiIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjozfQ.SvdSIvsbE2iFnuKQT0EdOsnfciicYaST4W-pljq5Q0Fs-uCA2MB5vWhMhRXM3EIju7ktfBJ-Zm1TIj-en_ar76vAjadd-xBpe5bK7wc3CZrjP2MPNsMtxROAeOD8W6yazuYwI2VUSRekTZDs8l-_EtImqt9HjssiHaJEpiDKlpfCayghvprQspck2Pe5zf7mDmegwhWEW8pDGaFtz1k_FhAm_IYepwO9pFJM0oVx01iXXcZQvsKcP8j4UehmCPYn7RkZrNN7YR4hF_7HvBm7tH-ydkvOnrelIfzj2-m5IIusDEWvpMLLw_4Z5Nu97z_btYpMPJ0vr7bkCzwUsny5xQ"
+                }
+            ]
+        },
+        {
+            "alg": "EdDSA",
+            "jwks": [
+                {
+                    "kty": "OKP",
+                    "crv": "Ed25519",
+                    "x": "Q6IjAOr6vV_BPHjqpAK9PreK7Vd8kgSuGeOc8YSRcec",
+                    "alg": "EdDSA",
+                    "kid": "server-key",
+                    "use": "sig"
+                }
+            ],
+            "receipts": [
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": 99,
+                    "budget_before": 100,
+                    "capability": "billing.refund/caf\u00e9",
+                    "created_at": "2026-10-12T13:36:33+00:00",
+                    "grant_id": "g1",
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d00",
+                    "input_hash": "3a688d1da0ad0b6dfd4bb74e1c5ffc51a3e30c8f5195fa6e2b05d6bb2a16ca5f",
+                    "outcome": "success",
+                    "prev_hash": null,
+                    "seq": 1,
+                    "hash": "9c0a4d33cedc194bc8ed85abcf487ef43d70c8f6d0bf5deb7820d9b7ba5c3692",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IkVkRFNBIiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTkzLCJyZWNlaXB0X2hhc2giOiI5YzBhNGQzM2NlZGMxOTRiYzhlZDg1YWJjZjQ4N2VmNDNkNzBjOGY2ZDBiZjVkZWI3ODIwZDliN2JhNWMzNjkyIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMCIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjoxfQ.2TmuAZ2P37928sG3z3SG64TVwEk9RhrTy5qfzRALCgmyAws0A0_vx_tv1-dgvNNF_Haiojxepo4Jmce1n7mJCw"
+                },
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": 99,
+                    "budget_before": 99,
+                    "capability": "billing.refund/caf\u00e9",
+                    "created_at": "2026-10-12T13:36:34+00:00",
+                    "grant_id": "g1",
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d01",
+                    "input_hash": "b4051a04aa0ed247bd39ffd9d51fff57bd8ae445538c7e80b07d725eb3479b46",
+                    "outcome": "failed",
+                    "prev_hash": "9c0a4d33cedc194bc8ed85abcf487ef43d70c8f6d0bf5deb7820d9b7ba5c3692",
+                    "seq": 2,
+                    "hash": "8c12d00979a9b352838c38730dcfb08a9bcb3699e8b92c67d9a9fdb573ac9853",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IkVkRFNBIiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTk0LCJyZWNlaXB0X2hhc2giOiI4YzEyZDAwOTc5YTliMzUyODM4YzM4NzMwZGNmYjA4YTliY2IzNjk5ZThiOTJjNjdkOWE5ZmRiNTczYWM5ODUzIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMSIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjoyfQ.h73YcOPNuzmePIRRkwrWhajoLSDCgY6JpQYcW2M8DlDrcamkOwFhB69Vh6MOOatL8qQW-4_i-CWzgg_qeFeABA"
+                },
+                {
+                    "agent_id": "01a13054-4bc7-7a59-906d-f1abc48d3b9e",
+                    "budget_after": null,
+                    "budget_before": null,
+                    "capability": null,
+                    "created_at": "2026-10-12T13:36:35+00:00",
+                    "grant_id": null,
+                    "id": "01a13054-4bde-7b39-bb5f-0df132b99d02",
+                    "input_hash": "32648da12bc9675dfbc48e3e90e60e5ba02eceb9366cf3ede34196cfae19c750",
+                    "outcome": "sealed",
+                    "prev_hash": "8c12d00979a9b352838c38730dcfb08a9bcb3699e8b92c67d9a9fdb573ac9853",
+                    "seq": 3,
+                    "hash": "3feed817ec31a988d8e7e27b6090c5390064b062e27928c8eef58496b9d2b68d",
+                    "signature": "eyJ0eXAiOiJyZWNlaXB0K2p3dCIsImFsZyI6IkVkRFNBIiwia2lkIjoic2VydmVyLWtleSJ9.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTk1LCJyZWNlaXB0X2hhc2giOiIzZmVlZDgxN2VjMzFhOTg4ZDhlN2UyN2I2MDkwYzUzOTAwNjRiMDYyZTI3OTI4YzhlZWY1ODQ5NmI5ZDJiNjhkIiwicmVjZWlwdF9pZCI6IjAxYTEzMDU0LTRiZGUtN2IzOS1iYjVmLTBkZjEzMmI5OWQwMiIsImFnZW50X2lkIjoiMDFhMTMwNTQtNGJjNy03YTU5LTkwNmQtZjFhYmM0OGQzYjllIiwic2VxIjozfQ.Jk0bKcc826XFj2e4_QBec-NsflF3PW0v8QmxYsb4rIrtasHzEFvTB4sPD-XO0numvKkoOJENsACm9ohHaQFCDw"
+                }
+            ]
+        }
+    ]
+}

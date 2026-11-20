@@ -1,0 +1,142 @@
+// Package audit is the audit plugin (port of polaris/audit): every Polaris event becomes a
+// catalogued, redacted, append-only record in polaris_audit_event that callers query per user
+// (GET /audit/me) and per organization (GET /audit/organization/{id}, audit.read), streamed to
+// extra sinks and to each organization's drains, pruned by a retention policy and, optionally,
+// chained by SHA-256 for tamper evidence.
+//
+//	p, err := polaris.New(polaris.Config{
+//		Secrets: secrets, Auth: auth, DB: db,
+//		Plugins: []polaris.Plugin{audit.New(audit.Config{})},
+//	})
+//
+// Every field of Config is optional. Run Plugin.Prune from a scheduled job and Plugin.Verify to
+// check the chain.
+package audit
+
+import (
+	"context"
+	"io/fs"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris-go/schema"
+	"github.com/univeros/polaris-go/upstream"
+	"github.com/univeros/polaris-go/wiring"
+)
+
+// ID is the plugin id; its routes read polaris.audit.*.
+const ID = "audit"
+
+// Config configures the plugin; the zero value keeps 90 days, no chain, the database sink only.
+type Config struct {
+	// Retention is how long events are kept; zero: DefaultRetention for every name.
+	Retention Retention
+	// HashChain links each row to the previous one by SHA-256 (Verify checks it).
+	HashChain bool
+	// Sinks receive every event beside the database (LogSink, FileSink, WebhookSink, yours).
+	Sinks []Sink
+	// Names are the application's own event names (name => description); a plugin implementing
+	// NameProvider adds its own.
+	Names map[string]string
+	// ActivityInterval bounds how often a user's last activity is written; zero: 5 minutes.
+	ActivityInterval time.Duration
+	// HTTPClient enables the organizations' drains (nil: drains are not delivered).
+	HTTPClient *http.Client
+	// WebhookAttempts per drain delivery; zero: 3.
+	WebhookAttempts int
+}
+
+// Plugin is the audit plugin. Its services exist once polaris.New has run.
+type Plugin struct {
+	cfg      Config
+	sleep    func(time.Duration) // tests replace the webhook pause
+	policy   policy
+	catalog  *Catalog
+	store    *Store
+	drains   *Drains
+	recorder *Recorder
+	activity *Activity
+	clock    clock.Clock
+	logger   *slog.Logger
+}
+
+// New returns the plugin; configuration errors surface from polaris.New.
+func New(cfg Config) *Plugin { return &Plugin{cfg: cfg} }
+
+// ID implements wiring.Plugin.
+func (*Plugin) ID() string { return ID }
+
+// Schema declares polaris_audit_event, polaris_audit_drain and polaris_audit_activity.
+func (*Plugin) Schema() []schema.Model { return Models() }
+
+// Manifest returns the plugin's routes (upstream api/audit).
+func (*Plugin) Manifest() fs.FS {
+	sub, err := fs.Sub(upstream.API, "api/audit")
+	if err != nil {
+		panic(err) // the embedded tree is fixed at build time
+	}
+	return sub
+}
+
+// Init builds the plugin's services from the graph.
+func (p *Plugin) Init(g *wiring.Graph) error {
+	var err error
+	if p.policy, err = p.cfg.Retention.parse(); err != nil {
+		return err
+	}
+	names := []map[string]string{p.cfg.Names}
+	for _, other := range g.Plugins() {
+		if np, ok := other.(NameProvider); ok {
+			names = append(names, np.AuditNames())
+		}
+	}
+	if p.catalog, err = NewCatalog(names...); err != nil {
+		return err
+	}
+	p.clock, p.logger = g.Clock, g.Logger
+	p.store = NewStore(g.DB, p.cfg.HashChain)
+	p.drains = NewDrains(g.DB, g.Encrypter, g.Clock)
+	sinks := append([]Sink{databaseSink{p.store}}, p.cfg.Sinks...)
+	if p.cfg.HTTPClient != nil {
+		sinks = append(sinks, drainSink{drains: p.drains, client: p.cfg.HTTPClient, attempts: p.cfg.WebhookAttempts, sleep: p.sleep, logger: g.Logger})
+	}
+	p.recorder = NewRecorder(p.catalog, chain{sinks: sinks, logger: g.Logger}, g.Clock, g.Logger)
+	p.activity = NewActivity(g.DB, g.Cache, g.Clock, p.cfg.ActivityInterval, g.Logger)
+	return nil
+}
+
+// Endpoints serves the audit routes.
+func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) {
+	return p.endpoints(), nil
+}
+
+// Listeners subscribes the recorder and the activity tracker.
+func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
+	return []event.Listener{p.recorder.Listen, p.activity.Listen}
+}
+
+// Catalog is the closed list of event names.
+func (p *Plugin) Catalog() *Catalog { return p.catalog }
+
+// Store reads and writes the events.
+func (p *Plugin) Store() *Store { return p.store }
+
+// Drains manages the organizations' drains.
+func (p *Plugin) Drains() *Drains { return p.drains }
+
+// Activity is the last-activity tracker.
+func (p *Plugin) Activity() *Activity { return p.activity }
+
+// Record emits an event of the application (its name in Config.Names): checked, redacted, written
+// to every sink.
+func (p *Plugin) Record(ctx context.Context, e Event) error { return p.recorder.Record(ctx, e) }
+
+// Of returns the audit plugin registered on g, nil when absent.
+func Of(g *wiring.Graph) *Plugin {
+	p, _ := g.Plugin(ID).(*Plugin)
+	return p
+}

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Refuse to push anywhere but a private GitHub repository (docs/port/spec.md §7).
+# Installed by: git config core.hooksPath scripts/hooks
+set -eu
+
+remote_url=$2
+repo=$(printf '%s' "$remote_url" | sed -E 's#^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)##; s#\.git$##')
+if [ "$repo" = "$remote_url" ]; then
+	echo "pre-push: $remote_url is not a GitHub remote; refusing (repository must stay private)." >&2
+	exit 1
+fi
+visibility=$(gh repo view "$repo" --json visibility -q .visibility 2>/dev/null || true)
+if [ "$visibility" != "PRIVATE" ]; then
+	echo "pre-push: $repo visibility is '${visibility:-unknown}', not PRIVATE; refusing." >&2
+	exit 1
+fi

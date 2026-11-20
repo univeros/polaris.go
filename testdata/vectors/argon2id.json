@@ -1,0 +1,40 @@
+{
+    "generator": "php",
+    "hashes": [
+        {
+            "password": "correct horse battery staple",
+            "hash": "$argon2id$v=19$m=65536,t=4,p=1$eFhmekNKMnVsZDFnVllxdA$hAIiQi5k3tsGde389HtEHxh6SYolGeJk/QyeJ7oOoMk",
+            "needs_rehash": false
+        },
+        {
+            "password": "",
+            "hash": "$argon2id$v=19$m=8192,t=1,p=1$bUYzTm9mWW43bTZQUEdXbA$WtYzRo2Q5O8qSxYuylpCw4QMA3XX99Rzs8QCmwjLxO4",
+            "needs_rehash": true
+        },
+        {
+            "password": "pässwörd 🔑",
+            "hash": "$argon2id$v=19$m=8192,t=1,p=1$NDNIbkw5Z00yY0xsemlpSA$UxmdBpJGta3+7aAJpBfAq4in+3ol5HX57hsWVY9WbYk",
+            "needs_rehash": true
+        },
+        {
+            "password": "long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-long-",
+            "hash": "$argon2id$v=19$m=8192,t=1,p=1$MldEMGk1b21za01EUElnaA$zEw/liD3+H/H6WzMiJQ4tOui80UiHDe7oBWbBzjyL7Y",
+            "needs_rehash": true
+        },
+        {
+            "password": "two-lanes",
+            "hash": "$argon2id$v=19$m=16,t=2,p=2$bkRHR3VTRjVvd05pWGhGbQ$KF0JiO/z2Ztwr9KRZ/o6NwD/8L3Hj5WlNHCyaKDGbag",
+            "needs_rehash": true
+        },
+        {
+            "password": "argon2i",
+            "hash": "$argon2i$v=19$m=1024,t=2,p=1$OGVEeHhodVh3QnowUEVhbw$NIuM7axiCR4YqLlrNjvn9Z7GZeJFLMzbNC04eAqj3Jk",
+            "needs_rehash": true
+        },
+        {
+            "password": "bcrypt",
+            "hash": "$2y$04$9xkaXv9u52gB5CSHs990Rujqpwb54f2v3nd7nRc.mRPDPsGvyU1R6",
+            "needs_rehash": true
+        }
+    ]
+}

@@ -1,0 +1,25 @@
+{
+    "generator": "go",
+    "hashes": [
+        {
+            "password": "correct horse battery staple",
+            "hash": "$argon2id$v=19$m=65536,t=4,p=1$+5X/H5AwhMFOwUIRTOCzNg$GE1Z+9m9gawphV3eT86BHeLXAQykF8JWewZxhwDJuHU",
+            "needs_rehash": false
+        },
+        {
+            "password": "",
+            "hash": "$argon2id$v=19$m=8192,t=1,p=1$ASSOQ8F/851HGPAs7x8HaA$Uso5PGtDyIOc4oJLFCvkLFDyKoMvSs2dk18Fu9kqMIU",
+            "needs_rehash": true
+        },
+        {
+            "password": "pässwörd 🔑",
+            "hash": "$argon2id$v=19$m=8192,t=1,p=1$PhtyQws5LN3bZKFIt2Tr0A$EIZ+zIWdSRJtV15ZAEzvROD564P2n05ZwhHT/c0548Y",
+            "needs_rehash": true
+        },
+        {
+            "password": "two-lanes",
+            "hash": "$argon2id$v=19$m=16,t=2,p=2$o1iXdtVuP/eaR0wOFxA1nA$/a3CX7U5FBh5I8ADCBr2SYkBHs36f3+DA3xinfNuLQk",
+            "needs_rehash": true
+        }
+    ]
+}

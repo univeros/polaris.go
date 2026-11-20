@@ -1,0 +1,149 @@
+# Polaris for Go
+
+> Self-hosted authentication for Go services, built for AI agents first: user sign-in (password,
+> MFA, sessions, organizations, RBAC), API keys, an OAuth 2.1 / OpenID Connect provider, agents as
+> first-class principals (grants, budgets, approvals, signed receipts, kill switch) and MCP
+> protection. One import, a few lines, net/http. Wire-, database- and token-compatible with Polaris
+> for PHP (polaris-core 0.12.0).
+
+Module: `github.com/univeros/polaris-go` (private; Go 1.26). Set
+`GOPRIVATE=github.com/univeros/polaris-go` and git access to github.com/univeros before `go get`.
+
+## Quickstart (copy this)
+
+```go
+import (
+	polaris "github.com/univeros/polaris-go"
+	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris-go/store/sqlstore"
+)
+
+db, err := sqlstore.Open(ctx, store.Postgres, os.Getenv("DATABASE_URL")) // or store.MySQL, store.SQLite
+cfg, err := polaris.FromEnv(db /*, plugins... */)                        // reads the env vars below
+p, err := polaris.New(cfg)                                               // validates everything; errors say how to fix
+_, err = p.Migrate(ctx)                                                  // creates missing tables, seeds permissions; idempotent
+
+mux := http.NewServeMux()
+mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
+mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
+// in the handler: polaris.Principal(r.Context()).Subject() is the user id; .Organization() the active org;
+// .Delegation() reports an API key / OAuth client / agent acting with a subset of the owner's permissions.
+```
+
+Environment: `APP_KEY` (≥ 32 bytes: `openssl rand -base64 32`), `AUTH_JWT_PRIVATE_KEY` and
+`AUTH_JWT_PUBLIC_KEY` (PEM; `openssl genrsa -out jwt.key 2048 && openssl rsa -in jwt.key -pubout -out jwt.pub`),
+`AUTH_ISSUER` (your public base URL). Optional: `AUTH_AUDIENCE`, `AUTH_JWT_PREVIOUS_PUBLIC_KEY` (key
+rotation), `AUTH_ACCESS_TOKEN_DENYLIST`, … — every option is in package `config` (`go doc config.Auth`).
+
+Your own permissions: `cfg.Permissions = map[string]string{"invoices.read": "Read invoices"}` before
+`polaris.New`; `Migrate` adds them to the catalog. Grant them to roles through `/orgs/{id}/roles`.
+
+Production ports (fields of `polaris.Config`; each has a working default, the logging ones warn):
+`Mailer notify.Mailer` and `SMS notify.SMSSender` (verification / reset / OTP delivery — the
+defaults only log), `Cache cache.Cache` and `RateStore` (share across replicas; a host cache must make
+`Add` atomic, e.g. Redis SET NX), `Events event.Dispatcher`, `Logger *slog.Logger`, `PathPrefix`.
+
+## Plugins (pass to polaris.FromEnv / Config.Plugins)
+
+- `plugins/audit` — `audit.New(audit.Config{})`: append-only audit log of every event, sinks, drains, hash chain. Required by admin.
+- `plugins/admin` — `admin.New(admin.Config{})`: operator API (`/admin/*`) for users, sessions, MFA, orgs, audit; operator keys `pak_`.
+- `plugins/apikeys` — `apikeys.New(apikeys.Config{})`: user/org API keys (`pk_live_…`, `Authorization: Bearer` or `x-api-key`), scoped to a subset of the owner's permissions, rate-limited, rotatable.
+- `plugins/oauth` — `oauth.New(oauth.Config{})`: OAuth 2.1 / OIDC provider (PKCE, refresh rotation, client credentials, device, CIBA, token exchange with `act`, DPoP, DCR, CIMD, discovery). Scopes are permissions.
+- `plugins/agents` — `agents.New(agents.Config{Capabilities: …})`: agents as principals. Needs `oauth`.
+- `plugins/mcp` — `mcp.New(mcp.Config{BaseURL: …})`: Polaris as an MCP server (`POST /mcp`, stdio); and `mcp.Protect` for your own MCP servers.
+- `plugins/passwordless` — `passwordless.New(passwordless.Config{RedirectURIs: …})`: magic links, email / phone codes, one-time hand-off tokens; all behind core's MFA gate.
+- `plugins/username` — `username.New(username.Config{})`: case-insensitive usernames; sign in with username or email.
+- `plugins/anonymous` — `anonymous.New(anonymous.Config{OnConvert: …})`: guest sessions converted on sign-up.
+- `plugins/multisession` — `multisession.New(multisession.Config{})`: several accounts per device, switch without signing in again.
+- `plugins/social` — `social.New(social.Config{Providers: map[string]social.Provider{"google": {ClientID: …, ClientSecret: …}}})`: 19 OAuth/OIDC providers + generic, linking, One Tap.
+- `plugins/passkey` — `passkey.New(passkey.Config{RPID: "example.com", Origins: []string{"https://example.com"}})`: WebAuthn sign-in; a passkey is also an MFA factor.
+- `plugins/messaging` — `messaging.New(messaging.Config{Email: &messaging.SMTP{…}, SMS: &messaging.Twilio{…}})`: becomes core's mailer and SMS sender; templates per instance/org, translations, send caps.
+- `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); `Mode: "observe"` records without enforcing.
+
+## Agents: declare what agents may do
+
+```go
+ag := agents.New(agents.Config{Capabilities: []agents.Capability{
+	{Name: "invoices.list", Description: "List invoices", Permission: "org.read", Risk: agents.RiskLow,
+		Handler: func(ctx context.Context, call agents.Call) (any, error) { return listInvoices(ctx, call.Agent) }},
+	{Name: "refund", Description: "Refund an invoice", Permission: "billing.refund", Risk: agents.RiskHigh,
+		Location: "https://app.example.com/api/refunds",
+		Input: map[string]any{"type": "object", "required": []string{"invoice_id"},
+			"properties": map[string]any{"invoice_id": map[string]any{"type": "string"}}}},
+}})
+cfg, _ := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag)
+cfg.Permissions = map[string]string{"billing.refund": "Refund an invoice"} // your own permissions; Migrate seeds them
+p, _ := polaris.New(cfg)
+mux.Handle("/", p.Handler()) // includes /.well-known/agent-configuration, /agents/*, /oauth2/*
+mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler)) // grant, constraints, budget checked BEFORE refundHandler
+// in refundHandler: call, _ := agents.CallFrom(r.Context()); the response gets X-Polaris-Receipt.
+```
+
+Risk tiers set the approval strength (low/medium: session, high: step-up). Low-risk grants are
+auto-approved with a budget of 100 by default (`Config.AutoApprove`). Every execution writes a signed,
+hash-chained receipt; `POST /agents/{id}/revoke` is the kill switch.
+
+## Agents: sign in from Go (the agent side)
+
+```go
+import "github.com/univeros/polaris-go/agent"
+
+key, _ := agent.GenerateKey(agent.EdDSA)                 // persist key.Export(); reload with agent.ImportKey
+a, _ := agent.New(ctx, "https://app.example.com", agent.WithKey(key))
+bot, _, err := a.Enroll(ctx, enrollmentToken, agent.Registration{Name: "Worker", Mode: agent.Delegated})
+asked, _ := bot.RequestGrants(ctx, agent.GrantRequest{Capabilities: []agent.CapabilityRequest{{Name: "refund"}}})
+if asked.Approval != nil { _, err = bot.WaitForApproval(ctx, *asked.Approval) } // a person approves
+res, err := bot.Execute(ctx, "invoices.list", nil)       // signed request JWT per call; res.Receipt
+// errors: errors.Is(err, agent.ErrCapabilityNotGranted), agent.ErrBudgetExhausted, agent.ErrApprovalDenied …
+```
+
+TypeScript agents use `@polaris-auth/agent` against the same server.
+
+## Protect any Go MCP server with Polaris tokens
+
+```go
+h, err := mcp.Protect(mcpServerHandler, mcp.ProtectConfig{
+	Resource: "https://tools.example.com/mcp",
+	Issuer:   "https://auth.example.com",
+	JWKSURL:  "https://auth.example.com/auth/.well-known/jwks.json",
+	Scopes:   []string{"tools.use"},
+})
+mux.Handle("/", h) // also serves /.well-known/oauth-protected-resource/mcp; mcp.Claims(ctx) in the handler
+```
+
+## Testing your app
+
+```go
+srv := polaristest.New(t, polaristest.WithPlugins(...)) // SQLite in a temp dir, test keys, recorders
+// srv.Handler(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names(), srv.Graph()
+```
+
+## CLI
+
+`go run ./cmd/polaris <command>` — every command idempotent, `--json` for one JSON object,
+exit 1 (failed) / 2 (bad usage) with a `remedy:` line.
+
+```
+polaris init [--plugins=audit,admin,apikeys,oauth,agents,mcp]  # writes .env: APP_KEY, RS256 pair, AUTH_ISSUER; prints the quickstart
+polaris migrate --plugins=…            # DATABASE_URL or --dsn (postgres://, mysql://, sqlite:, file:)
+polaris doctor --plugins=…             # secrets, keys, manifest, connectivity, schema; each check with its fix
+polaris schema:export --target=sql:postgres|sql:mysql|sql:sqlite   schema:diff   schema:drop --force
+polaris manifest --format=json|openapi   keys:generate   mcp (stdio MCP server)
+polaris audit:prune|audit:verify   admin:grant <email> <role>   admin:key <name> <role>   anonymous:prune
+```
+
+With your own plugins, build your own binary: `os.Exit(cli.Run(ctx, p, os.Args[1:], os.Stdout, os.Stderr))`.
+
+## Errors
+
+Core routes answer `{"error": "<code>", "message": "…"}`; plugin routes answer RFC 9457 problems
+(`application/problem+json`, `type` = `https://polaris.univeros.io/problems/<plugin>/<name>`).
+Go APIs return sentinel errors (`errors.Is`) per package.
+
+## Where to look
+
+- `examples/minimal`, `examples/api-keys` — complete programs.
+- `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
+- `go doc github.com/univeros/polaris-go/<package>` — every exported identifier is documented.
+- `upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
+- `docs/port/spec.md`, `docs/port/decisions.md` — design and every departure from the PHP version.

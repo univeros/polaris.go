@@ -1,0 +1,96 @@
+package authz
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris-go/model"
+	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris-go/store"
+)
+
+// Seed makes sure every catalog permission and every system role template exists in db, with the
+// template's grants: auth_permissions by key, auth_roles as global system roles (organization_id
+// NULL, is_system), auth_role_permissions. It is idempotent (rows are looked up by their natural
+// keys and only inserted when missing) and runs in one transaction. Run it right after creating
+// the schema; a role template's grant of a key missing from the catalog is skipped. Roles are
+// stamped with clk's time (nil: clock.System).
+func Seed(ctx context.Context, db store.Adapter, catalog Catalog, clk clock.Clock) error {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	now := clk.Now().UTC()
+	r := repository.New(db)
+	return db.Tx(ctx, func(ctx context.Context) error {
+		ids := map[string]string{}
+		for _, p := range catalog.Permissions() {
+			id, err := ensurePermission(ctx, r, p)
+			if err != nil {
+				return err
+			}
+			ids[p.Key] = id
+		}
+		for _, t := range catalog.RoleTemplates() {
+			roleID, err := ensureSystemRole(ctx, r, t, now)
+			if err != nil {
+				return err
+			}
+			for _, key := range t.PermissionKeys {
+				if pid, ok := ids[key]; ok {
+					if err := ensureGrant(ctx, r, roleID, pid); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func ensurePermission(ctx context.Context, r *repository.Repos, p Permission) (string, error) {
+	found, err := r.Permissions.ByKey(ctx, p.Key)
+	if err == nil {
+		return found.ID, nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return "", fmt.Errorf("authz: seed permission %s: %w", p.Key, err)
+	}
+	row := model.Permission{ID: repository.NewID(), Key: p.Key, Description: p.Description}
+	if err := r.Permissions.Insert(ctx, row); err != nil {
+		return "", fmt.Errorf("authz: seed permission %s: %w", p.Key, err)
+	}
+	return row.ID, nil
+}
+
+func ensureSystemRole(ctx context.Context, r *repository.Repos, t RoleTemplate, now time.Time) (string, error) {
+	found, err := r.Roles.ByOrganizationAndSlug(ctx, nil, t.Slug)
+	if err == nil {
+		return found.ID, nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return "", fmt.Errorf("authz: seed role %s: %w", t.Slug, err)
+	}
+	desc := t.Description
+	role := model.Role{ID: repository.NewID(), Name: t.Name, Slug: t.Slug, Description: &desc, IsSystem: true, CreatedAt: now, UpdatedAt: now}
+	if err := r.Roles.Insert(ctx, role); err != nil {
+		return "", fmt.Errorf("authz: seed role %s: %w", t.Slug, err)
+	}
+	return role.ID, nil
+}
+
+func ensureGrant(ctx context.Context, r *repository.Repos, roleID, permissionID string) error {
+	_, err := r.RolePermissions.Get(ctx, roleID, permissionID)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return fmt.Errorf("authz: seed grant: %w", err)
+	}
+	if err := r.RolePermissions.Insert(ctx, model.RolePermission{RoleID: roleID, PermissionID: permissionID}); err != nil {
+		return fmt.Errorf("authz: seed grant: %w", err)
+	}
+	return nil
+}

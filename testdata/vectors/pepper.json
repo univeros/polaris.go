@@ -1,0 +1,31 @@
+{
+    "generator": "php",
+    "app_key": "polaris-cross-language-vector-app-key-0123456789",
+    "cases": [
+        {
+            "context": "refresh",
+            "value": "rt_9Kq2-token",
+            "hash": "7322538334d964dc1382ba40d06d80ac771b2b2f7d7e5b903571f6b212315640"
+        },
+        {
+            "context": "otp",
+            "value": "123456",
+            "hash": "45751a64fb1d22bcd88fdd2ba05253a3a2fcf4bd06d533e5ec6692ba286232bf"
+        },
+        {
+            "context": "recovery",
+            "value": "abcde-fghij",
+            "hash": "bf6c893fcc23bcd13e1750257fcb8c8868e27791dcac12bed1dfdd7540fd0c31"
+        },
+        {
+            "context": "",
+            "value": "",
+            "hash": "6e048175e105afe4c8ee1873bcffbb1e75b25195c84a1c0dafaa6cc17fb622a4"
+        },
+        {
+            "context": "invite",
+            "value": "ünïcødé ✓",
+            "hash": "0944fc8fc9e0c269eea2f263bc3699ea3ea7aaf7992923f9efa54e6212b77149"
+        }
+    ]
+}

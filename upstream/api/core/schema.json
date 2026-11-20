@@ -1,0 +1,56 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Polaris endpoint spec",
+    "description": "One api/**/*.yaml file. Loaded at runtime by Polaris\\Http\\Manifest\\Loader, which enforces the required keys and value sets listed here.",
+    "type": "object",
+    "required": ["endpoint", "domain"],
+    "properties": {
+        "endpoint": {
+            "type": "object",
+            "required": ["method", "path", "auth", "effect"],
+            "properties": {
+                "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+                "path": { "type": "string", "pattern": "^/" },
+                "summary": { "type": "string" },
+                "tags": { "type": "array", "items": { "type": "string" } },
+                "auth": { "enum": ["public", "bearer", "mfa_token"] },
+                "step_up": { "type": "boolean" },
+                "session": { "enum": ["issue", "refresh", "end"], "description": "What the route does to the caller's session; in cookie token delivery the refresh cookie follows it (docs/cookie-mode/spec.md §2.2)." },
+                "requires_permissions": { "type": "array", "items": { "type": "string" } },
+                "rate_limit": { "type": "string" },
+                "effect": { "enum": ["read", "write", "destructive"] },
+                "receipt": { "type": "boolean", "description": "Defaults to true for write and destructive, false for read." }
+            }
+        },
+        "input": {
+            "type": "object",
+            "properties": {
+                "source": { "enum": ["body", "path", "query", "none"] },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "type": { "type": "string" },
+                            "rules": { "type": "array", "items": { "type": "string", "pattern": "^(required|optional|string|email|password_policy|e164|suspended|max:[0-9]+|in:.+|regex:.+)$" } },
+                            "sensitive": { "type": "boolean" }
+                        }
+                    }
+                }
+            }
+        },
+        "domain": {
+            "type": "object",
+            "required": ["class"],
+            "properties": { "class": { "type": "string" }, "description": { "type": "string" } }
+        },
+        "output": {
+            "type": "object",
+            "description": "The success response: its status, and its body as `example` (plus `example_<variant>` where one endpoint answers two shapes). The examples type the response in the OpenAPI document and in the TypeScript client.",
+            "properties": { "status": { "type": "integer" }, "example": { "type": "object" } },
+            "patternProperties": { "^example_": { "type": "object" } }
+        },
+        "errors": { "type": "array", "items": { "type": "object", "required": ["status", "code"], "properties": { "status": { "type": "integer" }, "code": { "type": ["string", "null"] } } } },
+        "events": { "type": "array", "items": { "type": "string" } }
+    }
+}

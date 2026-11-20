@@ -1,0 +1,2358 @@
+{
+    "endpoints": [
+        {
+            "method": "POST",
+            "path": "/auth/email/verify/resend",
+            "summary": "Resend the verification email",
+            "auth": "public",
+            "rate_limit": "token_consume",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\ResendVerificationEndpoint",
+            "errors": [
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/email/verify",
+            "summary": "Verify an email address",
+            "auth": "public",
+            "rate_limit": "token_consume",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "token",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\VerifyEmailEndpoint",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": null
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.email_verified"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/invites/accept",
+            "summary": "Accept an organization invitation",
+            "auth": "bearer",
+            "rate_limit": "token_consume",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "token",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\AcceptInviteEndpoint",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "bad_request"
+                },
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "member.joined"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/auth/.well-known/jwks.json",
+            "summary": "JWKS document",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Jwks\\JwksEndpoint",
+            "errors": [],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/login",
+            "summary": "Authenticate with email and password",
+            "auth": "public",
+            "rate_limit": "login",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": "issue",
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "password",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\LoginEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "invalid_credentials"
+                },
+                {
+                    "status": 403,
+                    "code": "email_unverified"
+                },
+                {
+                    "status": 403,
+                    "code": "account_disabled"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.logged_in",
+                "user.login_failed",
+                "user.locked"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/logout-all",
+            "summary": "Log out everywhere",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": "end",
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\LogoutAllEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": [
+                "auth.sessions_revoked"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/logout",
+            "summary": "Log out the current session",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": "end",
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\LogoutEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/auth/me",
+            "summary": "Read the authenticated identity",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\MeEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/challenge",
+            "summary": "Send a login-gate OTP for a chosen factor",
+            "auth": "mfa_token",
+            "rate_limit": "mfa_send",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\MfaChallengeEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "unsupported_factor"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                },
+                {
+                    "status": 429,
+                    "code": "too_many_requests"
+                }
+            ],
+            "events": [
+                "otp.sent"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/email/confirm",
+            "summary": "Confirm a pending email factor",
+            "auth": "bearer",
+            "rate_limit": "mfa_confirm",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "code",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\OtpFactorConfirmEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_code"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "mfa.enrolled"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/email/enroll",
+            "summary": "Begin email factor enrollment",
+            "auth": "bearer",
+            "rate_limit": "mfa_send",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "optional",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\EmailEnrollEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "otp.sent"
+            ]
+        },
+        {
+            "method": "DELETE",
+            "path": "/auth/mfa/factors/{id}",
+            "summary": "Remove an MFA factor",
+            "auth": "bearer",
+            "rate_limit": "mfa_enroll",
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\DeleteFactorEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "last_factor_protected"
+                }
+            ],
+            "events": [
+                "mfa.factor_removed"
+            ]
+        },
+        {
+            "method": "PATCH",
+            "path": "/auth/mfa/factors/{id}",
+            "summary": "Update a factor's label or default flag",
+            "auth": "bearer",
+            "rate_limit": "mfa_enroll",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "label",
+                        "type": "string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "default",
+                        "type": "boolean",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\UpdateFactorEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_state"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/auth/mfa/factors",
+            "summary": "List the caller's MFA factors",
+            "auth": "bearer",
+            "rate_limit": "mfa_enroll",
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\MfaFactorsEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/recovery-codes/regenerate",
+            "summary": "Regenerate the recovery-code batch",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\RegenerateRecoveryCodesEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                }
+            ],
+            "events": [
+                "mfa.recovery_regenerated"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/sms/confirm",
+            "summary": "Confirm a pending SMS factor",
+            "auth": "bearer",
+            "rate_limit": "mfa_confirm",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "code",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\OtpFactorConfirmEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_code"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "mfa.enrolled"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/sms/enroll",
+            "summary": "Begin SMS factor enrollment",
+            "auth": "bearer",
+            "rate_limit": "mfa_send",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "phone_e164",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "e164"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\SmsEnrollEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "otp.sent"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/step-up/challenge",
+            "summary": "Send a step-up OTP for a chosen factor",
+            "auth": "bearer",
+            "rate_limit": "mfa_send",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\StepUpChallengeEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "unsupported_factor"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                },
+                {
+                    "status": 429,
+                    "code": "too_many_requests"
+                }
+            ],
+            "events": [
+                "otp.sent"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/step-up",
+            "summary": "Complete a step-up re-authentication",
+            "auth": "bearer",
+            "rate_limit": "mfa_confirm",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "code",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "type",
+                        "type": "string",
+                        "rules": [
+                            "optional",
+                            "in:recovery"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\StepUpVerifyEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_code"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "mfa.step_up_completed",
+                "mfa.recovery_used",
+                "mfa.verify_failed",
+                "otp.verify_failed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/totp/confirm",
+            "summary": "Confirm a pending TOTP factor",
+            "auth": "bearer",
+            "rate_limit": "mfa_confirm",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "code",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\TotpConfirmEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_code"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "mfa.enrolled"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/totp/enroll",
+            "summary": "Begin TOTP (authenticator app) enrollment",
+            "auth": "bearer",
+            "rate_limit": "mfa_enroll",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\TotpEnrollEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/mfa/verify",
+            "summary": "Verify the MFA code and mint the real session",
+            "auth": "mfa_token",
+            "rate_limit": "mfa_confirm",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": "issue",
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "code",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "factor_id",
+                        "type": "string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "type",
+                        "type": "string",
+                        "rules": [
+                            "optional",
+                            "in:recovery"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\MfaVerifyEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "invalid_code"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "mfa.verified",
+                "user.logged_in",
+                "mfa.recovery_used",
+                "mfa.verify_failed",
+                "otp.verify_failed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/password/change",
+            "summary": "Change the password",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "current_password",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    },
+                    {
+                        "name": "new_password",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "password_policy"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\ChangePasswordEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                },
+                {
+                    "status": 403,
+                    "code": "invalid_credentials"
+                },
+                {
+                    "status": 403,
+                    "code": "account_disabled"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.password_changed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/password/forgot",
+            "summary": "Request a password reset",
+            "auth": "public",
+            "rate_limit": "password_forgot",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\ForgotPasswordEndpoint",
+            "errors": [
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.password_reset_requested"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/password/reset",
+            "summary": "Reset the password with a token",
+            "auth": "public",
+            "rate_limit": "token_consume",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "token",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    },
+                    {
+                        "name": "new_password",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "password_policy"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\ResetPasswordEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "invalid_token"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.password_changed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/register",
+            "summary": "Register a new user account",
+            "auth": "public",
+            "rate_limit": "register",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "password",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "password_policy"
+                        ],
+                        "sensitive": true
+                    },
+                    {
+                        "name": "display_name",
+                        "type": "?string",
+                        "rules": [
+                            "max:120"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\RegisterEndpoint",
+            "errors": [
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "user.registered"
+            ]
+        },
+        {
+            "method": "DELETE",
+            "path": "/auth/sessions/{id}",
+            "summary": "Revoke a session",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\RevokeSessionEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/auth/sessions",
+            "summary": "List active sessions",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Auth\\SessionsEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/auth/switch-org",
+            "summary": "Switch the active organization",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "organization_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\SwitchOrgEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "session_ended"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "auth.org_switched"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/auth/token/refresh",
+            "summary": "Rotate the refresh token",
+            "auth": "public",
+            "rate_limit": "token_refresh",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": "refresh",
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "refresh_token",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Auth\\RefreshTokenEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "invalid_grant"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "auth.token_refreshed",
+                "auth.refresh_reuse_detected"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/orgs",
+            "summary": "Create an organization",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "string",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "slug",
+                        "type": "?string",
+                        "rules": [
+                            "regex:/^[a-z0-9-]+$/",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\CreateOrganizationEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "email_unverified"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "org.created"
+            ]
+        },
+        {
+            "method": "DELETE",
+            "path": "/orgs/{id}",
+            "summary": "Soft-delete the organization",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [
+                "org.delete"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\DeleteOrganizationEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": [
+                "org.deleted"
+            ]
+        },
+        {
+            "method": "DELETE",
+            "path": "/orgs/{id}/invites/{inviteId}",
+            "summary": "Revoke a pending invitation",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.invite"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "inviteId",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\RevokeInviteEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/orgs/{id}/invites",
+            "summary": "Create (or refresh) a membership invitation",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.invite"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "email",
+                            "max:320"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "role_slugs",
+                        "type": "list<string>",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\CreateInviteEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "member.invited"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/orgs/{id}/invites",
+            "summary": "List pending invitations",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.invite"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ListInvitesEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/orgs",
+            "summary": "List the organizations the caller belongs to",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Orgs\\ListOrganizationsEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "DELETE",
+            "path": "/orgs/{id}/members/{userId}",
+            "summary": "Remove a member from the organization",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.remove"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "userId",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\RemoveMemberEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                }
+            ],
+            "events": [
+                "member.removed"
+            ]
+        },
+        {
+            "method": "PATCH",
+            "path": "/orgs/{id}/members/{userId}/roles",
+            "summary": "Replace a member's roles",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.update"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "role_slugs",
+                        "type": "list<string>",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ChangeMemberRolesEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "member.roles_changed"
+            ]
+        },
+        {
+            "method": "PATCH",
+            "path": "/orgs/{id}/members/{userId}",
+            "summary": "Change a member's status (suspend or reactivate)",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.update"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "status",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "in:active,suspended"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ChangeMemberStatusEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "member.status_changed"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/orgs/{id}/members",
+            "summary": "List the organization's members",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "members.read"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ListMembersEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/orgs/{id}",
+            "summary": "Read the organization profile",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "org.read"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ReadOrganizationEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "DELETE",
+            "path": "/orgs/{id}/roles/{roleId}",
+            "summary": "Delete a custom role",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "roles.manage"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "roleId",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\DeleteRoleEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": [
+                "role.deleted"
+            ]
+        },
+        {
+            "method": "PATCH",
+            "path": "/orgs/{id}/roles/{roleId}",
+            "summary": "Update a role",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "roles.manage"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "?string",
+                        "rules": [],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "description",
+                        "type": "?string",
+                        "rules": [],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "permission_keys",
+                        "type": "?list<string>",
+                        "rules": [],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\UpdateRoleEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "role.updated"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/orgs/{id}/roles",
+            "summary": "Create a custom role",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "roles.manage"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "string"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "slug",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "regex:/^[a-z0-9-]+$/"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "description",
+                        "type": "?string",
+                        "rules": [],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "permission_keys",
+                        "type": "list<string>",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\CreateRoleEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "role.created"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/orgs/{id}/roles",
+            "summary": "List the organization's roles",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "roles.read"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\ListRolesEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "PATCH",
+            "path": "/orgs/{id}",
+            "summary": "Update (rename) the organization",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "org.update"
+            ],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "string",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Orgs\\UpdateOrganizationEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": [
+                "org.updated"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/permissions",
+            "summary": "List the permission catalog",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "class": "Polaris\\Http\\Orgs\\ListPermissionsEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "DELETE",
+            "path": "/users/{id}",
+            "summary": "Delete (anonymize) a user account",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Users\\DeleteUserEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": [
+                "user.deleted"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/users/{id}/disable",
+            "summary": "Disable a user account",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": true,
+            "session": null,
+            "requires_permissions": [
+                "users.manage"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Users\\DisableUserEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                }
+            ],
+            "events": [
+                "user.disabled"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/users/{id}/enable",
+            "summary": "Re-enable a user account",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [
+                "users.manage"
+            ],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Users\\EnableUserEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "conflict"
+                }
+            ],
+            "events": [
+                "user.enabled"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/users/{id}",
+            "summary": "Read a user",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "path",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Users\\ReadUserEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "PATCH",
+            "path": "/users/{id}",
+            "summary": "Update a user's profile",
+            "auth": "bearer",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "display_name",
+                        "type": "?string",
+                        "rules": [
+                            "string",
+                            "max:120"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "class": "Polaris\\Http\\Users\\UpdateUserEndpoint",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 403,
+                    "code": "forbidden"
+                },
+                {
+                    "status": 404,
+                    "code": "not_found"
+                },
+                {
+                    "status": 422,
+                    "code": "validation_failed"
+                }
+            ],
+            "events": []
+        }
+    ]
+}
