@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Info is one active session (device) of a user, as GET /auth/sessions lists it.

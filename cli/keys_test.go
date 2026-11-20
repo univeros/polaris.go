@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/token"
 )
 
 func lookupIn(values map[string]string) config.LookupFunc {
@@ -31,7 +31,7 @@ func TestInitWritesOnlyWhatIsMissing(t *testing.T) {
 	if len(m["added"].([]any)) != 4 || len(m["replaced"].([]any)) != 0 {
 		t.Errorf("first run: %v", m)
 	}
-	if s := m["snippet"].(string); !strings.Contains(s, "polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}))") || !strings.Contains(s, `"github.com/univeros/polaris-go/plugins/admin"`) {
+	if s := m["snippet"].(string); !strings.Contains(s, "polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}))") || !strings.Contains(s, `"github.com/univeros/polaris.go/plugins/admin"`) {
 		t.Errorf("snippet: %s", s)
 	}
 	file, err := readDotenv(env)

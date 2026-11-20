@@ -11,11 +11,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/internal/httpapi"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/httpapi"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 const tagAdmin = "admin"

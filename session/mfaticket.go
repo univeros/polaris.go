@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
 )
 
 // PurposeLoginMFA is the purpose claim of a login-MFA ticket.

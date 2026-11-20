@@ -4,10 +4,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 )
 
 func rolesBySlug(t *testing.T, f *fixture, org string) map[string]Role {

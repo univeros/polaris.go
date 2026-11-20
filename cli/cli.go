@@ -31,7 +31,7 @@ import (
 	"slices"
 	"strings"
 
-	polaris "github.com/univeros/polaris-go"
+	polaris "github.com/univeros/polaris.go"
 )
 
 // Exit codes.

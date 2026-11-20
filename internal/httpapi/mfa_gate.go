@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/session"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/session"
 )
 
 // challenge sends the login-gate OTP; the caller holds the login_mfa ticket, not a session.

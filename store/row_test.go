@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // The driver value shapes rows arrive in: []byte (MySQL), int64, bool, time.Time (pgx, modernc),

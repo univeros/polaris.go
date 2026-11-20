@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/store"
 )
 
 const maxGrantsPerRequest = 20

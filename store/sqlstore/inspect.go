@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // LiveTable is a table as the database reports it, in the schema package's vocabulary.

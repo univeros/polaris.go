@@ -1,6 +1,6 @@
 # Polaris for Go
 
-Private. The Go port of Polaris (`univeros/polaris-core`): self-hosted authentication, MFA,
+The Go port of Polaris (`univeros/polaris-core`): self-hosted authentication, MFA,
 organizations and RBAC, and agent sign-in (API keys, OAuth 2.1 / OIDC provider, agents with grants,
 approvals and receipts, MCP), wire-, database- and token-compatible with the PHP version.
 

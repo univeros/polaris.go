@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 var ctx = context.Background()

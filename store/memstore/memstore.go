@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Store is an in-memory store.Adapter. The zero value is not usable; call New.

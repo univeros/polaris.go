@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Request-scoped values the pipeline sets before an endpoint runs (upstream's request attributes).

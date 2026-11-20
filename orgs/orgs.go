@@ -24,12 +24,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Kinds of refusal, matched with errors.Is on a *Error.

@@ -6,16 +6,16 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/notify/notifytest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/notify/notifytest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/token"
 )
 
 // These stand in for the session service, the login-ticket codec and authz.Principals, which

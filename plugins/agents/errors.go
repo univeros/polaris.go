@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Problem names: the agents/<name> problem type of a refusal. The protocol's own codes travel bare

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 func Example() {

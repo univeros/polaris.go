@@ -3,7 +3,7 @@ package security_test
 import (
 	"fmt"
 
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/security"
 )
 
 func ExampleArgon2id() {

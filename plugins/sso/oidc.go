@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris.go/event"
 )
 
 // MetricAuthOutcomes is the counter Listener increments.

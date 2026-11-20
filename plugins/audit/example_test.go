@@ -7,13 +7,13 @@ import (
 	"log/slog"
 	"strings"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 // The audit plugin records every Polaris event; GET /audit/me, /audit/organization/{id} and

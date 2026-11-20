@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/agents"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/agents"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 // BenchmarkExecute is POST /agents/execute end to end on SQLite: agent authentication, grant and

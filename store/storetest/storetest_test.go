@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 func TestRunOnTheReferenceAdapter(t *testing.T) {

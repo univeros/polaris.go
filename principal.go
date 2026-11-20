@@ -4,9 +4,9 @@ import (
 	"context"
 	"slices"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Kind is the kind of credential a principal authenticated with.

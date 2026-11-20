@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
 )
 
 // Recorder turns domain events into audit events: every core event maps to a catalogued,

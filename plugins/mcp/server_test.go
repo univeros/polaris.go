@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // The JSON-RPC edges of the 2026-07-28 profile (upstream's SDK behaviour) and the schema folding.

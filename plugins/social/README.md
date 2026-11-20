@@ -9,7 +9,7 @@ the stable origin registered at the providers. A sign-in ends in core's login en
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/social"
+import "github.com/univeros/polaris.go/plugins/social"
 
 cfg, err := polaris.FromEnv(db, social.New(social.Config{
 	BaseURL:      "https://app.example.com/auth", // where Polaris is mounted, prefix included
@@ -89,4 +89,4 @@ With `plugins/audit` registered they become audit rows (`Plugin.AuditNames`). No
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/social`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/social`.

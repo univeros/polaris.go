@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/security"
 )
 
 // PasswordPolicy is the rule set a new password must pass before it is hashed: a minimum length

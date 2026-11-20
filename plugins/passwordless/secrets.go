@@ -13,11 +13,11 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Tables the plugin owns.

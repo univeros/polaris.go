@@ -3,7 +3,7 @@ package scim
 import (
 	"testing"
 
-	"github.com/univeros/polaris-go/model"
+	"github.com/univeros/polaris.go/model"
 )
 
 // Regression tests for the WP8 cross-tenant finding: an organization's directory (any org owner

@@ -9,7 +9,7 @@ typed. Port of `polaris/username`.
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/username"
+import "github.com/univeros/polaris.go/plugins/username"
 
 cfg, err := polaris.FromEnv(db, username.New(username.Config{}))
 p, err := polaris.New(cfg)
@@ -58,4 +58,4 @@ rule; `errors` lists them), `…/username/taken` (409).
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/username`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/username`.

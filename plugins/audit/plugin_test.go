@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {

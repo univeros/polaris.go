@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Port of InvitationEndpointsTest: POST/GET /orgs/{id}/invites, DELETE /orgs/{id}/invites/{inviteId}

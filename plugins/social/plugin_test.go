@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Port of upstream's PluginTest: the service through the graph, the recorded providers answering.

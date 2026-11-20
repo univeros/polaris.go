@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/agents"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/agents"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Port of AgentTokensTest: delegated agents through token exchange, autonomous agents through

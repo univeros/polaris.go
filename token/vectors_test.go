@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // Cross-language vectors (spec §6.3). testdata/vectors/jwt.json comes from

@@ -3,12 +3,12 @@ package httpapi
 import (
 	"testing"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // TestNoPendingRoutes fails while a core route has no Go endpoint (it would answer 501).

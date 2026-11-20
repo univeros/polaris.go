@@ -10,12 +10,12 @@ import (
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/store"
 )
 
 // authCookieCase is CookieModeTest's harness (CookieRequests): cookie token delivery on, requests

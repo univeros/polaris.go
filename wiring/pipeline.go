@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Caller is the authz.Caller of a principal: its user, active organization and, for a principal a

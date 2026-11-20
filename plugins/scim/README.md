@@ -10,7 +10,7 @@ a Group is one of the organization's roles. Port of `polaris/scim`; `plugins/aud
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/scim"
+import "github.com/univeros/polaris.go/plugins/scim"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), scim.New(scim.Config{}))
 p, err := polaris.New(cfg) // a relative BaseURL fails here
@@ -81,4 +81,4 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/scim`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/scim`.

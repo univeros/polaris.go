@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/scim"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/scim"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 const (

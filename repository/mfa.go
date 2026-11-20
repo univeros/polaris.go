@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 )
 
 // MFAFactors reads and writes auth_mfa_factors.

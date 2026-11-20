@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Port of packages/multi-session/tests/PluginTest.php.

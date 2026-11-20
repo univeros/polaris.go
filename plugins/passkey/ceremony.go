@@ -11,11 +11,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 // DefaultName names a passkey registered without one.

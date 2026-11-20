@@ -1,6 +1,6 @@
 package messaging
 
-import "github.com/univeros/polaris-go/schema"
+import "github.com/univeros/polaris.go/schema"
 
 // TableTemplates is the table the plugin owns: organizations' template overrides.
 const TableTemplates = "polaris_messaging_template"

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/ratelimit"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/ratelimit"
 )
 
 func ExampleCheck() {

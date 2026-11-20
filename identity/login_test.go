@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
 )
 
 func TestValidLoginIssuesATokenPair(t *testing.T) {

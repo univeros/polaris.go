@@ -9,8 +9,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // AttrRowsAffected is the number of rows an Insert, Update or Delete wrote.

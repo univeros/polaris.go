@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/agent"
+	"github.com/univeros/polaris.go/agent"
 )
 
 // fakePolaris stands in for a Polaris server with plugins/agents, mounted at /auth, for the

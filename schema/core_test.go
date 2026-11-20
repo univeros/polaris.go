@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/univeros/polaris-go/schema"
+	"github.com/univeros/polaris.go/schema"
 )
 
 func TestEveryCoreModelIsDefinedOnceWithAPrimaryKeyAndUniqueColumns(t *testing.T) {

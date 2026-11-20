@@ -12,17 +12,17 @@ import (
 	"strings"
 	"testing"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/apikeys"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/apikeys"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Port of upstream's PluginTest and the mcp CookieModeTest.

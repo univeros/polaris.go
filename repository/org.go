@@ -4,8 +4,8 @@ import (
 	"cmp"
 	"context"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Organizations reads and writes auth_organizations.

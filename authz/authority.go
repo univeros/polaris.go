@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Wire messages of the forbidden errors raised here (endpoints answer them in a 403 body).

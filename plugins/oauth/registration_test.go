@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/oauth"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
 // Port of OAuthRegistrationTest: dynamic client registration when a host turns it on, and

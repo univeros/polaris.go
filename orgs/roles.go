@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Messages of the role refusals.

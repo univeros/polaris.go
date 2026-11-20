@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/internal/contracttest"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
 // result is one command's outcome.

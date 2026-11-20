@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
 )
 
 // The server's resources.

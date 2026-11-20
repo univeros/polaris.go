@@ -9,14 +9,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Schema URNs of the resources.

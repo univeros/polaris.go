@@ -10,7 +10,7 @@ identifiers. Port of `polaris/passwordless`.
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/passwordless"
+import "github.com/univeros/polaris.go/plugins/passwordless"
 
 cfg, err := polaris.FromEnv(db, passwordless.New(passwordless.Config{
 	RedirectURIs: []string{"https://app.example.com/signed-in"},
@@ -81,4 +81,4 @@ permissions: routes are public or bearer.
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/passwordless`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/passwordless`.

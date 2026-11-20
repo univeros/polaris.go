@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 var ctx = context.Background()

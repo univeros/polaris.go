@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/passkey"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/token"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/passkey"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/token"
 )
 
 // A passkey registered from a session, then a discoverable sign-in (conditional UI). The browser

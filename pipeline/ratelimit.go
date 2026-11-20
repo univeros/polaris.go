@@ -3,9 +3,9 @@ package pipeline
 import (
 	"net/http"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/ratelimit"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/ratelimit"
 )
 
 // ipRateLimit spends the per-IP budget of the route's rate_limit group. A group the config does

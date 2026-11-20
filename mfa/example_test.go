@@ -6,9 +6,9 @@ import (
 
 	"github.com/pquerna/otp/totp"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/mfa"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/mfa"
 )
 
 func ExampleTOTP() {

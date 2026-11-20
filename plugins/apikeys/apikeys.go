@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/upstream"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // ID is the plugin id; its routes read polaris.api-keys.*.

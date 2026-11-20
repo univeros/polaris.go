@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 var pathParam = regexp.MustCompile(`\{(\w+)\}`)

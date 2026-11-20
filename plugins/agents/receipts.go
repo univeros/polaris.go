@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 // ReceiptJWTType is the typ header of a receipt signature (verifiable with core's JWKS).

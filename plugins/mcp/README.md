@@ -13,8 +13,8 @@ reach `/mcp`.
 
 ```go
 import (
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/plugins/oauth"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
 base := "https://app.example.com/auth" // where Polaris is mounted, prefix included
@@ -94,4 +94,4 @@ route's own refusal comes back as a tool error result carrying its problem.
 ## Example
 
 `ExampleNew` and `ExampleProtect` in [`example_test.go`](example_test.go) —
-`go doc github.com/univeros/polaris-go/plugins/mcp`.
+`go doc github.com/univeros/polaris.go/plugins/mcp`.

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // TemplateKeys are the bundled templates, each translated in every bundled locale. Email keys have

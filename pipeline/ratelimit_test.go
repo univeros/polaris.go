@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/ratelimit"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/ratelimit"
 )
 
 // fixedStore answers like RouterTest's stub RateStore: hits <= limit allowed, resetting at a fixed

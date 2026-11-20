@@ -7,11 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/apikeys"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/apikeys"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 // BenchmarkProtect is a host route behind Protect, authenticated by a session access token (JWT:

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/internal/maintenance"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/internal/maintenance"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 func ExamplePruneExpired() {

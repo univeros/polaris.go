@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // DefaultRefreshGrace is how long expired or revoked refresh tokens are kept: reuse detection

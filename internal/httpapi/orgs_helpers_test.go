@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Helpers of the ports of upstream's organization, membership, invitation, role, user-admin and

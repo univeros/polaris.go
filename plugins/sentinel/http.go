@@ -14,8 +14,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/plugins/admin"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/plugins/admin"
 )
 
 // DeviceCookie names the device cookie the middleware sets (one year, HttpOnly, SameSite=Lax,

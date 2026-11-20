@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // This file is the Go API other plugins (polaris/agents) and hosts use; reach the plugin with

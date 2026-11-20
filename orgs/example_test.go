@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 // noSessions stands in for *session.Service, the production orgs.Sessions.

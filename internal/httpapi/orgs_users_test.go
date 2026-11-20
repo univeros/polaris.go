@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Port of UserAdminEndpointsTest: GET/PATCH/DELETE /users/{id} (self or admin) and

@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Claims the resolver puts on a principal built from one of the provider's access tokens.

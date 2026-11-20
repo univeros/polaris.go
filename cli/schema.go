@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 var sqlTargets = map[string]store.Dialect{"sql:postgres": store.Postgres, "sql:mysql": store.MySQL, "sql:sqlite": store.SQLite}

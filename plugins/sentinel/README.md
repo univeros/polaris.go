@@ -10,7 +10,7 @@ plugin-to-plugin import), which in turn requires `plugins/audit`.
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/sentinel"
+import "github.com/univeros/polaris.go/plugins/sentinel"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}),
 	sentinel.New(sentinel.Config{
@@ -82,4 +82,4 @@ retries the same request with `captcha_token`). Admin routes answer `…/admin/u
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/sentinel`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/sentinel`.

@@ -23,16 +23,16 @@ import (
 	"path/filepath"
 	"sync"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/agents"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/agents"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 func main() {

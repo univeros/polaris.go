@@ -11,10 +11,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 )
 
 // PepperContext is the keyed-hash context of key secrets (core's Pepper).

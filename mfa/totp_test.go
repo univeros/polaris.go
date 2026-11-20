@@ -10,8 +10,8 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 )
 
 // 2026-06-08 12:00:00 UTC, as the upstream test.

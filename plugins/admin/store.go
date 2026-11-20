@@ -10,10 +10,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 )
 
 // KeyPrefix starts every operator API key: "pak_" and 256 random bits, base64url.

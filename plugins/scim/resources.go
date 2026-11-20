@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Resource kinds of polaris_scim_resource.

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Client types and token endpoint authentication methods.

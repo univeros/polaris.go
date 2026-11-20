@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/security"
 )
 
 // benchServer boots a server whose login and refresh budgets never run out (the test rate clock

@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Members, invitations and roles of the path organization (the cross-tenant guard already passed).

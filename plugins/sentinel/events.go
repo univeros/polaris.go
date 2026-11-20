@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The sentinel.* event (and audit) names.

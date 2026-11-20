@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // Cache stores values with a time to live. Implementations are safe for concurrent use.

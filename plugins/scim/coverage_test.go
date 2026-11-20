@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 func TestEmailAndNameOfABody(t *testing.T) {

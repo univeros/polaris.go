@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/token"
 )
 
 // check is one doctor finding.

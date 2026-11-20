@@ -9,11 +9,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // systemActor is the actor recorded (events, audit) for a programmatic call: the host itself.

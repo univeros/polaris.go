@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".

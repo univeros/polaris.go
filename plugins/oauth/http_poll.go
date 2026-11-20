@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // serveDeviceCode is POST /oauth2/device/code (RFC 8628 §3.1).

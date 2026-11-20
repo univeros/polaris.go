@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 var ctx = context.Background()

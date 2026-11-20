@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 const location = "https://app.example/auth/scim/v2/c1"

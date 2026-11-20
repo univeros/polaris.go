@@ -9,8 +9,8 @@ integration. Every operator action is recorded in the audit trail as `admin.<act
 
 ```go
 import (
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}))
@@ -101,4 +101,4 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/admin`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/admin`.

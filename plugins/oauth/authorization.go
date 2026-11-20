@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 const (

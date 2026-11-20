@@ -1,6 +1,6 @@
 package apikeys
 
-import "github.com/univeros/polaris-go/schema"
+import "github.com/univeros/polaris.go/schema"
 
 // TableKeys is the table the plugin owns.
 const TableKeys = "polaris_api_key"

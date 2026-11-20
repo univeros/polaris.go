@@ -3,7 +3,7 @@ package wiring
 import (
 	"context"
 
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/token"
 )
 
 // ToolResult is what an MCP tool answers: what the equivalent HTTP route would answer.

@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 func seconds(d time.Duration) int { return int(d / time.Second) }

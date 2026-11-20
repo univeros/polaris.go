@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Route names.

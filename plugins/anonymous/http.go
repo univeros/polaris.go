@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Route names.

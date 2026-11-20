@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 // Seed the catalog once after creating the schema, then ask the Gate per request.

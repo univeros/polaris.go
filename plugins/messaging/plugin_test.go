@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/notify/notifytest"
-	"github.com/univeros/polaris-go/plugins/messaging"
-	"github.com/univeros/polaris-go/polaristest"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/notify/notifytest"
+	"github.com/univeros/polaris.go/plugins/messaging"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 func TestThePluginIsCoresMailerAndSmsSenderAndEverySendIsAudited(t *testing.T) {

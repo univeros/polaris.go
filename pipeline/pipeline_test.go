@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/token"
 )
 
 const authMiddlewareTest = `Polaris\Tests\Functional\AuthMiddlewareTest`

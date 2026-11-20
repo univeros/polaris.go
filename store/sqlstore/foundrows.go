@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // ErrMySQLFoundRows is returned by the writes of a MySQL Store whose pool does not set

@@ -13,11 +13,11 @@ import (
 
 	"github.com/pquerna/otp/totp"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 func pendingSMS() model.MFAFactor {

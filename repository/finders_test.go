@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 )
 
 func ids[T any](t *testing.T, items []T, err error, id func(T) string) []string {

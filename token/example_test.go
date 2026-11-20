@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/token"
 )
 
 func Example() {

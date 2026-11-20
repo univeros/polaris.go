@@ -16,16 +16,16 @@ import (
 	"strings"
 	"testing"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/cli"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/notify/notifytest"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/cli"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/notify/notifytest"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 // TestQuickstart is the integration a coding agent copies from llms.txt: env config, Migrate,

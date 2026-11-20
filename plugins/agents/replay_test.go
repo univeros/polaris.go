@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // staleReads is a cache shared by replicas whose reads lag the other replicas' writes: only the

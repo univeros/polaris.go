@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Page sizes of a Query.

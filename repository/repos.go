@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/univeros/polaris-go/store"
+import "github.com/univeros/polaris.go/store"
 
 // Repos bundles every core repository over one adapter. Run related writes atomically with
 // DB.Tx, passing the ctx it gives to each repository call.

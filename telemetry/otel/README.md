@@ -1,11 +1,11 @@
 # telemetry/otel — OpenTelemetry for Polaris
 
-`github.com/univeros/polaris-go/telemetry/otel` traces and measures a Polaris instance with
+`github.com/univeros/polaris.go/telemetry/otel` traces and measures a Polaris instance with
 OpenTelemetry. It is the only package of the module that imports OpenTelemetry: a host that does not
 import it links none of it.
 
 ```go
-import polarisotel "github.com/univeros/polaris-go/telemetry/otel"
+import polarisotel "github.com/univeros/polaris.go/telemetry/otel"
 
 outcomes, err := polarisotel.Listener()       // auth outcome counter
 if err != nil { … }

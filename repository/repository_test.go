@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 var now = time.Date(2026, 6, 7, 10, 0, 0, 0, time.UTC)

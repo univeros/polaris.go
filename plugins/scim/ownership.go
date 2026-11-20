@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/store"
 )
 
 // A Polaris account is global, a directory belongs to one organization. A directory therefore

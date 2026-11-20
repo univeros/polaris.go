@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Port of OrgSwitchEndpointTest: POST /auth/switch-org re-scopes the session's access token to the

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/manifest"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/manifest"
 )
 
 const (

@@ -11,9 +11,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Claims the agent principal carries on every Polaris route.

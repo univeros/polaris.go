@@ -4,13 +4,13 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/security"
 )
 
 // Plugin extends Polaris from the outside: its own tables, routes, services, listeners and

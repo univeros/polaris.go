@@ -6,11 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/agents"
-	"github.com/univeros/polaris-go/token"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/agents"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Every agents fixture has a Go test (port of ContractCoverageTest).

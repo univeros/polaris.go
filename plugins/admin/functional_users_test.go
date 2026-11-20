@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/store"
 )
 
 func TestAdminUsers(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"slices"
 	"strings"
 
-	polaris "github.com/univeros/polaris-go"
+	polaris "github.com/univeros/polaris.go"
 )
 
 const rsaBits = 2048
@@ -172,7 +172,7 @@ func flagSet(fs *flag.FlagSet, name string) bool {
 
 // quickstart is llms.txt's quickstart for the plugins.
 func quickstart(plugs []polaris.Plugin) string {
-	imports := []string{`polaris "github.com/univeros/polaris-go"`, `"github.com/univeros/polaris-go/store"`, `"github.com/univeros/polaris-go/store/sqlstore"`}
+	imports := []string{`polaris "github.com/univeros/polaris.go"`, `"github.com/univeros/polaris.go/store"`, `"github.com/univeros/polaris.go/store/sqlstore"`}
 	args := []string{"db"}
 	for _, p := range plugs {
 		i := slices.IndexFunc(standardPlugins(), func(s standardPlugin) bool { return s.id == p.ID() })

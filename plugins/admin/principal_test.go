@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/admin"
 )
 
 // The role matrix: deny by default, each role including the ones below it.

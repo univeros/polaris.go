@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The kinds of message, each served by the channels that support it.

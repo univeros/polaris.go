@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 const (

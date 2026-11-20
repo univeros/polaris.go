@@ -3,7 +3,7 @@ package apikeys
 import (
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The api_keys.* event (and audit) names.

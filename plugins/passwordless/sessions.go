@@ -9,14 +9,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // handOffTTL is how long a magic link's hand-off code lives.

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 )
 
 func TestUserRoundTrips(t *testing.T) {

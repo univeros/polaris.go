@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/univeros/polaris-go/internal/maintenance"
+	"github.com/univeros/polaris.go/internal/maintenance"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // FromEnv builds a Config from the process environment (APP_KEY, AUTH_JWT_PRIVATE_KEY,

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Route names.

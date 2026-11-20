@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // The server's identity, as upstream's McpServer states it (frozen by the fixture's _meta).

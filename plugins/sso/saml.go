@@ -13,7 +13,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/crewjam/saml"
 	dsig "github.com/russellhaering/goxmldsig"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // DefaultSAML is the default SAML: github.com/crewjam/saml, strict. A response is accepted only

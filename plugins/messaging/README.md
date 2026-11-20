@@ -9,7 +9,7 @@ becomes core's mailer and SMS sender. Port of `polaris/messaging`; works without
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/messaging"
+import "github.com/univeros/polaris.go/plugins/messaging"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), messaging.New(messaging.Config{
 	Email: &messaging.SMTP{Addr: "smtp.example.com:587", From: "noreply@example.com",
@@ -73,4 +73,4 @@ None over HTTP. A send answers `messaging.ErrRefused` (cap or quiet mode),
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/messaging`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/messaging`.

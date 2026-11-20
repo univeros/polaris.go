@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // Port of upstream's ProtectedResourceTest (WP4 acceptance 1).

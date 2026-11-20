@@ -6,8 +6,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Endpoints returns every core endpoint keyed by route name. A core route without an

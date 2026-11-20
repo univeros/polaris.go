@@ -14,28 +14,28 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/upstream"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/agents"
-	"github.com/univeros/polaris-go/plugins/anonymous"
-	"github.com/univeros/polaris-go/plugins/apikeys"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/plugins/messaging"
-	"github.com/univeros/polaris-go/plugins/multisession"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/plugins/passwordless"
-	"github.com/univeros/polaris-go/plugins/scim"
-	"github.com/univeros/polaris-go/plugins/sentinel"
-	"github.com/univeros/polaris-go/plugins/sso"
-	"github.com/univeros/polaris-go/plugins/username"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
-	"github.com/univeros/polaris-go/wiring"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/agents"
+	"github.com/univeros/polaris.go/plugins/anonymous"
+	"github.com/univeros/polaris.go/plugins/apikeys"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/plugins/messaging"
+	"github.com/univeros/polaris.go/plugins/multisession"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/plugins/passwordless"
+	"github.com/univeros/polaris.go/plugins/scim"
+	"github.com/univeros/polaris.go/plugins/sentinel"
+	"github.com/univeros/polaris.go/plugins/sso"
+	"github.com/univeros/polaris.go/plugins/username"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 const remedyDSN = "set DATABASE_URL (in the environment or .env) or pass --dsn: postgres://user:pass@host:5432/db, mysql://user:pass@host:3306/db or sqlite:path/to/polaris.db"
@@ -65,7 +65,7 @@ type standardPlugin struct {
 }
 
 func standardPlugins() []standardPlugin {
-	const base = "github.com/univeros/polaris-go/plugins/"
+	const base = "github.com/univeros/polaris.go/plugins/"
 	return []standardPlugin{
 		{"audit", audit.ID, base + "audit", "audit.New(audit.Config{})", func(*source) polaris.Plugin { return audit.New(audit.Config{}) }},
 		{"admin", admin.ID, base + "admin", "admin.New(admin.Config{})", func(*source) polaris.Plugin { return admin.New(admin.Config{}) }},

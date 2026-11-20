@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 )
 
 var ctx = context.Background()

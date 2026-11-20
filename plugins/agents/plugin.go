@@ -6,15 +6,15 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/upstream"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // ID is the plugin id: its routes are polaris.agents.*, its problems agents/*.

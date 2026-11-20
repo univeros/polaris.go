@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/store"
 )
 
 // DefaultActivityInterval is how often, at most, a user's last activity is written.

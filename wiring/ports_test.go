@@ -3,8 +3,8 @@ package wiring
 import (
 	"testing"
 
-	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/notify/notifytest"
+	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/notify/notifytest"
 )
 
 type portsPlugin struct{ m notify.Mailer }

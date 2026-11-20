@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Role is an operator role; each includes the ones below it (viewer < support < admin < owner).

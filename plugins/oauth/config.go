@@ -3,7 +3,7 @@ package oauth
 import (
 	"errors"
 	"fmt"
-	"github.com/univeros/polaris-go/internal/netguard"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"net/http"
 	"regexp"
 	"strings"

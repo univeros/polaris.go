@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 // The OpenID scopes; every other scope is a permission name or one of Config.Scopes.

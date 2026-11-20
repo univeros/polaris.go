@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/observe"
-	"github.com/univeros/polaris-go/metrics"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/observe"
+	"github.com/univeros/polaris.go/metrics"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 func Example() {

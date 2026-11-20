@@ -3,7 +3,7 @@ package scim
 import (
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The scim.* event (and audit) names.

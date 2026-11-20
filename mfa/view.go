@@ -1,6 +1,6 @@
 package mfa
 
-import "github.com/univeros/polaris-go/model"
+import "github.com/univeros/polaris.go/model"
 
 // FactorView is a factor as the client sees it at the login challenge: enough to choose and
 // label it, never a secret or a full destination. Its JSON is upstream's wire shape: id, type

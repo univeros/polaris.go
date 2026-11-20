@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/anonymous"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/wiring"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/anonymous"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // grantedBy is what the CLI records as the author of a grant or key, as upstream.

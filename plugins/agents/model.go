@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Owner types, modes, credentials and statuses of an agent.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // mysqlNoLimit is MySQL's documented "no limit" for an OFFSET without LIMIT.

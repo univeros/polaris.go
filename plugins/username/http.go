@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Route names.
