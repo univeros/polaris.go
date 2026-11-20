@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // evaluation is an execution that passed every check before anything is spent.

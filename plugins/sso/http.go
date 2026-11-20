@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Route names.

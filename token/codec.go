@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // Algorithm is a JWS signing algorithm (JWA name), as advertised in the token header and JWKS.

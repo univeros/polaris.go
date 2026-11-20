@@ -3,12 +3,12 @@ package polaris
 import (
 	"errors"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/session"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/session"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Errors of the programmatic API (Users, Orgs, Sessions), matched with errors.Is. The error

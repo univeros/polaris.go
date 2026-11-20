@@ -9,14 +9,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/plugins/oauth"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 // noGrantScope is the client scope of an agent without a live grant: the provider reads an empty

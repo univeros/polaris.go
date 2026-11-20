@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/token"
 )
 
 // noStore are the headers of a response that must never be cached (token responses, RFC 6749

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // The environment the PHP functional suite runs every recorded test in. The Go server these tests

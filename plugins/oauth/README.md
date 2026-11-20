@@ -12,7 +12,7 @@ intersection of the user's permissions and the token's scopes. Port of `polaris/
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/oauth"
+import "github.com/univeros/polaris.go/plugins/oauth"
 
 cfg, err := polaris.FromEnv(db, oauth.New(oauth.Config{ConsentURL: "https://app.example.com/consent"}))
 p, err := polaris.New(cfg)
@@ -101,4 +101,4 @@ active organization) and `…/oauth/not_found` (404). In Go, match `*oauth.Error
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/oauth`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/oauth`.

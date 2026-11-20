@@ -9,14 +9,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/authz"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/orgs"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/authz"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // The organization, membership, invitation, role, permission and user-administration routes

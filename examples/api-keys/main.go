@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"time"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/plugins/apikeys"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/plugins/apikeys"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 func main() {

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
 )
 
 // user returns the user id names, nil when gone.

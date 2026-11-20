@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/univeros/polaris-go/notify"
+	"github.com/univeros/polaris.go/notify"
 )
 
 var (

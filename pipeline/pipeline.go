@@ -33,13 +33,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/ratelimit"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/ratelimit"
+	"github.com/univeros/polaris.go/token"
 )
 
 // TokenParser verifies a bearer access token. *token.Codec satisfies it.

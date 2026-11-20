@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/token"
 )
 
 func TestObservedRecordsRouteAndToken(t *testing.T) {

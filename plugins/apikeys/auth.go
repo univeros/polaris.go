@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/ratelimit"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/ratelimit"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Header carries a key as an alternative to "Authorization: Bearer".

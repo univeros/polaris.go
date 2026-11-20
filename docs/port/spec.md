@@ -16,7 +16,7 @@ This repository is that library: **the whole of `polaris-core`, ported to Go, mi
 adapters**. Its first users are internal Go projects; the agent stack (§8, WP4–WP5) is therefore
 ported right after core, before the remaining sign-in methods and the infrastructure plugins.
 
-**This repository is private.** See §7.
+**This repository is public** (MIT), like every Polaris repository. See §7.
 
 ---
 
@@ -150,7 +150,7 @@ secret types).
 
 ### 4.2 Layout
 
-One Go module, `github.com/univeros/polaris-go`. Packages are added when their work package starts,
+One Go module, `github.com/univeros/polaris.go`. Packages are added when their work package starts,
 not before.
 
 ```
@@ -295,7 +295,7 @@ implementation, behind `internal/` where nothing outside the module needs it.
    `telemetry/otel`: OpenTelemetry spans and metrics for the pipeline (`Middleware`) and the store
    (`Store(adapter)`), importing OpenTelemetry only when that package is imported.
 7. **Quality bar.** `staticcheck`, `govulncheck`, `golangci-lint` (a checked-in config) clean in
-   CI (GitHub Actions, private repo); benchmarks for login, token verification, Protect and agent
+   CI (GitHub Actions); benchmarks for login, token verification, Protect and agent
    execution; `API.md` states what is stable in v0.x and what may change.
 
 ---
@@ -359,19 +359,16 @@ times, the DDL per dialect. Go tests verify each one and produce their own for P
 
 ---
 
-## 7. Privacy
+## 7. Visibility and disclosure
 
-- The repository is **private**. No public remote, no public fork, no publishing to the Go module
-  proxy or checksum DB.
-- `scripts/hooks/pre-push` (installed with `git config core.hooksPath scripts/hooks`) refuses a push
-  unless the remote is a GitHub repository whose visibility is `PRIVATE` (checked with `gh`).
-- Go tooling must not query public infrastructure for this module:
-  `GOPRIVATE=github.com/univeros/polaris-go` (set with `go env -w` on each developer machine and in
-  any consuming project's CI).
-- `LICENSE` is MIT, as upstream. Privacy comes from the private repository, not the license.
-- No package name, path or doc of this repository goes into an external service (issue trackers,
-  pastebins, public gists, LLM telemetry tools) without the owner's approval.
-
+- Polaris is public at every level: this repository (`univeros/polaris.go`) is MIT and public, and
+  its documentation joins the Polaris website next to the PHP version.
+- Exception, temporary: the repository stays private until polaris-core ships the fixes for the
+  upstream vulnerabilities this port found and documents (decisions #38, #39, #43), so their
+  exploits are never public before a patch. Then it is flipped public and `scripts/protect-main.sh`
+  protects `main` (pull requests only, the three CI checks green, linear history, no force pushes).
+- Security issues found later follow the same rule: fix upstream (or here) first, publish details
+  after.
 ---
 
 ## 8. Work packages
@@ -382,8 +379,8 @@ pass, log decisions, open a PR listing each acceptance criterion with how it was
 ### WP0 — setup (this change)
 
 Module, docs, privacy guard, upstream mirror, `make qa`.
-**Accept:** `go build ./... && go vet ./...` green; `upstream/REF` = `da72f79`; pre-push hook refuses a
-non-private remote.
+**Accept:** `go build ./... && go vet ./...` green; `upstream/REF` = `da72f79` (the pre-push guard of
+this WP was retired by decision #49).
 
 ### WP1 — foundation
 
@@ -457,7 +454,7 @@ README per plugin; `v1.0.0`.
 
 Taken (log them in `decisions.md` if revisited):
 
-1. One Go module, plugins as subpackages: one private repository, one version, no `go.work`.
+1. One Go module, plugins as subpackages: one repository, one version, no `go.work`.
 2. Database- and token-compatible with PHP (G2, G3), so PHP and Go apps can share an identity store.
 3. Manifest YAML reused verbatim, endpoints keyed by PHP class name (§4.4).
 4. Agents-first ordering (§8).

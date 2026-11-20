@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The oauth.* event names (also the audit catalog entries).

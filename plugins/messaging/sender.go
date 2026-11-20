@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/ratelimit"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/ratelimit"
 )
 
 // Channel delivers messages: an email transport, an SMS provider, a log, memory in tests. Send

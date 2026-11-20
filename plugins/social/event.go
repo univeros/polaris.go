@@ -3,7 +3,7 @@ package social
 import (
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The social.* event (and audit) names.

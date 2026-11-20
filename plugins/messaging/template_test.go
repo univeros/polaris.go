@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/store/memstore"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 func newRenderer(instance map[string]map[string]Template, strs Strings, locale string) (*renderer, *memstore.Store) {

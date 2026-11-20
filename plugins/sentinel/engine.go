@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris.go/event"
 )
 
 // The kinds of attempt the guarded routes are.

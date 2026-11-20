@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Hooks keep the host's own data in step with Polaris accounts and tokens. Every hook is

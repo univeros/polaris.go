@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 // A consent for one client_id URL is never found for another that differs only in case (a

@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/univeros/polaris-go/notify"
+	"github.com/univeros/polaris.go/notify"
 )
 
 // CoreTemplates maps the templates core asks its Mailer for onto the plugin's keys; a name not

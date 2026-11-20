@@ -10,7 +10,7 @@ assertion JSON as the code. Port of `polaris/passkey`; needs no other plugin.
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/passkey"
+import "github.com/univeros/polaris.go/plugins/passkey"
 
 cfg, err := polaris.FromEnv(db, passkey.New(passkey.Config{
 	Origins: []string{"https://app.example.com"},
@@ -77,4 +77,4 @@ only second factor and the authenticator did not verify the user), `…/passkey/
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/passkey`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/passkey`.

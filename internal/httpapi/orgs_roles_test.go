@@ -5,9 +5,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Port of RoleEndpointsTest: GET/POST /orgs/{id}/roles, PATCH/DELETE /orgs/{id}/roles/{roleId}

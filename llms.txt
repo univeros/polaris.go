@@ -6,16 +6,16 @@
 > protection. One import, a few lines, net/http. Wire-, database- and token-compatible with Polaris
 > for PHP (polaris-core 0.12.0).
 
-Module: `github.com/univeros/polaris-go` (private; Go 1.26). Set
-`GOPRIVATE=github.com/univeros/polaris-go` and git access to github.com/univeros before `go get`.
+Module: `github.com/univeros/polaris.go` (Go 1.26): `go get github.com/univeros/polaris.go`.
+The package name is `polaris`.
 
 ## Quickstart (copy this)
 
 ```go
 import (
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 db, err := sqlstore.Open(ctx, store.Postgres, os.Getenv("DATABASE_URL")) // or store.MySQL, store.SQLite
@@ -121,7 +121,7 @@ hash-chained receipt; `POST /agents/{id}/revoke` is the kill switch.
 ## Agents: sign in from Go (the agent side)
 
 ```go
-import "github.com/univeros/polaris-go/agent"
+import "github.com/univeros/polaris.go/agent"
 
 key, _ := agent.GenerateKey(agent.EdDSA)                 // persist key.Export(); reload with agent.ImportKey
 a, _ := agent.New(ctx, "https://app.example.com", agent.WithKey(key))
@@ -182,7 +182,7 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 - `examples/minimal`, `examples/api-keys` — complete programs.
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
-- `go doc github.com/univeros/polaris-go/<package>` — every exported identifier is documented.
+- `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.
 - `internal/upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
 - `API.md` — what is stable in v0.x (the host surface, the plugin SDK) and what may change.
 - `docs/port/spec.md`, `docs/port/decisions.md` — design and every departure from the PHP version.

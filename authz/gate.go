@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Caller is who asks the Gate: an authenticated user and the active organization of the request.

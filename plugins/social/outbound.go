@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // outbound is what the providers share: the HTTP client (no redirects), the cache for discovery

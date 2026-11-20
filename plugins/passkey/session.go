@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 // amr is what a passkey sign-in records.

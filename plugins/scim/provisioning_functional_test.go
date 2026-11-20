@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/plugins/scim"
+	"github.com/univeros/polaris.go/plugins/scim"
 )
 
 func TestScimProvisioning(t *testing.T) {

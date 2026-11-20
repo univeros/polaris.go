@@ -11,10 +11,10 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 // openSQLite opens a fresh SQLite database file, foreign keys on, as PHP's test suite does.

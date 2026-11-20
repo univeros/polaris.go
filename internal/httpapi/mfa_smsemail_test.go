@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
+	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
 func TestMfaSmsEmailEndpoints(t *testing.T) {

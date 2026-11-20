@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Protect and Guard read the body for its hash and arguments: never more than MaxBodyBytes.

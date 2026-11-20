@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/univeros/polaris-go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/upstream"
 )
 
 // pluginDirs is every plugin manifest in upstream.API, in the order packages/client-ts/polaris.php

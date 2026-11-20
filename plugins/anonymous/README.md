@@ -10,7 +10,7 @@ the guest's sessions and disables it; its id stays. Guests nobody converted are 
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/anonymous"
+import "github.com/univeros/polaris.go/plugins/anonymous"
 
 guests := anonymous.New(anonymous.Config{
 	OnConvert: func(ctx context.Context, guestID, userID string) error {
@@ -63,4 +63,4 @@ Sign-in dispatches core's `user.logged_in`. `Prune` dispatches `event.UserDelete
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/anonymous`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/anonymous`.

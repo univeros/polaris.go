@@ -5,9 +5,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Port of MembershipEndpointsTest: the member-management endpoints and their invariants (no

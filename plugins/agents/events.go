@@ -3,7 +3,7 @@ package agents
 import (
 	"time"
 
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The agent.* event (and audit) names.

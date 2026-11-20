@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/store"
 )
 
 var recoveryFormat = regexp.MustCompile(`^[a-hjkmnp-z2-7]{5}-[a-hjkmnp-z2-7]{5}$`)

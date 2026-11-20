@@ -3,7 +3,7 @@ package oauth
 import (
 	"context"
 	"encoding/json"
-	"github.com/univeros/polaris-go/internal/netguard"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"io"
 	"log/slog"
 	"net/http"

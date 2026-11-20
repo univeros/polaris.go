@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/repository"
 )
 
 // Webhook headers.

@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // CreateSchema creates every table and index of models, referenced tables first. It does not seed

@@ -15,7 +15,7 @@ coding agent as the integrator (spec §4.6, G8).
 
 ## 3. 2026-11-20 — Private repository
 
-Private repository `univeros/polaris-go`, no public remote, `GOPRIVATE` for the module path,
+Private repository `univeros/polaris.go`, no public remote, `GOPRIVATE` for the module path,
 pre-push hook refusing non-private remotes (spec §7). License MIT, as upstream: visibility is
 controlled by the repository, and MIT keeps a later open-sourcing a visibility switch.
 
@@ -631,3 +631,14 @@ eagerly and seed the same cache, so a request resolves at most once
 (`TestProtectResolvesTheAuthorityLazilyOnce`). If a lazy resolution fails it is logged and
 `PrincipalFrom` returns `ok=false`. `BenchmarkProtect`: JWT 376 → 124 allocs, API key 597 → 345.
 Supersedes the "one query per request" note of #46.
+
+## 49. 2026-11-20 — Public, renamed `univeros/polaris.go`; disclosure first
+
+The owner's rule: Polaris is public at every level, and its website will document the Go version
+next to the PHP one. Replaces #3: the repository is `univeros/polaris.go` (module
+`github.com/univeros/polaris.go`, package `polaris`), MIT, public. It stays private only until
+polaris-core ships the fixes for #38 (SCIM takeover), #39 (social CSRF) and #43 (SSO takeover), so
+no exploit is public before its patch; then it flips public and `scripts/protect-main.sh` protects
+`main` (branch protection needs a public repository on the org's plan). The pre-push "private
+only" hook is removed; `GOPRIVATE` is needed only during the private window. `v0.1.0` was tagged
+under the old module path before the rename; releases start at `v0.1.1`.

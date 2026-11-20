@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // mfaEndpoints serves upstream/api/core/auth/mfa: factor enrollment and management (this file)

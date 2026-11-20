@@ -10,11 +10,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // phpTrimSet is what PHP's trim() strips.

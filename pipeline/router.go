@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
 )
 
 // router matches a request against the manifest as upstream does: routes in load order, the first

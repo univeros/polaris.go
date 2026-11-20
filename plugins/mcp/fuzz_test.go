@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // FuzzDPoPProof is the resource server's proof check on signed arbitrary header and claims

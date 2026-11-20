@@ -4,8 +4,8 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/metrics"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/metrics"
 )
 
 // MetricCounter is the counter every core event increments, with its name in the "event"

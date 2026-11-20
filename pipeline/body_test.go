@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
 )
 
 func TestRequestBodiesAreBounded(t *testing.T) {

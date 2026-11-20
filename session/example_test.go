@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/security"
-	"github.com/univeros/polaris-go/session"
-	"github.com/univeros/polaris-go/store/memstore"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/session"
+	"github.com/univeros/polaris.go/store/memstore"
+	"github.com/univeros/polaris.go/token"
 )
 
 // fakeIssuer stands in for the access-token *token.Codec.

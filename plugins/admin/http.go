@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Route names (polaris.admin.<file>).

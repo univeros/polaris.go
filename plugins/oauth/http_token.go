@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // issued is a grant's token response and who it was for (the oauth.token_issued event).

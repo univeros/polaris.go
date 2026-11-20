@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/security"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
 )
 
 // The built-in signals' names, as recorded with each decision.

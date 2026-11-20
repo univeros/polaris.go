@@ -12,11 +12,11 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/token"
 )
 
 func Example() {

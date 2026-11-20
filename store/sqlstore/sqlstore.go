@@ -16,7 +16,7 @@ import (
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 // Store is a store.Adapter over a *sql.DB. It is safe for concurrent use.

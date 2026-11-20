@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Token types of the token exchange (RFC 8693 §3).

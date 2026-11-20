@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // CounterStore counts per key in fixed time windows, for the velocity and credential-stuffing

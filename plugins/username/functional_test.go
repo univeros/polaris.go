@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/username"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/username"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 const (

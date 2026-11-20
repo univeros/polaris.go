@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/store"
 )
 
 // rolesByEmail maps each member's email to their role slugs.

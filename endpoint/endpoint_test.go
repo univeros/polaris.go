@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/token"
 )
 
 func TestInputMergeOrder(t *testing.T) {

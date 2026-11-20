@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/oauth"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
 // Port of OAuthFlowTest: every grant against its fixture, DPoP binding and proof replay, the

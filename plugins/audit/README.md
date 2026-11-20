@@ -8,7 +8,7 @@ required by `plugins/admin`.
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/audit"
+import "github.com/univeros/polaris.go/plugins/audit"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}))
 p, err := polaris.New(cfg)
@@ -64,4 +64,4 @@ Uses core's `audit.read`.
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/audit`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/audit`.

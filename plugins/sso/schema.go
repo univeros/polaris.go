@@ -1,6 +1,6 @@
 package sso
 
-import "github.com/univeros/polaris-go/schema"
+import "github.com/univeros/polaris.go/schema"
 
 // The tables the plugin owns.
 const (

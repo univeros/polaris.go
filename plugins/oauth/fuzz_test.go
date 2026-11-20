@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // FuzzDPoPProof signs arbitrary header and claims bytes with one P-256 key (the header's jwk may

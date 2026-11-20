@@ -9,8 +9,8 @@ import (
 	"os"
 	"slices"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/wiring"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // StdioEnv is the environment variable a stdio host reads the credential from, as upstream's

@@ -30,8 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // ID is the plugin id.

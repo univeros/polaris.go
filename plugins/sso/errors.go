@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // Why a sign-in could not proceed: an Error's Reason, also the problem name the caller reads.

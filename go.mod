@@ -1,4 +1,4 @@
-module github.com/univeros/polaris-go
+module github.com/univeros/polaris.go
 
 go 1.26.0
 

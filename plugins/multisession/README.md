@@ -10,7 +10,7 @@ method, a refresh, a switch) is recorded against a device id the server mints an
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/multisession"
+import "github.com/univeros/polaris.go/plugins/multisession"
 
 cfg, err := polaris.FromEnv(db, multisession.New(multisession.Config{}))
 p, err := polaris.New(cfg)
@@ -54,4 +54,4 @@ caller's session is not on it), `…/multi-session/session_not_found` (404),
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/multisession`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/multisession`.

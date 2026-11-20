@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/univeros/polaris-go/cli"
+	"github.com/univeros/polaris.go/cli"
 )
 
 func main() {

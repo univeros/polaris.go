@@ -3,8 +3,8 @@ package admin
 import (
 	"context"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // The admin.* audit names: every operator action is recorded as one.

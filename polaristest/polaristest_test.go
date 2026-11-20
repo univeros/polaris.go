@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 func TestBoots(t *testing.T) {

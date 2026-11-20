@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 const (

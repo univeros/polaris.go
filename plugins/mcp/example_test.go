@@ -13,9 +13,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/plugins/mcp"
-	"github.com/univeros/polaris-go/plugins/oauth"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/plugins/mcp"
+	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
 type deployArgs struct {

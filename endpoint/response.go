@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/manifest"
+	"github.com/univeros/polaris.go/manifest"
 )
 
 // ProblemTypes prefixes every RFC 9457 problem type URL.

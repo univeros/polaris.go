@@ -10,13 +10,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/internal/upstream"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // ID is the plugin id; its routes read polaris.admin.*.

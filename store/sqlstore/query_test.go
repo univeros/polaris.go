@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/store"
 )
 
 type shape struct {

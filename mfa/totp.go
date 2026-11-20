@@ -12,8 +12,8 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 )
 
 // TOTPProvider generates and checks RFC 6238 authenticator-app codes. Secrets are base32.

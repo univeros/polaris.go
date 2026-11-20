@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/admin"
-	"github.com/univeros/polaris-go/plugins/audit"
-	"github.com/univeros/polaris-go/plugins/sso"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/storetest"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/admin"
+	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/plugins/sso"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/storetest"
+	"github.com/univeros/polaris.go/token"
 )
 
 // unit is upstream's PluginTest: the plugin wired through the graph, the flow through its methods

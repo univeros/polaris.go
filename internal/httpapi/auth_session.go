@@ -5,14 +5,14 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/identity"
-	"github.com/univeros/polaris-go/manifest"
-	"github.com/univeros/polaris-go/mfa"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/session"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/manifest"
+	"github.com/univeros/polaris.go/mfa"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/session"
+	"github.com/univeros/polaris.go/token"
 )
 
 func (a *authAPI) login(ctx context.Context, in *endpoint.Input) endpoint.Result {

@@ -10,8 +10,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Middleware traces and measures every request next serves: one server span per request (W3C

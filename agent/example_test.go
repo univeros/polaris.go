@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/univeros/polaris-go/agent"
+	"github.com/univeros/polaris.go/agent"
 )
 
 // The walkthrough: discover, enrol through a host, request grants, wait for the person to approve

@@ -3,8 +3,8 @@ package httpapi_test
 import (
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/polaristest"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/polaristest"
 )
 
 // TestMfaEndpointErrors covers the documented error answers no upstream fixture records.

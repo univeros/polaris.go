@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // TablePasskeys is the table the plugin owns. Challenges live in the cache.

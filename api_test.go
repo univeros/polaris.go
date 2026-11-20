@@ -14,12 +14,12 @@ import (
 	"sync"
 	"testing"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/polaristest"
-	"github.com/univeros/polaris-go/session"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/session"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 // hookLog records what the hooks saw.

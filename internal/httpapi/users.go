@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/session"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/session"
+	"github.com/univeros/polaris.go/token"
 )
 
 // User administration (/users/{id}), switching the active organization and accepting an

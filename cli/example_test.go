@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/cli"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/cli"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 // A host's own binary runs the CLI over its instance, so its plugins' tables, routes and

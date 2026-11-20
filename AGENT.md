@@ -26,9 +26,11 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
 
 ## The rules
 
-1. **Private repository.** Never add a public remote, never push to a non-private repo (the
-   `scripts/hooks/pre-push` hook enforces it; do not bypass it with `--no-verify`), never paste code,
-   paths or names from here into external services. `GOPRIVATE=github.com/univeros/polaris-go`.
+1. **Public, like every Polaris repository.** `univeros/polaris.go` is public (MIT). It is held
+   private only until polaris-core ships the fixes for decisions #38, #39 and #43 (unpatched
+   upstream vulnerabilities this repository documents); then it goes public for good and
+   `scripts/protect-main.sh` protects `main`. Until then do not publish exploit details anywhere.
+   `main` takes changes through pull requests with CI green.
 2. **Upstream decides observable behaviour, not design.** The PHP code at `../polaris-core` (pinned
    ref in `internal/upstream/REF`) defines what a client or a shared database sees: responses, tables, hash /
    cipher / JWT formats, event names. How the Go code achieves it is designed fresh, the way the best

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/token"
 )
 
 // ConfirmedFactors returns the user's confirmed factors, the only ones that can satisfy the

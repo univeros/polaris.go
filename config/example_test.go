@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris.go/config"
 )
 
 func ExampleFromLookup() {

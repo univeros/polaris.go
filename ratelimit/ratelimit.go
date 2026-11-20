@@ -16,9 +16,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
-	"github.com/univeros/polaris-go/config"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 )
 
 // Store counts hits per key in fixed windows. Implementations are safe for concurrent use.

@@ -5,7 +5,7 @@
 //
 // Import it under another name so it does not clash with go.opentelemetry.io/otel:
 //
-//	import polarisotel "github.com/univeros/polaris-go/telemetry/otel"
+//	import polarisotel "github.com/univeros/polaris.go/telemetry/otel"
 //
 // Privacy: no attribute ever carries a token, a password, an email address, a request body or a
 // stored value. The principal's user id is omitted unless [WithUserIDHash] is given, and then only
@@ -26,7 +26,7 @@ import (
 )
 
 // ScopeName is the instrumentation scope of every tracer and meter this package creates.
-const ScopeName = "github.com/univeros/polaris-go/telemetry/otel"
+const ScopeName = "github.com/univeros/polaris.go/telemetry/otel"
 
 // Attribute keys this package sets besides the OpenTelemetry semantic conventions.
 const (

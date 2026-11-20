@@ -10,7 +10,7 @@ owner's current permissions with the key's, so a key never does more than its ow
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/apikeys"
+import "github.com/univeros/polaris.go/plugins/apikeys"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), apikeys.New(apikeys.Config{}))
 p, err := polaris.New(cfg)
@@ -76,4 +76,4 @@ step-up route called with a key).
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/apikeys`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/apikeys`.

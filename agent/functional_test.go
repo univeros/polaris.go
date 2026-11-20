@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/agent"
+	"github.com/univeros/polaris.go/agent"
 )
 
 // TestWalkthrough is upstream's tests/Functional/WalkthroughTest against a real Polaris server

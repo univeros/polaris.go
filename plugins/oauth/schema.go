@@ -1,6 +1,6 @@
 package oauth
 
-import "github.com/univeros/polaris-go/schema"
+import "github.com/univeros/polaris.go/schema"
 
 // The plugin's tables.
 const (

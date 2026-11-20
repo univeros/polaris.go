@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 )
 
 // ErrCircularForeignKeys is returned when tables reference each other so no creation order exists.

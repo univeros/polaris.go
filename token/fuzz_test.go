@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // fuzzSeeds are the PHP-minted vector tokens plus hand-made edge cases.

@@ -8,13 +8,13 @@ import (
 	"net/url"
 	"strings"
 
-	polaris "github.com/univeros/polaris-go"
-	"github.com/univeros/polaris-go/config"
-	"github.com/univeros/polaris-go/internal/contracttest"
-	"github.com/univeros/polaris-go/notify/notifytest"
-	"github.com/univeros/polaris-go/plugins/passwordless"
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store/memstore"
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/notify/notifytest"
+	"github.com/univeros/polaris.go/plugins/passwordless"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store/memstore"
 )
 
 // A magic link signs a new address up: the email links to /magic-link/verify, which redirects to

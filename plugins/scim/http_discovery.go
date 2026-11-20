@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/univeros/polaris-go/endpoint"
+	"github.com/univeros/polaris.go/endpoint"
 )
 
 // serviceProviderConfig answers what this server supports: filtering and PATCH, bearer tokens; no

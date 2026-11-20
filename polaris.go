@@ -3,9 +3,9 @@ package polaris
 import (
 	"net/http"
 
-	"github.com/univeros/polaris-go/internal/httpapi"
-	"github.com/univeros/polaris-go/pipeline"
-	"github.com/univeros/polaris-go/wiring"
+	"github.com/univeros/polaris.go/internal/httpapi"
+	"github.com/univeros/polaris.go/pipeline"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Config is everything a host decides; see wiring.Config. Secrets, Auth and DB are required;

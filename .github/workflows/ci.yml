@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GOPRIVATE: github.com/univeros/polaris-go
+  GOPRIVATE: github.com/univeros/polaris.go
 
 jobs:
   qa:

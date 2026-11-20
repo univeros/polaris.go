@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/univeros/polaris-go/event"
+	"github.com/univeros/polaris.go/event"
 )
 
 type point struct {

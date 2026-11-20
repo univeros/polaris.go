@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"regexp"
 
-	"github.com/univeros/polaris-go/plugins/oauth"
+	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
 // The algorithms an agent key signs with.

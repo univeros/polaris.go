@@ -10,11 +10,11 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/univeros/polaris-go/event"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/notify"
-	"github.com/univeros/polaris-go/repository"
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/token"
 )
 
 const otpPepperContext = "otp"

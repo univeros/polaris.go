@@ -3,7 +3,7 @@ package oauth_test
 import (
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
+	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
 // Every oauth-provider fixture has a Go test (port of ContractCoverageTest).

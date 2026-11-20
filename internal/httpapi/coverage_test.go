@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/internal/contracttest"
+	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
 // TestEveryCoreFixtureHasAGoTest fails while an upstream core fixture has no Go test: a test claims

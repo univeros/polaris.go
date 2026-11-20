@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/model"
-	"github.com/univeros/polaris-go/plugins/audit"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/plugins/audit"
 )
 
 // Wire constants of the SCIM routes.

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/token"
+	"github.com/univeros/polaris.go/token"
 )
 
 // ErrReservedClaim reports a host claim (Config.Claims) whose name Polaris or a standard reserves,

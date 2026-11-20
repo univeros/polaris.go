@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris-go/endpoint"
-	"github.com/univeros/polaris-go/repository"
+	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/repository"
 )
 
 const decisionEndpoint = "/oauth2/authorize/decision"

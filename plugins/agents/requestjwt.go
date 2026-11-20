@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris-go/cache"
-	"github.com/univeros/polaris-go/clock"
+	"github.com/univeros/polaris.go/cache"
+	"github.com/univeros/polaris.go/clock"
 )
 
 // RequestJWTType is the typ header of an agent's signed request JWT.

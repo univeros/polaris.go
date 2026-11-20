@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/sqlstore"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
 var dialects = []store.Dialect{store.Postgres, store.MySQL, store.SQLite}

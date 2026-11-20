@@ -13,7 +13,7 @@ signed, hash-chained receipt; a kill switch seals the agent. Port of `polaris/ag
 ## Install
 
 ```go
-import "github.com/univeros/polaris-go/plugins/agents"
+import "github.com/univeros/polaris.go/plugins/agents"
 
 ag := agents.New(agents.Config{Capabilities: []agents.Capability{
 	{Name: "invoices.list", Description: "List invoices", Permission: "invoices.read", Risk: agents.RiskLow,
@@ -103,4 +103,4 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 
 ## Example
 
-`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris-go/plugins/agents`.
+`Example` in [`example_test.go`](example_test.go) — `go doc github.com/univeros/polaris.go/plugins/agents`.

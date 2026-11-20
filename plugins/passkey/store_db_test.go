@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/univeros/polaris-go/schema"
-	"github.com/univeros/polaris-go/store"
-	"github.com/univeros/polaris-go/store/storetest"
+	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/store/storetest"
 )
 
 // The passkey table installs on every database (on MySQL a utf8mb4 VARCHAR(1024) unique index
