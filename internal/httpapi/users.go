@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -16,7 +17,7 @@ import (
 // invitation: the routes of the orgs area that act on the caller's account.
 
 func (a orgAPI) readUser(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
-	user, err := a.g.Identity().ReadUser(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id"))
+	user, err := services.Of(a.g).Identity.ReadUser(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id"))
 	if err != nil {
 		return a.fail(ctx, err)
 	}
@@ -32,7 +33,7 @@ func (a orgAPI) updateUser(ctx context.Context, in *endpoint.Input, tok *token.T
 		}
 		displayName = &s
 	}
-	user, err := a.g.Identity().UpdateProfile(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id"), displayName)
+	user, err := services.Of(a.g).Identity.UpdateProfile(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id"), displayName)
 	if err != nil {
 		return a.fail(ctx, err)
 	}
@@ -40,7 +41,7 @@ func (a orgAPI) updateUser(ctx context.Context, in *endpoint.Input, tok *token.T
 }
 
 func (a orgAPI) deleteUser(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
-	if err := a.g.Identity().EraseUser(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id")); err != nil {
+	if err := services.Of(a.g).Identity.EraseUser(ctx, tok.Subject(), endpoint.ActorOrganization(tok), in.String("id")); err != nil {
 		return a.fail(ctx, err)
 	}
 	return endpoint.Data(http.StatusOK, map[string]any{"deleted": true})
@@ -85,7 +86,7 @@ func (a orgAPI) switchOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	if err != nil || m.Status != model.MembershipStatusActive {
 		return endpoint.Forbidden("You are not an active member of that organization.")
 	}
-	access, err := a.g.Sessions().SwitchOrganization(ctx, userID, orgID, sessionID)
+	access, err := services.Of(a.g).Sessions.SwitchOrganization(ctx, userID, orgID, sessionID)
 	if errors.Is(err, session.ErrInvalidGrant) {
 		return endpoint.Error(http.StatusUnauthorized, "session_ended", "The session is no longer active.")
 	}
@@ -105,7 +106,7 @@ func (a orgAPI) acceptInvite(ctx context.Context, in *endpoint.Input, tok *token
 	if secret == "" {
 		return endpoint.Unprocessable([]string{"An invitation token is required."})
 	}
-	orgID, err := a.g.Orgs().AcceptInvitation(ctx, tok.Subject(), secret)
+	orgID, err := services.Of(a.g).Orgs.AcceptInvitation(ctx, tok.Subject(), secret)
 	if err != nil {
 		return a.fail(ctx, err)
 	}

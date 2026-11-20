@@ -2,6 +2,7 @@ package scim
 
 import (
 	"context"
+	"github.com/univeros/polaris.go/internal/services"
 	"reflect"
 	"slices"
 	"strings"
@@ -66,7 +67,7 @@ func (f *fixture) user(id, email string) model.User {
 func (f *fixture) organization() string {
 	f.t.Helper()
 	owner := f.user("u-owner", "owner@acme.example")
-	org := must(f.srv.Graph().Orgs().CreateOrganization(f.ctx, "Acme", "", owner.ID))
+	org := must(services.Of(f.srv.Graph()).Orgs.CreateOrganization(f.ctx, "Acme", "", owner.ID))
 	return org.ID
 }
 

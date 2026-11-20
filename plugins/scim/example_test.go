@@ -46,7 +46,7 @@ func Example() {
 	now := time.Now().UTC()
 	owner := model.User{ID: "u-owner", Email: "owner@acme.example", Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
 	_ = g.Repos().Users.Insert(ctx, owner)
-	org, _ := g.Orgs().CreateOrganization(ctx, "Acme", "", owner.ID)
+	org, _ := p.Orgs().Create(ctx, owner.ID, "Acme", "")
 
 	// What POST /orgs/{id}/scim/connections does for an organization admin:
 	conn, token, err := scim.Of(g).Connections().Create(ctx, org.ID, "Okta", scim.DeprovisionDeactivate, "", owner.ID)

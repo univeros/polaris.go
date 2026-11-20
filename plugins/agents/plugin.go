@@ -93,7 +93,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if op == nil {
 		return errors.New(`agents: the oauth plugin is required (every agent is an OAuth client): add oauth.New(oauth.Config{}) to Config.Plugins`)
 	}
-	if g.Tokens() == nil || g.Pepper() == nil || g.MFA() == nil {
+	if g.Tokens() == nil { // core services are built with the codec
 		return errors.New("agents: the graph has no token codec, pepper or MFA service; build the plugin through polaris.New")
 	}
 	settings := p.settings

@@ -77,7 +77,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if p.configErr != nil {
 		return p.configErr
 	}
-	if g.Tokens() == nil || g.Pepper() == nil {
+	if g.Tokens() == nil { // core services are built with the codec
 		return errors.New("oauth: the graph has no token codec or pepper; build the plugin through polaris.New")
 	}
 	if p.settings.baseURL == "" {

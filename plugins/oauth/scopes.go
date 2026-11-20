@@ -2,12 +2,12 @@ package oauth
 
 import (
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"maps"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/token"
 )
@@ -30,7 +30,7 @@ type scopes struct {
 	permission  map[string]bool
 }
 
-func newScopes(catalog authz.Catalog, extra map[string]string) *scopes {
+func newScopes(catalog wiring.Catalog, extra map[string]string) *scopes {
 	s := &scopes{description: map[string]string{}, permission: map[string]bool{}}
 	add := func(name, description string) {
 		if _, ok := s.description[name]; !ok {

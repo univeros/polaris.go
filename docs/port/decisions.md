@@ -661,3 +661,29 @@ under the old module path before the rename; releases start at `v0.1.1`.
   callback does not carry, so Apple sign-in failed with `state_invalid`. Go now follows
   `Config.BaseURL` (`TestTheBindingCookieFollowsTheBaseURLNotTheConnection`).
 - CI no longer sets `GOPRIVATE`.
+
+## 51. 2026-11-20 — API stability: narrow Graph services, stable host interfaces, apidiff guard
+
+- **Breaking (pre-1.0):** `wiring.Graph`'s `Identity`, `Sessions`, `MFA`, `Orgs`, `Denylist`,
+  `Catalog`, `Resolver`, `Gate`, `Principals` and `Pepper` return narrow interfaces declared in
+  `wiring`, holding only the methods the plugins call (inventoried with `go/types` over `plugins/`,
+  `agent/`, `cli/`; `mfa.Service.HasConfirmedFactor`, passed into an agents interface, was found by
+  the compiler). `Escalation` and `Tickets` leave the SDK: no plugin used them. The concrete method
+  sets are then free to change. Core (package `polaris`, `internal/httpapi`, `polaristest`) reaches
+  the concrete services through `internal/services.Of(g)`, bound by `wiring`'s `init`.
+  `TestGraphAccessorsReturnOnlyStableTypes` keeps every accessor on a stable type.
+- Declared stable, unchanged: the host-implemented interfaces (`security.PasswordHasher`,
+  `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`,
+  `cache.Cache`, `ratelimit.Store` with `ratelimit.Result`, `metrics.Metrics`); packages `model`
+  (rows, frozen with the database anyway) and `schema` (the table DSL a `SchemaProvider` needs);
+  `telemetry/otel` (host surface, #47); and the types the stable signatures name, computed as the
+  closure of the stable packages' exported API. `Graph.Repos` stays `*repository.Repos`; the
+  repositories and `repository.Table` are stable as they are. `scripts/api-stable.txt` is the
+  machine-readable list; API.md the prose.
+- No package moved to `internal/`: every remaining public package is named by a stable signature,
+  except `store/memstore` and `store/storetest`, kept public for hosts' tests and adapter authors.
+- New tool `golang.org/x/exp/cmd/apidiff` (pinned pseudo-version in the Makefile, fetched with
+  `go run`, never in `go.mod`). `make apicheck BASE=<ref>` and the CI job "API compatibility" on
+  pull requests fail on an incompatible change to a listed name unless `decisions.md` gains a line
+  containing "Breaking". Chosen over `gorelease`, which reports every package, the unstable ones
+  included.

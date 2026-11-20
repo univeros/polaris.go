@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -73,7 +74,7 @@ func (a *authAPI) refresh(ctx context.Context, in *endpoint.Input) endpoint.Resu
 	if presented == "" {
 		return endpoint.Unprocessable([]string{"A refresh token is required."})
 	}
-	tokens, err := a.g.Sessions().Refresh(ctx, presented, endpoint.Client(ctx))
+	tokens, err := services.Of(a.g).Sessions.Refresh(ctx, presented, endpoint.Client(ctx))
 	switch {
 	case errors.Is(err, session.ErrInvalidGrant):
 		return endpoint.Error(http.StatusUnauthorized, "invalid_grant", "The refresh token is invalid or expired.")
@@ -117,7 +118,7 @@ func (a *authAPI) logout(ctx context.Context, _ *endpoint.Input) endpoint.Result
 	if tok == nil || authSessionID(tok) == "" {
 		return endpoint.Unauthorized()
 	}
-	if err := a.g.Sessions().Logout(ctx, authSessionID(tok)); err != nil {
+	if err := services.Of(a.g).Sessions.Logout(ctx, authSessionID(tok)); err != nil {
 		return a.fail(ctx, "logout", err)
 	}
 	return authStatus("logged_out")
@@ -128,7 +129,7 @@ func (a *authAPI) logoutAll(ctx context.Context, _ *endpoint.Input) endpoint.Res
 	if !ok {
 		return endpoint.Unauthorized()
 	}
-	if err := a.g.Sessions().LogoutAll(ctx, userID, endpoint.Client(ctx)); err != nil {
+	if err := services.Of(a.g).Sessions.LogoutAll(ctx, userID, endpoint.Client(ctx)); err != nil {
 		return a.fail(ctx, "logout all", err)
 	}
 	return authStatus("logged_out_all")

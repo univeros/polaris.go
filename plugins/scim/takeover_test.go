@@ -3,6 +3,7 @@ package scim
 import (
 	"testing"
 
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/model"
 )
 
@@ -14,7 +15,7 @@ func tenants(t *testing.T) (*fixture, Connection, model.User, string) {
 	f := newFixture(t)
 	orgA := f.organization()
 	victim := f.user("u-victim", "victim@victim.example")
-	orgB := must(f.srv.Graph().Orgs().CreateOrganization(f.ctx, "Beta", "", victim.ID))
+	orgB := must(services.Of(f.srv.Graph()).Orgs.CreateOrganization(f.ctx, "Beta", "", victim.ID))
 	return f, f.connection(orgA, DeprovisionDelete), victim, orgB.ID
 }
 

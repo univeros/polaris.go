@@ -11,6 +11,7 @@ package polaristest
 
 import (
 	"context"
+	"github.com/univeros/polaris.go/internal/services"
 	"os"
 	"sync"
 	"testing"
@@ -154,7 +155,7 @@ func New(t testing.TB, opts ...Option) *Server {
 	g := p.Graph()
 	srv.Events.bus.Subscribe(g.Listeners()...)
 	if o.db == nil {
-		if err := authz.Seed(ctx, db, g.Catalog(), g.Clock()); err != nil {
+		if err := authz.Seed(ctx, db, services.Of(g).Catalog, g.Clock()); err != nil {
 			t.Fatalf("polaristest: seed: %v", err)
 		}
 	}

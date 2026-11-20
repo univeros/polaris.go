@@ -1,5 +1,5 @@
 #!/bin/sh
-# Protects main on GitHub: pull requests only, the three CI checks green and up to date, linear
+# Protects main on GitHub: pull requests only, the four CI checks green and up to date, linear
 # history, no force pushes or deletion. Run once the repository is public (GitHub offers branch
 # protection on private repositories only on paid plans). Needs gh with admin rights.
 set -eu
@@ -11,7 +11,8 @@ gh api -X PUT "repos/$repo/branches/main/protection" --input - <<'JSON'
     "contexts": [
       "make qa (fmt, vet, lint, test -race, coverage)",
       "govulncheck",
-      "database matrix (PostgreSQL 17, MySQL 8.4)"
+      "database matrix (PostgreSQL 17, MySQL 8.4)",
+      "API compatibility"
     ]
   },
   "enforce_admins": false,

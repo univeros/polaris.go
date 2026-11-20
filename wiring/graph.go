@@ -22,6 +22,7 @@ import (
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/internal/observe"
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/internal/upstream"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/metrics"
@@ -129,6 +130,8 @@ type Graph struct {
 	byID      map[string]Plugin
 	listeners []event.Listener
 	bus       *event.Bus // the default dispatcher, nil when the host passed its own
+
+	core *services.Services // the concrete services, for core only (internal/services)
 }
 
 // Plugin returns the plugin registered under id, nil when absent. Plugins that cooperate (agents on
@@ -417,6 +420,11 @@ func (g *Graph) buildServices() error {
 	}); err != nil {
 		return fmt.Errorf("polaris: organizations: %w", err)
 	}
+	g.core = &services.Services{
+		Identity: g.identity, Sessions: g.sessions, MFA: g.mfa, Orgs: g.orgs, Tickets: g.tickets,
+		Denylist: g.denylist, Catalog: g.catalog, Resolver: g.resolver, Gate: g.gate,
+		Principals: g.principals, Escalation: g.escalation, Pepper: g.pepper,
+	}
 	return nil
 }
 
@@ -479,9 +487,6 @@ func (g *Graph) Repos() *repository.Repos { return g.repos }
 // Manifest returns the loaded route manifest (core and plugins).
 func (g *Graph) Manifest() *manifest.Manifest { return g.manifest }
 
-// Pepper returns the keyed hasher derived from APP_KEY.
-func (g *Graph) Pepper() *security.Pepper { return g.pepper }
-
 // Encrypter returns the authenticated cipher derived from APP_KEY.
 func (g *Graph) Encrypter() security.Encrypter { return g.encrypter }
 
@@ -496,39 +501,6 @@ func (g *Graph) Tokens() *token.Codec { return g.tokens }
 
 // JWKS returns the published verification keys.
 func (g *Graph) JWKS() token.JWKSet { return g.jwks }
-
-// Tickets returns the login-MFA ticket codec.
-func (g *Graph) Tickets() *session.MFATickets { return g.tickets }
-
-// Denylist returns the access-token denylist.
-func (g *Graph) Denylist() *session.Denylist { return g.denylist }
-
-// Catalog returns the permission catalog (core, Config.Permissions, plugins).
-func (g *Graph) Catalog() authz.Catalog { return g.catalog }
-
-// Resolver returns the authority resolver.
-func (g *Graph) Resolver() *authz.Resolver { return g.resolver }
-
-// Gate returns the authorization gate.
-func (g *Graph) Gate() *authz.Gate { return g.gate }
-
-// Principals returns the session principal resolver.
-func (g *Graph) Principals() *authz.Principals { return g.principals }
-
-// Escalation returns the privilege-escalation guard.
-func (g *Graph) Escalation() *authz.EscalationGuard { return g.escalation }
-
-// Sessions returns the session service.
-func (g *Graph) Sessions() *session.Service { return g.sessions }
-
-// MFA returns the MFA service.
-func (g *Graph) MFA() *mfa.Service { return g.mfa }
-
-// Identity returns the identity service (accounts, passwords, user administration).
-func (g *Graph) Identity() *identity.Service { return g.identity }
-
-// Orgs returns the organizations service.
-func (g *Graph) Orgs() *orgs.Service { return g.orgs }
 
 // RateStore returns the rate-limit store.
 func (g *Graph) RateStore() ratelimit.Store { return g.rateStore }

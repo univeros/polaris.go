@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -17,7 +18,6 @@ import (
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -62,7 +62,7 @@ type credentials struct {
 // clients holds the registered clients and the metadata-document ones.
 type clients struct {
 	db       store.Adapter
-	pepper   *security.Pepper
+	pepper   wiring.Pepper
 	scopes   *scopes
 	settings settings
 	cache    cache.Cache

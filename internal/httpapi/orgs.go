@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"slices"
 	"strings"
@@ -232,7 +233,7 @@ func (a orgAPI) createOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	if problems != nil {
 		return endpoint.Unprocessable(problems)
 	}
-	org, err := a.g.Orgs().CreateOrganization(ctx, name, slug, userID)
+	org, err := services.Of(a.g).Orgs.CreateOrganization(ctx, name, slug, userID)
 	if errors.Is(err, orgs.ErrConflict) {
 		return orgConflict("That slug is already taken.")
 	}
@@ -253,7 +254,7 @@ func (a orgAPI) listOrgs(ctx context.Context, _ *endpoint.Input, tok *token.Toke
 	if userID == "" {
 		return endpoint.Unauthorized()
 	}
-	list, err := a.g.Orgs().ListOrganizations(ctx, userID)
+	list, err := services.Of(a.g).Orgs.ListOrganizations(ctx, userID)
 	if err != nil {
 		return a.fail(ctx, err)
 	}
@@ -287,7 +288,7 @@ func (a orgAPI) updateOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	if !active {
 		return endpoint.NotFound(orgMsgOrgNotFound)
 	}
-	org, err = a.g.Orgs().UpdateOrganization(ctx, org, name, tok.Subject())
+	org, err = services.Of(a.g).Orgs.UpdateOrganization(ctx, org, name, tok.Subject())
 	if err != nil {
 		return a.fail(ctx, err)
 	}
@@ -310,7 +311,7 @@ func (a orgAPI) deleteOrg(ctx context.Context, _ *endpoint.Input, tok *token.Tok
 }
 
 func (a orgAPI) listPermissions(ctx context.Context, _ *endpoint.Input, _ *token.Token) endpoint.Result {
-	perms, err := a.g.Orgs().Permissions(ctx)
+	perms, err := services.Of(a.g).Orgs.Permissions(ctx)
 	if err != nil {
 		return a.fail(ctx, err)
 	}

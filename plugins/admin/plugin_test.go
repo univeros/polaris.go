@@ -3,6 +3,7 @@ package admin_test
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -53,7 +54,7 @@ func boot(t *testing.T, edit ...func(*config.Auth)) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := authz.Seed(context.Background(), e.db, p.Graph().Catalog(), e.clk); err != nil {
+	if err := authz.Seed(context.Background(), e.db, services.Of(p.Graph()).Catalog, e.clk); err != nil {
 		t.Fatal(err)
 	}
 	e.p = p

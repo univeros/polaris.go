@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"github.com/univeros/polaris.go/wiring"
 	"log/slog"
 	"maps"
 	"slices"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -142,7 +142,7 @@ func intPtr(row store.Row, col string) *int64 {
 // tokens issues, rotates, revokes and introspects the provider's tokens.
 type tokens struct {
 	db       store.Adapter
-	pepper   *security.Pepper
+	pepper   wiring.Pepper
 	codec    *token.Codec
 	repos    *repository.Repos
 	issuer   string

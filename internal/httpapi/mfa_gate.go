@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -33,7 +34,7 @@ func (m *mfaAPI) sendChallenge(ctx context.Context, in *endpoint.Input, userID s
 	if factorID == "" {
 		return endpoint.Unprocessable([]string{mfaMsgNeedFactor})
 	}
-	r, err := m.g.MFA().Challenge(ctx, userID, factorID, purpose, endpoint.Client(ctx))
+	r, err := services.Of(m.g).MFA.Challenge(ctx, userID, factorID, purpose, endpoint.Client(ctx))
 	switch {
 	case errors.Is(err, mfa.ErrFactorNotFound):
 		return endpoint.NotFound(mfaMsgFactorNotFound)
@@ -57,7 +58,7 @@ func (m *mfaAPI) verify(ctx context.Context, in *endpoint.Input) endpoint.Result
 	if code == "" {
 		return endpoint.Unprocessable([]string{mfaMsgNeedCode})
 	}
-	tokens, err := m.g.MFA().VerifyLogin(ctx, userID, mfaVerifyFactor(in), code, endpoint.Client(ctx))
+	tokens, err := services.Of(m.g).MFA.VerifyLogin(ctx, userID, mfaVerifyFactor(in), code, endpoint.Client(ctx))
 	if res, failed := m.verifyFailure(ctx, "verify login", err); failed {
 		return res
 	}
@@ -83,7 +84,7 @@ func (m *mfaAPI) stepUp(ctx context.Context, in *endpoint.Input) endpoint.Result
 	if code == "" {
 		return endpoint.Unprocessable([]string{mfaMsgNeedCode})
 	}
-	access, err := m.g.MFA().VerifyStepUp(ctx, tok.Subject(), tok.Organization(), sessionID, mfaVerifyFactor(in), code)
+	access, err := services.Of(m.g).MFA.VerifyStepUp(ctx, tok.Subject(), tok.Organization(), sessionID, mfaVerifyFactor(in), code)
 	if errors.Is(err, session.ErrInvalidGrant) {
 		return endpoint.Unauthorized() // the session ended while its access token was still valid
 	}

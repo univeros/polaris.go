@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"strings"
 
@@ -57,7 +58,7 @@ func (m *mfaAPI) totpEnroll(ctx context.Context, _ *endpoint.Input) endpoint.Res
 	if !ok {
 		return res
 	}
-	r, err := m.g.MFA().EnrollTOTP(ctx, user)
+	r, err := services.Of(m.g).MFA.EnrollTOTP(ctx, user)
 	if err != nil {
 		return m.fail(ctx, "totp enroll", err)
 	}
@@ -67,13 +68,13 @@ func (m *mfaAPI) totpEnroll(ctx context.Context, _ *endpoint.Input) endpoint.Res
 }
 
 func (m *mfaAPI) totpConfirm(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	return m.confirm(ctx, in, m.g.MFA().ConfirmTOTP)
+	return m.confirm(ctx, in, services.Of(m.g).MFA.ConfirmTOTP)
 }
 
 // otpConfirm serves both the sms and the email confirm routes: the factor is resolved by id and
 // the code checked against that factor's own challenge, so the route hit does not matter.
 func (m *mfaAPI) otpConfirm(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	return m.confirm(ctx, in, m.g.MFA().ConfirmOTPFactor)
+	return m.confirm(ctx, in, services.Of(m.g).MFA.ConfirmOTPFactor)
 }
 
 func (m *mfaAPI) confirm(ctx context.Context, in *endpoint.Input, confirm func(ctx context.Context, userID, factorID, code string) (mfa.ConfirmResult, error)) endpoint.Result {
@@ -128,7 +129,7 @@ func (m *mfaAPI) emailEnroll(ctx context.Context, in *endpoint.Input) endpoint.R
 }
 
 func (m *mfaAPI) enrollOTP(ctx context.Context, user model.User, factorType, destination string) endpoint.Result {
-	r, err := m.g.MFA().EnrollOTPFactor(ctx, user, factorType, destination, endpoint.Client(ctx))
+	r, err := services.Of(m.g).MFA.EnrollOTPFactor(ctx, user, factorType, destination, endpoint.Client(ctx))
 	switch {
 	case errors.Is(err, mfa.ErrOTPCooldown):
 		return endpoint.Error(http.StatusTooManyRequests, "rate_limited", mfaMsgWait)
@@ -209,7 +210,7 @@ func (m *mfaAPI) regenerateRecoveryCodes(ctx context.Context, _ *endpoint.Input)
 	if userID == "" {
 		return endpoint.Unauthorized()
 	}
-	codes, err := m.g.MFA().RegenerateRecoveryCodes(ctx, userID)
+	codes, err := services.Of(m.g).MFA.RegenerateRecoveryCodes(ctx, userID)
 	if err != nil {
 		return m.fail(ctx, "regenerate recovery codes", err)
 	}

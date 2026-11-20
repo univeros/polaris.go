@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/univeros/polaris.go/wiring"
 	"strings"
 	"time"
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -68,7 +68,7 @@ func (c Connection) Map() map[string]any {
 // and 256 random bits, stored as a keyed hash, shown once.
 type Connections struct {
 	db     store.Adapter
-	pepper *security.Pepper
+	pepper wiring.Pepper
 	clock  clock.Clock
 }
 

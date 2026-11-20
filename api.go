@@ -3,6 +3,7 @@ package polaris
 import (
 	"context"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/services"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -66,7 +67,7 @@ func (u Users) ByEmail(ctx context.Context, email string) (User, error) {
 // Create makes an account, running Hooks.OnUserCreated in its transaction. A taken email is
 // ErrConflict; a bad email, name or password ErrInvalidInput (*PasswordError lists the rules).
 func (u Users) Create(ctx context.Context, in NewUser) (User, error) {
-	m, err := u.p.graph.Identity().CreateUser(ctx, identity.NewUser(in), token.ClientContext{})
+	m, err := services.Of(u.p.graph).Identity.CreateUser(ctx, identity.NewUser(in), token.ClientContext{})
 	if err != nil {
 		return User{}, classify(err)
 	}
@@ -135,7 +136,7 @@ func (o Orgs) Create(ctx context.Context, ownerUserID, name, slug string) (Organ
 	if _, err := o.p.Users().Get(ctx, ownerUserID); err != nil {
 		return Organization{}, err
 	}
-	org, err := o.p.graph.Orgs().CreateOrganization(ctx, name, slug, ownerUserID)
+	org, err := services.Of(o.p.graph).Orgs.CreateOrganization(ctx, name, slug, ownerUserID)
 	if err != nil {
 		return Organization{}, classify(err)
 	}
@@ -153,7 +154,7 @@ func (o Orgs) Get(ctx context.Context, organizationID string) (Organization, err
 
 // ListFor returns the active organizations userID is an active member of.
 func (o Orgs) ListFor(ctx context.Context, userID string) ([]Organization, error) {
-	list, err := o.p.graph.Orgs().ListOrganizations(ctx, userID)
+	list, err := services.Of(o.p.graph).Orgs.ListOrganizations(ctx, userID)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -168,17 +169,17 @@ func (o Orgs) ListFor(ctx context.Context, userID string) ([]Organization, error
 // "owner", "admin", "member" or its own), without an invitation. ErrConflict when the user
 // already has a membership; ErrInvalidInput for an unknown role.
 func (o Orgs) AddMember(ctx context.Context, organizationID, userID string, roles ...string) error {
-	return classify(o.p.graph.Orgs().AddMember(ctx, organizationID, userID, roles))
+	return classify(services.Of(o.p.graph).Orgs.AddMember(ctx, organizationID, userID, roles))
 }
 
 // SetRoles replaces a member's roles (ErrConflict when it would demote the last owner).
 func (o Orgs) SetRoles(ctx context.Context, organizationID, userID string, roles ...string) error {
-	return classify(o.p.graph.Orgs().SetMemberRoles(ctx, systemActor, organizationID, userID, roles))
+	return classify(services.Of(o.p.graph).Orgs.SetMemberRoles(ctx, systemActor, organizationID, userID, roles))
 }
 
 // RemoveMember removes a member (ErrConflict for the last owner).
 func (o Orgs) RemoveMember(ctx context.Context, organizationID, userID string) error {
-	return classify(o.p.graph.Orgs().DropMember(ctx, systemActor, organizationID, userID))
+	return classify(services.Of(o.p.graph).Orgs.DropMember(ctx, systemActor, organizationID, userID))
 }
 
 // Tokens are a session's credentials, as the sign-in route answers them.
@@ -231,7 +232,7 @@ func (p *Polaris) Sessions() Sessions { return Sessions{p} }
 // disabled account, or an unverified email when verification is required, is ErrForbidden) but
 // not the password or the MFA gate. Access tokens carry Hooks.Claims.
 func (s Sessions) Issue(ctx context.Context, in SignIn) (Tokens, error) {
-	t, err := s.p.graph.Identity().SignIn(ctx, in.UserID, in.AMR, token.ClientContext{IP: in.IP, UserAgent: in.UserAgent})
+	t, err := services.Of(s.p.graph).Identity.SignIn(ctx, in.UserID, in.AMR, token.ClientContext{IP: in.IP, UserAgent: in.UserAgent})
 	if err != nil {
 		return Tokens{}, classify(err)
 	}
@@ -241,7 +242,7 @@ func (s Sessions) Issue(ctx context.Context, in SignIn) (Tokens, error) {
 // Refresh exchanges a refresh token for new tokens, rotating it. An unknown, expired, revoked or
 // reused one is ErrInvalidCredentials (reuse also ends the whole session).
 func (s Sessions) Refresh(ctx context.Context, refreshToken string) (Tokens, error) {
-	t, err := s.p.graph.Sessions().Refresh(ctx, refreshToken, token.ClientContext{})
+	t, err := services.Of(s.p.graph).Sessions.Refresh(ctx, refreshToken, token.ClientContext{})
 	if err != nil {
 		return Tokens{}, classify(err)
 	}
@@ -250,10 +251,10 @@ func (s Sessions) Refresh(ctx context.Context, refreshToken string) (Tokens, err
 
 // Revoke ends one session (Tokens.SessionID; the sid claim). Ending an ended session is a no-op.
 func (s Sessions) Revoke(ctx context.Context, sessionID string) error {
-	return classify(s.p.graph.Sessions().Logout(ctx, sessionID))
+	return classify(services.Of(s.p.graph).Sessions.Logout(ctx, sessionID))
 }
 
 // RevokeAll ends every session of the user (logout everywhere).
 func (s Sessions) RevokeAll(ctx context.Context, userID string) error {
-	return classify(s.p.graph.Sessions().LogoutAll(ctx, userID, token.ClientContext{}))
+	return classify(services.Of(s.p.graph).Sessions.LogoutAll(ctx, userID, token.ClientContext{}))
 }

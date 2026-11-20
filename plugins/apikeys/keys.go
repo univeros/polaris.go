@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"regexp"
 	"slices"
 	"strings"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -162,7 +162,7 @@ type UpdateParams struct {
 // random bits, stored as a keyed hash under the api_key pepper context.
 type Keys struct {
 	db          store.Adapter
-	pepper      *security.Pepper
+	pepper      wiring.Pepper
 	permissions map[string]bool // the permission catalog
 	settings    settings
 	clock       clock.Clock

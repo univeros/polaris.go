@@ -73,7 +73,7 @@ func Example() {
 	g := p.Graph()
 	now := time.Now()
 	_ = g.Repos().Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now})
-	org, _ := g.Orgs().CreateOrganization(ctx, "Acme", "", "user-1")
+	org, _ := p.Orgs().Create(ctx, "user-1", "Acme", "")
 	session, _ := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: "user-1", OrganizationID: org.ID, Roles: []string{"owner"}, EmailVerified: true}, token.ClientContext{})
 
 	// 3. The owner registers the agent with its public key; the low-risk grants are approved by policy.
