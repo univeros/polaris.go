@@ -1,4 +1,4 @@
-# CI for the private repository: quality gate, vulnerability scan and the database matrix.
+# CI: quality gate, vulnerability scan and the database matrix.
 name: ci
 
 on:
