@@ -50,9 +50,34 @@ func TestTheBindingCookieMustBeTheFlowsOwnAndHostOnlyOverHTTPS(t *testing.T) {
 		t.Fatalf("the starting browser completes its flow: %v", err)
 	}
 
-	header := bindingHeader(httptest.NewRequest(http.MethodPost, unitBase+"/social/github/start", nil), s.State, s.binding, h.p.settings.stateTTL)
+	header := h.p.settings.bindingHeader(s.State, s.binding)
 	if !strings.HasPrefix(header, "__Host-polaris_social_") || !strings.Contains(header, "; Path=/;") ||
 		!strings.Contains(header, "HttpOnly; Secure; SameSite=None") || strings.Contains(header, "Domain") {
 		t.Fatalf("over https: %q", header)
+	}
+}
+
+// The cookie follows the scheme of BaseURL, as upstream's Binding::https does, never the
+// connection: behind a TLS-terminating proxy r.TLS is nil, and a SameSite=Lax cookie would not
+// reach Apple's cross-site form_post callback.
+func TestTheBindingCookieFollowsTheBaseURLNotTheConnection(t *testing.T) {
+	h := newHarness(t)
+	s, err := h.p.start(h.ctx, "github", "", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.rec.SetNonce(queryParam(s.URL, "nonce"))
+	proxied := httptest.NewRequest(http.MethodGet, "/social/github/callback", nil)
+	proxied.AddCookie(&http.Cookie{Name: bindingCookie(s.State, true), Value: s.binding})
+	if proxied.TLS != nil {
+		t.Fatal("the proxied request must arrive without TLS")
+	}
+	if _, err := h.p.callback(h.ctx, "github", map[string]any{"code": "good", "state": s.State}, proxied, h.client); err != nil {
+		t.Fatalf("a proxied browser holding the __Host- cookie completes its flow: %v", err)
+	}
+
+	local := settings{baseURL: "http://localhost:8080", stateTTL: h.p.settings.stateTTL}
+	if got := local.bindingHeader("state", "nonce"); !strings.HasPrefix(got, "polaris_social_") || !strings.HasSuffix(got, "; Max-Age=600; HttpOnly; SameSite=Lax") {
+		t.Fatalf("over plain http: %q", got)
 	}
 }

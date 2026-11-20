@@ -90,7 +90,7 @@ func (p *Plugin) started(ctx context.Context, in *endpoint.Input, s started, err
 	if err != nil {
 		return p.answer(ctx, nil, err)
 	}
-	return p.answer(ctx, s, nil).WithHeader("Set-Cookie", bindingHeader(in.Request, s.State, s.binding, p.settings.stateTTL))
+	return p.answer(ctx, s, nil).WithHeader("Set-Cookie", p.settings.bindingHeader(s.State, s.binding))
 }
 
 // callbackRoute answers GET and POST /social/{provider}/callback with a 302.

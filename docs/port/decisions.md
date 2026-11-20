@@ -642,3 +642,22 @@ no exploit is public before its patch; then it flips public and `scripts/protect
 `main` (branch protection needs a public repository on the org's plan). The pre-push "private
 only" hook is removed; `GOPRIVATE` is needed only during the private window. `v0.1.0` was tagged
 under the old module path before the rename; releases start at `v0.1.1`.
+
+## 50. 2026-11-20 — Upstream patched (polaris-core 0.12.1); disclosed; re-synced
+
+- polaris-core 0.12.1 (`39ce83a`, tag `v0.12.1`; Packagist, npm `@polaris-auth/client` 0.12.1)
+  ships the fixes for #38 (SCIM takeover), #43 (SSO takeover) and #39 (social login/link CSRF).
+  Advisories on `univeros/polaris-core`: GHSA-vr39-7fjx-jx56 (scim), GHSA-m3cr-x84p-2jq6 (sso),
+  GHSA-pf6x-vg8c-q5fq (social); CVEs requested. Every polaris.go tag from `v0.1.0` contains the
+  fixes. The private window of #49 ends: the repository is public and the exploit details in #38,
+  #39 and #43 may be public.
+- `internal/upstream` re-synced to `v0.12.1`. Only social fixtures changed: the start and link
+  steps record the binding `Set-Cookie`, so the known-header override of #39 is gone and the replay
+  compares the recorded header. New fixture `testAFlowCompletesOnlyInTheBrowserThatStartedIt`
+  replays (`contracttest.Client.ForgetCookies` is the PHP harness's `$this->cookies = []`).
+- Fix, found by the re-sync: the binding cookie's `__Host-` prefix, `Secure` and `SameSite=None`
+  followed the connection (`r.TLS`); upstream follows the scheme of `baseUrl`. Behind a
+  TLS-terminating proxy Go set a `SameSite=Lax` cookie, which Apple's cross-site `form_post`
+  callback does not carry, so Apple sign-in failed with `state_invalid`. Go now follows
+  `Config.BaseURL` (`TestTheBindingCookieFollowsTheBaseURLNotTheConnection`).
+- CI no longer sets `GOPRIVATE`.

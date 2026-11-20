@@ -13,9 +13,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  GOPRIVATE: github.com/univeros/polaris.go
-
 jobs:
   qa:
     name: make qa (fmt, vet, lint, test -race, coverage)

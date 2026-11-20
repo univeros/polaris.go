@@ -240,6 +240,29 @@ func TestSocialFlow(t *testing.T) {
 			t.Fatalf("unlink %v", got)
 		}
 	})
+
+	t.Run("testAFlowCompletesOnlyInTheBrowserThatStartedIt", func(t *testing.T) {
+		f := newFlow(t, "testAFlowCompletesOnlyInTheBrowserThatStartedIt")
+		mallory := f.login("mallory@example.com")
+		for _, flow := range []struct{ name, access string }{{"sign-in", ""}, {"link", mallory}} {
+			access := []string{}
+			if flow.access != "" {
+				access = append(access, flow.access)
+			}
+			state := f.start("github", access...)
+			f.c.ForgetCookies()
+			problem(t, f.c.Get("/social/github/callback?code=good&state="+state), 422, "social_state_invalid")
+			state = f.start("github", access...)
+			binding := url.Values{}
+			for name, value := range f.c.ForgetCookies() {
+				binding.Set(name, value)
+			}
+			problem(t, f.c.Get("/social/github/callback?code=good&state="+state+"&"+binding.Encode()), 422, "social_state_invalid")
+		}
+		if accounts, _ := contracttest.JSON(t, f.c.Get("/social/accounts", contracttest.Bearer(mallory)))["data"].([]any); len(accounts) != 0 {
+			t.Fatalf("nothing was linked to the account that started the flows: %v", accounts)
+		}
+	})
 }
 
 // Every social fixture has a Go test (port of ContractCoverageTest).
@@ -249,6 +272,7 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 		flowClass + "::testTheAccountsAreManagedFromTheSession",
 		flowClass + "::testAppleAnswersByFormPostOneTapVerifiesOfflineAndAnyOAuth2ServerSignsIn",
 		flowClass + "::testAnUntrustedProviderLinksOnlyFromASession",
+		flowClass + "::testAFlowCompletesOnlyInTheBrowserThatStartedIt",
 	}
 	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "social"), covered)
 	if err != nil || len(missing) > 0 {

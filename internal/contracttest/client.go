@@ -38,6 +38,14 @@ func (c *Client) KeepCookies() *Client {
 	return c
 }
 
+// ForgetCookies empties the jar, so the next request comes from another browser, and returns what
+// the jar held.
+func (c *Client) ForgetCookies() map[string]string {
+	held := c.jar
+	c.jar = map[string]string{}
+	return held
+}
+
 // NewClient returns a Client for handler. fixture may be nil: the requests are then not compared.
 func NewClient(t testing.TB, handler http.Handler, fixture *Fixture) *Client {
 	return &Client{t: t, handler: handler, fixture: fixture}
