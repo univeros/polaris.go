@@ -23,7 +23,14 @@ import (
 	"github.com/univeros/polaris-go/plugins/apikeys"
 	"github.com/univeros/polaris-go/plugins/audit"
 	"github.com/univeros/polaris-go/plugins/mcp"
+	"github.com/univeros/polaris-go/plugins/messaging"
+	"github.com/univeros/polaris-go/plugins/multisession"
 	"github.com/univeros/polaris-go/plugins/oauth"
+	"github.com/univeros/polaris-go/plugins/passwordless"
+	"github.com/univeros/polaris-go/plugins/scim"
+	"github.com/univeros/polaris-go/plugins/sentinel"
+	"github.com/univeros/polaris-go/plugins/sso"
+	"github.com/univeros/polaris-go/plugins/username"
 	"github.com/univeros/polaris-go/schema"
 	"github.com/univeros/polaris-go/store"
 	"github.com/univeros/polaris-go/store/sqlstore"
@@ -70,6 +77,13 @@ func standardPlugins() []standardPlugin {
 			return mcp.New(mcp.Config{BaseURL: issuer, Schema: s.ddl})
 		}},
 		{"anonymous", anonymous.ID, base + "anonymous", "anonymous.New(anonymous.Config{})", func(*source) polaris.Plugin { return anonymous.New(anonymous.Config{}) }},
+		{"username", username.ID, base + "username", "username.New(username.Config{})", func(*source) polaris.Plugin { return username.New(username.Config{}) }},
+		{"multisession", multisession.ID, base + "multisession", "multisession.New(multisession.Config{})", func(*source) polaris.Plugin { return multisession.New(multisession.Config{}) }},
+		{"passwordless", passwordless.ID, base + "passwordless", "passwordless.New(passwordless.Config{})", func(*source) polaris.Plugin { return passwordless.New(passwordless.Config{}) }},
+		{"messaging", messaging.ID, base + "messaging", "messaging.New(messaging.Config{ /* Email: &messaging.SMTP{…} */ })", func(*source) polaris.Plugin { return messaging.New(messaging.Config{}) }},
+		{"sentinel", sentinel.ID, base + "sentinel", "sentinel.New(sentinel.Config{})", func(*source) polaris.Plugin { return sentinel.New(sentinel.Config{}) }},
+		{"sso", sso.ID, base + "sso", "sso.New(sso.Config{})", func(*source) polaris.Plugin { return sso.New(sso.Config{}) }},
+		{"scim", scim.ID, base + "scim", "scim.New(scim.Config{})", func(*source) polaris.Plugin { return scim.New(scim.Config{}) }},
 	}
 }
 

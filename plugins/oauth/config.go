@@ -3,6 +3,7 @@ package oauth
 import (
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris-go/internal/netguard"
 	"net/http"
 	"regexp"
 	"strings"
@@ -97,7 +98,7 @@ func (cfg Config) resolve() (settings, error) {
 		scopes:              cfg.Scopes,
 		trustedClients:      cfg.TrustedClients,
 		audiences:           cfg.Audiences,
-		httpClient:          noRedirects(cfg.HTTPClient),
+		httpClient:          netguard.NoRedirects(cfg.HTTPClient),
 		operators:           cfg.Operators,
 	}
 	if cfg.BaseURL != "" && !baseURLPattern.MatchString(cfg.BaseURL) {
@@ -152,15 +153,4 @@ func (cfg Config) resolve() (settings, error) {
 		}
 	}
 	return s, errors.Join(errs...)
-}
-
-// noRedirects returns a copy of c (or the guarded default) that never follows a redirect: a
-// redirect would lead a validated public URL to a host the validation never saw.
-func noRedirects(c *http.Client) *http.Client {
-	if c == nil {
-		c = guardedClient()
-	}
-	cp := *c
-	cp.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &cp
 }

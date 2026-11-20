@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/univeros/polaris-go/cache"
+	"github.com/univeros/polaris-go/clock"
 	"github.com/univeros/polaris-go/contracttest"
 	"github.com/univeros/polaris-go/event"
 	"github.com/univeros/polaris-go/plugins/admin"
@@ -40,6 +42,11 @@ type flow struct {
 func newFlow(t *testing.T, cfg sentinel.Config, class, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{})}
+	// Counters on a frozen clock: polaristest runs on the system clock, and a test crossing a
+	// window boundary (a wall-clock multiple of 10 minutes) would split its attempts over two
+	// buckets and miss the velocity signal.
+	frozen := clock.NewFrozen(time.Now())
+	cfg.Counters = sentinel.NewCacheCounters(cache.NewMemory(frozen), frozen)
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), f.admin, sentinel.New(cfg)))
 	fx := contracttest.For(t, contracttest.UpstreamFixtures(t, "sentinel"), `Polaris\Sentinel\Tests\Functional\`+class, method)
 	f.c = contracttest.NewClient(t, f.srv.Handler(), fx)

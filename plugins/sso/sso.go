@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris-go/internal/netguard"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -90,7 +91,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if err != nil {
 		return err
 	}
-	client := noRedirects(p.cfg.HTTPClient)
+	client := netguard.NoRedirects(p.cfg.HTTPClient)
 	p.g, p.sp = g, sp
 	p.providers = &Providers{db: g.DB, enc: g.Encrypter, clock: g.Clock}
 	p.domains = &Domains{db: g.DB, clock: g.Clock}

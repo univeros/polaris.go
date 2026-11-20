@@ -3,86 +3,16 @@ package sso
 import (
 	"context"
 	"crypto/subtle"
-	"errors"
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
 	"slices"
 	"strings"
-	"syscall"
-	"time"
 )
 
 // An organization admin names the OIDC issuer and the domain to verify, so every outbound request
 // would otherwise reach whatever address they choose (cloud metadata, internal services). The
 // default client connects to public addresses only and never follows redirects.
-// ponytail: same guard as plugins/oauth/fetch.go; move it to a shared internal package when a
-// third plugin needs it.
-
-// extraReserved are the ranges netip does not classify but that are never public.
-var extraReserved = []netip.Prefix{
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"),
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("192.0.2.0/24"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("198.51.100.0/24"),
-	netip.MustParsePrefix("203.0.113.0/24"),
-	netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("64:ff9b::/96"),
-	netip.MustParsePrefix("100::/64"),
-	netip.MustParsePrefix("2001::/23"),
-	netip.MustParsePrefix("2001:db8::/32"),
-	netip.MustParsePrefix("2002::/16"),
-}
-
-// publicAddr reports whether a is a public unicast address.
-func publicAddr(a netip.Addr) bool {
-	if !a.IsValid() || a.Zone() != "" || a.Is4In6() || !a.IsGlobalUnicast() || a.IsPrivate() {
-		return false
-	}
-	for _, p := range extraReserved {
-		if p.Contains(a) {
-			return false
-		}
-	}
-	return true
-}
-
-var errNonPublicAddress = errors.New("sso: refusing to connect to a non-public address")
-
-// guardedControl refuses a connection to a non-public address (the name is resolved already).
-func guardedControl(_, address string, _ syscall.RawConn) error {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return err
-	}
-	addr, err := netip.ParseAddr(host)
-	if err != nil || !publicAddr(addr) {
-		return errNonPublicAddress
-	}
-	return nil
-}
-
-func guardedClient() *http.Client {
-	dialer := &net.Dialer{Timeout: 5 * time.Second, Control: guardedControl}
-	return &http.Client{
-		Timeout:   10 * time.Second,
-		Transport: &http.Transport{DialContext: dialer.DialContext, TLSHandshakeTimeout: 5 * time.Second, ForceAttemptHTTP2: true},
-	}
-}
-
-// noRedirects is a copy of c (the guarded client when nil) that never follows a redirect.
-func noRedirects(c *http.Client) *http.Client {
-	if c == nil {
-		c = guardedClient()
-	}
-	cp := *c
-	cp.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &cp
-}
-
 // DomainVerifier proves an organization controls a domain: a DNS TXT record _polaris.<domain> or
 // the file https://<domain>/.well-known/polaris-sso.txt carrying the domain's token.
 type DomainVerifier interface {

@@ -61,6 +61,8 @@ defaults only log), `Cache cache.Cache` and `RateStore` (share across replicas; 
 - `plugins/passkey` — `passkey.New(passkey.Config{RPID: "example.com", Origins: []string{"https://example.com"}})`: WebAuthn sign-in; a passkey is also an MFA factor.
 - `plugins/messaging` — `messaging.New(messaging.Config{Email: &messaging.SMTP{…}, SMS: &messaging.Twilio{…}})`: becomes core's mailer and SMS sender; templates per instance/org, translations, send caps.
 - `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); observes by default, `Mode: sentinel.Enforce` blocks and challenges.
+- `plugins/sso` — `sso.New(sso.Config{})`: SAML 2.0 and OIDC sign-in per organization, verified domains, single logout; an IdP signs in only members or users on the org's verified domains.
+- `plugins/scim` — `scim.New(scim.Config{})`: SCIM 2.0 provisioning per organization with an org-managed connection token; changes global accounts only when the connection created them.
 
 ## Agents: declare what agents may do
 
@@ -126,7 +128,7 @@ srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) //
 exit 1 (failed) / 2 (bad usage) with a `remedy:` line.
 
 ```
-polaris init [--plugins=audit,admin,apikeys,oauth,agents,mcp]  # writes .env: APP_KEY, RS256 pair, AUTH_ISSUER; prints the quickstart
+polaris init [--plugins=audit,admin,apikeys,oauth,agents,mcp,…]  # writes .env: APP_KEY, RS256 pair, AUTH_ISSUER; prints the quickstart
 polaris migrate --plugins=…            # DATABASE_URL or --dsn (postgres://, mysql://, sqlite:, file:)
 polaris doctor --plugins=…             # secrets, keys, manifest, connectivity, schema; each check with its fix
 polaris schema:export --target=sql:postgres|sql:mysql|sql:sqlite   schema:diff   schema:drop --force

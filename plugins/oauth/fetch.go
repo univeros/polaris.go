@@ -3,17 +3,14 @@ package oauth
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"github.com/univeros/polaris-go/internal/netguard"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
-	"syscall"
-	"time"
 )
 
 // maxDocumentBytes bounds a fetched metadata document or key set (64 KiB).
@@ -26,36 +23,6 @@ var (
 	numericHost = regexp.MustCompile(`(?i)^(0x[0-9a-f]+|[0-9]+)(\.(0x[0-9a-f]+|[0-9]+))*$`)
 	dottedQuad  = regexp.MustCompile(`^(\d{1,3}\.){3}\d{1,3}$`)
 )
-
-// extraReserved are the IPv4 and IPv6 ranges netip does not classify but that are never public.
-var extraReserved = []netip.Prefix{
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"),
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("192.0.2.0/24"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("198.51.100.0/24"),
-	netip.MustParsePrefix("203.0.113.0/24"),
-	netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("64:ff9b::/96"),
-	netip.MustParsePrefix("100::/64"),
-	netip.MustParsePrefix("2001::/23"),
-	netip.MustParsePrefix("2001:db8::/32"),
-	netip.MustParsePrefix("2002::/16"),
-}
-
-// publicAddr reports whether a is a public unicast address.
-func publicAddr(a netip.Addr) bool {
-	if !a.IsValid() || a.Zone() != "" || a.Is4In6() || !a.IsGlobalUnicast() || a.IsPrivate() {
-		return false
-	}
-	for _, p := range extraReserved {
-		if p.Contains(a) {
-			return false
-		}
-	}
-	return true
-}
 
 // assertPublicHTTPSURL refuses a URL a client document or key set cannot live at: not https on
 // port 443 with a host and a path, credentials or a fragment, a numeric or special-use address,
@@ -72,7 +39,7 @@ func assertPublicHTTPSURL(raw, what string) error {
 	numeric := numericHost.MatchString(host)
 	addr, ipErr := netip.ParseAddr(host)
 	if numeric || ipErr == nil || strings.Contains(host, ":") {
-		if ipErr != nil || !publicAddr(addr) || (numeric && !dottedQuad.MatchString(host)) {
+		if ipErr != nil || !netguard.PublicAddr(addr) || (numeric && !dottedQuad.MatchString(host)) {
 			return refusal(CodeInvalidClientMetadata, "A special-use or numeric address cannot host "+lower+".")
 		}
 		return nil
@@ -83,35 +50,6 @@ func assertPublicHTTPSURL(raw, what string) error {
 		}
 	}
 	return nil
-}
-
-var errNonPublicAddress = errors.New("oauth: refusing to connect to a non-public address")
-
-// guardedClient is the default fetcher: it connects to public addresses only, so a public name
-// that resolves to an internal address is refused too.
-func guardedClient() *http.Client {
-	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			addr, err := netip.ParseAddr(host)
-			if err != nil || !publicAddr(addr.Unmap()) || addr.Is4In6() {
-				return errNonPublicAddress
-			}
-			return nil
-		},
-	}
-	return &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			DialContext:         dialer.DialContext,
-			TLSHandshakeTimeout: 5 * time.Second,
-			ForceAttemptHTTP2:   true,
-		},
-	}
 }
 
 // fetchJSON GETs url and decodes a JSON object of at most 64 KiB; failures carry code (400). A

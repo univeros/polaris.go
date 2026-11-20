@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris-go/internal/netguard"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -265,7 +266,7 @@ func TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken(t *testing.T) {
 		mu.Unlock()
 		return http.DefaultTransport.RoundTrip(r)
 	})}
-	o := &HTTPOIDC{HTTP: noRedirects(counting), Cache: cache.NewMemory(clock.System{}), Clock: clock.System{}}
+	o := &HTTPOIDC{HTTP: netguard.NoRedirects(counting), Cache: cache.NewMemory(clock.System{}), Clock: clock.System{}}
 	ctx := context.Background()
 	prov := testProvider(TypeOIDC, map[string]any{"client_id": "client-1", "scopes": "openid email"}, issuer, nil)
 	callback := testBase + "/sso/callback/p1"
@@ -305,7 +306,7 @@ func TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken(t *testing.T) {
 		t.Fatalf("check %v", p)
 	}
 
-	unreachable := &HTTPOIDC{HTTP: noRedirects(srv.Client()), Cache: cache.NewMemory(clock.System{}), Clock: clock.System{}}
+	unreachable := &HTTPOIDC{HTTP: netguard.NoRedirects(srv.Client()), Cache: cache.NewMemory(clock.System{}), Clock: clock.System{}}
 	nowhere := testProvider(TypeOIDC, map[string]any{"client_id": "client-1"}, issuer+"/nowhere", nil)
 	if p := unreachable.Check(ctx, nowhere); len(p) != 1 || p[0] != "discovery answered 404" {
 		t.Fatalf("check %v", p)
@@ -364,25 +365,25 @@ func TestTheDomainVerifierChecksDNSThenTheWellKnownFile(t *testing.T) {
 func TestTheDefaultClientRefusesNonPublicAddresses(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("polaris-sso-token")) }))
 	defer srv.Close()
-	resp, err := noRedirects(nil).Get(srv.URL)
+	resp, err := netguard.NoRedirects(nil).Get(srv.URL)
 	if err == nil {
 		resp.Body.Close()
 		t.Fatal("the loopback address was reached")
 	}
-	if !errors.Is(err, errNonPublicAddress) {
+	if !errors.Is(err, netguard.ErrNonPublicAddress) {
 		t.Fatalf("error %v", err)
 	}
 	for addr, public := range map[string]bool{"8.8.8.8": true, "10.0.0.1": false, "169.254.169.254": false, "100.64.0.1": false, "::1": false, "2606:4700::1111": true} {
-		if got := guardedControl("tcp", net.JoinHostPort(addr, "443"), nil) == nil; got != public {
+		if got := netguard.Control("tcp", net.JoinHostPort(addr, "443"), nil) == nil; got != public {
 			t.Fatalf("%s public = %v", addr, got)
 		}
 	}
-	if guardedControl("tcp", "nonsense", nil) == nil {
+	if netguard.Control("tcp", "nonsense", nil) == nil {
 		t.Fatal("an address without a port")
 	}
 	redirecting := httptest.NewServer(http.RedirectHandler("https://elsewhere.example/", http.StatusFound))
 	defer redirecting.Close()
-	resp, err = noRedirects(redirecting.Client()).Get(redirecting.URL)
+	resp, err = netguard.NoRedirects(redirecting.Client()).Get(redirecting.URL)
 	if err != nil || resp.StatusCode != http.StatusFound {
 		t.Fatalf("a redirect is not followed: %v", err)
 	}

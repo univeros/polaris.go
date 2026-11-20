@@ -533,3 +533,36 @@ MySQL (`clientFoundRows`: affected-row counts for unchanged rows broke condition
   `FuzzCBOR`, `FuzzAuthData`, `FuzzCOSEVerify`, `FuzzCredential`, `FuzzAssertion`; `FuzzDPoPProof`
   (oauth, mcp); agents `FuzzRequestJWT`; endpoint `FuzzInput`; pipeline `FuzzCookieCSRF`; scim
   `FuzzPatch`, `FuzzFilter`.
+
+## 43. 2026-11-20 — SSO (and a second upstream takeover)
+
+- `plugins/sso` ported; all 3 upstream fixtures replay; SAML via crewjam/saml + goxmldsig (every
+  php-saml check plus stricter ones: exactly one assertion per response; AudienceRestriction,
+  Destination and matching InResponseTo required; response IssueInstant within 90 s; 180 s skew on
+  conditions; only signed LogoutRequests); assertion ids single-use via `cache.Add`; OIDC with PKCE
+  S256, state, nonce, ID token verified against the provider's JWKS (60 s leeway, one refetch on an
+  unknown kid); outbound HTTP to public addresses only, no redirects. Fuzzed: `FuzzSAMLResponse`,
+  `FuzzMetadata`, `FuzzLogoutRequest`.
+- **SECURITY, present upstream:** an organization's IdP could sign in to **any existing account**
+  (same class as #38: any user can create an org and configure an IdP), and an IdP LogoutRequest could
+  end any account's sessions. Go signs in an existing account only if it is already a member of that
+  organization or its email domain is verified for it, and IdP logout ends members' sessions only.
+  **Report upstream with #38.**
+- A PATCH without `config` no longer re-encrypts the stored client secret (upstream bug). OIDC works
+  without extra configuration; audit optional; stored `attributes` keys sorted. As upstream, an
+  expired IdP certificate still verifies (IdPs rotate late; trust is the configured certificate).
+- `DomainVerified(ctx, orgID, domain)` serves SCIM's linking rule (#38).
+
+## 44. 2026-11-20 — Shared SSRF guard; CLI plugin list; EdDSA JWKS done
+
+- `internal/netguard` (`PublicAddr`, `Control`, `Client`, `NoRedirects`) replaces the copies in
+  `plugins/oauth` and `plugins/sso`: every tenant- or client-supplied URL is fetched only from public
+  unicast addresses, decided after DNS resolution, never following redirects.
+- `cmd/polaris --plugins` knows every plugin that works with zero configuration: audit, admin,
+  apikeys, oauth, agents, mcp, anonymous, username, multisession, passwordless, messaging, sentinel,
+  sso, scim (social and passkey need provider / relying-party settings: build your own binary with
+  `cli.Run`). Smoke-tested: `init` → `migrate` (210 routes; idempotent) → `doctor` "Polaris is ready".
+- Ed25519 keys are published as RFC 8037 OKP JWKs; `mcp.Protect` in-process reads the graph's JWKS;
+  the Go agent SDK walkthrough runs on RS256 and EdDSA (#40).
+- Sentinel's flaky test: velocity buckets are `now / 600 s` on the system clock, so a run crossing a
+  boundary split its counts; the test freezes the counters. Production buckets behave as upstream.

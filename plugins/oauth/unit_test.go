@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris-go/internal/netguard"
 	"io"
 	"math/big"
 	"net/http"
@@ -412,21 +413,21 @@ func TestFetchIsBoundedAndJSONOnly(t *testing.T) {
 		"not json":   {status: 200, body: `nope`},
 		"not object": {status: 200, body: `"string"`},
 	} {
-		_, err := fetchJSON(ctx, noRedirects(&http.Client{Transport: d}), log, "https://x.example.com/doc", CodeInvalidClientMetadata)
+		_, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: d}), log, "https://x.example.com/doc", CodeInvalidClientMetadata)
 		wantCode(t, err, CodeInvalidClientMetadata, name)
 	}
-	doc, err := fetchJSON(ctx, noRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
+	doc, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
 	must(t, err)
 	if len(doc) != 0 {
 		t.Error("a list reads as an empty object")
 	}
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{}`)) }))
 	defer local.Close()
-	_, err = fetchJSON(ctx, noRedirects(nil), log, local.URL+"/doc", CodeInvalidClientMetadata)
+	_, err = fetchJSON(ctx, netguard.NoRedirects(nil), log, local.URL+"/doc", CodeInvalidClientMetadata)
 	wantCode(t, err, CodeInvalidClientMetadata, "the default client refuses a loopback address")
 	redirecting := httptest.NewServer(http.RedirectHandler("https://example.com/", http.StatusFound))
 	defer redirecting.Close()
-	_, err = fetchJSON(ctx, noRedirects(redirecting.Client()), log, redirecting.URL+"/doc", CodeInvalidClientMetadata)
+	_, err = fetchJSON(ctx, netguard.NoRedirects(redirecting.Client()), log, redirecting.URL+"/doc", CodeInvalidClientMetadata)
 	wantCode(t, err, CodeInvalidClientMetadata, "a redirect is never followed")
 }
 
