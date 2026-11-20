@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"slices"
 	"strings"
 	"testing"
@@ -306,10 +307,10 @@ func TestAPasskeyIsASecondFactorThroughCoresGateAndStepUp(t *testing.T) {
 		t.Fatalf("the password login hits the gate: %+v %v", login, err)
 	}
 	assertion := a.GetJSON(h.request(), unitOrigin, ada.ID, true, 0)
-	if _, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, other.GetJSON(h.request(), unitOrigin, ada.ID, true, 0), h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := services.Of(g).MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, other.GetJSON(h.request(), unitOrigin, ada.ID, true, 0), h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("another passkey than the factor's: %v", err)
 	}
-	tokens, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client)
+	tokens, err := services.Of(g).MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,13 +318,13 @@ func TestAPasskeyIsASecondFactorThroughCoresGateAndStepUp(t *testing.T) {
 	if amr, _ := tok.Claim("amr").([]any); !slices.Equal(amr, []any{"pwd", "otp"}) || tok.Claim("mfa") != true {
 		t.Fatal("core's post-MFA session")
 	}
-	if _, err := g.MFA().VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := services.Of(g).MFA.VerifyLogin(h.ctx, ada.ID, pk.FactorID, assertion, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("replayed: %v", err)
 	}
-	if _, err := g.MFA().VerifyStepUp(h.ctx, ada.ID, "", tokens.SessionID, pk.FactorID, a.GetJSON(h.request(), unitOrigin, ada.ID, true, 1)); err != nil {
+	if _, err := services.Of(g).MFA.VerifyStepUp(h.ctx, ada.ID, "", tokens.SessionID, pk.FactorID, a.GetJSON(h.request(), unitOrigin, ada.ID, true, 1)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.MFA().Challenge(h.ctx, ada.ID, pk.FactorID, mfa.PurposeLoginMFA, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
+	if _, err := services.Of(g).MFA.Challenge(h.ctx, ada.ID, pk.FactorID, mfa.PurposeLoginMFA, h.client); !errors.Is(err, mfa.ErrInvalidOTP) {
 		t.Fatalf("a passkey has no sent challenge: %v", err)
 	}
 

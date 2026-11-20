@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"github.com/univeros/polaris.go/wiring"
 	"regexp"
 	"time"
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -37,7 +37,7 @@ func (codeReused) Error() string { return "oauth: the authorization code was alr
 // codes mints and spends authorization codes, stored as keyed hashes.
 type codes struct {
 	db     store.Adapter
-	pepper *security.Pepper
+	pepper wiring.Pepper
 	ttl    time.Duration
 	clock  clock.Clock
 }

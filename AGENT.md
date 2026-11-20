@@ -14,14 +14,13 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
   `plugins/{messaging,sentinel,scim,sso}` (WP7); the CLI (`cli`, `cmd/polaris`); EdDSA keys and JWKS.
   WP8 done: security review (#42, #43), database matrix (#45), fuzzing (#42), re-sync (#50). WP9
   done: the Go developer surface (#46–#48). Departures are in `docs/port/decisions.md`.
-- Left before `v1.0.0`: the API stability work package (API.md §3): declare the host-implemented
-  interfaces stable, give `wiring` narrow interfaces, an API-compatibility guard in CI, packages
-  nothing outside the module needs moved to `internal/`.
+- API stability done (#51): `wiring` hands plugins narrow interfaces; `scripts/api-stable.txt` and
+  `make apicheck` guard the stable surface (API.md). Left: `v1.0.0`.
 - Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
   compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`. A host imports only package
   `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`); `wiring`, `endpoint`,
   `manifest`, `event`, `token` are the plugin SDK; `API.md` says what is stable. Every new path that
-  creates or deletes an account goes through `identity.Service.InsertUser` / `OnUserDeleted` (the
+  creates or deletes an account goes through `Graph.Identity().InsertUser` / `OnUserDeleted` (the
   host's hooks; `TestEveryAccountIsCreatedThroughInsertUser` guards it).
 
 ## The rules
@@ -64,5 +63,6 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
 ```
 make qa                              # gofmt check, go vet, go test -race -cover
 make sync REF=<polaris-core ref>     # refresh internal/upstream/ from ../polaris-core
+make apicheck BASE=origin/main       # stable Go API unchanged, or the break recorded (#51)
 scripts/e2e-agent-ts.sh               # @polaris-auth/agent walkthrough against a Go server
 ```

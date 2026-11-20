@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/services"
 	"sync"
 	"testing"
 
@@ -44,7 +45,7 @@ func bootOn(t *testing.T, b storetest.Backend, cfg Config) *Plugin {
 		Hasher: security.Argon2id{Memory: 1024, Time: 1, Threads: 1},
 	})
 	must(t, err)
-	must(t, authz.Seed(ctx, db, pol.Graph().Catalog(), pol.Graph().Clock()))
+	must(t, authz.Seed(ctx, db, services.Of(pol.Graph()).Catalog, pol.Graph().Clock()))
 	return p
 }
 

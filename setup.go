@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/univeros/polaris.go/internal/maintenance"
+	"github.com/univeros/polaris.go/internal/services"
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/config"
@@ -41,7 +42,7 @@ func (p *Polaris) Migrate(ctx context.Context) ([]string, error) {
 	} else if g.DB().Dialect() != store.Memory {
 		return nil, errors.New("polaris: migrate: the database adapter cannot create tables; export the DDL with `polaris schema:export` and apply it")
 	}
-	if err := authz.Seed(ctx, g.DB(), g.Catalog(), g.Clock()); err != nil {
+	if err := authz.Seed(ctx, g.DB(), services.Of(g).Catalog, g.Clock()); err != nil {
 		return created, fmt.Errorf("polaris: migrate: seed permissions: %w", err)
 	}
 	return created, nil

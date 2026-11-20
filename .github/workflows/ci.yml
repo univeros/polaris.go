@@ -53,6 +53,22 @@ jobs:
           cache: true
       - run: make vuln # scripts/govulncheck.sh: fails on reachable vulnerabilities
 
+  apicheck:
+    name: API compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base branch, for the worktree
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          check-latest: true
+          cache: true
+      - run: make apicheck BASE=origin/${{ github.base_ref }} # scripts/apicheck.sh
+
   db-matrix:
     name: database matrix (PostgreSQL 17, MySQL 8.4)
     runs-on: ubuntu-latest

@@ -3,6 +3,8 @@
 Polaris for Go is pre-1.0. This page says what an application or a plugin may rely on, and what may
 still change. Any change to a **stable** name below needs a decision entry in
 `docs/port/decisions.md` and a note in the release; everything else may change in a minor release.
+`scripts/api-stable.txt` lists the stable names for the machine: `make apicheck` (CI, on every pull
+request) fails on an incompatible change to one of them that `decisions.md` does not record.
 The HTTP routes, the database schema and the token formats are frozen separately (they match
 polaris-core; `docs/port/spec.md` §3) and never change without an upstream change.
 
@@ -21,6 +23,8 @@ What an application imports. A host never needs another package.
 | `plugins/mcp` | `Protect`, `ProtectConfig`, `Claims`, `ServeStdio` |
 | `cli` | `Run` |
 | `config` | `Secrets`, `Auth` and `Defaults`, the `Signer*` values (fields may be added) |
+| `telemetry/otel` | `Middleware`, `Store`, `Listener` and their options |
+| ports a host implements | `security.PasswordHasher`, `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`, `cache.Cache`, `ratelimit.Store` (and `ratelimit.Result`), `metrics.Metrics` |
 
 Behaviour that is part of the contract: `Protect` answers 401 without a principal and 403 without a
 permission, and resolves the caller's authority on every request; hooks run inside the account's
@@ -38,21 +42,37 @@ the request-context accessors, envelope and problem helpers), `manifest` (`Route
 rules), `event` (`Event`, `Listener`, `Dispatcher`, `Bus`, the core event types and names) and
 `token` (`Token`, `Kind`, `KindOf`, `NewPrincipal`, `Delegate`, `Claims`, `Codec`).
 
-New optional plugin interfaces and new `Graph` accessors are added without notice. Removing or
-changing one is a breaking change.
+The core services reach a plugin as narrow interfaces declared in `wiring`: `Identity`, `Sessions`,
+`MFA`, `Orgs`, `Denylist`, `Catalog`, `Resolver`, `Gate`, `Principals`, `Pepper`. Each holds only
+the methods plugins call; the services behind them may grow and change freely. A method a plugin
+needs is added to its interface. `TestGraphAccessorsReturnOnlyStableTypes` keeps every `Graph`
+accessor on a stable type.
+
+Stable with them, because the SDK's signatures name them: packages `model` (the rows; frozen with
+the database) and `schema` (the table DSL a `SchemaProvider` uses); `Graph.Repos` (`repository.Repos`,
+its repositories, `repository.Table`, `NewID`, `ErrNotFound`); `security.Encrypter`; and the
+values the narrow interfaces and plugin hooks take or return (`identity.LoginResult`,
+`session.Info`, `mfa.LoginChallenge`, `mfa.FactorType`, `orgs.Member`, `authz.Authority`,
+`authz.Caller`, `authz.Permission`, `pipeline.Pipeline`, `pipeline.BearerResolver`, …; the full
+list is `scripts/api-stable.txt`).
+
+New optional plugin interfaces, new `Graph` accessors and new methods on the narrow interfaces are
+added without notice. Removing or changing one is a breaking change.
 
 ## 3. Public but not stable
 
-The domain packages the SDK's signatures name are importable, and a plugin may call them, but their
-API follows the implementation and may change in any minor release: `identity`, `orgs`, `session`,
-`mfa`, `authz`, `repository`, `model`, `schema`, `security`, `notify`, `cache`, `clock`,
-`ratelimit`, `metrics`, `pipeline`, `store/memstore`, `store/storetest`. A host that finds itself
-importing one of them for an everyday task should report it: the host surface is missing something.
+Everything else in the domain packages: the concrete services (`identity.Service`,
+`session.Service`, `mfa.Service`, `orgs.Service`, `authz.Gate`, …) and the rest of `identity`,
+`orgs`, `session`, `mfa`, `authz`, `repository`, `security`, `notify`, `cache`, `clock`,
+`ratelimit`, `metrics`, `pipeline`, plus `store/memstore` and `store/storetest`. They are
+importable, but their API follows the implementation and may change in any minor release. A host
+that finds itself importing one of them for an everyday task should report it: the host surface is
+missing something.
 
 ## 4. Internal
 
 `internal/…` (core's endpoints, the observers, maintenance jobs, the upstream manifest mirror and
-fixtures, the contract-test harness, the SSRF guard) cannot be imported from outside the module.
+fixtures, the contract-test harness, the SSRF guard, the concrete services for core) cannot be imported from outside the module.
 
 ## 5. Changed in this release (from the first port)
 
@@ -64,3 +84,6 @@ fixtures, the contract-test harness, the SSRF guard) cannot be imported from out
 - `contracttest`, `httpapi`, `upstream`, `observe` and `maintenance` moved under `internal/`; the
   upstream mirror lives in `internal/upstream/`.
 - `Protect` without permissions now resolves the caller's authority (one more query per request).
+- `wiring.Graph`'s service accessors return narrow interfaces (`wiring.Identity`, `wiring.Sessions`,
+  …) instead of the concrete services; `Graph.Escalation` and `Graph.Tickets` are gone (decision
+  #51).

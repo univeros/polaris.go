@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -146,7 +147,7 @@ func holder(t *testing.T, p *Plugin, srv *polaristest.Server) Agent {
 	now := time.Now().UTC().Truncate(time.Second)
 	user := model.User{ID: repository.NewID(), Email: repository.NewID() + "@example.com", EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now}
 	must(t, srv.Graph().Repos().Users.Insert(ctx, user))
-	org, err := srv.Graph().Orgs().CreateOrganization(ctx, "Acme "+user.ID, "", user.ID)
+	org, err := services.Of(srv.Graph()).Orgs.CreateOrganization(ctx, "Acme "+user.ID, "", user.ID)
 	must(t, err)
 	a, _, err := p.s.createAgent(ctx, map[string]any{"name": "Bot", "auth": AuthPrivateKeyJWT, "jwk": newTestKey(AlgES256).jwk()},
 		Agent{OwnerType: OwnerUser, OwnerID: user.ID, OrganizationID: org.ID, CreatedBy: user.ID})

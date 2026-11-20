@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"math/big"
 	"strconv"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/schema"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -79,7 +79,7 @@ type secret struct {
 // exceed the budget; a code sent again inherits the attempts of the live one it replaces.
 type secrets struct {
 	db          store.Adapter
-	pepper      *security.Pepper
+	pepper      wiring.Pepper
 	clock       clock.Clock
 	maxAttempts int
 }

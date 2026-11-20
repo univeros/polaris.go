@@ -3,6 +3,7 @@ package multisession
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"regexp"
 	"slices"
@@ -218,7 +219,7 @@ func TestPlugin(t *testing.T) {
 		ctx := context.Background()
 		g := h.srv.Graph()
 		ada, grace := h.user("ada@example.com"), h.user("grace@example.com")
-		org, err := g.Orgs().CreateOrganization(ctx, "Acme", "", ada.ID)
+		org, err := services.Of(g).Orgs.CreateOrganization(ctx, "Acme", "", ada.ID)
 		if err != nil {
 			t.Fatal(err)
 		}

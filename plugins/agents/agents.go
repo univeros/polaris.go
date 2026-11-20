@@ -3,18 +3,17 @@ package agents
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/wiring"
 	"log/slog"
 	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/plugins/oauth"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -32,9 +31,9 @@ type service struct {
 	events   event.Dispatcher
 	log      *slog.Logger
 	oauth    *oauth.Plugin
-	resolver *authz.Resolver
-	gate     *authz.Gate
-	pepper   *security.Pepper
+	resolver wiring.Resolver
+	gate     wiring.Gate
+	pepper   wiring.Pepper
 	codec    *token.Codec
 	mfa      interface {
 		HasConfirmedFactor(ctx context.Context, userID string) (bool, error)

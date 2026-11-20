@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris.go/wiring"
 	"slices"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
-	"github.com/univeros/polaris.go/orgs"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 )
@@ -37,8 +37,8 @@ const (
 type directory struct {
 	db        store.Adapter
 	repos     *repository.Repos
-	identity  *identity.Service
-	orgs      *orgs.Service
+	identity  wiring.Identity
+	orgs      wiring.Orgs
 	domains   func() any // the sso plugin, when registered: a VerifiedDomains
 	resources *resources
 	events    event.Dispatcher

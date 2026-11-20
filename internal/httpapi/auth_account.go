@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"unicode/utf8"
 
@@ -50,7 +51,7 @@ func (a *authAPI) register(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if utf8.RuneCountInString(displayName) > authDisplayNameMax {
 		return endpoint.Unprocessable([]string{"The display name is too long."})
 	}
-	if err := a.g.Identity().Register(ctx, email, password, displayName, endpoint.Client(ctx)); err != nil {
+	if err := services.Of(a.g).Identity.Register(ctx, email, password, displayName, endpoint.Client(ctx)); err != nil {
 		if r, ok := authPolicy(err); ok {
 			return r
 		}
@@ -64,7 +65,7 @@ func (a *authAPI) verifyEmail(ctx context.Context, in *endpoint.Input) endpoint.
 	if secret == "" {
 		return endpoint.Unprocessable([]string{"A verification token is required."})
 	}
-	switch err := a.g.Identity().VerifyEmail(ctx, secret); {
+	switch err := services.Of(a.g).Identity.VerifyEmail(ctx, secret); {
 	case errors.Is(err, identity.ErrInvalidVerificationToken):
 		return authMessage(http.StatusBadRequest, "The verification token is invalid or has expired.")
 	case err != nil:
@@ -78,7 +79,7 @@ func (a *authAPI) resendVerification(ctx context.Context, in *endpoint.Input) en
 	if email == "" || !manifest.IsEmail(email) {
 		return endpoint.Unprocessable([]string{authInvalidEmail})
 	}
-	if err := a.g.Identity().ResendVerification(ctx, email, endpoint.Client(ctx)); err != nil {
+	if err := services.Of(a.g).Identity.ResendVerification(ctx, email, endpoint.Client(ctx)); err != nil {
 		return a.fail(ctx, "resend verification", err)
 	}
 	return authMessage(http.StatusAccepted, authResendGeneric)
@@ -89,7 +90,7 @@ func (a *authAPI) forgotPassword(ctx context.Context, in *endpoint.Input) endpoi
 	if email == "" || !manifest.IsEmail(email) {
 		return endpoint.Unprocessable([]string{authInvalidEmail})
 	}
-	if err := a.g.Identity().ForgotPassword(ctx, email, endpoint.Client(ctx)); err != nil {
+	if err := services.Of(a.g).Identity.ForgotPassword(ctx, email, endpoint.Client(ctx)); err != nil {
 		return a.fail(ctx, "forgot password", err)
 	}
 	return authMessage(http.StatusAccepted, authForgotGeneric)
@@ -101,7 +102,7 @@ func (a *authAPI) resetPassword(ctx context.Context, in *endpoint.Input) endpoin
 	if secret == "" || newPassword == "" {
 		return endpoint.Unprocessable([]string{"A token and new password are required."})
 	}
-	err := a.g.Identity().ResetPassword(ctx, secret, newPassword, endpoint.Client(ctx))
+	err := services.Of(a.g).Identity.ResetPassword(ctx, secret, newPassword, endpoint.Client(ctx))
 	if r, ok := authPolicy(err); ok {
 		return r
 	}
@@ -124,7 +125,7 @@ func (a *authAPI) changePassword(ctx context.Context, in *endpoint.Input) endpoi
 	if current == "" || newPassword == "" {
 		return endpoint.Unprocessable([]string{"The current and new passwords are required."})
 	}
-	err := a.g.Identity().ChangePassword(ctx, userID, current, newPassword, authSessionID(tok))
+	err := services.Of(a.g).Identity.ChangePassword(ctx, userID, current, newPassword, authSessionID(tok))
 	if r, ok := authPolicy(err); ok {
 		return r
 	}

@@ -6,13 +6,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -188,7 +188,7 @@ func (k Key) Map() map[string]any {
 // Keys stores the operator API keys.
 type Keys struct {
 	db     store.Adapter
-	pepper *security.Pepper
+	pepper wiring.Pepper
 	clock  clock.Clock
 }
 

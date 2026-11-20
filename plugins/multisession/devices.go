@@ -7,15 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -35,8 +34,8 @@ const tableSessions = "auth_refresh_tokens"
 type devices struct {
 	db         store.Adapter
 	repos      *repository.Repos
-	sessions   *session.Service
-	principals *authz.Principals
+	sessions   wiring.Sessions
+	principals wiring.Principals
 	clock      clock.Clock
 }
 

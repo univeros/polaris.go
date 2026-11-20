@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/services"
 	"net/url"
 	"reflect"
 	"slices"
@@ -54,7 +55,7 @@ func (u *unit) organization(ownerEmail string) string {
 	if err := u.srv.Graph().Repos().Users.Insert(u.ctx, owner); err != nil {
 		u.t.Fatal(err)
 	}
-	org, err := u.srv.Graph().Orgs().CreateOrganization(u.ctx, "Acme", "", owner.ID)
+	org, err := services.Of(u.srv.Graph()).Orgs.CreateOrganization(u.ctx, "Acme", "", owner.ID)
 	if err != nil {
 		u.t.Fatal(err)
 	}
@@ -485,7 +486,7 @@ func TestAnOrganizationsIdPCannotClaimOutsideAccounts(t *testing.T) {
 
 	to, err := u.p.IdPLogout(u.ctx, prov.ID, sso.LogoutMessage{SAMLRequest: "logout:ceo@globex.example"}, u.client)
 	check(t, err == nil && to != "", "the IdP is answered: %v", err)
-	_, err = g.Sessions().Refresh(u.ctx, issued.RefreshToken, u.client)
+	_, err = services.Of(g).Sessions.Refresh(u.ctx, issued.RefreshToken, u.client)
 	check(t, err == nil, "an outside account's sessions stay: %v", err)
 
 	d, err := u.p.Domains().Add(u.ctx, orgID, prov.ID, "globex.example")

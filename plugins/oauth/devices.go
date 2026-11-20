@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/wiring"
 	"math/big"
 	"net/http"
 	"regexp"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
-	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -105,7 +105,7 @@ func (p *poller) poll(ctx context.Context, found *pollable, c Client, unknown, e
 // devices is the device authorization grant (RFC 8628).
 type devices struct {
 	poller
-	pepper    *security.Pepper
+	pepper    wiring.Pepper
 	deviceURL string
 	ttl       int
 }
