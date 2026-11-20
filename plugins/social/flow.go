@@ -131,7 +131,7 @@ func (p *Plugin) callback(ctx context.Context, providerID string, params map[str
 	if err != nil {
 		return "", err
 	}
-	if !bound(browser, state, entry) {
+	if !p.settings.bound(browser, state, entry) {
 		return "", refuse(kindStateInvalid, "The flow was started in another browser.")
 	}
 	prov, err := p.provider(ctx, providerID)

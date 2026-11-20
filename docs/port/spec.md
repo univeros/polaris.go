@@ -363,10 +363,10 @@ times, the DDL per dialect. Go tests verify each one and produce their own for P
 
 - Polaris is public at every level: this repository (`univeros/polaris.go`) is MIT and public, and
   its documentation joins the Polaris website next to the PHP version.
-- Exception, temporary: the repository stays private until polaris-core ships the fixes for the
-  upstream vulnerabilities this port found and documents (decisions #38, #39, #43), so their
-  exploits are never public before a patch. Then it is flipped public and `scripts/protect-main.sh`
-  protects `main` (pull requests only, the three CI checks green, linear history, no force pushes).
+- The repository was held private until polaris-core shipped the fixes for the upstream
+  vulnerabilities this port found (decisions #38, #39, #43), so no exploit was public before its
+  patch. polaris-core 0.12.1 shipped them (decision #50); `scripts/protect-main.sh` protects `main`
+  (pull requests only, the three CI checks green, linear history, no force pushes).
 - Security issues found later follow the same rule: fix upstream (or here) first, publish details
   after.
 ---

@@ -84,7 +84,7 @@ func (h *harness) browser(state string) *http.Request {
 	if err != nil || json.Unmarshal([]byte(raw), &entry) != nil {
 		return r
 	}
-	r.AddCookie(&http.Cookie{Name: bindingCookie(state, r.TLS != nil), Value: entry.Binding})
+	r.AddCookie(&http.Cookie{Name: bindingCookie(state, h.p.settings.https()), Value: entry.Binding})
 	return r
 }
 
