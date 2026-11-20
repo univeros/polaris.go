@@ -10,3 +10,6 @@ coverage.*
 .DS_Store
 .idea/
 .vscode/
+
+# Test-only keys the recorded social fixtures depend on (never used outside tests).
+!plugins/social/testdata/*.pem
