@@ -690,7 +690,7 @@ under the old module path before the rename; releases start at `v0.1.1`.
 
 ## 52. 2026-11-21 — MCP output schemas admit null (follows polaris-core)
 
-polaris-core moved `polaris/mcp` to `mcp/sdk` `^0.10` (0.8 is blocked by Packagist for
+polaris-core 0.12.2 moved `polaris/mcp` to `mcp/sdk` `^0.10` (0.8 is blocked by Packagist for
 GHSA-f4rf-6ghj-mhr6). That SDK validates a tool result against its `outputSchema`, and the schema
 is typed from each route's example, which cannot show which fields may be null (`GET /auth/me`
 answers `display_name: null` against `"type": "string"`). Upstream's `ToolSchema::nullable()` lets

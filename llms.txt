@@ -4,7 +4,7 @@
 > MFA, sessions, organizations, RBAC), API keys, an OAuth 2.1 / OpenID Connect provider, agents as
 > first-class principals (grants, budgets, approvals, signed receipts, kill switch) and MCP
 > protection. One import, a few lines, net/http. Wire-, database- and token-compatible with Polaris
-> for PHP (polaris-core 0.12.1).
+> for PHP (polaris-core 0.12.2).
 
 Module: `github.com/univeros/polaris.go` (Go 1.26): `go get github.com/univeros/polaris.go`.
 The package name is `polaris`.

@@ -8,7 +8,7 @@ decisions taken while porting are in [`docs/port/decisions.md`](docs/port/decisi
 
 ## Status
 
-- Ported, every upstream fixture of each package replaying against polaris-core v0.12.1: core (WP1–WP3,
+- Ported, every upstream fixture of each package replaying against polaris-core v0.12.2: core (WP1–WP3,
   all 52 routes); `plugins/{audit,admin,apikeys,oauth,agents,mcp}` and the Go agent SDK `agent/`
   (WP4–WP5); `plugins/{passwordless,username,anonymous,multisession,social,passkey}` (WP6);
   `plugins/{messaging,sentinel,scim,sso}` (WP7); the CLI (`cli`, `cmd/polaris`); EdDSA keys and JWKS.
