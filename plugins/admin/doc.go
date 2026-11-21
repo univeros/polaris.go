@@ -1,4 +1,4 @@
-// Package admin is the admin plugin (port of polaris/admin): the operator API under /admin over
+// Package admin is the admin plugin: the operator API under /admin over
 // users, sessions, MFA, organizations, audit drains and statistics, for admin users and operator
 // API keys, every action recorded in the audit trail as admin.<action>. It needs the audit plugin
 // (any registration order).

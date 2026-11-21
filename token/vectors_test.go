@@ -14,9 +14,10 @@ import (
 	"github.com/univeros/polaris.go/clock"
 )
 
-// Cross-language vectors (spec §6.3). testdata/vectors/jwt.json comes from
-// scripts/vectors.php; with POLARIS_UPDATE_VECTORS=1 this test also writes go-jwt.json, which
-// scripts/verify-vectors.php checks with upstream's classes.
+// Known-answer vectors: testdata/vectors/{jwt,oauth-jwt,receipt}.json hold tokens recorded once
+// (from the PHP implementation the formats started from). Polaris must keep minting them byte for
+// byte and accepting or refusing them at the recorded instants, so issued tokens stay valid
+// across releases.
 
 type jwtCheck struct {
 	Access bool `json:"access"`
@@ -53,24 +54,23 @@ type jwtVectors struct {
 	JWKS      jwksVector `json:"jwks"`
 }
 
-// checkOffsets mirror CHECK_OFFSETS in scripts/vectors.php.
+// checkOffsets are the instants, relative to a case, its recorded checks were made at.
 func checkOffset(label string, ttl int) int {
 	return map[string]int{"before": -1, "at": 0, "last": ttl - 1, "expiry": ttl}[label]
 }
 
-func TestPHPJWTVectors(t *testing.T) {
+func TestJWTVectors(t *testing.T) {
 	var v jwtVectors
 	readVector(t, "jwt.json", &v)
 	if v.Generator != "php" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
-	out := jwtVectors{Generator: "go", JWKS: v.JWKS}
 	for _, c := range v.Cases {
 		t.Run(c.Name, func(t *testing.T) {
 			if c.Regenerate {
 				got := mustIssue(t, newCodec(t, c.config(t, c.Now)), orderedClaims(t, c.Claims))
 				if got != c.Token {
-					t.Fatalf("Go minted a different token\n go %s\nphp %s", got, c.Token)
+					t.Fatalf("Go minted a different token\n go %s\nwant %s", got, c.Token)
 				}
 			}
 			goChecks := map[string]jwtCheck{}
@@ -81,7 +81,7 @@ func TestPHPJWTVectors(t *testing.T) {
 				_, verr := codec.Verify(c.Token)
 				goChecks[label] = jwtCheck{Access: err == nil, Verify: verr == nil}
 				if goChecks[label] != want {
-					t.Errorf("%s: Go access/verify = %+v (%v, %v), PHP = %+v", label, goChecks[label], err, verr, want)
+					t.Errorf("%s: Go access/verify = %+v (%v, %v), recorded = %+v", label, goChecks[label], err, verr, want)
 				}
 				if tok != nil {
 					sub, _ := orderedClaims(t, c.Claims).Get("sub")
@@ -89,10 +89,6 @@ func TestPHPJWTVectors(t *testing.T) {
 						t.Errorf("%s: sub = %q, want %v", label, tok.Subject(), sub)
 					}
 				}
-			}
-			if c.Regenerate {
-				c.Checks = goChecks
-				out.Cases = append(out.Cases, c)
 			}
 		})
 	}
@@ -107,11 +103,8 @@ func TestPHPJWTVectors(t *testing.T) {
 	}
 	doc, _ := json.Marshal(set)
 	if string(doc) != v.JWKS.Document {
-		t.Fatalf("JWKS differs\n go %s\nphp %s", doc, v.JWKS.Document)
+		t.Fatalf("JWKS differs\n go %s\nwant %s", doc, v.JWKS.Document)
 	}
-	out.JWKS.Document = string(doc)
-
-	writeGoVector(t, "go-jwt.json", out)
 }
 
 func (c jwtCase) config(t *testing.T, instant string) Config {
@@ -220,24 +213,9 @@ func readVector(t *testing.T, name string, v any) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "testdata", "vectors", name))
 	if err != nil {
-		t.Fatalf("%v (run: php scripts/vectors.php)", err)
+		t.Fatal(err)
 	}
 	if err := json.Unmarshal(data, v); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// writeGoVector writes testdata/vectors/<name> when POLARIS_UPDATE_VECTORS=1.
-func writeGoVector(t *testing.T, name string, v any) {
-	t.Helper()
-	if os.Getenv("POLARIS_UPDATE_VECTORS") != "1" {
-		return
-	}
-	data, err := json.MarshalIndent(v, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join("..", "testdata", "vectors", name), append(data, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -285,13 +263,12 @@ func (c oauthCase) codec(t *testing.T, side oauthSide, instant string) *Codec {
 	return newCodec(t, cfg)
 }
 
-func TestPHPOAuthJWTVectors(t *testing.T) {
+func TestOAuthJWTVectors(t *testing.T) {
 	var v oauthVectors
 	readVector(t, "oauth-jwt.json", &v)
 	if v.Generator != "php" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
-	out := oauthVectors{Generator: "go"}
 	for _, c := range v.Cases {
 		t.Run(c.Name, func(t *testing.T) {
 			got, err := c.codec(t, c.Minter, c.Now).Mint(c.Typ, orderedClaims(t, c.Claims), parseInstant(t, c.ExpiresAt))
@@ -299,24 +276,21 @@ func TestPHPOAuthJWTVectors(t *testing.T) {
 				t.Fatal(err)
 			}
 			if c.Regenerate && got != c.Token {
-				t.Fatalf("Go minted a different token\n go %s\nphp %s", got, c.Token)
+				t.Fatalf("Go minted a different token\n go %s\nwant %s", got, c.Token)
 			}
 			goChecks := map[string]bool{}
 			for _, instant := range c.CheckAt {
 				tok, err := c.codec(t, c.Verifier, instant).VerifyJWT(c.Token, oauthLeeway)
 				goChecks[instant] = err == nil
 				if goChecks[instant] != c.Checks[instant] {
-					t.Errorf("at %s: Go err = %v, PHP accepts = %v", instant, err, c.Checks[instant])
+					t.Errorf("at %s: Go err = %v, recorded accepts = %v", instant, err, c.Checks[instant])
 				}
 				if tok != nil && c.Typ != "" && tok.Header("typ") != c.Typ {
 					t.Errorf("typ = %v", tok.Header("typ"))
 				}
 			}
-			c.Token, c.Checks = got, goChecks
-			out.Cases = append(out.Cases, c)
 		})
 	}
-	writeGoVector(t, "go-oauth-jwt.json", out)
 }
 
 type receiptCase struct {
@@ -338,7 +312,7 @@ type receiptCase struct {
 	Checks  map[string]bool `json:"checks"`
 }
 
-func TestPHPReceiptVectors(t *testing.T) {
+func TestReceiptVectors(t *testing.T) {
 	var v struct {
 		Generator string        `json:"generator"`
 		Cases     []receiptCase `json:"cases"`
@@ -347,10 +321,6 @@ func TestPHPReceiptVectors(t *testing.T) {
 	if v.Generator != "php" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
-	out := struct {
-		Generator string        `json:"generator"`
-		Cases     []receiptCase `json:"cases"`
-	}{Generator: "go"}
 	for _, c := range v.Cases {
 		t.Run(c.Name, func(t *testing.T) {
 			oc := oauthCase{Alg: c.Alg, Issuer: c.Issuer}
@@ -363,19 +333,16 @@ func TestPHPReceiptVectors(t *testing.T) {
 				t.Fatal(err)
 			}
 			if got != c.Token {
-				t.Fatalf("Go signed a different receipt\n go %s\nphp %s", got, c.Token)
+				t.Fatalf("Go signed a different receipt\n go %s\nwant %s", got, c.Token)
 			}
 			goChecks := map[string]bool{}
 			for _, instant := range c.CheckAt {
 				tok, err := oc.codec(t, c.Verifier, instant).VerifyJWT(c.Token, oauthLeeway)
 				goChecks[instant] = err == nil && tok.Header("typ") == "receipt+jwt"
 				if goChecks[instant] != c.Checks[instant] {
-					t.Errorf("at %s: Go err = %v, PHP accepts = %v", instant, err, c.Checks[instant])
+					t.Errorf("at %s: Go err = %v, recorded accepts = %v", instant, err, c.Checks[instant])
 				}
 			}
-			c.Token, c.Checks = got, goChecks
-			out.Cases = append(out.Cases, c)
 		})
 	}
-	writeGoVector(t, "go-receipt.json", out)
 }

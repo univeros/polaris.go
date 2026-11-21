@@ -102,7 +102,7 @@ func testConfig(fake *fakeHTTP, dynamicRegistration bool) oauth.Config {
 // run runs each test of a PHP class with its own server and fixture.
 func run(t *testing.T, phpClass string, dynamicRegistration bool, tests map[string]func(*oauthCase)) {
 	t.Helper()
-	dir := contracttest.UpstreamFixtures(t, "oauth-provider")
+	dir := contracttest.Fixtures(t, "oauth-provider")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			fake := &fakeHTTP{documents: map[string]any{}}

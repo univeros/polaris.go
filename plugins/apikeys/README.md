@@ -23,7 +23,7 @@ mux.Handle("GET /api/invoices", p.Protect(h, "invoices.read")) // keys pass, as 
 
 ## Config
 
-Every field is optional; the zero value is upstream's defaults.
+Every field is optional; the zero value is the defaults.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
@@ -72,7 +72,7 @@ step-up route called with a key).
   Refusals match `apikeys.ErrNotFound`, `ErrTooMany`, `ErrPermissionNotHeld`, … with `errors.Is`.
 - A key's own `rate_limit` sets the `X-RateLimit-*` headers over core's.
 - `apikeys.Presented(r)` returns the secret a request carries (`x-api-key` first, then the bearer).
-- Departure: without the audit plugin the plugin still boots (upstream refused); nothing is recorded.
+- Without the audit plugin the plugin still boots; nothing is recorded.
 
 ## Example
 

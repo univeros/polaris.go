@@ -1,4 +1,4 @@
-// Package messaging is the messaging plugin (port of polaris/messaging): core's verification,
+// Package messaging is the messaging plugin: core's verification,
 // reset, invitation, one-time-code and security messages rendered from templates you can override
 // per instance and per organization, translated (en, es, de, fr, pt bundled), capped per recipient,
 // and sent through the channels you choose (SMTP, Twilio, Vonage, any HTTP SMS API, a log, memory

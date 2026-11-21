@@ -77,7 +77,7 @@ func claims(t testing.TB, srv *polaristest.Server, access string) (amr []any, mf
 func TestPasskeyFlow(t *testing.T) {
 	t.Run("testAPasskeyRegistersSignsInAndIsASecondFactor", func(t *testing.T) {
 		srv := polaristest.New(t, polaristest.WithPlugins(passkey.New(passkey.Config{Origins: []string{origin}, RPName: "Polaris tests"})))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "passkey"), flowClass, "testAPasskeyRegistersSignsInAndIsASecondFactor"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passkey"), flowClass, "testAPasskeyRegistersSignsInAndIsASecondFactor"))
 		access := login(t, srv, c, "ada@example.com")
 		as := contracttest.Bearer(access)
 		authenticator := passkey.NewAuthenticator(t)
@@ -159,7 +159,7 @@ func TestPasskeyFlow(t *testing.T) {
 
 // Every passkey fixture has a Go test (port of ContractCoverageTest).
 func TestEveryFixtureIsReplayed(t *testing.T) {
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "passkey"), []string{flowClass + "::testAPasskeyRegistersSignsInAndIsASecondFactor"})
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "passkey"), []string{flowClass + "::testAPasskeyRegistersSignsInAndIsASecondFactor"})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

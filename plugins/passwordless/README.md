@@ -5,7 +5,7 @@ gate: magic links (a link valid once for 15 minutes, redirecting to your app wit
 traded at `/magic-link/exchange`), email codes (6 digits, 5 minutes, 5 attempts) for signing in,
 verifying the address or resetting the password, SMS codes to a verified phone, and one-time tokens
 that hand a live session to another device. Every send answers the same 202 for known and unknown
-identifiers. Port of `polaris/passwordless`.
+identifiers.
 
 ## Install
 
@@ -23,7 +23,7 @@ _, err = p.Migrate(ctx) // creates polaris_passwordless_secret, polaris_password
 
 ## Config
 
-Every field is optional; the zero value is upstream's defaults.
+Every field is optional; the zero value is the defaults.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Every field is optional; the zero value is upstream's defaults.
 | `OTPLength` | 6 | digits of a code, 6 to 10 |
 | `MaxAttempts` | 5 | guesses a code takes |
 
-`DisableSignUp` and `SkipMFAGate` invert upstream's flags so the zero value keeps upstream's default.
+`DisableSignUp` and `SkipMFAGate` are phrased so the zero value is the default.
 
 ## Routes
 
@@ -77,7 +77,7 @@ permissions: routes are public or bearer.
 - A failed delivery is logged and still answers 202; check your Mailer/SMS logs, not the response.
 - Rate-limit the send and sign-in routes with `plugins/sentinel`: add `passwordless.SentinelRoutes`
   to `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
-- Mail scanners can spend magic links (open, as upstream); prefer email codes where that matters.
+- Mail scanners can spend magic links; prefer email codes where that matters.
 
 ## Example
 

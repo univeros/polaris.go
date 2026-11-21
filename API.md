@@ -2,11 +2,13 @@
 
 Polaris for Go is pre-1.0. This page says what an application or a plugin may rely on, and what may
 still change. Any change to a **stable** name below needs a decision entry in
-`docs/port/decisions.md` and a note in the release; everything else may change in a minor release.
+`docs/decisions.md` and a note in the release; everything else may change in a minor release.
 `scripts/api-stable.txt` lists the stable names for the machine: `make apicheck` (CI, on every pull
 request) fails on an incompatible change to one of them that `decisions.md` does not record.
-The HTTP routes, the database schema and the token formats are frozen separately (they match
-polaris-core; `docs/port/spec.md` §3) and never change without an upstream change.
+The HTTP routes, the database schema and the stored formats (password hashes, ciphertexts, tokens)
+are a contract of their own: the contract tests replay every route, `testdata/vectors` pins the
+formats, and a change to any of them is a decision in `docs/decisions.md` and a release note (AGENT.md
+rules 4 and 5).
 
 ## 1. The host surface (stable)
 
@@ -71,7 +73,7 @@ missing something.
 
 ## 4. Internal
 
-`internal/…` (core's endpoints, the observers, maintenance jobs, the upstream manifest mirror and
+`internal/…` (core's endpoints, the observers, maintenance jobs, the route specs and
 fixtures, the contract-test harness, the SSRF guard, the concrete services for core) cannot be imported from outside the module.
 
 ## 5. Changed in this release (from the first port)
@@ -81,8 +83,8 @@ fixtures, the contract-test harness, the SSRF guard, the concrete services for c
   `endpoint.Token(ctx)`.
 - `wiring.Graph` fields became accessor methods (`g.Repos` is `g.Repos()`).
 - `session.Service.Mint` takes a `context.Context` first.
-- `contracttest`, `httpapi`, `upstream`, `observe` and `maintenance` moved under `internal/`; the
-  upstream mirror lives in `internal/upstream/`.
+- `contracttest`, `httpapi`, `observe` and `maintenance` moved under `internal/`; the route specs and
+  contract fixtures live in `internal/apispec/`.
 - `Protect` without permissions now resolves the caller's authority (one more query per request).
 - `wiring.Graph`'s service accessors return narrow interfaces (`wiring.Identity`, `wiring.Sessions`,
   …) instead of the concrete services; `Graph.Escalation` and `Graph.Tickets` are gone (decision

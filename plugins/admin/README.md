@@ -25,7 +25,7 @@ _, secret, err := admin.Of(p.Graph()).Keys().Create(ctx, admin.Key{Name: "dashbo
 
 ## Config
 
-`admin.Config{}` has no options: the zero value is upstream's behaviour.
+`admin.Config{}` has no options: the zero value is the full behaviour.
 
 ## Operators
 
@@ -96,7 +96,7 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
 - Outside `/admin`: `Plugin.OperatorOf(r)`, `Plugin.IsOperator(ctx, credential)`,
   `Plugin.Resolve(ctx, bearer, ip)`. A plugin that does not import this package type-asserts
   `g.Plugin("admin")` to an interface with `AuthorizeOperator` / `OperatorID`.
-- Stricter than upstream: an operator's access token is checked against the denylist when enabled;
+- An operator's access token is checked against the denylist when enabled;
   a drain's `filter` must be a JSON list; dates are ISO 8601 only.
 
 ## Example

@@ -1,4 +1,4 @@
-// Package passwordless is the passwordless plugin (port of polaris/passwordless): four ways to sign
+// Package passwordless is the passwordless plugin: four ways to sign
 // in without a password, each ending in core's login envelope behind core's MFA gate.
 //
 //   - Magic links: POST /magic-link/send emails a link to GET /magic-link/verify, valid once for 15
@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -180,7 +180,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/passwordless).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/passwordless")
+	sub, err := fs.Sub(apispec.API, "api/passwordless")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

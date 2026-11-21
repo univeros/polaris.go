@@ -17,5 +17,5 @@ var knownChanges = map[string]map[int]normalized{
 
 // knownHeaders are headers Go adds, deliberately, to recorded responses: the replay expects the
 // recording's headers plus these (already normalized) on the 1-based step, everything else
-// compared as recorded. Each is a decision in docs/port/decisions.md.
+// compared as recorded. Each is a decision in docs/decisions.md.
 var knownHeaders = map[string]map[int]map[string][]string{}

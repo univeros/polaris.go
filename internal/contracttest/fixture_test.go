@@ -87,7 +87,7 @@ func loadFixture(t *testing.T, dir, test string) *Fixture {
 // TestEveryFixtureReplaysItsOwnRecording feeds each recorded response back as the actual one:
 // all 239 fixtures must match, which exercises the normalizer over every shape they hold.
 func TestEveryFixtureReplaysItsOwnRecording(t *testing.T) {
-	files, _ := filepath.Glob(filepath.Join(UpstreamFixtures(t, ""), "*", "*.json"))
+	files, _ := filepath.Glob(filepath.Join(Fixtures(t, ""), "*", "*.json"))
 	if len(files) < 239 {
 		t.Fatalf("found %d fixtures, want at least 239", len(files))
 	}
@@ -121,7 +121,7 @@ func TestEveryFixtureReplaysItsOwnRecording(t *testing.T) {
 
 func TestKnownChangeReplacesTheRecording(t *testing.T) {
 	test := `Polaris\Tests\Functional\MfaLoginGateEndpointsTest::testTheTicketPrincipalCannotBeSpoofedViaTheBody`
-	f := loadFixture(t, UpstreamFixtures(t, "core"), test)
+	f := loadFixture(t, Fixtures(t, "core"), test)
 	for _, s := range f.steps[:6] {
 		h, body := recordedReply(s)
 		if err := f.check(httptest.NewRequest(s.method, s.uri, nil), s.status, h, body); err != nil {
@@ -136,7 +136,7 @@ func TestKnownChangeReplacesTheRecording(t *testing.T) {
 }
 
 func TestCompareRejectsDifferences(t *testing.T) {
-	dir := UpstreamFixtures(t, "core")
+	dir := Fixtures(t, "core")
 	base := loadFixture(t, dir, loginTest).steps[0]
 	cases := map[string]func(req *http.Request, status *int, h http.Header, body *[]byte){
 		"status":         func(_ *http.Request, status *int, _ http.Header, _ *[]byte) { *status = 200 },
@@ -169,7 +169,7 @@ func TestCompareRejectsDifferences(t *testing.T) {
 }
 
 func TestCompareReportsTheFirstDifferingPath(t *testing.T) {
-	f := loadFixture(t, UpstreamFixtures(t, "core"), loginTest)
+	f := loadFixture(t, Fixtures(t, "core"), loginTest)
 	s := f.steps[0]
 	h, _ := recordedReply(s)
 	err := f.check(httptest.NewRequest(s.method, s.uri, nil), s.status, h, []byte(`{"message":"other"}`))
@@ -179,7 +179,7 @@ func TestCompareReportsTheFirstDifferingPath(t *testing.T) {
 }
 
 func TestStepsBeyondTheRecordingAndUnconsumedSteps(t *testing.T) {
-	f := loadFixture(t, UpstreamFixtures(t, "core"), `Polaris\Tests\Functional\JwksEndpointTest::testUnknownRouteIsNotFound`)
+	f := loadFixture(t, Fixtures(t, "core"), `Polaris\Tests\Functional\JwksEndpointTest::testUnknownRouteIsNotFound`)
 	if err := f.consumed(); err == nil {
 		t.Fatal("an unreplayed fixture passed")
 	}
@@ -272,7 +272,7 @@ func TestUncovered(t *testing.T) {
 }
 
 func TestRequests(t *testing.T) {
-	reqs, err := Requests(UpstreamFixtures(t, "core"))
+	reqs, err := Requests(Fixtures(t, "core"))
 	if err != nil {
 		t.Fatal(err)
 	}

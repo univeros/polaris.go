@@ -1,4 +1,4 @@
-// Package mcp is Polaris and the Model Context Protocol (port of polaris/mcp), two halves sharing
+// Package mcp is Polaris and the Model Context Protocol, two halves sharing
 // token verification.
 //
 // Protect any Go MCP server (one built with github.com/modelcontextprotocol/go-sdk, or any other

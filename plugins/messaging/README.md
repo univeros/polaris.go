@@ -4,7 +4,7 @@ Core's verification, reset, invitation, one-time-code and security messages, ren
 you can override per instance and per organization, translated (`en`, `es`, `de`, `fr`, `pt`
 bundled), capped per recipient and sent through the channels you choose: SMTP, Twilio, Vonage, any
 HTTP SMS API, a log, memory in tests. Registered with `Config.Mailer` and `Config.SMS` left nil, it
-becomes core's mailer and SMS sender. Port of `polaris/messaging`; works without audit.
+becomes core's mailer and SMS sender. Works without audit.
 
 ## Install
 
@@ -22,7 +22,7 @@ _, err = p.Migrate(ctx)    // creates polaris_messaging_template
 
 ## Config
 
-The zero value logs every message (the development default) under upstream's policy.
+The zero value logs every message (the development default).
 
 | Field | Default | Purpose |
 | --- | --- | --- |

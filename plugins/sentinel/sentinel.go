@@ -1,4 +1,4 @@
-// Package sentinel is the sentinel plugin (port of polaris/sentinel): a local risk engine in front
+// Package sentinel is the sentinel plugin: a local risk engine in front
 // of sign-up, sign-in, password reset and code sends. Signals score each attempt (velocity,
 // credential stuffing, IP rules, devices, disposable domains and, with a provider, captcha,
 // impossible travel and breached passwords); a policy allows, challenges or blocks; observe mode
@@ -36,7 +36,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/security"
@@ -121,7 +121,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/sentinel).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/sentinel")
+	sub, err := fs.Sub(apispec.API, "api/sentinel")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

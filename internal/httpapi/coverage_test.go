@@ -25,7 +25,7 @@ func TestEveryCoreFixtureHasAGoTest(t *testing.T) {
 		}
 		src.Write(b)
 	}
-	dir := contracttest.UpstreamFixtures(t, "core")
+	dir := contracttest.Fixtures(t, "core")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)

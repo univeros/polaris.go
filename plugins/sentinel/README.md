@@ -23,7 +23,7 @@ _, err = p.Migrate(ctx)    // creates polaris_sentinel_decision, polaris_sentine
 
 ## Config
 
-The zero value is upstream's defaults: observe mode, the local signals, the bundled domain list.
+The zero value is the defaults: observe mode, the local signals, the bundled domain list.
 
 | Field | Default | Purpose |
 | --- | --- | --- |

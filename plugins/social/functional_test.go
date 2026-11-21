@@ -33,7 +33,7 @@ func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, idp: social.NewRecorded(t)}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), social.New(social.RecordedConfig(t, base, f.idp))))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "social"), flowClass, method)).KeepCookies()
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "social"), flowClass, method)).KeepCookies()
 	return f
 }
 
@@ -274,7 +274,7 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 		flowClass + "::testAnUntrustedProviderLinksOnlyFromASession",
 		flowClass + "::testAFlowCompletesOnlyInTheBrowserThatStartedIt",
 	}
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "social"), covered)
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "social"), covered)
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

@@ -21,7 +21,7 @@ const authMiddlewareTest = `Polaris\Tests\Functional\AuthMiddlewareTest`
 // steps the pipeline alone answers are replayed.
 func TestAuthMiddleware(t *testing.T) {
 	core, _ := manifests(t)
-	dir := contracttest.UpstreamFixtures(t, "core")
+	dir := contracttest.Fixtures(t, "core")
 	newHandler := func(t *testing.T) http.Handler {
 		o := options(t, core)
 		o.Endpoints["polaris.auth.me"] = endpoint.Func(func(ctx context.Context, _ *endpoint.Input) endpoint.Result {

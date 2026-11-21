@@ -17,7 +17,7 @@ import (
 )
 
 func TestEveryScimFixtureHasAGoTest(t *testing.T) {
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "scim"), []string{
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "scim"), []string{
 		classes + "ScimConnectionsTest::testAnOrganizationCreatesRotatesAndDecommissionsItsConnections",
 		classes + "ScimConnectionsTest::testTheOperatorsSeeEveryOrganizationsConnections",
 		classes + "ScimProvisioningTest::testADirectoryProvisionsUsersAndGroups",

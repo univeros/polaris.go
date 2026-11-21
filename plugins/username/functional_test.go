@@ -41,7 +41,7 @@ func TestUsernameFlow(t *testing.T) {
 	const method = "testAUsernameIsUniqueWithoutRegardToCaseAndSignsInThroughThePasswordPath"
 	t.Run(method, func(t *testing.T) {
 		srv := polaristest.New(t, polaristest.WithPlugins(username.New(username.Config{})))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "username"), flowClass, method))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "username"), flowClass, method))
 		ada := login(t, srv, c, "ada@example.com")
 		grace := login(t, srv, c, "grace@example.com")
 
@@ -79,7 +79,7 @@ func TestUsernameFlow(t *testing.T) {
 
 func TestEveryFixtureIsCovered(t *testing.T) {
 	covered := []string{flowClass + "::testAUsernameIsUniqueWithoutRegardToCaseAndSignsInThroughThePasswordPath"}
-	left, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "username"), covered)
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "username"), covered)
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

@@ -1,4 +1,4 @@
-// Package sso is the SSO plugin (port of polaris/sso): per-organization SAML 2.0 and OpenID Connect
+// Package sso is the SSO plugin: per-organization SAML 2.0 and OpenID Connect
 // identity providers, verified domains that route an email to its organization's provider,
 // just-in-time users and memberships, single logout in both directions, the organization's own
 // self-service routes and the operators' view.

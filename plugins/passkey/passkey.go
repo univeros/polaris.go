@@ -1,4 +1,4 @@
-// Package passkey is the passkey plugin (port of polaris/passkey): WebAuthn registration from a
+// Package passkey is the passkey plugin: WebAuthn registration from a
 // session, discoverable sign-in with conditional UI (the browser offers the user's passkeys,
 // autofill included) ending in core's login envelope with amr ["passkey"], naming and removal;
 // and, by default, every passkey is also a core MFA factor of type "passkey", verified through
@@ -25,7 +25,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/mfa"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
@@ -152,7 +152,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/passkey).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/passkey")
+	sub, err := fs.Sub(apispec.API, "api/passkey")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

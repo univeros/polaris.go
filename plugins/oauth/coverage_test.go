@@ -16,7 +16,7 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 		phpFlow + "::testDiscoveryTrustedClientsMetadataDocumentsAndAdministration",
 		phpRegister + "::testAnyoneRegistersAClientAndAKeyedClientAuthenticatesWithAnAssertion",
 	}
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "oauth-provider"), covered)
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "oauth-provider"), covered)
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

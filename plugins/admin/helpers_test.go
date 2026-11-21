@@ -37,7 +37,7 @@ func newFlow(t *testing.T, class, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), f.admin))
-	fixture := contracttest.For(t, contracttest.UpstreamFixtures(t, "admin"), `Polaris\Admin\Tests\Functional\`+class, method)
+	fixture := contracttest.For(t, contracttest.Fixtures(t, "admin"), `Polaris\Admin\Tests\Functional\`+class, method)
 	f.c = contracttest.NewClient(t, f.srv.Handler(), fixture)
 	return f
 }

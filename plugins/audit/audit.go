@@ -1,4 +1,4 @@
-// Package audit is the audit plugin (port of polaris/audit): every Polaris event becomes a
+// Package audit is the audit plugin: every Polaris event becomes a
 // catalogued, redacted, append-only record in polaris_audit_event that callers query per user
 // (GET /audit/me) and per organization (GET /audit/organization/{id}, audit.read), streamed to
 // extra sinks and to each organization's drains, pruned by a retention policy and, optionally,
@@ -23,7 +23,7 @@ import (
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -75,7 +75,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/audit).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/audit")
+	sub, err := fs.Sub(apispec.API, "api/audit")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

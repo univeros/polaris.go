@@ -6,8 +6,8 @@ authentication (OpenID CIBA, poll mode), token exchange (RFC 8693, with `act`), 
 dynamic registration (RFC 7591, off by default), client ID metadata documents, introspection,
 revocation, userinfo and discovery. A scope is a permission name: its access tokens (`at+jwt`, signed
 with core's key) authenticate on every Polaris route and behind `p.Protect`, delegated to the
-intersection of the user's permissions and the token's scopes. Port of `polaris/oauth-provider`
-(plugin id `oauth`); required by `plugins/agents`; uses `plugins/admin` for its `/admin` routes when present.
+intersection of the user's permissions and the token's scopes. Plugin id `oauth`; required by
+`plugins/agents`; uses `plugins/admin` for its `/admin` routes when present.
 
 ## Install
 

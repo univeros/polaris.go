@@ -5,7 +5,7 @@ a discoverable ceremony (conditional UI: the browser offers the user's passkeys,
 that ends in core's login envelope with `amr ["passkey"]`; passkeys can be listed, renamed and
 removed. By default every passkey is also a confirmed core MFA factor of type `passkey`
 (`passkey.FactorType`), verified through core's `/auth/mfa/verify` and `/auth/mfa/step-up` with the
-assertion JSON as the code. Port of `polaris/passkey`; needs no other plugin.
+assertion JSON as the code. Needs no other plugin.
 
 ## Install
 
@@ -22,7 +22,7 @@ _, err = p.Migrate(ctx)    // creates polaris_passkey (challenges live in the ca
 
 ## Config
 
-`Origins` is required; every other zero value is upstream's default.
+`Origins` is required; every other zero value is the default.
 
 | Field | Default | Purpose |
 | --- | --- | --- |

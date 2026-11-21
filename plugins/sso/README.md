@@ -3,7 +3,7 @@
 Single sign-on per organization: SAML 2.0 and OpenID Connect identity providers, verified domains that
 route an email to its organization's provider, just-in-time users and memberships, and single logout
 in both directions. Organizations configure their own providers and domains; operators see every
-provider. Port of `polaris/sso`; `plugins/audit` and `plugins/admin` are optional.
+provider. `plugins/audit` and `plugins/admin` are optional.
 
 ## Install
 

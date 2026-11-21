@@ -1,4 +1,4 @@
-// Package scim is the SCIM plugin (port of polaris/scim): a SCIM 2.0 server (RFC 7643, 7644) per
+// Package scim is the SCIM plugin: a SCIM 2.0 server (RFC 7643, 7644) per
 // organization. A directory (Okta, Entra ID, Google, JumpCloud, …) provisions the organization's
 // members as Users and its roles as Groups with a connection token the organization creates and
 // rotates itself; operators see every connection.

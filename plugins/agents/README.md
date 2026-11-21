@@ -6,7 +6,7 @@ credentials when autonomous, token exchange with `act` when delegated). It signs
 (`agent+jwt`: `aud` the exact URL, `jti` once, at most 5 min, `htm`/`htu`/`body_hash`), asks for
 capability grants with constraints and budgets that a person approves (device code, CIBA, in-app) at
 the strength the risk needs, or the policy approves; every execution spends the budget and appends a
-signed, hash-chained receipt; a kill switch seals the agent. Port of `polaris/agents`; needs
+signed, hash-chained receipt; a kill switch seals the agent. Needs
 `plugins/oauth` (`Init` fails without it); records to `plugins/audit` and uses `plugins/admin` for
 `/admin/agents` when they are registered.
 
@@ -32,7 +32,7 @@ mux.Handle("POST /api/refunds", ag.Protect("refund", refunds)) // grant, constra
 
 ## Config
 
-Only `Capabilities` matters for most hosts; every other field has upstream's default.
+Only `Capabilities` matters for most hosts; every other field has a working default.
 
 | Field | Default | Purpose |
 | --- | --- | --- |

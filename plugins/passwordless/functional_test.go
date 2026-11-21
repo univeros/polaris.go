@@ -33,7 +33,7 @@ func newFlow(t *testing.T, method string) *flow {
 	f := &flow{t: t}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}),
 		passwordless.New(passwordless.Config{BaseURL: base, RedirectURIs: []string{done}})))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "passwordless"), flowClass, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passwordless"), flowClass, method))
 	return f
 }
 
@@ -261,7 +261,7 @@ func TestEveryPasswordlessFixtureHasAGoTest(t *testing.T) {
 	} {
 		covered = append(covered, flowClass+"::"+m)
 	}
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "passwordless"), covered)
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "passwordless"), covered)
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

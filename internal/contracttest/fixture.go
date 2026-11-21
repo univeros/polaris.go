@@ -342,7 +342,7 @@ func Requests(dir string) ([]RecordedRequest, error) {
 // UpstreamFixtures returns the directory of a package's mirrored fixtures,
 // `<module root>/internal/upstream/fixtures/<pkg>` (pkg as upstream names it: "core", "api-keys", …),
 // found from the test's working directory.
-func UpstreamFixtures(t testing.TB, pkg string) string {
+func Fixtures(t testing.TB, pkg string) string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
@@ -350,7 +350,7 @@ func UpstreamFixtures(t testing.TB, pkg string) string {
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return filepath.Join(dir, "internal", "upstream", "fixtures", pkg)
+			return filepath.Join(dir, "internal", "apispec", "fixtures", pkg)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

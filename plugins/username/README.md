@@ -4,7 +4,7 @@ A user sets a username (`PATCH /username`) and signs in with it, or with the ema
 (`POST /username/sign-in`), through core's password path: lockout, timing parity, the
 email-verification rule, the MFA gate and the login envelope are core's. Usernames are unique
 without regard to case (the lowercased form sits under a unique index); the display form is kept as
-typed. Port of `polaris/username`.
+typed.
 
 ## Install
 
@@ -18,7 +18,7 @@ _, err = p.Migrate(ctx) // creates polaris_username
 
 ## Config
 
-Every field is optional; the zero value is upstream's rules.
+Every field is optional; the zero value is the default rules.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
@@ -50,9 +50,8 @@ rule; `errors` lists them), `…/username/taken` (409).
 - `username.Of(p.Graph()).Usernames()` is the service: `Set(ctx, userID, username, display)`,
   `ForUser(ctx, userID)`, `UserID(ctx, username)`, `Violations(username)`. `Set` returns a
   `*username.InvalidError` (matches `username.ErrInvalid`) or `username.ErrTaken`.
-- `username.Normalize` is the stored (lowercased) form; case folding is `strings.ToLower`, so it
-  differs from upstream's `mb_strtolower` only on non-ASCII.
-- Erasing a user leaves its username row (open, as upstream).
+- `username.Normalize` is the stored (lowercased) form; case folding is `strings.ToLower`.
+- Erasing a user leaves its username row.
 - Rate-limit sign-in with `plugins/sentinel`: add `username.SentinelRoutes` to
   `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 

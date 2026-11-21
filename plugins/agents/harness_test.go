@@ -90,7 +90,7 @@ func boot(t *testing.T) (*polaristest.Server, *agents.Plugin) {
 
 func run(t *testing.T, phpClass string, tests map[string]func(*agentsCase)) {
 	t.Helper()
-	dir := contracttest.UpstreamFixtures(t, "agents")
+	dir := contracttest.Fixtures(t, "agents")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			srv, p := boot(t)

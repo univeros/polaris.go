@@ -126,7 +126,7 @@ func equalJSON(t *testing.T, got, want any, msg string) {
 func TestMcpServer(t *testing.T) {
 	t.Run("testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser", func(t *testing.T) {
 		srv := newServer(t)
-		fx := contracttest.For(t, contracttest.UpstreamFixtures(t, "mcp"), phpServerTest, "testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser")
+		fx := contracttest.For(t, contracttest.Fixtures(t, "mcp"), phpServerTest, "testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser")
 		s := &serverCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 
 		// The metadata a challenged client is sent to.
@@ -225,7 +225,7 @@ func TestMcpServer(t *testing.T) {
 }
 
 func TestEveryMcpFixtureHasAGoTest(t *testing.T) {
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "mcp"),
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "mcp"),
 		[]string{phpServerTest + "::testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser"})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)

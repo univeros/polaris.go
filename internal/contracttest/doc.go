@@ -7,7 +7,7 @@
 // sets, JSON bodies compared structurally) and compared with the recorded step:
 //
 //	func TestLoginEndpoint(t *testing.T) {
-//		dir := contracttest.UpstreamFixtures(t, "core")
+//		dir := contracttest.Fixtures(t, "core")
 //		t.Run("testLoginReturnsTokens", func(t *testing.T) {
 //			fx := contracttest.For(t, dir, `Polaris\Tests\Functional\LoginEndpointTest`, "testLoginReturnsTokens")
 //			c := contracttest.NewClient(t, newServer(t), fx)

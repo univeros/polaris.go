@@ -1,4 +1,4 @@
-// Package username is the username plugin (port of polaris/username): a user sets a username
+// Package username is the username plugin: a user sets a username
 // (PATCH /username) and signs in with it or with the email (POST /username/sign-in) through core's
 // password path, so lockout, timing parity, the email-verification rule, the MFA gate and the
 // login envelope are core's. Usernames are unique without regard to case: the lowercased form is
@@ -24,7 +24,7 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"
@@ -143,7 +143,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/username).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/username")
+	sub, err := fs.Sub(apispec.API, "api/username")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}
