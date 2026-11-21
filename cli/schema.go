@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/version"
 	"strings"
 
-	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
@@ -125,7 +125,7 @@ func manifestCommand(a *app, fs *flag.FlagSet) runFunc {
 		}
 		doc := m.Export()
 		if *format == "openapi" {
-			doc = m.OpenAPI(manifest.UpstreamVersion)
+			doc = m.OpenAPI(version.Module())
 		}
 		text, err := phpJSON(doc)
 		if err != nil {

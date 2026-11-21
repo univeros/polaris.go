@@ -67,7 +67,7 @@ func keysGenerate(_ *app, fs *flag.FlagSet) runFunc {
 			var priv ed25519.PrivateKey
 			pub, priv, err = ed25519.GenerateKey(rand.Reader)
 			pair = keyPair{base64.StdEncoding.EncodeToString(priv), base64.StdEncoding.EncodeToString(pub)}
-			note = "EdDSA: set cfg.Auth.AccessToken.Signer = config.SignerEdDSA after polaris.FromEnv (FromEnv decodes these base64 keys; PHP Polaris reads raw bytes only)"
+			note = "EdDSA: set cfg.Auth.AccessToken.Signer = config.SignerEdDSA after polaris.FromEnv (FromEnv decodes these base64 keys)"
 		default:
 			return report{}, usage(fmt.Sprintf("unknown algorithm %q", *alg), "use --alg=RS256 or --alg=EdDSA")
 		}

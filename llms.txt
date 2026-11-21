@@ -132,8 +132,6 @@ res, err := bot.Execute(ctx, "invoices.list", nil)       // signed request JWT p
 // errors: errors.Is(err, agent.ErrCapabilityNotGranted), agent.ErrBudgetExhausted, agent.ErrApprovalDenied …
 ```
 
-TypeScript agents use `@polaris-auth/agent` against the same server.
-
 ## Protect any Go MCP server with Polaris tokens
 
 ```go

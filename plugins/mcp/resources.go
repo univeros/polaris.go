@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"github.com/univeros/polaris.go/internal/version"
 	"net/http"
 	"slices"
 	"strings"
@@ -43,7 +44,7 @@ func (p *Plugin) readResource(ctx context.Context, uri string) (map[string]any, 
 	var text, mime string
 	switch {
 	case uri == ResourceManifest:
-		raw, _ := json.MarshalIndent(p.g.Manifest().OpenAPI(manifest.UpstreamVersion), "", "    ")
+		raw, _ := json.MarshalIndent(p.g.Manifest().OpenAPI(version.Module()), "", "    ")
 		text, mime = string(raw), "application/json"
 	case uri == ResourceSchema && p.cfg.Schema != nil:
 		ddl, err := p.cfg.Schema(ctx)
