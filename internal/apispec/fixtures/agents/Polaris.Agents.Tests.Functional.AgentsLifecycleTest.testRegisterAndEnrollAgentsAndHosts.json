@@ -1463,8 +1463,7 @@
                 },
                 "token_endpoint": "https://auth.polaris.test/oauth2/token",
                 "agent_sdk_versions": {
-                    "@polaris-auth/agent": "0.10.0",
-                    "polaris/agent": "0.10.0"
+                    "github.com/univeros/polaris.go/agent": "devel"
                 }
             }
         }
@@ -1525,8 +1524,7 @@
                 },
                 "token_endpoint": "https://auth.polaris.test/oauth2/token",
                 "agent_sdk_versions": {
-                    "@polaris-auth/agent": "0.10.0",
-                    "polaris/agent": "0.10.0"
+                    "github.com/univeros/polaris.go/agent": "devel"
                 }
             }
         }

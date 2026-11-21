@@ -99,7 +99,7 @@ func encodePHP(buf *bytes.Buffer, v any) error {
 	case uint, uint64:
 		n := toUint64(v)
 		if n > math.MaxInt64 {
-			return fmt.Errorf("%w: %d overflows PHP int", errUnencodable, n)
+			return fmt.Errorf("%w: %d overflows int64", errUnencodable, n)
 		}
 		buf.WriteString(strconv.FormatUint(n, 10))
 	case float64:

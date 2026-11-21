@@ -88,8 +88,8 @@ route's own refusal comes back as a tool error result carrying its problem.
   so it works behind a proxy.
 - `StdioOptions.Credential` may be a session token, an API key, an OAuth access token or an operator
   key; empty serves the public tools only. `StdioOptions.Tools` adds stdio-only tools.
-- `serverInfo` reads "Polaris for PHP" 0.10.0 (frozen by the upstream fixture); `tools/list` is not
-  paginated.
+- `serverInfo` names `ServerName` (default "Polaris") and the running Polaris release; `tools/list` is
+  not paginated.
 
 ## Example
 

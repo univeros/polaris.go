@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// UpstreamVersion is the polaris-core release the embedded manifests come from (internal/upstream/REF),
-// the version upstream's OpenAPI document carries.
-const UpstreamVersion = "0.12.0"
-
 const (
 	errorSchema      = "#/components/schemas/Error"
 	validationSchema = "#/components/schemas/ValidationError"
@@ -63,7 +59,7 @@ func (r *Route) export() Object {
 // "polaris manifest --format=openapi" prints it: one operation per route, request bodies and
 // parameters from the input, security from the auth, responses from the output (the success body
 // typed from its examples) and errors, and the policy as x-polaris-* extensions. version is
-// info.version; pass [UpstreamVersion] for upstream's document.
+// info.version (internal/version.Module() for the running release).
 func (m *Manifest) OpenAPI(version string) Object {
 	var paths Object
 	for _, r := range m.routes {
@@ -73,7 +69,7 @@ func (m *Manifest) OpenAPI(version string) Object {
 	}
 	return Object{
 		{"openapi", "3.1.0"},
-		{"info", Object{{"title", "Polaris for PHP"}, {"version", version}, {"description", "Self-hosted authentication, MFA, organizations and RBAC."}}},
+		{"info", Object{{"title", "Polaris for Go"}, {"version", version}, {"description", "Authentication and authorization for users and AI agents."}}},
 		{"paths", paths},
 		{"components", Object{
 			{"securitySchemes", Object{

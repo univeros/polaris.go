@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/version"
 	"net/http"
 	"slices"
 	"strings"
@@ -14,10 +15,9 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// The server's identity, as upstream's McpServer states it (frozen by the fixture's _meta).
+// The server's identity; its version is the running Polaris release (internal/version).
 const (
-	serverVersion     = "0.10.0"
-	serverDescription = "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+	serverDescription = "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
 	instructions      = "Tools are named polaris.<route> and answer {status, body}: what the HTTP route answers for the same request. A 4xx or 5xx status is an error result."
 )
 
@@ -223,7 +223,7 @@ func capabilities() map[string]any {
 }
 
 func (p *Plugin) serverInfo() map[string]any {
-	return map[string]any{"name": p.cfg.ServerName, "version": serverVersion, "description": serverDescription}
+	return map[string]any{"name": p.cfg.ServerName, "version": version.Module(), "description": serverDescription}
 }
 
 // stamp adds what the 2026-07-28 profile puts on every result: resultType, the cache hints on a
