@@ -722,3 +722,20 @@ and the two may differ; the PHP code is neither a reference nor a constraint.
   (same routes, tables and formats); it changes whenever a Go design is better, under rules 4 and 5.
 - The port plan moves to `docs/history/port-spec.md`; this log moves to `docs/decisions.md`. Entries
   #1–#52 keep their wording: they record why things are as they are.
+
+## 54. 2026-11-21 — Polaris for Go identifies as itself
+
+What a client reads from the server said "Polaris for PHP" (#53 follow-up). Breaking, deliberately:
+
+- MCP `serverInfo`: version is the running Polaris release, description "Polaris for Go: …" (was
+  "0.10.0", "Polaris for PHP: …").
+- The OpenAPI document (`polaris manifest --format=openapi`, the MCP schema resource): title "Polaris
+  for Go", description "Authentication and authorization for users and AI agents.", version the running
+  release (was "Polaris for PHP" 0.12.0).
+- `/.well-known/agent-configuration` `agent_sdk_versions` names the Go agent SDK,
+  `{"github.com/univeros/polaris.go/agent": <release>}` (was the PHP and TypeScript SDKs at 0.10.0).
+- **Breaking:** `manifest.UpstreamVersion` is removed; the running release comes from
+  `internal/version.Module()`, read from the build information (`runtime/debug.ReadBuildInfo`): the
+  version of `github.com/univeros/polaris.go` the host requires, or "devel" when none is recorded
+  (tests, a `replace`). Nothing to bump at release time.
+- The MCP and agents contract fixtures and the OpenAPI goldens are edited to match.

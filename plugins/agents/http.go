@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"github.com/univeros/polaris.go/internal/version"
 	"net/http"
 	"regexp"
 	"strings"
@@ -183,7 +184,7 @@ func (p *Plugin) discovery() map[string]any {
 		"version": "1.0-draft", "provider_name": p.s.settings.providerName, "description": p.s.settings.description,
 		"issuer": p.issuer, "default_location": endpoints["execute"], "algorithms": algorithms, "modes": modes,
 		"approval_methods": methods, "approval_strengths": p.s.settings.strengths, "endpoints": endpoints,
-		"token_endpoint": tokenURL, "agent_sdk_versions": map[string]any{"@polaris-auth/agent": "0.10.0", "polaris/agent": "0.10.0"},
+		"token_endpoint": tokenURL, "agent_sdk_versions": map[string]any{"github.com/univeros/polaris.go/agent": version.Module()},
 	}
 }
 

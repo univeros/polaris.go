@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"github.com/univeros/polaris.go/internal/version"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,7 +28,7 @@ type toolSchema struct {
 // parameters, body properties, with required) and an output object {status, body}, the body typed
 // from the spec's example as the OpenAPI document types it.
 func schemasOf(m *manifest.Manifest) map[string]toolSchema {
-	paths := at(m.OpenAPI(manifest.UpstreamVersion), "paths")
+	paths := at(m.OpenAPI(version.Module()), "paths")
 	out := map[string]toolSchema{}
 	for _, rt := range m.Routes() {
 		op := at(paths, rt.Path, strings.ToLower(rt.Method))

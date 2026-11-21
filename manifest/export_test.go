@@ -3,6 +3,7 @@ package manifest
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/univeros/polaris.go/internal/version"
 	"os"
 	"reflect"
 	"testing"
@@ -14,16 +15,16 @@ import (
 //	php bin/polaris manifest --format=openapi   > core.openapi.json
 //	php bin/polaris manifest --format=json    --bootstrap=packages/client-ts/polaris.php > all.json
 //	php bin/polaris manifest --format=openapi --bootstrap=packages/client-ts/polaris.php > all.openapi.json
-func TestExportsMatchThePHPGoldens(t *testing.T) {
+func TestExportsMatchTheGoldens(t *testing.T) {
 	core, all := loadCore(t), loadAll(t)
 	cases := []struct {
 		golden string
 		doc    Object
 	}{
 		{"core.json", core.Export()},
-		{"core.openapi.json", core.OpenAPI(UpstreamVersion)},
+		{"core.openapi.json", core.OpenAPI(version.Module())},
 		{"all.json", all.Export()},
-		{"all.openapi.json", all.OpenAPI(UpstreamVersion)},
+		{"all.openapi.json", all.OpenAPI(version.Module())},
 	}
 	for _, c := range cases {
 		t.Run(c.golden, func(t *testing.T) {

@@ -4147,8 +4147,8 @@
                     "_meta": {
                         "io.modelcontextprotocol/serverInfo": {
                             "name": "Polaris",
-                            "version": "0.10.0",
-                            "description": "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+                            "version": "devel",
+                            "description": "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
                         }
                     }
                 }
@@ -4230,8 +4230,8 @@
                     "_meta": {
                         "io.modelcontextprotocol/serverInfo": {
                             "name": "Polaris",
-                            "version": "0.10.0",
-                            "description": "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+                            "version": "devel",
+                            "description": "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
                         }
                     }
                 }
@@ -4355,8 +4355,8 @@
                     "_meta": {
                         "io.modelcontextprotocol/serverInfo": {
                             "name": "Polaris",
-                            "version": "0.10.0",
-                            "description": "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+                            "version": "devel",
+                            "description": "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
                         }
                     }
                 }
@@ -4583,8 +4583,8 @@
                     "_meta": {
                         "io.modelcontextprotocol/serverInfo": {
                             "name": "Polaris",
-                            "version": "0.10.0",
-                            "description": "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+                            "version": "devel",
+                            "description": "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
                         }
                     }
                 }
@@ -4792,8 +4792,8 @@
                     "_meta": {
                         "io.modelcontextprotocol/serverInfo": {
                             "name": "Polaris",
-                            "version": "0.10.0",
-                            "description": "Polaris for PHP: every endpoint and CLI command as a tool, under the caller's own permissions."
+                            "version": "devel",
+                            "description": "Polaris for Go: every endpoint and CLI command as a tool, under the caller's own permissions."
                         }
                     }
                 }

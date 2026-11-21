@@ -1,9 +1,9 @@
 {
     "openapi": "3.1.0",
     "info": {
-        "title": "Polaris for PHP",
-        "version": "0.12.0",
-        "description": "Self-hosted authentication, MFA, organizations and RBAC."
+        "title": "Polaris for Go",
+        "version": "devel",
+        "description": "Authentication and authorization for users and AI agents."
     },
     "paths": {
         "/auth/email/verify/resend": {
@@ -26343,16 +26343,12 @@
                                         "agent_sdk_versions": {
                                             "type": "object",
                                             "properties": {
-                                                "@polaris-auth/agent": {
-                                                    "type": "string"
-                                                },
-                                                "polaris/agent": {
+                                                "github.com/univeros/polaris.go/agent": {
                                                     "type": "string"
                                                 }
                                             },
                                             "required": [
-                                                "@polaris-auth/agent",
-                                                "polaris/agent"
+                                                "github.com/univeros/polaris.go/agent"
                                             ]
                                         }
                                     },
@@ -26374,7 +26370,7 @@
                                 "example": {
                                     "version": "1.0-draft",
                                     "provider_name": "Polaris",
-                                    "description": "Polaris for PHP agent provider",
+                                    "description": "Polaris for Go agent provider",
                                     "issuer": "https://auth.example",
                                     "default_location": "https://auth.example/agents/execute",
                                     "algorithms": [
@@ -26410,8 +26406,7 @@
                                     },
                                     "token_endpoint": "https://auth.example/oauth2/token",
                                     "agent_sdk_versions": {
-                                        "@polaris-auth/agent": "0.10.0",
-                                        "polaris/agent": "0.10.0"
+                                        "github.com/univeros/polaris.go/agent": "v0.3.0"
                                     }
                                 }
                             }
