@@ -16,7 +16,7 @@ import (
 
 	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/config"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/agents"
@@ -177,7 +177,7 @@ func (s *source) manifest() (*manifest.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	core, err := fs.Sub(upstream.API, "api/core")
+	core, err := fs.Sub(apispec.API, "api/core")
 	if err != nil {
 		return nil, err
 	}

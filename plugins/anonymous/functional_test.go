@@ -69,7 +69,7 @@ func TestAnonymousFlow(t *testing.T) {
 			return nil
 		}})
 		srv := polaristest.New(t, polaristest.WithPlugins(plugin))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "anonymous"), flowClass, "testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "anonymous"), flowClass, "testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"))
 
 		resp := c.Post("/anonymous/sign-in", map[string]any{})
 		status(t, resp, 201, "sign-in")
@@ -116,7 +116,7 @@ func TestAnonymousFlow(t *testing.T) {
 }
 
 func TestEveryFixtureIsCovered(t *testing.T) {
-	left, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "anonymous"), []string{flowClass + "::testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"})
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "anonymous"), []string{flowClass + "::testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"})
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

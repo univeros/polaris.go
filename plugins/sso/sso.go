@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -68,7 +68,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's 20 routes (upstream api/sso).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/sso")
+	sub, err := fs.Sub(apispec.API, "api/sso")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

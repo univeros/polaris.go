@@ -44,7 +44,7 @@ func TestJwksEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fx := contracttest.For(t, contracttest.UpstreamFixtures(t, "core"), authPHPNS+class, "testRotationOverlapPublishesBothKeys")
+		fx := contracttest.For(t, contracttest.Fixtures(t, "core"), authPHPNS+class, "testRotationOverlapPublishesBothKeys")
 		keys, _ := contracttest.JSON(t, contracttest.NewClient(t, p.Handler(), fx).Get(authJWKSPath))["keys"].([]any)
 		var kids []string
 		for _, k := range keys {

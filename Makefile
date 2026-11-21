@@ -1,4 +1,4 @@
-.PHONY: qa fmt vet lint vuln apicheck test bench sync
+.PHONY: qa fmt vet lint vuln apicheck test bench
 
 # Tool versions, fetched with `go run` (never in go.mod).
 GOLANGCI_LINT ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
@@ -21,7 +21,7 @@ vuln:
 	GOVULNCHECK=$(GOVULNCHECK) scripts/govulncheck.sh
 
 # apicheck fails on an incompatible change to the stable API (scripts/api-stable.txt) since BASE,
-# unless docs/port/decisions.md records it.
+# unless docs/decisions.md records it.
 BASE ?= origin/main
 apicheck:
 	APIDIFF=$(APIDIFF) scripts/apicheck.sh $(BASE)
@@ -33,6 +33,3 @@ test:
 
 bench:
 	go test -run '^$$' -bench . -benchmem ./...
-
-sync:
-	scripts/sync-upstream.sh $(REF)

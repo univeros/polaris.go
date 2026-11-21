@@ -32,7 +32,7 @@ func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, trail: audit.New(audit.Config{}), keys: apikeys.New(apikeys.Config{RotationGrace: time.Hour})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.keys))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "api-keys"), flowClass, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "api-keys"), flowClass, method))
 	return f
 }
 
@@ -273,7 +273,7 @@ func TestEveryFixtureIsCovered(t *testing.T) {
 	for _, m := range []string{"testAKeyActsAsItsOwnerWithTheDelegatedPermissionsOnEveryRoute", "testAnOrganizationsKeyIsManagedByItsAdminsAndActsAsItsCreator", "testAnExpiredKeyAndATooLargeBudgetAreRefused"} {
 		covered = append(covered, flowClass+"::"+m)
 	}
-	left, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "api-keys"), covered)
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "api-keys"), covered)
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

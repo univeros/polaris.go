@@ -11,16 +11,16 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 )
 
-// pluginDirs is every plugin manifest in upstream.API, in the order packages/client-ts/polaris.php
+// pluginDirs is every plugin manifest in apispec.API, in the order packages/client-ts/polaris.php
 // registers the plugins (the order of the all.*.json goldens).
 var pluginDirs = []string{"audit", "admin", "sentinel", "sso", "scim", "passwordless", "username", "anonymous", "multi-session", "social", "passkey", "api-keys", "oauth-provider", "mcp", "agents"}
 
 func sub(t testing.TB, dir string) fs.FS {
 	t.Helper()
-	fsys, err := fs.Sub(upstream.API, "api/"+dir)
+	fsys, err := fs.Sub(apispec.API, "api/"+dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func loadAll(t testing.TB) *Manifest {
 }
 
 func TestEveryUpstreamDirectoryIsAPluginOrCore(t *testing.T) {
-	entries, err := fs.ReadDir(upstream.API, "api")
+	entries, err := fs.ReadDir(apispec.API, "api")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestPolicyValuesAreKnown(t *testing.T) {
 
 // Port of ManifestTest::testSchemaJsonAgreesWithTheLoader.
 func TestSchemaJSONAgreesWithTheLoader(t *testing.T) {
-	raw, err := fs.ReadFile(upstream.API, "api/core/schema.json")
+	raw, err := fs.ReadFile(apispec.API, "api/core/schema.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -63,7 +63,7 @@ func register(c *contracttest.Client, srv *polaristest.Server, email string) {
 func TestMultiSessionFlow(t *testing.T) {
 	t.Run("testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime", func(t *testing.T) {
 		srv := polaristest.New(t, polaristest.WithPlugins(multisession.New(multisession.Config{DisableCookie: true})))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "multi-session"), flowClass, "testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "multi-session"), flowClass, "testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"))
 		register(c, srv, "ada@example.com")
 		register(c, srv, "grace@example.com")
 
@@ -170,7 +170,7 @@ func TestCookieMode(t *testing.T) {
 }
 
 func TestEveryFixtureHasAGoTest(t *testing.T) {
-	left, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "multi-session"),
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "multi-session"),
 		[]string{flowClass + "::testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"})
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)

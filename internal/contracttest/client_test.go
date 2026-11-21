@@ -169,7 +169,7 @@ func TestForFailsWithoutAFixture(t *testing.T) {
 }
 
 func TestReplayMismatchFailsTheTest(t *testing.T) {
-	dir := UpstreamFixtures(t, "core")
+	dir := Fixtures(t, "core")
 	ft := &fatalTB{TB: t}
 	runFatal(func() {
 		c := NewClient(ft, echo, For(ft, dir, `Polaris\Tests\Functional\JwksEndpointTest`, "testServesTheJwkSetOverHttp"))

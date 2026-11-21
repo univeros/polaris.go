@@ -8,8 +8,8 @@
 //
 // Load core's directory first, then each plugin's, in registration order:
 //
-//	core, _ := fs.Sub(upstream.API, "api/core")
-//	audit, _ := fs.Sub(upstream.API, "api/audit")
+//	core, _ := fs.Sub(apispec.API, "api/core")
+//	audit, _ := fs.Sub(apispec.API, "api/audit")
 //	m, err := manifest.Load(core, audit)
 //
 // Validation errors encode as the 422 body core routes answer: {"errors": ["email is required."]}.

@@ -6,16 +6,16 @@ import (
 	"io/fs"
 	"log"
 
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/manifest"
 )
 
 func Example() {
-	core, err := fs.Sub(upstream.API, "api/core")
+	core, err := fs.Sub(apispec.API, "api/core")
 	if err != nil {
 		log.Fatal(err)
 	}
-	audit, err := fs.Sub(upstream.API, "api/audit")
+	audit, err := fs.Sub(apispec.API, "api/audit")
 	if err != nil {
 		log.Fatal(err)
 	}

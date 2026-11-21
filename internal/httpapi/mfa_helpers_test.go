@@ -34,7 +34,7 @@ type mfaCase struct {
 
 // mfaRun runs each PHP test method of phpClass as a subtest named after it, so its fixture resolves.
 func mfaRun(t *testing.T, phpClass string, tests map[string]func(*mfaCase)) {
-	dir := contracttest.UpstreamFixtures(t, "core")
+	dir := contracttest.Fixtures(t, "core")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

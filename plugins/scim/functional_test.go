@@ -37,7 +37,7 @@ func newFlow(t *testing.T, class, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{}), trail: audit.New(audit.Config{})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, scim.New(scim.Config{BaseURL: base})))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "scim"), classes+class, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "scim"), classes+class, method))
 	return f
 }
 

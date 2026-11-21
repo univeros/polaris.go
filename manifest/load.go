@@ -38,8 +38,8 @@ func (m *Manifest) Named(name string) (*Route, bool) {
 }
 
 // Load reads every *.yaml spec under each directory: core's api/ first, then each plugin's, in
-// registration order (for the embedded upstream manifests, fs.Sub(upstream.API, "api/core"), then
-// fs.Sub(upstream.API, "api/<package>")). A spec in a later directory belongs to the plugin named by
+// registration order (for the embedded upstream manifests, fs.Sub(apispec.API, "api/core"), then
+// fs.Sub(apispec.API, "api/<package>")). A spec in a later directory belongs to the plugin named by
 // its first path segment ("audit/me.yaml" is plugin "audit").
 //
 // Load fails on the first invalid spec: a missing or unknown endpoint.method, path, auth or effect,

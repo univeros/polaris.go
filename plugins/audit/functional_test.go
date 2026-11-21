@@ -26,7 +26,7 @@ type flow struct {
 func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{})))
-	fx := contracttest.For(t, contracttest.UpstreamFixtures(t, "audit"), routesClass, method)
+	fx := contracttest.For(t, contracttest.Fixtures(t, "audit"), routesClass, method)
 	return &flow{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 }
 
@@ -139,7 +139,7 @@ func TestEveryFixtureIsCovered(t *testing.T) {
 	for _, m := range []string{"testTheCallersTrailListsTheAuthFlowNewestFirstWithFiltersAndPages", "testTheCatalogIsListedForASession", "testAnOrganizationsTrailNeedsTheActiveOrganizationAndAuditRead"} {
 		covered = append(covered, routesClass+"::"+m)
 	}
-	left, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "audit"), covered)
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "audit"), covered)
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

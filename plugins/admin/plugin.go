@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/repository"
@@ -55,7 +55,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/admin).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/admin")
+	sub, err := fs.Sub(apispec.API, "api/admin")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

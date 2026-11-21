@@ -1,4 +1,4 @@
-// Package social is the social sign-in plugin (port of polaris/social): OAuth 2.0 and OpenID
+// Package social is the social sign-in plugin: OAuth 2.0 and OpenID
 // Connect sign-in and sign-up through Google, Apple, Microsoft, GitHub and fifteen more providers,
 // or any other OAuth 2 server; account linking under a policy; Google One Tap; provider tokens on
 // the user's behalf (stored encrypted, refreshed when expiring); and an OAuth proxy so preview and
@@ -40,7 +40,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -184,7 +184,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/social).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/social")
+	sub, err := fs.Sub(apispec.API, "api/social")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

@@ -26,7 +26,7 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 			covered = append(covered, class+"::"+test)
 		}
 	}
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "agents"), covered)
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "agents"), covered)
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

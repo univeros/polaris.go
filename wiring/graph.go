@@ -21,9 +21,9 @@ import (
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/observe"
 	"github.com/univeros/polaris.go/internal/services"
-	"github.com/univeros/polaris.go/internal/upstream"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/metrics"
 	"github.com/univeros/polaris.go/mfa"
@@ -296,7 +296,7 @@ func (g *Graph) buildCore() error {
 	}
 
 	// Manifest: core first, then each plugin's routes.
-	core, err := fs.Sub(upstream.API, "api/core")
+	core, err := fs.Sub(apispec.API, "api/core")
 	if err != nil {
 		return err
 	}

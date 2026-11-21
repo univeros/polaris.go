@@ -7,20 +7,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/manifest"
 )
 
 // fuzzRoutes is every upstream route, core and plugins.
 func fuzzRoutes(f *testing.F) []*manifest.Route {
 	f.Helper()
-	dirs, err := fs.ReadDir(upstream.API, "api")
+	dirs, err := fs.ReadDir(apispec.API, "api")
 	if err != nil {
 		f.Fatal(err)
 	}
 	var routes []*manifest.Route
 	for _, d := range dirs {
-		sub, err := fs.Sub(upstream.API, "api/"+d.Name())
+		sub, err := fs.Sub(apispec.API, "api/"+d.Name())
 		if err != nil {
 			f.Fatal(err)
 		}

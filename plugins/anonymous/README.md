@@ -24,7 +24,7 @@ _, err = p.Migrate(ctx) // creates polaris_anonymous
 
 ## Config
 
-Every field is optional; the zero value is upstream's defaults.
+Every field is optional; the zero value is the defaults.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ Sign-in dispatches core's `user.logged_in`. `Prune` dispatches `event.UserDelete
   listener.
 - `anonymous.Of(p.Graph()).Guests()` is the service: `SignIn`, `Convert`, `IsGuest`, `Prune`.
 - Two concurrent conversions run `OnConvert` once. If ending the guest fails after `OnConvert` ran,
-  its sessions stay live and a retry answers `not_a_guest` (open, as upstream).
+  its sessions stay live and a retry answers `not_a_guest`.
 - Guard sign-in with `plugins/sentinel`: add `anonymous.SentinelRoutes` (judged as a sign-up) to
   `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 

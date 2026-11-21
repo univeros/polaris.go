@@ -698,3 +698,27 @@ every inferred scalar also be null; `plugins/mcp` does the same (`nullable` in `
 `tools/list` publishes the same schemas and the re-recorded MCP contract fixture replays. The Go
 server never failed the call (go-sdk does not reject it), but an MCP client validating the result
 would have.
+
+## 53. 2026-11-21 — Polaris for Go is its own product
+
+The owner's direction: Polaris for Go is an auth system for Go (users and AI agents, everything an
+auth system needs), not a port that tracks the PHP version. It no longer follows `polaris-core`,
+and the two may differ; the PHP code is neither a reference nor a constraint.
+
+- AGENT.md rules rewritten: Go first; the route specs are Go's own (edited with their endpoints);
+  behaviour changes are deliberate (contract fixtures edited or re-recorded in the same PR, with a
+  decision); stored data stays readable across releases; security-critical code stays careful;
+  releases are milestones. Rules "upstream decides observable behaviour", "the wire, the database
+  and the secrets are frozen [to PHP]" and "no feature work beyond upstream" are gone.
+- `internal/upstream` becomes `internal/apispec` (package `apispec`): the embedded route specs and
+  the contract fixtures, kept as Go-owned regression tests (`contracttest.Fixtures`). The fixture
+  file names keep the test names they were recorded under. `scripts/sync-upstream.sh`, `make sync`
+  and the `REF` pin are removed.
+- Removed with the PHP cross-checks: `scripts/vectors.php`, `scripts/verify-vectors.php` and the
+  `go-*.json` vectors written for them (the recorded vectors stay as known-answer tests),
+  `agent/interop_test.go` with `testdata/interop.php`, and `scripts/e2e-agent-ts.sh` with
+  `internal/e2e/agentserver` (the TypeScript agent SDK of the PHP project).
+- Compatibility with the PHP version is no longer promised. What exists today still is compatible
+  (same routes, tables and formats); it changes whenever a Go design is better, under rules 4 and 5.
+- The port plan moves to `docs/history/port-spec.md`; this log moves to `docs/decisions.md`. Entries
+  #1–#52 keep their wording: they record why things are as they are.

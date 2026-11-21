@@ -2,8 +2,8 @@
 
 Every Polaris event becomes a catalogued, redacted, append-only row in `polaris_audit_event`, queryable
 per user and per organization, streamed to your sinks and to each organization's drains, pruned by a
-retention policy and, optionally, chained by SHA-256 for tamper evidence. Port of `polaris/audit`;
-required by `plugins/admin`.
+retention policy and, optionally, chained by SHA-256 for tamper evidence.
+Required by `plugins/admin`.
 
 ## Install
 

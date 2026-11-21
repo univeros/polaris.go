@@ -98,7 +98,7 @@ func TestEmptyResultBodyStaysEmpty(t *testing.T) {
 // fixtures reach every core route, so their replay freezes the whole contract.
 func TestEveryManifestRouteIsCoveredByARecordedFixture(t *testing.T) {
 	core, _ := manifests(t)
-	requests, err := contracttest.Requests(contracttest.UpstreamFixtures(t, "core"))
+	requests, err := contracttest.Requests(contracttest.Fixtures(t, "core"))
 	if err != nil {
 		t.Fatal(err)
 	}

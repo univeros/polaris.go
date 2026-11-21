@@ -18,7 +18,7 @@ const (
 	testKID      = "test-kid-1"
 )
 
-// testKeys are the fixed test-only keys shared with scripts/vectors.php.
+// testKeys are the fixed test-only keys the recorded vectors were signed with.
 type testKeys struct {
 	RSA          struct{ Private, Public string } `json:"rsa"`
 	RSAAlternate struct{ Private, Public string } `json:"rsa_alternate"`

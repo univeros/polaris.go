@@ -173,7 +173,7 @@ func newFlow(t *testing.T, class, method string) *flow {
 		oidc: &fakeOIDC{email: "ada@acme.example", name: "Ada Lovelace"}, saml: &fakeSAML{}, verifier: &fakeVerifier{}}
 	plugin := sso.New(sso.Config{BaseURL: base, OIDC: f.oidc, SAML: f.saml, Domains: f.verifier})
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, plugin))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.UpstreamFixtures(t, "sso"), classes+class, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "sso"), classes+class, method))
 	return f
 }
 
@@ -290,7 +290,7 @@ func code(t *testing.T, resp *http.Response) string {
 }
 
 func TestEverySsoFixtureHasAGoTest(t *testing.T) {
-	missing, err := contracttest.Uncovered(contracttest.UpstreamFixtures(t, "sso"), []string{
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "sso"), []string{
 		classes + "SsoFlowTest::testSignInThroughOidcAndSamlEndsOnTheApplicationWithACode",
 		classes + "SsoOrganizationTest::testAnOrganizationManagesItsProvidersAndDomains",
 		classes + "SsoOrganizationTest::testTheOperatorsSeeEveryOrganizationsProviders",

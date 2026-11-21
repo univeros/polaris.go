@@ -1,4 +1,4 @@
-// Package anonymous is the guest-session plugin (port of polaris/anonymous): a visitor gets a
+// Package anonymous is the guest-session plugin: a visitor gets a
 // session before having an account, and once they sign up or in by any method the guest is
 // converted into that account through a host hook that moves what the host kept under the guest's
 // id. Guests nobody converted are pruned.
@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -98,7 +98,7 @@ func Models() []schema.Model {
 
 // Manifest returns the plugin's routes (upstream api/anonymous).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/anonymous")
+	sub, err := fs.Sub(apispec.API, "api/anonymous")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

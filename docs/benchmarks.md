@@ -16,7 +16,7 @@ Machine: Apple M1 Pro (10 cores), 16 GiB, macOS 26.6.2, Go 1.26.11 (darwin/arm64
 |---|---|---:|---:|---:|
 | `token` `BenchmarkParse/RS256` | access-token verification: signature, iss, aud, exp/nbf, typ | 37 400 | 6 544 | 86 |
 | `token` `BenchmarkParse/EdDSA` | the same with Ed25519 keys | 51 900 | 4 976 | 77 |
-| `internal/httpapi` `BenchmarkLogin/argon2=production` | `POST /auth/login`, `security.Argon2id{}` (64 MiB, t=4, p=1: PHP's defaults) | 195 000 000 | 67 207 776 | 860 |
+| `internal/httpapi` `BenchmarkLogin/argon2=production` | `POST /auth/login`, `security.Argon2id{}` (64 MiB, t=4, p=1: the defaults) | 195 000 000 | 67 207 776 | 860 |
 | `internal/httpapi` `BenchmarkLogin/argon2=cheap` | the same with the test suite's Argon2id (1 MiB, t=1, p=1) | 3 600 000 | 1 140 553 | 813 |
 | `internal/httpapi` `BenchmarkRefresh` | `POST /auth/token/refresh`, single-use rotation (consume, insert, sign) | 2 590 000 | 85 929 | 1 109 |
 | `plugins/apikeys` `BenchmarkProtect/jwt` | a host route behind `Protect`, session access token | 122 000 | 28 081 | 376 |

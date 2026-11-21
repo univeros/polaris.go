@@ -4,7 +4,7 @@ A SCIM 2.0 server (RFC 7643, 7644) per organization. A directory (Okta, Entra ID
 JumpCloud, …) provisions the organization's members as Users and its roles as Groups with a
 connection token the organization creates and rotates itself; operators see every connection. A
 SCIM User is a Polaris user with a membership in the organization (its `id` is the Polaris user id);
-a Group is one of the organization's roles. Port of `polaris/scim`; `plugins/audit` and
+a Group is one of the organization's roles. `plugins/audit` and
 `plugins/admin` are optional.
 
 ## Install

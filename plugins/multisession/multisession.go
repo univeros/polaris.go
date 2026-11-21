@@ -1,4 +1,4 @@
-// Package multisession is the multi-session plugin (port of polaris/multi-session): several accounts
+// Package multisession is the multi-session plugin: several accounts
 // signed in on one device (one browser), a switch between them without signing in again, signing
 // one out, and the device's last sign-in method for the client to pre-select its button.
 //
@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -82,7 +82,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/multi-session).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/multi-session")
+	sub, err := fs.Sub(apispec.API, "api/multi-session")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

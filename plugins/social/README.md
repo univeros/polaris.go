@@ -4,7 +4,7 @@ OAuth 2.0 and OpenID Connect sign-in and sign-up through 19 catalog providers or
 server; account linking under a policy; Google One Tap; provider tokens on the user's behalf (stored
 encrypted, refreshed when expiring); and an OAuth proxy so preview and local origins sign in through
 the stable origin registered at the providers. A sign-in ends in core's login envelope (amr
-`["social:<provider>"]`) or core's `mfa_required` ticket. Port of `polaris/social`.
+`["social:<provider>"]`) or core's `mfa_required` ticket.
 
 ## Install
 
@@ -39,7 +39,7 @@ Register `BaseURL + "/social/<provider>/callback"` at each provider.
 
 ## Config
 
-`BaseURL`, at least one provider and `RedirectURIs` are required; other zero values are upstream's defaults.
+`BaseURL`, at least one provider and `RedirectURIs` are required; other zero values are the defaults.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
@@ -84,7 +84,7 @@ With `plugins/audit` registered they become audit rows (`Plugin.AuditNames`). No
 
 - Social works without audit. A `event.UserDeleted` erases the user's provider accounts (email,
   profile, tokens) through the plugin's listener.
-- Open (as upstream): unlinking the last credential is not transactional; a link started in one
+- Open: unlinking the last credential is not transactional; a link started in one
   browser can be completed in another.
 
 ## Example

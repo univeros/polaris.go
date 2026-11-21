@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/pipeline"
 	"github.com/univeros/polaris.go/token"
 	"github.com/univeros/polaris.go/wiring"
@@ -71,7 +71,7 @@ func (*Plugin) ID() string { return ID }
 
 // Manifest returns the plugin's routes (upstream api/mcp): POST /mcp and its RFC 9728 metadata.
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/mcp")
+	sub, err := fs.Sub(apispec.API, "api/mcp")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}

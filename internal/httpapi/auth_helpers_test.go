@@ -28,7 +28,7 @@ type authCase struct {
 func authNew(t *testing.T, class, method string, opts ...polaristest.Option) *authCase {
 	t.Helper()
 	srv := polaristest.New(t, opts...)
-	fx := contracttest.For(t, contracttest.UpstreamFixtures(t, "core"), authPHPNS+class, method)
+	fx := contracttest.For(t, contracttest.Fixtures(t, "core"), authPHPNS+class, method)
 	return &authCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 }
 

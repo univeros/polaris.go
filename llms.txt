@@ -1,10 +1,10 @@
 # Polaris for Go
 
-> Self-hosted authentication for Go services, built for AI agents first: user sign-in (password,
-> MFA, sessions, organizations, RBAC), API keys, an OAuth 2.1 / OpenID Connect provider, agents as
-> first-class principals (grants, budgets, approvals, signed receipts, kill switch) and MCP
-> protection. One import, a few lines, net/http. Wire-, database- and token-compatible with Polaris
-> for PHP (polaris-core 0.12.2).
+> Authentication and authorization for Go services, for users and for AI agents, self-hosted in
+> your database: user sign-in (password, MFA, sessions, organizations, RBAC, passwordless, passkeys,
+> social, SSO, SCIM), API keys, an OAuth 2.1 / OpenID Connect provider, agents as first-class
+> principals (grants, budgets, approvals, signed receipts, kill switch) and MCP protection. One
+> import, a few lines, net/http.
 
 Module: `github.com/univeros/polaris.go` (Go 1.26): `go get github.com/univeros/polaris.go`.
 The package name is `polaris`.
@@ -183,6 +183,6 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.
-- `internal/upstream/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
+- `internal/apispec/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
 - `API.md` — what is stable in v0.x (the host surface, the plugin SDK) and what may change.
-- `docs/port/spec.md`, `docs/port/decisions.md` — design and every departure from the PHP version.
+- `docs/decisions.md` — every design decision, with the reason.

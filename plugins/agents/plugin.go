@@ -9,7 +9,7 @@ import (
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/plugins/oauth"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
@@ -64,7 +64,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest is the plugin's 23 route specs, mirrored from upstream.
 func (*Plugin) Manifest() fs.FS {
-	dir, err := fs.Sub(upstream.API, "api/agents")
+	dir, err := fs.Sub(apispec.API, "api/agents")
 	if err != nil {
 		panic(err) // the embedded mirror always has it
 	}

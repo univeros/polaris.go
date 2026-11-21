@@ -83,7 +83,7 @@ route's own refusal comes back as a tool error result carrying its problem.
 ## Host integration
 
 - Tool arguments are not schema-checked by the MCP layer: the route's own 422 is the answer.
-- Bodies over `polaris.Config.MaxBodyBytes` (default 1 MiB; upstream allowed 4 MiB) get 413.
+- Bodies over `polaris.Config.MaxBodyBytes` (default 1 MiB) get 413.
 - DPoP-bound tokens need a proof; its `htu` is checked against the configured resource, not `Host`,
   so it works behind a proxy.
 - `StdioOptions.Credential` may be a session token, an API key, an OAuth access token or an operator

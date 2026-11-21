@@ -16,8 +16,8 @@ import (
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/contracttest"
-	"github.com/univeros/polaris.go/internal/upstream"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/token"
 )
@@ -34,11 +34,11 @@ var (
 func manifests(t testing.TB) (core, all *manifest.Manifest) {
 	t.Helper()
 	manifestsOnce.Do(func() {
-		sub := func(name string) fs.FS { f, _ := fs.Sub(upstream.API, "api/"+name); return f }
+		sub := func(name string) fs.FS { f, _ := fs.Sub(apispec.API, "api/"+name); return f }
 		if coreManifest, manifestErr = manifest.Load(sub("core")); manifestErr != nil {
 			return
 		}
-		entries, _ := fs.ReadDir(upstream.API, "api")
+		entries, _ := fs.ReadDir(apispec.API, "api")
 		dirs := []fs.FS{sub("core")}
 		for _, e := range entries {
 			if e.IsDir() && e.Name() != "core" {

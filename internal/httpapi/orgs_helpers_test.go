@@ -39,7 +39,7 @@ type orgCase struct {
 // orgRun runs each test of a PHP class as a subtest with its own server and fixture.
 func orgRun(t *testing.T, phpClass string, tests map[string]func(*orgCase)) {
 	t.Helper()
-	dir := contracttest.UpstreamFixtures(t, "core")
+	dir := contracttest.Fixtures(t, "core")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			srv := polaristest.New(t)

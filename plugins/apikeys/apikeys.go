@@ -1,4 +1,4 @@
-// Package apikeys is the API-keys plugin (port of polaris/api-keys): keys owned by users and by
+// Package apikeys is the API-keys plugin: keys owned by users and by
 // organizations (pk_live_…, pk_test_…), each with a subset of its owner's permissions, an optional
 // rate limit of its own, an expiry, rotation with a grace window and revocation. Presented as
 // "Authorization: Bearer pk_…" or "x-api-key: pk_…", a key authenticates every Polaris route and
@@ -25,7 +25,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/internal/upstream"
+	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/pipeline"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
@@ -107,7 +107,7 @@ func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (upstream api/api-keys).
 func (*Plugin) Manifest() fs.FS {
-	sub, err := fs.Sub(upstream.API, "api/api-keys")
+	sub, err := fs.Sub(apispec.API, "api/api-keys")
 	if err != nil {
 		panic(err) // the embedded tree is fixed at build time
 	}
