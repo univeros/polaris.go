@@ -55,14 +55,14 @@ set -a && . ./.env && set +a      # FromEnv reads the process environment
 ```
 
 ```go
-db, err := sqlstore.Open(ctx, store.Postgres, os.Getenv("DATABASE_URL")) // or store.MySQL, store.SQLite
-cfg, err := polaris.FromEnv(db /*, plugins... */)                        // reads the env vars below
-p, err := polaris.New(cfg)                                               // validates everything; errors say how to fix
-_, err = p.Migrate(ctx)                                                  // creates missing tables, seeds permissions; idempotent
+db, err := sqlstore.Open(ctx, store.Postgres, os.Getenv("DATABASE_URL"))
+cfg, err := polaris.FromEnv(db) // APP_KEY, AUTH_JWT_*, AUTH_ISSUER; plugins go here too
+p, err := polaris.New(cfg)      // validates everything; every error says how to fix it
+_, err = p.Migrate(ctx)         // creates the missing tables; safe to run on every start
 
 mux := http.NewServeMux()
-mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
-mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
+mux.Handle("/", p.Handler()) // /auth/register, /auth/login, /auth/token/refresh, /orgs, …
+mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read"))
 ```
 
 Inside your handler, the caller is one call away:
@@ -80,7 +80,7 @@ in [`examples/minimal`](examples/minimal/main.go).
 
 ## What you get
 
-| | |
+| Area | Included |
 |---|---|
 | **Accounts** | Registration, email verification, password sign-in and reset (Argon2id, breached-password check), account disable, erase |
 | **MFA** | TOTP, SMS and email codes, recovery codes, step-up for sensitive routes |
@@ -102,7 +102,7 @@ cfg, err := polaris.FromEnv(db,
 )
 ```
 
-| Sign-in | |
+| Sign-in | What it does |
 |---|---|
 | [`passwordless`](plugins/passwordless) | Magic links, email and phone codes, one-time hand-off tokens |
 | [`passkey`](plugins/passkey) | WebAuthn sign-in; a passkey is also an MFA factor |
@@ -111,14 +111,14 @@ cfg, err := polaris.FromEnv(db,
 | [`anonymous`](plugins/anonymous) | Guest sessions converted on sign-up |
 | [`multisession`](plugins/multisession) | Several accounts per device, switch without signing in again |
 
-| Machines and agents | |
+| Machines and agents | What it does |
 |---|---|
 | [`apikeys`](plugins/apikeys) | User and organization API keys, scoped to a subset of permissions, rate-limited, rotatable |
 | [`oauth`](plugins/oauth) | OAuth 2.1 / OIDC provider: PKCE, client credentials, device, CIBA, token exchange, DPoP, dynamic registration |
 | [`agents`](plugins/agents) | Agents as principals: grants, constraints, budgets, approvals, signed receipts, kill switch |
 | [`mcp`](plugins/mcp) | Polaris as an MCP server, and `mcp.Protect` for your own MCP servers |
 
-| Enterprise and operations | |
+| Enterprise and operations | What it does |
 |---|---|
 | [`sso`](plugins/sso) | SAML 2.0 and OIDC per organization, verified domains, single logout |
 | [`scim`](plugins/scim) | SCIM 2.0 provisioning per organization |
@@ -133,39 +133,63 @@ Declare what agents may do in your service; Polaris checks the grant, its constr
 before your handler runs, and signs a receipt after.
 
 ```go
-ag := agents.New(agents.Config{Capabilities: []agents.Capability{
-	{Name: "invoices.list", Description: "List invoices", Permission: "org.read", Risk: agents.RiskLow,
-		Handler: func(ctx context.Context, call agents.Call) (any, error) { return listInvoices(ctx, call.Agent) }},
-	{Name: "refund", Description: "Refund an invoice", Permission: "billing.refund", Risk: agents.RiskHigh,
-		Location: "https://app.example.com/api/refunds",
-		Input: map[string]any{"type": "object", "required": []string{"invoice_id"},
-			"properties": map[string]any{"invoice_id": map[string]any{"type": "string"}}}},
-}})
+ag := agents.New(agents.Config{Capabilities: []agents.Capability{{
+	Name:        "invoices.list",
+	Description: "List invoices",
+	Permission:  "org.read",
+	Risk:        agents.RiskLow, // auto-approved, with a budget
+	Handler: func(ctx context.Context, call agents.Call) (any, error) {
+		return listInvoices(ctx, call.Agent)
+	},
+}, {
+	Name:        "refund",
+	Description: "Refund an invoice",
+	Permission:  "billing.refund",
+	Risk:        agents.RiskHigh, // a person approves, with step-up
+	Location:    "https://app.example.com/api/refunds",
+}}})
+
+mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler))
 ```
 
 The agent side is a Go SDK too:
 
 ```go
-key, _ := agent.GenerateKey(agent.EdDSA)                 // persist key.Export(); reload with agent.ImportKey
+key, _ := agent.GenerateKey(agent.EdDSA) // persist key.Export()
 a, _ := agent.New(ctx, "https://app.example.com", agent.WithKey(key))
 bot, _, err := a.Enroll(ctx, enrollmentToken, agent.Registration{Name: "Worker", Mode: agent.Delegated})
-asked, _ := bot.RequestGrants(ctx, agent.GrantRequest{Capabilities: []agent.CapabilityRequest{{Name: "refund"}}})
-if asked.Approval != nil { _, err = bot.WaitForApproval(ctx, *asked.Approval) } // a person approves
-res, err := bot.Execute(ctx, "invoices.list", nil)       // signed request JWT per call; res.Receipt
+
+asked, _ := bot.RequestGrants(ctx, agent.GrantRequest{
+	Capabilities: []agent.CapabilityRequest{{Name: "refund"}},
+})
+if asked.Approval != nil {
+	_, err = bot.WaitForApproval(ctx, *asked.Approval) // a person approves
+}
+res, err := bot.Execute(ctx, "invoices.list", nil) // res.Receipt is the signed receipt
 ```
 
 ## Testing your app
 
 ```go
-srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) // SQLite in a temp dir, test keys, recorders
+func TestSignUp(t *testing.T) {
+	srv := polaristest.New(t) // SQLite in a temp dir, test keys, recorded mail and SMS
+	req := httptest.NewRequest("POST", "/auth/register",
+		strings.NewReader(`{"email": "ada@example.com", "password": "correct horse battery staple"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted || len(srv.Mailer.Sent()) != 1 {
+		t.Fatalf("register: %d, %d mails", rec.Code, len(srv.Mailer.Sent()))
+	}
+}
 ```
 
 `srv.Handler()` serves every route; `srv.Mailer.Sent()` holds the verification and reset emails;
-`srv.Users()` and `srv.Sessions()` set up state without HTTP.
+`srv.Users()` and `srv.Sessions()` set up state without HTTP; `polaristest.WithPlugins(…)` adds plugins.
 
 ## Documentation
 
-| | |
+| Read | For |
 |---|---|
 | [`llms.txt`](llms.txt) | The whole integration on one page: configuration, hooks, plugins, agents, MCP, testing, CLI, errors |
 | [Website docs](https://polaris.univeros.io/docs/go/) | The same guides, rendered |
@@ -190,4 +214,10 @@ an issue.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 [2am.tech](https://2am.tech)
+
+---
+
+<p align="center">
+  Built and maintained by <a href="https://2am.tech"><strong>2am.tech</strong></a>
+</p>

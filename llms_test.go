@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -211,3 +212,65 @@ func readmePlugins(db store.Adapter) {
 }
 
 var _, _ = invoices, readmePlugins
+
+func readmeQuickstart() {
+	db, err := sqlstore.Open(ctx, store.Postgres, os.Getenv("DATABASE_URL"))
+	cfg, err := polaris.FromEnv(db) // APP_KEY, AUTH_JWT_*, AUTH_ISSUER; plugins go here too
+	p, err := polaris.New(cfg)      // validates everything; every error says how to fix it
+	_, err = p.Migrate(ctx)         // creates the missing tables; safe to run on every start
+
+	mux := http.NewServeMux()
+	mux.Handle("/", p.Handler()) // /auth/register, /auth/login, /auth/token/refresh, /orgs, …
+	mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read"))
+	_ = err
+}
+
+func readmeAgents(mux *http.ServeMux) {
+	ag := agents.New(agents.Config{Capabilities: []agents.Capability{{
+		Name:        "invoices.list",
+		Description: "List invoices",
+		Permission:  "org.read",
+		Risk:        agents.RiskLow, // auto-approved, with a budget
+		Handler: func(ctx context.Context, call agents.Call) (any, error) {
+			return listInvoices(ctx, call.Agent)
+		},
+	}, {
+		Name:        "refund",
+		Description: "Refund an invoice",
+		Permission:  "billing.refund",
+		Risk:        agents.RiskHigh, // a person approves, with step-up
+		Location:    "https://app.example.com/api/refunds",
+	}}})
+
+	mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler))
+}
+
+func readmeAgentSDK() {
+	key, _ := agent.GenerateKey(agent.EdDSA) // persist key.Export()
+	a, _ := agent.New(ctx, "https://app.example.com", agent.WithKey(key))
+	bot, _, err := a.Enroll(ctx, enrollmentToken, agent.Registration{Name: "Worker", Mode: agent.Delegated})
+
+	asked, _ := bot.RequestGrants(ctx, agent.GrantRequest{
+		Capabilities: []agent.CapabilityRequest{{Name: "refund"}},
+	})
+	if asked.Approval != nil {
+		_, err = bot.WaitForApproval(ctx, *asked.Approval) // a person approves
+	}
+	res, err := bot.Execute(ctx, "invoices.list", nil) // res.Receipt is the signed receipt
+	_, _ = res, err
+}
+
+// README.md's testing block, run for real.
+func TestSignUp(t *testing.T) {
+	srv := polaristest.New(t) // SQLite in a temp dir, test keys, recorded mail and SMS
+	req := httptest.NewRequest("POST", "/auth/register",
+		strings.NewReader(`{"email": "ada@example.com", "password": "correct horse battery staple"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted || len(srv.Mailer.Sent()) != 1 {
+		t.Fatalf("register: %d, %d mails", rec.Code, len(srv.Mailer.Sent()))
+	}
+}
+
+var _, _, _ = readmeQuickstart, readmeAgents, readmeAgentSDK
