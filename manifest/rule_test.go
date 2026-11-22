@@ -107,17 +107,17 @@ func TestValidateValueKinds(t *testing.T) {
 		{[]string{"max:3"}, "äöü", ""},
 		{[]string{"max:3"}, "äöüx", "f must be at most 3 characters."},
 		{[]string{"max:3"}, float64(1), "f must be at most 3 characters."},
-		{[]string{"max:3abc"}, "abcd", "f must be at most 3 characters."},
-		{[]string{"max:abc"}, "a", "f must be at most 0 characters."},
 		{[]string{"in:a, b"}, " b", ""},
 		{[]string{"in:a,b"}, "b ", "f must be one of a,b."},
 		{[]string{"in:1,2"}, float64(1), "f must be one of 1,2."},
-		{[]string{"regex:/^[a-z]+$/"}, "abc\n", ""}, // PCRE "$" also matches before a final newline
+		{[]string{"regex:/^[a-z]+$/"}, "abc\n", "f has an invalid format."}, // "$" is the end of the text
 		{[]string{"regex:/^[a-z]+$/D"}, "abc\n", "f has an invalid format."},
+		{[]string{"regex:/^[a-z]+$/m"}, "abc\n", ""}, // multi-line: "$" is an end of line
 		{[]string{"regex:/^[a-z]+$/i"}, "ABC", ""},
 		{[]string{"regex:#^a/b$#"}, "a/b", ""},
 		{[]string{"regex:/^[a-z]+$/"}, true, "f has an invalid format."},
-		{[]string{"e164"}, "+15551234567\n", ""}, // the pattern has no D modifier
+		{[]string{"e164"}, "+15551234567\n", "f must be an E.164 phone number."},
+		{[]string{"e164"}, "+15551234567", ""},
 		{[]string{"e164"}, "+0555", "f must be an E.164 phone number."},
 		{[]string{"email"}, float64(1), "f must be a valid email address."},
 		{[]string{"password_policy", "suspended", "optional"}, "x", ""},
@@ -140,7 +140,7 @@ func TestValidateValueKinds(t *testing.T) {
 }
 
 func TestParseRuleRegexDelimiters(t *testing.T) {
-	for _, text := range []string{"regex:abc", "regex:/abc", "regex:/abc/q", "regex:/(?<=a)b/"} {
+	for _, text := range []string{"regex:abc", "regex:/abc", "regex:/abc/q", "regex:/(?<=a)b/", "max:3abc", "max:abc", "max:-1", "max:+3", "max: 3"} {
 		if _, err := ParseRule(text); err == nil {
 			t.Errorf("%s: want an error", text)
 		}

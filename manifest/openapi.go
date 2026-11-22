@@ -239,7 +239,7 @@ func (f Field) schema() Object {
 		case "email":
 			s = s.With("format", "email")
 		case "max":
-			s = s.With("maxLength", leadingInt(rule.arg))
+			s = s.With("maxLength", rule.limit)
 		case "in":
 			values := strings.Split(rule.arg, ",")
 			for i, v := range values {
