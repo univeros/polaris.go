@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\ApiKeys\Http\ReadEndpoint
   description: >
     A key of the caller's, or of their active organization when they may update it. A revoked key, or
     another owner's, does not exist here.

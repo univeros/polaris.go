@@ -14,7 +14,6 @@ input:
     user_code: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\ReadApprovalEndpoint
   description: >
     For the host's approval page (device_authorization): the pending approval the signed-in owner's code
     stands for (dashes and case do not matter), the agent, the grants asked and the strength needed, so

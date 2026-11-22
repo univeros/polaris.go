@@ -16,7 +16,6 @@ input:
     constraints: { type: "?object", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\DecideApprovalEndpoint
   description: >
     Once. Approving needs a session of the approval's strength (session: any; step_up: core's step-up
     freshness; passkey: a recent passkey sign-in) and the owner must hold every capability's permission

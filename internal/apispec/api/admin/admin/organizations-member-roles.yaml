@@ -14,7 +14,6 @@ input:
     roles: { type: "list<string>", rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Organizations\UpdateMemberRolesEndpoint
   description: >
     Replaces the member's roles with the given slugs of the organization; the last owner cannot
     be demoted (409). Needs manage on the instance or on this organization; recorded as

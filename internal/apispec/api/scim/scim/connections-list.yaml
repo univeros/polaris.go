@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Scim\Http\Organization\ListConnectionsEndpoint
   description: >
     The connections of the caller's active organization (the path id must match, a superadmin
     excepted) with their sync state, never the tokens.

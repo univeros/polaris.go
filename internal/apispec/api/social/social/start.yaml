@@ -16,7 +16,6 @@ input:
     scopes: { type: "?list", rules: [optional] }
 
 domain:
-  class: Polaris\Social\Http\StartEndpoint
   description: >
     The provider's authorization URL for the browser, with a state valid for ten minutes (PKCE and a
     nonce where the provider takes them). The sign-in ends on redirect_uri (one of the plugin's, the

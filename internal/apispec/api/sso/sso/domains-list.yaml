@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Sso\Http\Organization\ListDomainsEndpoint
   description: >
     Each domain with its verification instructions (a DNS TXT record _polaris.<domain>, or the file
     /.well-known/polaris-sso.txt over https, carrying the token) and whether it is verified.

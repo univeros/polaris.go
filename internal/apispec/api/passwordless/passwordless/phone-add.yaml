@@ -16,7 +16,6 @@ input:
     phone: { type: string, rules: [required, "max:32"] }
 
 domain:
-  class: Polaris\Passwordless\Http\PhoneAddEndpoint
   description: >
     Texts a confirmation code to the number unless another account has it verified; the answer is the
     same 202 either way. POST /phone/confirm attaches it.

@@ -16,7 +16,6 @@ input:
     filter: { type: "list<string>", rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Audit\CreateDrainEndpoint
   description: >
     A signed webhook drain: an https endpoint, a secret of at least 16 characters (encrypted at
     rest, never returned), an optional filter of names or prefix.* patterns. Delivered when the

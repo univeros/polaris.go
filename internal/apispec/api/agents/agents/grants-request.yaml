@@ -18,7 +18,6 @@ input:
     binding_message: { type: "?string", rules: [optional, "max:160"] }
 
 domain:
-  class: Polaris\Agents\Http\RequestGrantsEndpoint
   description: >
     capabilities names them (a name, or {name, constraints} with max, min, in, not_in, pattern per
     argument and budget: {count} or {amount, field}, window). What the policy auto-approves (the risk

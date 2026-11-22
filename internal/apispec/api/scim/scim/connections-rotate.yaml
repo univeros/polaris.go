@@ -16,7 +16,6 @@ input:
     connectionId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Organization\RotateConnectionEndpoint
   description: >
     A new token, in this response only; the previous one stops at once. A decommissioned connection is
     refused. Recorded as scim.connection_rotated.

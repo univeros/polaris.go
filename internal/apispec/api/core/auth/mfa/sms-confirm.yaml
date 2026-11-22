@@ -16,7 +16,6 @@ input:
     code: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Auth\OtpFactorConfirmEndpoint
   description: >
     Verifies the delivered code against the named pending factor's own
     challenge and marks the factor confirmed (one domain serves both the sms

@@ -16,7 +16,6 @@ input:
     providerId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\TestProviderEndpoint
   description: >
     OIDC: the discovery document and the JWKS are fetched afresh; SAML: the certificate parses and the
     URLs are present. ok with an empty problems list when everything is in order.

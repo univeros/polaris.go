@@ -17,7 +17,7 @@ const (
 var pathParam = regexp.MustCompile(`\{(\w+)\}`)
 
 // Export returns the manifest as the JSON manifest document (testdata/manifest/core.json):
-// {"endpoints": [...]}, one entry per route with its policy, input, class, errors and events.
+// {"endpoints": [...]}, one entry per route with its policy, input, name, errors and events.
 func (m *Manifest) Export() Object {
 	endpoints := make([]any, 0, len(m.routes))
 	for _, r := range m.routes {
@@ -51,7 +51,7 @@ func (r *Route) export() Object {
 		{"session", nullable(string(r.Session))},
 		{"requires_permissions", list(r.RequiresPermissions)},
 		{"input", Object{{"source", r.Input.Source}, {"fields", fields}}},
-		{"class", r.Class},
+		{"name", r.Name},
 		{"errors", errs},
 		{"events", list(r.Events)},
 	}
@@ -102,7 +102,7 @@ func (m *Manifest) OpenAPI(version string) Object {
 
 func (r *Route) operation() Object {
 	op := Object{
-		{"operationId", r.operationID()},
+		{"operationId", r.Name},
 		{"summary", r.Summary},
 		{"tags", list(r.Tags)},
 		{"x-polaris-effect", r.Effect},
@@ -203,16 +203,6 @@ func (r *Route) responses() Object {
 		responses = append(responses, Member{code, Object{{"description", description}, {"content", content}}})
 	}
 	return responses
-}
-
-// operationID is the method and the endpoint class's short name, with the plugin id between them
-// for a plugin's route (a plugin's endpoint may share its short name with a core one).
-func (r *Route) operationID() string {
-	short := r.Class[strings.LastIndexByte(r.Class, '\\')+1:]
-	if r.Plugin == "" {
-		return strings.ToLower(r.Method) + "_" + short
-	}
-	return strings.ToLower(r.Method) + "_" + r.Plugin + "_" + short
 }
 
 func (f Field) required() bool {

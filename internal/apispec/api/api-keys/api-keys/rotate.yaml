@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\ApiKeys\Http\RotateEndpoint
   description: >
     A successor key with the same owner, name, permissions, rate limit, expiry and metadata and a new
     secret (in this response only); the key named keeps authenticating for the grace window

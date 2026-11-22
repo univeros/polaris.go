@@ -8,7 +8,7 @@
     "paths": {
         "/auth/email/verify/resend": {
             "post": {
-                "operationId": "post_ResendVerificationEndpoint",
+                "operationId": "polaris.auth.email-verify-resend",
                 "summary": "Resend the verification email",
                 "tags": [
                     "auth"
@@ -73,7 +73,7 @@
         },
         "/auth/email/verify": {
             "post": {
-                "operationId": "post_VerifyEmailEndpoint",
+                "operationId": "polaris.auth.email-verify",
                 "summary": "Verify an email address",
                 "tags": [
                     "auth"
@@ -148,7 +148,7 @@
         },
         "/auth/invites/accept": {
             "post": {
-                "operationId": "post_AcceptInviteEndpoint",
+                "operationId": "polaris.auth.invites-accept",
                 "summary": "Accept an organization invitation",
                 "tags": [
                     "auth",
@@ -257,7 +257,7 @@
         },
         "/auth/.well-known/jwks.json": {
             "get": {
-                "operationId": "get_JwksEndpoint",
+                "operationId": "polaris.auth.jwks",
                 "summary": "JWKS document",
                 "tags": [
                     "auth"
@@ -331,7 +331,7 @@
         },
         "/auth/login": {
             "post": {
-                "operationId": "post_LoginEndpoint",
+                "operationId": "polaris.auth.login",
                 "summary": "Authenticate with email and password",
                 "tags": [
                     "auth"
@@ -555,7 +555,7 @@
         },
         "/auth/logout-all": {
             "post": {
-                "operationId": "post_LogoutAllEndpoint",
+                "operationId": "polaris.auth.logout-all",
                 "summary": "Log out everywhere",
                 "tags": [
                     "auth"
@@ -615,7 +615,7 @@
         },
         "/auth/logout": {
             "post": {
-                "operationId": "post_LogoutEndpoint",
+                "operationId": "polaris.auth.logout",
                 "summary": "Log out the current session",
                 "tags": [
                     "auth"
@@ -675,7 +675,7 @@
         },
         "/auth/me": {
             "get": {
-                "operationId": "get_MeEndpoint",
+                "operationId": "polaris.auth.me",
                 "summary": "Read the authenticated identity",
                 "tags": [
                     "auth"
@@ -771,7 +771,7 @@
         },
         "/auth/mfa/challenge": {
             "post": {
-                "operationId": "post_MfaChallengeEndpoint",
+                "operationId": "polaris.auth.mfa.challenge",
                 "summary": "Send a login-gate OTP for a chosen factor",
                 "tags": [
                     "auth",
@@ -885,7 +885,7 @@
         },
         "/auth/mfa/email/confirm": {
             "post": {
-                "operationId": "post_OtpFactorConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.email-confirm",
                 "summary": "Confirm a pending email factor",
                 "tags": [
                     "auth",
@@ -1000,7 +1000,7 @@
         },
         "/auth/mfa/email/enroll": {
             "post": {
-                "operationId": "post_EmailEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.email-enroll",
                 "summary": "Begin email factor enrollment",
                 "tags": [
                     "auth",
@@ -1103,7 +1103,7 @@
         },
         "/auth/mfa/factors/{id}": {
             "delete": {
-                "operationId": "delete_DeleteFactorEndpoint",
+                "operationId": "polaris.auth.mfa.factor-delete",
                 "summary": "Remove an MFA factor",
                 "tags": [
                     "auth",
@@ -1193,7 +1193,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateFactorEndpoint",
+                "operationId": "polaris.auth.mfa.factor-update",
                 "summary": "Update a factor's label or default flag",
                 "tags": [
                     "auth",
@@ -1327,7 +1327,7 @@
         },
         "/auth/mfa/factors": {
             "get": {
-                "operationId": "get_MfaFactorsEndpoint",
+                "operationId": "polaris.auth.mfa.factors-list",
                 "summary": "List the caller's MFA factors",
                 "tags": [
                     "auth",
@@ -1432,7 +1432,7 @@
         },
         "/auth/mfa/recovery-codes/regenerate": {
             "post": {
-                "operationId": "post_RegenerateRecoveryCodesEndpoint",
+                "operationId": "polaris.auth.mfa.recovery-codes-regenerate",
                 "summary": "Regenerate the recovery-code batch",
                 "tags": [
                     "auth",
@@ -1500,7 +1500,7 @@
         },
         "/auth/mfa/sms/confirm": {
             "post": {
-                "operationId": "post_OtpFactorConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.sms-confirm",
                 "summary": "Confirm a pending SMS factor",
                 "tags": [
                     "auth",
@@ -1615,7 +1615,7 @@
         },
         "/auth/mfa/sms/enroll": {
             "post": {
-                "operationId": "post_SmsEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.sms-enroll",
                 "summary": "Begin SMS factor enrollment",
                 "tags": [
                     "auth",
@@ -1720,7 +1720,7 @@
         },
         "/auth/mfa/step-up/challenge": {
             "post": {
-                "operationId": "post_StepUpChallengeEndpoint",
+                "operationId": "polaris.auth.mfa.step-up-challenge",
                 "summary": "Send a step-up OTP for a chosen factor",
                 "tags": [
                     "auth",
@@ -1834,7 +1834,7 @@
         },
         "/auth/mfa/step-up": {
             "post": {
-                "operationId": "post_StepUpVerifyEndpoint",
+                "operationId": "polaris.auth.mfa.step-up",
                 "summary": "Complete a step-up re-authentication",
                 "tags": [
                     "auth",
@@ -1947,7 +1947,7 @@
         },
         "/auth/mfa/totp/confirm": {
             "post": {
-                "operationId": "post_TotpConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.totp-confirm",
                 "summary": "Confirm a pending TOTP factor",
                 "tags": [
                     "auth",
@@ -2062,7 +2062,7 @@
         },
         "/auth/mfa/totp/enroll": {
             "post": {
-                "operationId": "post_TotpEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.totp-enroll",
                 "summary": "Begin TOTP (authenticator app) enrollment",
                 "tags": [
                     "auth",
@@ -2138,7 +2138,7 @@
         },
         "/auth/mfa/verify": {
             "post": {
-                "operationId": "post_MfaVerifyEndpoint",
+                "operationId": "polaris.auth.mfa.verify",
                 "summary": "Verify the MFA code and mint the real session",
                 "tags": [
                     "auth",
@@ -2262,7 +2262,7 @@
         },
         "/auth/password/change": {
             "post": {
-                "operationId": "post_ChangePasswordEndpoint",
+                "operationId": "polaris.auth.password.change",
                 "summary": "Change the password",
                 "tags": [
                     "auth"
@@ -2369,7 +2369,7 @@
         },
         "/auth/password/forgot": {
             "post": {
-                "operationId": "post_ForgotPasswordEndpoint",
+                "operationId": "polaris.auth.password.forgot",
                 "summary": "Request a password reset",
                 "tags": [
                     "auth"
@@ -2434,7 +2434,7 @@
         },
         "/auth/password/reset": {
             "post": {
-                "operationId": "post_ResetPasswordEndpoint",
+                "operationId": "polaris.auth.password.reset",
                 "summary": "Reset the password with a token",
                 "tags": [
                     "auth"
@@ -2526,7 +2526,7 @@
         },
         "/auth/register": {
             "post": {
-                "operationId": "post_RegisterEndpoint",
+                "operationId": "polaris.auth.register",
                 "summary": "Register a new user account",
                 "tags": [
                     "auth"
@@ -2602,7 +2602,7 @@
         },
         "/auth/sessions/{id}": {
             "delete": {
-                "operationId": "delete_RevokeSessionEndpoint",
+                "operationId": "polaris.auth.session-revoke",
                 "summary": "Revoke a session",
                 "tags": [
                     "auth"
@@ -2691,7 +2691,7 @@
         },
         "/auth/sessions": {
             "get": {
-                "operationId": "get_SessionsEndpoint",
+                "operationId": "polaris.auth.sessions-list",
                 "summary": "List active sessions",
                 "tags": [
                     "auth"
@@ -2790,7 +2790,7 @@
         },
         "/auth/switch-org": {
             "post": {
-                "operationId": "post_SwitchOrgEndpoint",
+                "operationId": "polaris.auth.switch-org",
                 "summary": "Switch the active organization",
                 "tags": [
                     "auth"
@@ -2912,7 +2912,7 @@
         },
         "/auth/token/refresh": {
             "post": {
-                "operationId": "post_RefreshTokenEndpoint",
+                "operationId": "polaris.auth.token-refresh",
                 "summary": "Rotate the refresh token",
                 "tags": [
                     "auth"
@@ -3013,7 +3013,7 @@
         },
         "/orgs": {
             "post": {
-                "operationId": "post_CreateOrganizationEndpoint",
+                "operationId": "polaris.orgs.create",
                 "summary": "Create an organization",
                 "tags": [
                     "orgs"
@@ -3139,7 +3139,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListOrganizationsEndpoint",
+                "operationId": "polaris.orgs.list",
                 "summary": "List the organizations the caller belongs to",
                 "tags": [
                     "orgs"
@@ -3218,7 +3218,7 @@
         },
         "/orgs/{id}": {
             "delete": {
-                "operationId": "delete_DeleteOrganizationEndpoint",
+                "operationId": "polaris.orgs.delete",
                 "summary": "Soft-delete the organization",
                 "tags": [
                     "orgs"
@@ -3309,7 +3309,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ReadOrganizationEndpoint",
+                "operationId": "polaris.orgs.read",
                 "summary": "Read the organization profile",
                 "tags": [
                     "orgs"
@@ -3414,7 +3414,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateOrganizationEndpoint",
+                "operationId": "polaris.orgs.update",
                 "summary": "Update (rename) the organization",
                 "tags": [
                     "orgs"
@@ -3550,7 +3550,7 @@
         },
         "/orgs/{id}/invites/{inviteId}": {
             "delete": {
-                "operationId": "delete_RevokeInviteEndpoint",
+                "operationId": "polaris.orgs.invite-revoke",
                 "summary": "Revoke a pending invitation",
                 "tags": [
                     "orgs",
@@ -3651,7 +3651,7 @@
         },
         "/orgs/{id}/invites": {
             "post": {
-                "operationId": "post_CreateInviteEndpoint",
+                "operationId": "polaris.orgs.invites-create",
                 "summary": "Create (or refresh) a membership invitation",
                 "tags": [
                     "orgs",
@@ -3799,7 +3799,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListInvitesEndpoint",
+                "operationId": "polaris.orgs.invites-list",
                 "summary": "List pending invitations",
                 "tags": [
                     "orgs",
@@ -3917,7 +3917,7 @@
         },
         "/orgs/{id}/members/{userId}": {
             "delete": {
-                "operationId": "delete_RemoveMemberEndpoint",
+                "operationId": "polaris.orgs.member-remove",
                 "summary": "Remove a member from the organization",
                 "tags": [
                     "orgs",
@@ -4026,7 +4026,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_ChangeMemberStatusEndpoint",
+                "operationId": "polaris.orgs.member-status-update",
                 "summary": "Change a member's status (suspend or reactivate)",
                 "tags": [
                     "orgs",
@@ -4174,7 +4174,7 @@
         },
         "/orgs/{id}/members/{userId}/roles": {
             "patch": {
-                "operationId": "patch_ChangeMemberRolesEndpoint",
+                "operationId": "polaris.orgs.member-roles-update",
                 "summary": "Replace a member's roles",
                 "tags": [
                     "orgs",
@@ -4327,7 +4327,7 @@
         },
         "/orgs/{id}/members": {
             "get": {
-                "operationId": "get_ListMembersEndpoint",
+                "operationId": "polaris.orgs.members-list",
                 "summary": "List the organization's members",
                 "tags": [
                     "orgs",
@@ -4455,7 +4455,7 @@
         },
         "/orgs/{id}/roles/{roleId}": {
             "delete": {
-                "operationId": "delete_DeleteRoleEndpoint",
+                "operationId": "polaris.orgs.role-delete",
                 "summary": "Delete a custom role",
                 "tags": [
                     "orgs",
@@ -4554,7 +4554,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateRoleEndpoint",
+                "operationId": "polaris.orgs.role-update",
                 "summary": "Update a role",
                 "tags": [
                     "orgs",
@@ -4721,7 +4721,7 @@
         },
         "/orgs/{id}/roles": {
             "post": {
-                "operationId": "post_CreateRoleEndpoint",
+                "operationId": "polaris.orgs.roles-create",
                 "summary": "Create a custom role",
                 "tags": [
                     "orgs",
@@ -4886,7 +4886,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListRolesEndpoint",
+                "operationId": "polaris.orgs.roles-list",
                 "summary": "List the organization's roles",
                 "tags": [
                     "orgs",
@@ -5027,7 +5027,7 @@
         },
         "/permissions": {
             "get": {
-                "operationId": "get_ListPermissionsEndpoint",
+                "operationId": "polaris.permissions.list",
                 "summary": "List the permission catalog",
                 "tags": [
                     "permissions"
@@ -5108,7 +5108,7 @@
         },
         "/users/{id}": {
             "delete": {
-                "operationId": "delete_DeleteUserEndpoint",
+                "operationId": "polaris.users.delete",
                 "summary": "Delete (anonymize) a user account",
                 "tags": [
                     "users"
@@ -5196,7 +5196,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ReadUserEndpoint",
+                "operationId": "polaris.users.read",
                 "summary": "Read a user",
                 "tags": [
                     "users"
@@ -5298,7 +5298,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateUserEndpoint",
+                "operationId": "polaris.users.update",
                 "summary": "Update a user's profile",
                 "tags": [
                     "users"
@@ -5428,7 +5428,7 @@
         },
         "/users/{id}/disable": {
             "post": {
-                "operationId": "post_DisableUserEndpoint",
+                "operationId": "polaris.users.disable",
                 "summary": "Disable a user account",
                 "tags": [
                     "users"
@@ -5531,7 +5531,7 @@
         },
         "/users/{id}/enable": {
             "post": {
-                "operationId": "post_EnableUserEndpoint",
+                "operationId": "polaris.users.enable",
                 "summary": "Re-enable a user account",
                 "tags": [
                     "users"
@@ -5633,7 +5633,7 @@
         },
         "/audit/me": {
             "get": {
-                "operationId": "get_audit_MeEndpoint",
+                "operationId": "polaris.audit.me",
                 "summary": "List the audit events where the caller is the actor or the subject",
                 "tags": [
                     "audit"
@@ -5834,7 +5834,7 @@
         },
         "/audit/organization/{id}": {
             "get": {
-                "operationId": "get_audit_OrganizationEndpoint",
+                "operationId": "polaris.audit.organization",
                 "summary": "List an organization's audit events",
                 "tags": [
                     "audit"
@@ -6057,7 +6057,7 @@
         },
         "/audit/types": {
             "get": {
-                "operationId": "get_audit_TypesEndpoint",
+                "operationId": "polaris.audit.types",
                 "summary": "List the audit event names and their descriptions",
                 "tags": [
                     "audit"
@@ -6127,7 +6127,7 @@
         },
         "/admin/audit": {
             "get": {
-                "operationId": "get_admin_QueryAuditEndpoint",
+                "operationId": "polaris.admin.audit-query",
                 "summary": "Query the audit trail",
                 "tags": [
                     "admin",
@@ -6361,7 +6361,7 @@
         },
         "/admin/organizations/{id}/drains": {
             "post": {
-                "operationId": "post_admin_CreateDrainEndpoint",
+                "operationId": "polaris.admin.drains-create",
                 "summary": "Create an audit drain",
                 "tags": [
                     "admin",
@@ -6536,7 +6536,7 @@
                 }
             },
             "get": {
-                "operationId": "get_admin_ListDrainsEndpoint",
+                "operationId": "polaris.admin.drains-list",
                 "summary": "List an organization's audit drains",
                 "tags": [
                     "admin",
@@ -6678,7 +6678,7 @@
         },
         "/admin/organizations/{id}/drains/{drainId}": {
             "delete": {
-                "operationId": "delete_admin_DeleteDrainEndpoint",
+                "operationId": "polaris.admin.drains-delete",
                 "summary": "Delete an audit drain",
                 "tags": [
                     "admin",
@@ -6772,7 +6772,7 @@
         },
         "/admin/organizations/{id}/drains/{drainId}/test": {
             "post": {
-                "operationId": "post_admin_TestDrainEndpoint",
+                "operationId": "polaris.admin.drains-test",
                 "summary": "Test an audit drain",
                 "tags": [
                     "admin",
@@ -6917,7 +6917,7 @@
         },
         "/admin/grants": {
             "post": {
-                "operationId": "post_admin_CreateGrantEndpoint",
+                "operationId": "polaris.admin.grants-create",
                 "summary": "Grant an admin role",
                 "tags": [
                     "admin",
@@ -7062,7 +7062,7 @@
                 }
             },
             "get": {
-                "operationId": "get_admin_ListGrantsEndpoint",
+                "operationId": "polaris.admin.grants-list",
                 "summary": "List the admin grants",
                 "tags": [
                     "admin",
@@ -7166,7 +7166,7 @@
         },
         "/admin/grants/{id}": {
             "delete": {
-                "operationId": "delete_admin_DeleteGrantEndpoint",
+                "operationId": "polaris.admin.grants-delete",
                 "summary": "Revoke an admin grant",
                 "tags": [
                     "admin",
@@ -7252,7 +7252,7 @@
         },
         "/admin/keys": {
             "post": {
-                "operationId": "post_admin_CreateKeyEndpoint",
+                "operationId": "polaris.admin.keys-create",
                 "summary": "Create an API key",
                 "tags": [
                     "admin",
@@ -7412,7 +7412,7 @@
                 }
             },
             "get": {
-                "operationId": "get_admin_ListKeysEndpoint",
+                "operationId": "polaris.admin.keys-list",
                 "summary": "List the API keys",
                 "tags": [
                     "admin",
@@ -7530,7 +7530,7 @@
         },
         "/admin/keys/{id}": {
             "delete": {
-                "operationId": "delete_admin_DeleteKeyEndpoint",
+                "operationId": "polaris.admin.keys-delete",
                 "summary": "Delete an API key",
                 "tags": [
                     "admin",
@@ -7616,7 +7616,7 @@
         },
         "/admin/users/{id}/mfa": {
             "get": {
-                "operationId": "get_admin_ListFactorsEndpoint",
+                "operationId": "polaris.admin.mfa-list",
                 "summary": "List a user's MFA factors",
                 "tags": [
                     "admin",
@@ -7738,7 +7738,7 @@
                 }
             },
             "delete": {
-                "operationId": "delete_admin_ResetMfaEndpoint",
+                "operationId": "polaris.admin.mfa-reset",
                 "summary": "Reset a user's MFA",
                 "tags": [
                     "admin",
@@ -7829,7 +7829,7 @@
         },
         "/admin/users/{id}/mfa/{factorId}": {
             "delete": {
-                "operationId": "delete_admin_RemoveFactorEndpoint",
+                "operationId": "polaris.admin.mfa-remove",
                 "summary": "Remove an MFA factor",
                 "tags": [
                     "admin",
@@ -7933,7 +7933,7 @@
         },
         "/admin/organizations/{id}": {
             "delete": {
-                "operationId": "delete_admin_DeleteOrganizationEndpoint",
+                "operationId": "polaris.admin.organizations-delete",
                 "summary": "Delete an organization",
                 "tags": [
                     "admin",
@@ -8017,7 +8017,7 @@
                 }
             },
             "get": {
-                "operationId": "get_admin_ReadOrganizationEndpoint",
+                "operationId": "polaris.admin.organizations-read",
                 "summary": "Read an organization",
                 "tags": [
                     "admin",
@@ -8178,7 +8178,7 @@
         },
         "/admin/organizations": {
             "get": {
-                "operationId": "get_admin_ListOrganizationsEndpoint",
+                "operationId": "polaris.admin.organizations-list",
                 "summary": "List the organizations",
                 "tags": [
                     "admin",
@@ -8323,7 +8323,7 @@
         },
         "/admin/organizations/{id}/members/{userId}/roles": {
             "patch": {
-                "operationId": "patch_admin_UpdateMemberRolesEndpoint",
+                "operationId": "polaris.admin.organizations-member-roles",
                 "summary": "Set a member's roles",
                 "tags": [
                     "admin",
@@ -8463,7 +8463,7 @@
         },
         "/admin/users/{id}/sessions": {
             "get": {
-                "operationId": "get_admin_ListSessionsEndpoint",
+                "operationId": "polaris.admin.sessions-list",
                 "summary": "List a user's sessions",
                 "tags": [
                     "admin",
@@ -8577,7 +8577,7 @@
                 }
             },
             "delete": {
-                "operationId": "delete_admin_RevokeAllSessionsEndpoint",
+                "operationId": "polaris.admin.sessions-revoke-all",
                 "summary": "Revoke every session",
                 "tags": [
                     "admin",
@@ -8668,7 +8668,7 @@
         },
         "/admin/users/{id}/sessions/{sessionId}": {
             "delete": {
-                "operationId": "delete_admin_RevokeSessionEndpoint",
+                "operationId": "polaris.admin.sessions-revoke",
                 "summary": "Revoke a session",
                 "tags": [
                     "admin",
@@ -8762,7 +8762,7 @@
         },
         "/admin/stats": {
             "get": {
-                "operationId": "get_admin_StatsEndpoint",
+                "operationId": "polaris.admin.stats",
                 "summary": "Read the instance statistics",
                 "tags": [
                     "admin",
@@ -8928,7 +8928,7 @@
         },
         "/admin/users/{id}/ban": {
             "post": {
-                "operationId": "post_admin_BanUserEndpoint",
+                "operationId": "polaris.admin.users-ban",
                 "summary": "Ban a user",
                 "tags": [
                     "admin",
@@ -9024,7 +9024,7 @@
         },
         "/admin/users/{id}": {
             "delete": {
-                "operationId": "delete_admin_DeleteUserEndpoint",
+                "operationId": "polaris.admin.users-delete",
                 "summary": "Delete a user",
                 "tags": [
                     "admin",
@@ -9118,7 +9118,7 @@
                 }
             },
             "get": {
-                "operationId": "get_admin_ReadUserEndpoint",
+                "operationId": "polaris.admin.users-read",
                 "summary": "Read a user",
                 "tags": [
                     "admin",
@@ -9252,7 +9252,7 @@
         },
         "/admin/users/{id}/impersonate": {
             "post": {
-                "operationId": "post_admin_ImpersonateUserEndpoint",
+                "operationId": "polaris.admin.users-impersonate",
                 "summary": "Impersonate a user",
                 "tags": [
                     "admin",
@@ -9363,7 +9363,7 @@
         },
         "/admin/users": {
             "get": {
-                "operationId": "get_admin_ListUsersEndpoint",
+                "operationId": "polaris.admin.users-list",
                 "summary": "List the users",
                 "tags": [
                     "admin",
@@ -9534,7 +9534,7 @@
         },
         "/admin/users/{id}/password": {
             "post": {
-                "operationId": "post_admin_SetPasswordEndpoint",
+                "operationId": "polaris.admin.users-password",
                 "summary": "Set a user's password",
                 "tags": [
                     "admin",
@@ -9650,7 +9650,7 @@
         },
         "/admin/users/{id}/unban": {
             "post": {
-                "operationId": "post_admin_UnbanUserEndpoint",
+                "operationId": "polaris.admin.users-unban",
                 "summary": "Unban a user",
                 "tags": [
                     "admin",
@@ -9746,7 +9746,7 @@
         },
         "/admin/sentinel/decisions": {
             "get": {
-                "operationId": "get_sentinel_ListDecisionsEndpoint",
+                "operationId": "polaris.sentinel.decisions-list",
                 "summary": "List the sentinel's decisions",
                 "tags": [
                     "admin",
@@ -9932,7 +9932,7 @@
         },
         "/admin/sentinel/ip-rules": {
             "post": {
-                "operationId": "post_sentinel_CreateIpRuleEndpoint",
+                "operationId": "polaris.sentinel.ip-rules-create",
                 "summary": "Add an IP rule",
                 "tags": [
                     "admin",
@@ -10056,7 +10056,7 @@
                 }
             },
             "get": {
-                "operationId": "get_sentinel_ListIpRulesEndpoint",
+                "operationId": "polaris.sentinel.ip-rules-list",
                 "summary": "List the IP rules",
                 "tags": [
                     "admin",
@@ -10152,7 +10152,7 @@
         },
         "/admin/sentinel/ip-rules/{id}": {
             "delete": {
-                "operationId": "delete_sentinel_DeleteIpRuleEndpoint",
+                "operationId": "polaris.sentinel.ip-rules-delete",
                 "summary": "Remove an IP rule",
                 "tags": [
                     "admin",
@@ -10238,7 +10238,7 @@
         },
         "/admin/sentinel/unblock": {
             "post": {
-                "operationId": "post_sentinel_UnblockEndpoint",
+                "operationId": "polaris.sentinel.unblock",
                 "summary": "Clear the counters of an identifier",
                 "tags": [
                     "admin",
@@ -10337,7 +10337,7 @@
         },
         "/admin/sso/providers/{id}": {
             "delete": {
-                "operationId": "delete_sso_AdminDeleteProviderEndpoint",
+                "operationId": "polaris.sso.admin-providers-delete",
                 "summary": "Remove an SSO provider (operator)",
                 "tags": [
                     "admin",
@@ -10423,7 +10423,7 @@
         },
         "/admin/sso/providers": {
             "get": {
-                "operationId": "get_sso_AdminListProvidersEndpoint",
+                "operationId": "polaris.sso.admin-providers-list",
                 "summary": "List the SSO providers of every organization",
                 "tags": [
                     "admin",
@@ -10558,7 +10558,7 @@
         },
         "/sso/callback/{providerId}": {
             "get": {
-                "operationId": "get_sso_OidcCallbackEndpoint",
+                "operationId": "polaris.sso.callback-oidc",
                 "summary": "OIDC callback",
                 "tags": [
                     "sso"
@@ -10635,7 +10635,7 @@
                 }
             },
             "post": {
-                "operationId": "post_sso_SamlCallbackEndpoint",
+                "operationId": "polaris.sso.callback-saml",
                 "summary": "SAML assertion consumer",
                 "tags": [
                     "sso"
@@ -10708,7 +10708,7 @@
         },
         "/orgs/{id}/sso/domains": {
             "post": {
-                "operationId": "post_sso_AddDomainEndpoint",
+                "operationId": "polaris.sso.domains-add",
                 "summary": "Add an SSO domain",
                 "tags": [
                     "sso",
@@ -10842,7 +10842,7 @@
                 }
             },
             "get": {
-                "operationId": "get_sso_ListDomainsEndpoint",
+                "operationId": "polaris.sso.domains-list",
                 "summary": "List the organization's SSO domains",
                 "tags": [
                     "sso",
@@ -11024,7 +11024,7 @@
         },
         "/orgs/{id}/sso/domains/{domainId}": {
             "delete": {
-                "operationId": "delete_sso_DeleteDomainEndpoint",
+                "operationId": "polaris.sso.domains-delete",
                 "summary": "Remove an SSO domain",
                 "tags": [
                     "sso",
@@ -11126,7 +11126,7 @@
         },
         "/orgs/{id}/sso/domains/{domainId}/verify": {
             "post": {
-                "operationId": "post_sso_VerifyDomainEndpoint",
+                "operationId": "polaris.sso.domains-verify",
                 "summary": "Verify an SSO domain",
                 "tags": [
                     "sso",
@@ -11253,7 +11253,7 @@
         },
         "/sso/exchange": {
             "post": {
-                "operationId": "post_sso_ExchangeEndpoint",
+                "operationId": "polaris.sso.exchange",
                 "summary": "Exchange the sign-on code for the session",
                 "tags": [
                     "sso"
@@ -11367,7 +11367,7 @@
         },
         "/sso/logout": {
             "post": {
-                "operationId": "post_sso_LogoutEndpoint",
+                "operationId": "polaris.sso.logout",
                 "summary": "Single logout from the application",
                 "tags": [
                     "sso"
@@ -11474,7 +11474,7 @@
         },
         "/sso/metadata/{providerId}": {
             "get": {
-                "operationId": "get_sso_MetadataEndpoint",
+                "operationId": "polaris.sso.metadata",
                 "summary": "SAML service provider metadata",
                 "tags": [
                     "sso"
@@ -11519,7 +11519,7 @@
         },
         "/orgs/{id}/sso/providers": {
             "post": {
-                "operationId": "post_sso_CreateProviderEndpoint",
+                "operationId": "polaris.sso.providers-create",
                 "summary": "Add an SSO provider",
                 "tags": [
                     "sso",
@@ -11776,7 +11776,7 @@
                 }
             },
             "get": {
-                "operationId": "get_sso_ListProvidersEndpoint",
+                "operationId": "polaris.sso.providers-list",
                 "summary": "List the organization's SSO providers",
                 "tags": [
                     "sso",
@@ -11985,7 +11985,7 @@
         },
         "/orgs/{id}/sso/providers/{providerId}": {
             "delete": {
-                "operationId": "delete_sso_DeleteProviderEndpoint",
+                "operationId": "polaris.sso.providers-delete",
                 "summary": "Remove an SSO provider",
                 "tags": [
                     "sso",
@@ -12085,7 +12085,7 @@
                 }
             },
             "get": {
-                "operationId": "get_sso_ReadProviderEndpoint",
+                "operationId": "polaris.sso.providers-read",
                 "summary": "Read an SSO provider",
                 "tags": [
                     "sso",
@@ -12225,7 +12225,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_sso_UpdateProviderEndpoint",
+                "operationId": "polaris.sso.providers-update",
                 "summary": "Update an SSO provider",
                 "tags": [
                     "sso",
@@ -12381,7 +12381,7 @@
         },
         "/orgs/{id}/sso/providers/{providerId}/test": {
             "post": {
-                "operationId": "post_sso_TestProviderEndpoint",
+                "operationId": "polaris.sso.providers-test",
                 "summary": "Test an SSO provider's configuration",
                 "tags": [
                     "sso",
@@ -12493,7 +12493,7 @@
         },
         "/sso/sign-in": {
             "post": {
-                "operationId": "post_sso_SignInEndpoint",
+                "operationId": "polaris.sso.sign-in",
                 "summary": "Start a single sign-on",
                 "tags": [
                     "sso"
@@ -12599,7 +12599,7 @@
         },
         "/sso/slo/{providerId}": {
             "post": {
-                "operationId": "post_sso_SloPostEndpoint",
+                "operationId": "polaris.sso.slo-post",
                 "summary": "SAML single logout (POST binding)",
                 "tags": [
                     "sso"
@@ -12689,7 +12689,7 @@
                 }
             },
             "get": {
-                "operationId": "get_sso_SloRedirectEndpoint",
+                "operationId": "polaris.sso.slo-redirect",
                 "summary": "SAML single logout (redirect binding)",
                 "tags": [
                     "sso"
@@ -12794,7 +12794,7 @@
         },
         "/admin/scim/connections/{id}": {
             "delete": {
-                "operationId": "delete_scim_AdminDeleteConnectionEndpoint",
+                "operationId": "polaris.scim.admin-connections-delete",
                 "summary": "Remove a SCIM connection (operator)",
                 "tags": [
                     "admin",
@@ -12880,7 +12880,7 @@
         },
         "/admin/scim/connections": {
             "get": {
-                "operationId": "get_scim_AdminListConnectionsEndpoint",
+                "operationId": "polaris.scim.admin-connections-list",
                 "summary": "List the SCIM connections of every organization",
                 "tags": [
                     "admin",
@@ -13010,7 +13010,7 @@
         },
         "/orgs/{id}/scim/connections": {
             "post": {
-                "operationId": "post_scim_CreateConnectionEndpoint",
+                "operationId": "polaris.scim.connections-create",
                 "summary": "Create a SCIM connection",
                 "tags": [
                     "scim-admin",
@@ -13151,7 +13151,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ListConnectionsEndpoint",
+                "operationId": "polaris.scim.connections-list",
                 "summary": "List the organization's SCIM connections",
                 "tags": [
                     "scim-admin",
@@ -13316,7 +13316,7 @@
         },
         "/orgs/{id}/scim/connections/{connectionId}": {
             "delete": {
-                "operationId": "delete_scim_DecommissionConnectionEndpoint",
+                "operationId": "polaris.scim.connections-decommission",
                 "summary": "Decommission a SCIM connection",
                 "tags": [
                     "scim-admin",
@@ -13421,7 +13421,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ReadConnectionEndpoint",
+                "operationId": "polaris.scim.connections-read",
                 "summary": "Read a SCIM connection",
                 "tags": [
                     "scim-admin",
@@ -13558,7 +13558,7 @@
         },
         "/orgs/{id}/scim/connections/{connectionId}/rotate": {
             "post": {
-                "operationId": "post_scim_RotateConnectionEndpoint",
+                "operationId": "polaris.scim.connections-rotate",
                 "summary": "Rotate a SCIM connection token",
                 "tags": [
                     "scim-admin",
@@ -13675,7 +13675,7 @@
         },
         "/scim/v2/{connectionId}/Groups": {
             "post": {
-                "operationId": "post_scim_CreateGroupEndpoint",
+                "operationId": "polaris.scim.groups-create",
                 "summary": "Create a SCIM group",
                 "tags": [
                     "scim"
@@ -13772,7 +13772,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ListGroupsEndpoint",
+                "operationId": "polaris.scim.groups-list",
                 "summary": "List SCIM groups",
                 "tags": [
                     "scim"
@@ -13861,7 +13861,7 @@
         },
         "/scim/v2/{connectionId}/Groups/{id}": {
             "delete": {
-                "operationId": "delete_scim_DeleteGroupEndpoint",
+                "operationId": "polaris.scim.groups-delete",
                 "summary": "Delete a SCIM group",
                 "tags": [
                     "scim"
@@ -13932,7 +13932,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_scim_PatchGroupEndpoint",
+                "operationId": "polaris.scim.groups-patch",
                 "summary": "Patch a SCIM group",
                 "tags": [
                     "scim"
@@ -14038,7 +14038,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ReadGroupEndpoint",
+                "operationId": "polaris.scim.groups-read",
                 "summary": "Read a SCIM group",
                 "tags": [
                     "scim"
@@ -14099,7 +14099,7 @@
                 }
             },
             "put": {
-                "operationId": "put_scim_ReplaceGroupEndpoint",
+                "operationId": "polaris.scim.groups-replace",
                 "summary": "Replace a SCIM group",
                 "tags": [
                     "scim"
@@ -14206,7 +14206,7 @@
         },
         "/scim/v2/{connectionId}/ResourceTypes": {
             "get": {
-                "operationId": "get_scim_ResourceTypesEndpoint",
+                "operationId": "polaris.scim.resource-types",
                 "summary": "SCIM resource types",
                 "tags": [
                     "scim"
@@ -14261,7 +14261,7 @@
         },
         "/scim/v2/{connectionId}/Schemas": {
             "get": {
-                "operationId": "get_scim_SchemasEndpoint",
+                "operationId": "polaris.scim.schemas",
                 "summary": "SCIM schemas",
                 "tags": [
                     "scim"
@@ -14316,7 +14316,7 @@
         },
         "/scim/v2/{connectionId}/ServiceProviderConfig": {
             "get": {
-                "operationId": "get_scim_ServiceProviderConfigEndpoint",
+                "operationId": "polaris.scim.service-provider-config",
                 "summary": "SCIM service provider configuration",
                 "tags": [
                     "scim"
@@ -14371,7 +14371,7 @@
         },
         "/scim/v2/{connectionId}/Users": {
             "post": {
-                "operationId": "post_scim_CreateUserEndpoint",
+                "operationId": "polaris.scim.users-create",
                 "summary": "Create a SCIM user",
                 "tags": [
                     "scim"
@@ -14478,7 +14478,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ListUsersEndpoint",
+                "operationId": "polaris.scim.users-list",
                 "summary": "List SCIM users",
                 "tags": [
                     "scim"
@@ -14567,7 +14567,7 @@
         },
         "/scim/v2/{connectionId}/Users/{id}": {
             "delete": {
-                "operationId": "delete_scim_DeleteUserEndpoint",
+                "operationId": "polaris.scim.users-delete",
                 "summary": "Delete a SCIM user",
                 "tags": [
                     "scim"
@@ -14628,7 +14628,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_scim_PatchUserEndpoint",
+                "operationId": "polaris.scim.users-patch",
                 "summary": "Patch a SCIM user",
                 "tags": [
                     "scim"
@@ -14734,7 +14734,7 @@
                 }
             },
             "get": {
-                "operationId": "get_scim_ReadUserEndpoint",
+                "operationId": "polaris.scim.users-read",
                 "summary": "Read a SCIM user",
                 "tags": [
                     "scim"
@@ -14795,7 +14795,7 @@
                 }
             },
             "put": {
-                "operationId": "put_scim_ReplaceUserEndpoint",
+                "operationId": "polaris.scim.users-replace",
                 "summary": "Replace a SCIM user",
                 "tags": [
                     "scim"
@@ -14912,7 +14912,7 @@
         },
         "/email-otp/reset-password": {
             "post": {
-                "operationId": "post_passwordless_EmailOtpResetPasswordEndpoint",
+                "operationId": "polaris.passwordless.email-otp-reset-password",
                 "summary": "Reset the password with an email code",
                 "tags": [
                     "passwordless"
@@ -15000,7 +15000,7 @@
         },
         "/email-otp/send": {
             "post": {
-                "operationId": "post_passwordless_EmailOtpSendEndpoint",
+                "operationId": "polaris.passwordless.email-otp-send",
                 "summary": "Send an email code",
                 "tags": [
                     "passwordless"
@@ -15084,7 +15084,7 @@
         },
         "/email-otp/verify-email": {
             "post": {
-                "operationId": "post_passwordless_EmailOtpVerifyEmailEndpoint",
+                "operationId": "polaris.passwordless.email-otp-verify-email",
                 "summary": "Verify the email with a code",
                 "tags": [
                     "passwordless"
@@ -15166,7 +15166,7 @@
         },
         "/email-otp/verify": {
             "post": {
-                "operationId": "post_passwordless_EmailOtpVerifyEndpoint",
+                "operationId": "polaris.passwordless.email-otp-verify",
                 "summary": "Sign in with an email code",
                 "tags": [
                     "passwordless"
@@ -15299,7 +15299,7 @@
         },
         "/magic-link/verify": {
             "post": {
-                "operationId": "post_passwordless_MagicLinkConfirmEndpoint",
+                "operationId": "polaris.passwordless.magic-link-confirm",
                 "summary": "Sign in with a magic link",
                 "tags": [
                     "passwordless"
@@ -15355,7 +15355,7 @@
                 }
             },
             "get": {
-                "operationId": "get_passwordless_MagicLinkVerifyEndpoint",
+                "operationId": "polaris.passwordless.magic-link-verify",
                 "summary": "Open a magic link",
                 "tags": [
                     "passwordless"
@@ -15403,7 +15403,7 @@
         },
         "/magic-link/exchange": {
             "post": {
-                "operationId": "post_passwordless_MagicLinkExchangeEndpoint",
+                "operationId": "polaris.passwordless.magic-link-exchange",
                 "summary": "Exchange the magic link's code for the session",
                 "tags": [
                     "passwordless"
@@ -15520,7 +15520,7 @@
         },
         "/magic-link/send": {
             "post": {
-                "operationId": "post_passwordless_MagicLinkSendEndpoint",
+                "operationId": "polaris.passwordless.magic-link-send",
                 "summary": "Send a magic link",
                 "tags": [
                     "passwordless"
@@ -15599,7 +15599,7 @@
         },
         "/one-time-token/generate": {
             "post": {
-                "operationId": "post_passwordless_OneTimeTokenGenerateEndpoint",
+                "operationId": "polaris.passwordless.one-time-token-generate",
                 "summary": "Generate a one-time token",
                 "tags": [
                     "passwordless"
@@ -15674,7 +15674,7 @@
         },
         "/one-time-token/verify": {
             "post": {
-                "operationId": "post_passwordless_OneTimeTokenVerifyEndpoint",
+                "operationId": "polaris.passwordless.one-time-token-verify",
                 "summary": "Sign in with a one-time token",
                 "tags": [
                     "passwordless"
@@ -15791,7 +15791,7 @@
         },
         "/phone/add": {
             "post": {
-                "operationId": "post_passwordless_PhoneAddEndpoint",
+                "operationId": "polaris.passwordless.phone-add",
                 "summary": "Add a phone number",
                 "tags": [
                     "passwordless"
@@ -15882,7 +15882,7 @@
         },
         "/phone/confirm": {
             "post": {
-                "operationId": "post_passwordless_PhoneConfirmEndpoint",
+                "operationId": "polaris.passwordless.phone-confirm",
                 "summary": "Confirm a phone number",
                 "tags": [
                     "passwordless"
@@ -15994,7 +15994,7 @@
         },
         "/phone/send": {
             "post": {
-                "operationId": "post_passwordless_PhoneSendEndpoint",
+                "operationId": "polaris.passwordless.phone-send",
                 "summary": "Send a phone sign-in code",
                 "tags": [
                     "passwordless"
@@ -16069,7 +16069,7 @@
         },
         "/phone/verify": {
             "post": {
-                "operationId": "post_passwordless_PhoneVerifyEndpoint",
+                "operationId": "polaris.passwordless.phone-verify",
                 "summary": "Sign in with a phone code",
                 "tags": [
                     "passwordless"
@@ -16201,7 +16201,7 @@
         },
         "/username/sign-in": {
             "post": {
-                "operationId": "post_username_SignInEndpoint",
+                "operationId": "polaris.username.sign-in",
                 "summary": "Sign in with a username and a password",
                 "tags": [
                     "username"
@@ -16343,7 +16343,7 @@
         },
         "/username": {
             "patch": {
-                "operationId": "patch_username_UpdateEndpoint",
+                "operationId": "polaris.username.update",
                 "summary": "Set or change your username",
                 "tags": [
                     "username"
@@ -16451,7 +16451,7 @@
         },
         "/anonymous/convert": {
             "post": {
-                "operationId": "post_anonymous_ConvertEndpoint",
+                "operationId": "polaris.anonymous.convert",
                 "summary": "Convert the guest into an account",
                 "tags": [
                     "anonymous"
@@ -16561,7 +16561,7 @@
         },
         "/anonymous/sign-in": {
             "post": {
-                "operationId": "post_anonymous_SignInEndpoint",
+                "operationId": "polaris.anonymous.sign-in",
                 "summary": "Sign in as a guest",
                 "tags": [
                     "anonymous"
@@ -16648,7 +16648,7 @@
         },
         "/multi-session/last-method": {
             "get": {
-                "operationId": "get_multi-session_LastMethodEndpoint",
+                "operationId": "polaris.multi-session.last-method",
                 "summary": "Read the device's last sign-in method",
                 "tags": [
                     "multi-session"
@@ -16693,7 +16693,7 @@
         },
         "/multi-session/list": {
             "get": {
-                "operationId": "get_multi-session_ListEndpoint",
+                "operationId": "polaris.multi-session.list",
                 "summary": "List the accounts signed in on this device",
                 "tags": [
                     "multi-session"
@@ -16813,7 +16813,7 @@
         },
         "/multi-session/{sessionId}": {
             "delete": {
-                "operationId": "delete_multi-session_RevokeEndpoint",
+                "operationId": "polaris.multi-session.revoke",
                 "summary": "Sign one account out of this device",
                 "tags": [
                     "multi-session"
@@ -16903,7 +16903,7 @@
         },
         "/multi-session/switch": {
             "post": {
-                "operationId": "post_multi-session_SwitchEndpoint",
+                "operationId": "polaris.multi-session.switch",
                 "summary": "Switch to another account signed in on this device",
                 "tags": [
                     "multi-session"
@@ -17052,7 +17052,7 @@
         },
         "/social/accounts": {
             "get": {
-                "operationId": "get_social_AccountsEndpoint",
+                "operationId": "polaris.social.accounts",
                 "summary": "List your linked provider accounts",
                 "tags": [
                     "social"
@@ -17179,7 +17179,7 @@
         },
         "/social/{provider}/callback": {
             "post": {
-                "operationId": "post_social_CallbackPostEndpoint",
+                "operationId": "polaris.social.callback-post",
                 "summary": "The provider's callback (form_post)",
                 "tags": [
                     "social"
@@ -17282,7 +17282,7 @@
                 }
             },
             "get": {
-                "operationId": "get_social_CallbackEndpoint",
+                "operationId": "polaris.social.callback",
                 "summary": "The provider's callback",
                 "tags": [
                     "social"
@@ -17384,7 +17384,7 @@
         },
         "/social/exchange": {
             "post": {
-                "operationId": "post_social_ExchangeEndpoint",
+                "operationId": "polaris.social.exchange",
                 "summary": "Exchange the sign-in code for the session",
                 "tags": [
                     "social"
@@ -17501,7 +17501,7 @@
         },
         "/social/{provider}/link": {
             "post": {
-                "operationId": "post_social_LinkEndpoint",
+                "operationId": "polaris.social.link",
                 "summary": "Link a provider to your account",
                 "tags": [
                     "social"
@@ -17616,7 +17616,7 @@
         },
         "/social/google/one-tap": {
             "post": {
-                "operationId": "post_social_OneTapEndpoint",
+                "operationId": "polaris.social.one-tap",
                 "summary": "Sign in with Google One Tap",
                 "tags": [
                     "social"
@@ -17763,7 +17763,7 @@
         },
         "/social/{provider}/start": {
             "post": {
-                "operationId": "post_social_StartEndpoint",
+                "operationId": "polaris.social.start",
                 "summary": "Start a social sign-in",
                 "tags": [
                     "social"
@@ -17862,7 +17862,7 @@
         },
         "/social/{provider}/token": {
             "post": {
-                "operationId": "post_social_TokenEndpoint",
+                "operationId": "polaris.social.token",
                 "summary": "Get a provider token for the user",
                 "tags": [
                     "social"
@@ -17968,7 +17968,7 @@
         },
         "/social/{provider}": {
             "delete": {
-                "operationId": "delete_social_UnlinkEndpoint",
+                "operationId": "polaris.social.unlink",
                 "summary": "Unlink a provider",
                 "tags": [
                     "social"
@@ -18059,7 +18059,7 @@
         },
         "/passkey/authenticate/options": {
             "post": {
-                "operationId": "post_passkey_AuthenticateOptionsEndpoint",
+                "operationId": "polaris.passkey.authenticate-options",
                 "summary": "Start a passkey sign-in",
                 "tags": [
                     "passkey"
@@ -18126,7 +18126,7 @@
         },
         "/passkey/authenticate/verify": {
             "post": {
-                "operationId": "post_passkey_AuthenticateVerifyEndpoint",
+                "operationId": "polaris.passkey.authenticate-verify",
                 "summary": "Sign in with a passkey",
                 "tags": [
                     "passkey"
@@ -18252,7 +18252,7 @@
         },
         "/passkey/{id}": {
             "delete": {
-                "operationId": "delete_passkey_DeleteEndpoint",
+                "operationId": "polaris.passkey.delete",
                 "summary": "Remove a passkey",
                 "tags": [
                     "passkey"
@@ -18341,7 +18341,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_passkey_RenameEndpoint",
+                "operationId": "polaris.passkey.rename",
                 "summary": "Rename a passkey",
                 "tags": [
                     "passkey"
@@ -18493,7 +18493,7 @@
         },
         "/passkey/list": {
             "get": {
-                "operationId": "get_passkey_ListEndpoint",
+                "operationId": "polaris.passkey.list",
                 "summary": "List your passkeys",
                 "tags": [
                     "passkey"
@@ -18599,7 +18599,7 @@
         },
         "/passkey/register/options": {
             "post": {
-                "operationId": "post_passkey_RegisterOptionsEndpoint",
+                "operationId": "polaris.passkey.register-options",
                 "summary": "Start registering a passkey",
                 "tags": [
                     "passkey"
@@ -18771,7 +18771,7 @@
         },
         "/passkey/register/verify": {
             "post": {
-                "operationId": "post_passkey_RegisterVerifyEndpoint",
+                "operationId": "polaris.passkey.register-verify",
                 "summary": "Finish registering a passkey",
                 "tags": [
                     "passkey"
@@ -18941,7 +18941,7 @@
         },
         "/api-keys": {
             "post": {
-                "operationId": "post_api-keys_CreateEndpoint",
+                "operationId": "polaris.api-keys.create",
                 "summary": "Create an API key",
                 "tags": [
                     "api-keys"
@@ -19198,7 +19198,7 @@
                 }
             },
             "get": {
-                "operationId": "get_api-keys_ListEndpoint",
+                "operationId": "polaris.api-keys.list",
                 "summary": "List API keys",
                 "tags": [
                     "api-keys"
@@ -19398,7 +19398,7 @@
         },
         "/api-keys/{id}": {
             "delete": {
-                "operationId": "delete_api-keys_DeleteEndpoint",
+                "operationId": "polaris.api-keys.delete",
                 "summary": "Revoke an API key",
                 "tags": [
                     "api-keys"
@@ -19476,7 +19476,7 @@
                 }
             },
             "get": {
-                "operationId": "get_api-keys_ReadEndpoint",
+                "operationId": "polaris.api-keys.read",
                 "summary": "Read an API key",
                 "tags": [
                     "api-keys"
@@ -19659,7 +19659,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_api-keys_UpdateEndpoint",
+                "operationId": "polaris.api-keys.update",
                 "summary": "Update an API key",
                 "tags": [
                     "api-keys"
@@ -19897,7 +19897,7 @@
         },
         "/api-keys/{id}/rotate": {
             "post": {
-                "operationId": "post_api-keys_RotateEndpoint",
+                "operationId": "polaris.api-keys.rotate",
                 "summary": "Rotate an API key",
                 "tags": [
                     "api-keys"
@@ -20094,7 +20094,7 @@
         },
         "/api-keys/verify": {
             "post": {
-                "operationId": "post_api-keys_VerifyEndpoint",
+                "operationId": "polaris.api-keys.verify",
                 "summary": "Verify an API key",
                 "tags": [
                     "api-keys"
@@ -20282,7 +20282,7 @@
         },
         "/admin/oauth/clients": {
             "post": {
-                "operationId": "post_oauth_AdminCreateClientEndpoint",
+                "operationId": "polaris.oauth.admin-clients-create",
                 "summary": "Register an OAuth client as an operator",
                 "tags": [
                     "admin",
@@ -20575,7 +20575,7 @@
                 }
             },
             "get": {
-                "operationId": "get_oauth_AdminListClientsEndpoint",
+                "operationId": "polaris.oauth.admin-clients-list",
                 "summary": "List every OAuth client",
                 "tags": [
                     "admin",
@@ -20782,7 +20782,7 @@
         },
         "/admin/oauth/clients/{id}": {
             "delete": {
-                "operationId": "delete_oauth_AdminDeleteClientEndpoint",
+                "operationId": "polaris.oauth.admin-clients-delete",
                 "summary": "Delete an OAuth client as an operator",
                 "tags": [
                     "admin",
@@ -20868,7 +20868,7 @@
         },
         "/.well-known/oauth-authorization-server": {
             "get": {
-                "operationId": "get_oauth_AuthorizationServerEndpoint",
+                "operationId": "polaris.oauth.authorization-server",
                 "summary": "Authorization server metadata",
                 "tags": [
                     "oauth"
@@ -20961,7 +20961,7 @@
         },
         "/oauth2/authorize": {
             "get": {
-                "operationId": "get_oauth_AuthorizeEndpoint",
+                "operationId": "polaris.oauth.authorize",
                 "summary": "Start an authorization (consent) request",
                 "tags": [
                     "oauth"
@@ -21234,7 +21234,7 @@
         },
         "/oauth2/ciba/{id}/decide": {
             "post": {
-                "operationId": "post_oauth_CibaDecideEndpoint",
+                "operationId": "polaris.oauth.ciba-decide",
                 "summary": "Approve or refuse a backchannel request",
                 "tags": [
                     "oauth"
@@ -21342,7 +21342,7 @@
         },
         "/oauth2/ciba/pending": {
             "get": {
-                "operationId": "get_oauth_CibaPendingEndpoint",
+                "operationId": "polaris.oauth.ciba-pending",
                 "summary": "List pending backchannel requests",
                 "tags": [
                     "oauth"
@@ -21499,7 +21499,7 @@
         },
         "/oauth2/ciba": {
             "post": {
-                "operationId": "post_oauth_CibaEndpoint",
+                "operationId": "polaris.oauth.ciba",
                 "summary": "Backchannel authentication request",
                 "tags": [
                     "oauth"
@@ -21604,7 +21604,7 @@
         },
         "/oauth2/consents": {
             "get": {
-                "operationId": "get_oauth_ConsentsListEndpoint",
+                "operationId": "polaris.oauth.consents-list",
                 "summary": "List your consents",
                 "tags": [
                     "oauth"
@@ -21760,7 +21760,7 @@
         },
         "/oauth2/consents/{clientId}": {
             "delete": {
-                "operationId": "delete_oauth_ConsentRevokeEndpoint",
+                "operationId": "polaris.oauth.consents-revoke",
                 "summary": "Revoke a consent",
                 "tags": [
                     "oauth"
@@ -21845,7 +21845,7 @@
         },
         "/oauth2/authorize/decision": {
             "post": {
-                "operationId": "post_oauth_DecisionEndpoint",
+                "operationId": "polaris.oauth.decision",
                 "summary": "Approve or refuse an authorization request",
                 "tags": [
                     "oauth"
@@ -21951,7 +21951,7 @@
         },
         "/oauth2/device/approve": {
             "post": {
-                "operationId": "post_oauth_DeviceApproveEndpoint",
+                "operationId": "polaris.oauth.device-approve",
                 "summary": "Approve or refuse a device",
                 "tags": [
                     "oauth"
@@ -22053,7 +22053,7 @@
         },
         "/oauth2/device/code": {
             "post": {
-                "operationId": "post_oauth_DeviceCodeEndpoint",
+                "operationId": "polaris.oauth.device-code",
                 "summary": "Start the device flow",
                 "tags": [
                     "oauth"
@@ -22158,7 +22158,7 @@
         },
         "/oauth2/device/verify": {
             "get": {
-                "operationId": "get_oauth_DeviceVerifyEndpoint",
+                "operationId": "polaris.oauth.device-verify",
                 "summary": "Read the device behind a user code",
                 "tags": [
                     "oauth"
@@ -22325,7 +22325,7 @@
         },
         "/oauth2/introspect": {
             "post": {
-                "operationId": "post_oauth_IntrospectEndpoint",
+                "operationId": "polaris.oauth.introspect",
                 "summary": "Introspect a token",
                 "tags": [
                     "oauth"
@@ -22478,7 +22478,7 @@
         },
         "/.well-known/openid-configuration": {
             "get": {
-                "operationId": "get_oauth_OpenIdConfigurationEndpoint",
+                "operationId": "polaris.oauth.openid-configuration",
                 "summary": "OpenID Connect Discovery",
                 "tags": [
                     "oauth"
@@ -22596,7 +22596,7 @@
         },
         "/orgs/{id}/oauth/clients": {
             "post": {
-                "operationId": "post_oauth_CreateClientEndpoint",
+                "operationId": "polaris.oauth.org-clients-create",
                 "summary": "Register an OAuth client for the organization",
                 "tags": [
                     "oauth",
@@ -22895,7 +22895,7 @@
                 }
             },
             "get": {
-                "operationId": "get_oauth_ListClientsEndpoint",
+                "operationId": "polaris.oauth.org-clients-list",
                 "summary": "List the organization's OAuth clients",
                 "tags": [
                     "oauth",
@@ -23117,7 +23117,7 @@
         },
         "/orgs/{id}/oauth/clients/{clientId}": {
             "delete": {
-                "operationId": "delete_oauth_DeleteClientEndpoint",
+                "operationId": "polaris.oauth.org-clients-delete",
                 "summary": "Delete an OAuth client of the organization",
                 "tags": [
                     "oauth",
@@ -23217,7 +23217,7 @@
                 }
             },
             "get": {
-                "operationId": "get_oauth_ReadClientEndpoint",
+                "operationId": "polaris.oauth.org-clients-read",
                 "summary": "Read an OAuth client of the organization",
                 "tags": [
                     "oauth",
@@ -23450,7 +23450,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_oauth_UpdateClientEndpoint",
+                "operationId": "polaris.oauth.org-clients-update",
                 "summary": "Update an OAuth client of the organization",
                 "tags": [
                     "oauth",
@@ -23757,7 +23757,7 @@
         },
         "/oauth2/register": {
             "post": {
-                "operationId": "post_oauth_RegisterEndpoint",
+                "operationId": "polaris.oauth.register",
                 "summary": "Register a client (RFC 7591)",
                 "tags": [
                     "oauth"
@@ -23991,7 +23991,7 @@
         },
         "/oauth2/revoke": {
             "post": {
-                "operationId": "post_oauth_RevokeEndpoint",
+                "operationId": "polaris.oauth.revoke",
                 "summary": "Revoke a token",
                 "tags": [
                     "oauth"
@@ -24090,7 +24090,7 @@
         },
         "/oauth2/token": {
             "post": {
-                "operationId": "post_oauth_TokenEndpoint",
+                "operationId": "polaris.oauth.token",
                 "summary": "Issue tokens",
                 "tags": [
                     "oauth"
@@ -24240,7 +24240,7 @@
         },
         "/oauth2/userinfo": {
             "post": {
-                "operationId": "post_oauth_UserinfoPostEndpoint",
+                "operationId": "polaris.oauth.userinfo-post",
                 "summary": "The user's OpenID claims (POST)",
                 "tags": [
                     "oauth"
@@ -24308,7 +24308,7 @@
                 }
             },
             "get": {
-                "operationId": "get_oauth_UserinfoEndpoint",
+                "operationId": "polaris.oauth.userinfo",
                 "summary": "The user's OpenID claims",
                 "tags": [
                     "oauth"
@@ -24378,7 +24378,7 @@
         },
         "/mcp": {
             "post": {
-                "operationId": "post_mcp_McpEndpoint",
+                "operationId": "polaris.mcp.mcp",
                 "summary": "Serve an MCP message",
                 "tags": [
                     "mcp"
@@ -24465,7 +24465,7 @@
         },
         "/.well-known/oauth-protected-resource/mcp": {
             "get": {
-                "operationId": "get_mcp_ProtectedResourceEndpoint",
+                "operationId": "polaris.mcp.protected-resource",
                 "summary": "Protected resource metadata of /mcp",
                 "tags": [
                     "mcp"
@@ -24547,7 +24547,7 @@
         },
         "/admin/agents": {
             "get": {
-                "operationId": "get_agents_AdminListAgentsEndpoint",
+                "operationId": "polaris.agents.admin-list",
                 "summary": "List every agent",
                 "tags": [
                     "admin",
@@ -24729,7 +24729,7 @@
         },
         "/admin/agents/{id}/revoke": {
             "post": {
-                "operationId": "post_agents_AdminRevokeAgentEndpoint",
+                "operationId": "polaris.agents.admin-revoke",
                 "summary": "Revoke an agent as an operator",
                 "tags": [
                     "admin",
@@ -24974,7 +24974,7 @@
         },
         "/agents/approvals/{id}/decide": {
             "post": {
-                "operationId": "post_agents_DecideApprovalEndpoint",
+                "operationId": "polaris.agents.approvals-decide",
                 "summary": "Approve or deny a grant request",
                 "tags": [
                     "agents"
@@ -25286,7 +25286,7 @@
         },
         "/agents/approvals": {
             "get": {
-                "operationId": "get_agents_ListApprovalsEndpoint",
+                "operationId": "polaris.agents.approvals-list",
                 "summary": "List pending approvals",
                 "tags": [
                     "agents"
@@ -25675,7 +25675,7 @@
         },
         "/agents/approvals/code": {
             "get": {
-                "operationId": "get_agents_ReadApprovalEndpoint",
+                "operationId": "polaris.agents.approvals-read",
                 "summary": "Read the approval behind a user code",
                 "tags": [
                     "agents"
@@ -26079,7 +26079,7 @@
         },
         "/agents/capabilities": {
             "get": {
-                "operationId": "get_agents_CapabilitiesEndpoint",
+                "operationId": "polaris.agents.capabilities",
                 "summary": "List the capabilities",
                 "tags": [
                     "agents"
@@ -26232,7 +26232,7 @@
         },
         "/.well-known/agent-configuration": {
             "get": {
-                "operationId": "get_agents_ConfigurationEndpoint",
+                "operationId": "polaris.agents.configuration",
                 "summary": "Agent protocol discovery",
                 "tags": [
                     "agents"
@@ -26431,7 +26431,7 @@
         },
         "/agents/enroll": {
             "post": {
-                "operationId": "post_agents_EnrollEndpoint",
+                "operationId": "polaris.agents.enroll",
                 "summary": "Enrol an agent through a host",
                 "tags": [
                     "agents"
@@ -26815,7 +26815,7 @@
         },
         "/agents/execute": {
             "post": {
-                "operationId": "post_agents_ExecuteEndpoint",
+                "operationId": "polaris.agents.execute",
                 "summary": "Execute a capability",
                 "tags": [
                     "agents"
@@ -26952,7 +26952,7 @@
         },
         "/agents/grants/{id}": {
             "delete": {
-                "operationId": "delete_agents_DeleteGrantEndpoint",
+                "operationId": "polaris.agents.grants-delete",
                 "summary": "Revoke a grant",
                 "tags": [
                     "agents"
@@ -27134,7 +27134,7 @@
         },
         "/agents/grants/request": {
             "post": {
-                "operationId": "post_agents_RequestGrantsEndpoint",
+                "operationId": "polaris.agents.grants-request",
                 "summary": "Request capability grants",
                 "tags": [
                     "agents"
@@ -27417,7 +27417,7 @@
         },
         "/agents/hosts": {
             "post": {
-                "operationId": "post_agents_CreateHostEndpoint",
+                "operationId": "polaris.agents.hosts-create",
                 "summary": "Create a host",
                 "tags": [
                     "agents"
@@ -27586,7 +27586,7 @@
                 }
             },
             "get": {
-                "operationId": "get_agents_ListHostsEndpoint",
+                "operationId": "polaris.agents.hosts-list",
                 "summary": "List my hosts",
                 "tags": [
                     "agents"
@@ -27699,7 +27699,7 @@
         },
         "/agents/hosts/{id}": {
             "delete": {
-                "operationId": "delete_agents_DeleteHostEndpoint",
+                "operationId": "polaris.agents.hosts-delete",
                 "summary": "Revoke a host",
                 "tags": [
                     "agents"
@@ -27779,7 +27779,7 @@
         },
         "/agents": {
             "get": {
-                "operationId": "get_agents_ListAgentsEndpoint",
+                "operationId": "polaris.agents.list",
                 "summary": "List my agents",
                 "tags": [
                     "agents"
@@ -27955,7 +27955,7 @@
         },
         "/agents/receipts/{id}/verify": {
             "get": {
-                "operationId": "get_agents_VerifyReceiptEndpoint",
+                "operationId": "polaris.agents.receipts-verify",
                 "summary": "Verify a receipt",
                 "tags": [
                     "agents"
@@ -28138,7 +28138,7 @@
         },
         "/agents/{id}/receipts": {
             "get": {
-                "operationId": "get_agents_ListReceiptsEndpoint",
+                "operationId": "polaris.agents.receipts",
                 "summary": "List an agent's receipts",
                 "tags": [
                     "agents"
@@ -28320,7 +28320,7 @@
         },
         "/agents/register": {
             "post": {
-                "operationId": "post_agents_RegisterEndpoint",
+                "operationId": "polaris.agents.register",
                 "summary": "Register an agent",
                 "tags": [
                     "agents"
@@ -28659,7 +28659,7 @@
         },
         "/agents/{id}/resume": {
             "post": {
-                "operationId": "post_agents_ResumeEndpoint",
+                "operationId": "polaris.agents.resume",
                 "summary": "Resume an agent",
                 "tags": [
                     "agents"
@@ -28823,7 +28823,7 @@
         },
         "/agents/{id}/revoke": {
             "post": {
-                "operationId": "post_agents_RevokeEndpoint",
+                "operationId": "polaris.agents.revoke",
                 "summary": "Revoke an agent",
                 "tags": [
                     "agents"
@@ -29071,7 +29071,7 @@
         },
         "/agents/session": {
             "get": {
-                "operationId": "get_agents_SessionEndpoint",
+                "operationId": "polaris.agents.session",
                 "summary": "The agent's session",
                 "tags": [
                     "agents"
@@ -29403,7 +29403,7 @@
         },
         "/agents/{id}": {
             "get": {
-                "operationId": "get_agents_ShowAgentEndpoint",
+                "operationId": "polaris.agents.show",
                 "summary": "Read an agent",
                 "tags": [
                     "agents"
@@ -29669,7 +29669,7 @@
         },
         "/agents/{id}/suspend": {
             "post": {
-                "operationId": "post_agents_SuspendEndpoint",
+                "operationId": "polaris.agents.suspend",
                 "summary": "Suspend an agent",
                 "tags": [
                     "agents"

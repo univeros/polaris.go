@@ -21,7 +21,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Audit\QueryAuditEndpoint
   description: >
     The instance-wide trail, newest first, with the filters of /audit/me plus actor_id,
     subject_id and organization_id. An organization-scoped operator reads their organization

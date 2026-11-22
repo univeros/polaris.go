@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\OAuth\Http\ConsentsListEndpoint
   description: >
     Every client the caller approved, with the scopes granted so far and when.
 

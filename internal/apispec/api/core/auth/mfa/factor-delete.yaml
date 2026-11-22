@@ -16,7 +16,6 @@ input:
     id: { type: string, rules: [required] }   # the factor id
 
 domain:
-  class: Polaris\Http\Auth\DeleteFactorEndpoint
   description: >
     Step-up gated (StepUpMiddleware rejects a stale session with
     401 step_up_required before the domain runs). Removes one of the

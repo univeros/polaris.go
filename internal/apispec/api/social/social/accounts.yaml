@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Social\Http\AccountsEndpoint
   description: >
     Every provider account linked to the caller: the provider, its account id, the email it reported and
     whether it vouched for it, the scopes granted and the public profile. Tokens are never answered here.

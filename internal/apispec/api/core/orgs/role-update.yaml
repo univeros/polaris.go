@@ -17,7 +17,6 @@ input:
     permission_keys: { type: "?list<string>", rules: [] }   # full replacement set when present
 
 domain:
-  class: Polaris\Http\Orgs\UpdateRoleEndpoint
   description: >
     Partially updates a role: name, description, and/or the permission set
     (replaced wholesale when present). The slug is immutable, and the org's

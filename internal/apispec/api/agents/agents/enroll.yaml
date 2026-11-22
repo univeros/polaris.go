@@ -18,7 +18,6 @@ input:
     jwk: { type: "?object", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\EnrollEndpoint
   description: >
     With Authorization: Bearer peh_... (a live host enrolment token), creates an agent under the host's
     owner, registered by the host's creator, and asks for the host's default capabilities at once (the

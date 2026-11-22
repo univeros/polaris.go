@@ -16,7 +16,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Organizations\ListOrganizationsEndpoint
   description: >
     Oldest first; status is active or suspended; cursor and limit as /admin/users. Needs read on
     the instance.

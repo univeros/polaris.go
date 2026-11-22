@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\SuspendEndpoint
   description: >
     Pauses the agent: its access tokens and request JWTs are refused until it is resumed. Only an active agent can be suspended. Recorded as agent.suspended.
 

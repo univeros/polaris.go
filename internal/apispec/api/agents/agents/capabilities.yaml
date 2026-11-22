@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Agents\Http\CapabilitiesEndpoint
   description: >
     Every capability as the discovery document describes it (name, description, input schema, location
     when it runs at a host URL) plus the permission it requires and its risk tier; with grant_status

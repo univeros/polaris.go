@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\LogoutEndpoint
   description: >
     Revokes the caller's current session (the sid carried by the access
     token). The stateless access token stays valid until it expires; the

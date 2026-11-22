@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Agents\Http\ListAgentsEndpoint
   description: >
     The caller's own agents, and their active organization's when they hold org.update in it.
 

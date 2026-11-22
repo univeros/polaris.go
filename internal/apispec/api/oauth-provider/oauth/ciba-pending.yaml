@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\OAuth\Http\CibaPendingEndpoint
   description: >
     The backchannel requests addressed to the caller that are still pending, newest first, with the
     client behind each.

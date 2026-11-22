@@ -26,7 +26,6 @@ input:
     tos_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\RegisterEndpoint
   description: >
     With dynamicRegistration on, anyone registers a client: a public one (token_endpoint_auth_method
     none) or a confidential one (a secret, in this response only, or private_key_jwt with jwks or

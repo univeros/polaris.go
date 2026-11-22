@@ -16,7 +16,6 @@ input:
     role_slugs: { type: "list<string>", rules: [required] }   # the roles granted on acceptance
 
 domain:
-  class: Polaris\Http\Orgs\CreateInviteEndpoint
   description: >
     Invites someone (who may not yet have an account) to the organization.
     The cross-tenant active-org guard applies: the path org must equal the

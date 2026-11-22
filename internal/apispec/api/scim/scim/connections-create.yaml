@@ -17,7 +17,6 @@ input:
     sso_provider_id: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Organization\CreateConnectionEndpoint
   description: >
     The token (pst_ and 256 random bits, stored as a keyed hash) is in this response only, with the
     base URL the directory is configured with. deprovision is deactivate (the default) or delete (an

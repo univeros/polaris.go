@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Mfa\ListFactorsEndpoint
   description: >
     The factors without their secrets or destinations. Needs read.
 

@@ -20,7 +20,6 @@ input:
     metadata: { type: "?object", rules: [optional] }
 
 domain:
-  class: Polaris\ApiKeys\Http\CreateEndpoint
   description: >
     The key (pk_live_ or pk_test_ and 256 random bits) is in this response only; stored as a keyed
     hash. permissions is a subset of what the caller holds in their active organization (each name from

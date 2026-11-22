@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Agents\Http\ListApprovalsEndpoint
   description: >
     The in_app method: the pending approvals of the agents the caller manages, each with the agent, the
     grants asked (capability, constraints, budget) and the strength needed to approve.

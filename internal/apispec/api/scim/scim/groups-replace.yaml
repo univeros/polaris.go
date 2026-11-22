@@ -16,7 +16,6 @@ input:
     members: { type: "?array", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\ReplaceGroupEndpoint
   description: >
     The name (custom roles only) and the whole member list. Recorded as scim.group_updated.
 

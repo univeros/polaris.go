@@ -15,7 +15,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Orgs\ListRolesEndpoint
   description: >
     Lists every role in the org, both the cloned system templates
     (owner/admin/member, is_system true) and custom roles, each with its

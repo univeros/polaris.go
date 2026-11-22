@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Passkey\Http\AuthenticateOptionsEndpoint
   description: >
     PublicKeyCredentialRequestOptionsJSON with a challenge valid for five minutes and no allowed
     credential named (discoverable: the authenticator offers the user's passkeys, and conditional UI

@@ -16,7 +16,6 @@ input:
     note: { type: string, rules: [optional] }
 
 domain:
-  class: Polaris\Sentinel\Http\Admin\CreateIpRuleEndpoint
   description: >
     cidr is an address or a CIDR block (both families); action is allow or block. A block rule
     refuses the address on every guarded route (in enforce mode), an allow rule clears it of every

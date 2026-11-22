@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\ShowAgentEndpoint
   description: >
     An agent the caller manages (their own, or their active organization's with org.update), with every
     grant it has or had.

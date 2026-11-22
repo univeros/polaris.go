@@ -15,7 +15,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\Organization\ListClientsEndpoint
   description: >
     Every client registered for the organization (the caller's active one, with org.update).
 

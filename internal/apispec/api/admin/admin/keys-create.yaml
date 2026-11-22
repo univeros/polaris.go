@@ -18,7 +18,6 @@ input:
     expires_at: { type: string, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Keys\CreateKeyEndpoint
   description: >
     The key (pak_ and 256 random bits) is in this response only; stored as a keyed hash. scope
     is instance or an organization id (an organization-scoped owner creates keys for their

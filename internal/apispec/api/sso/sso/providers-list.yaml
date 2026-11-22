@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Sso\Http\Organization\ListProvidersEndpoint
   description: >
     The providers of the caller's active organization (the path id must match, a superadmin excepted),
     never the client secrets.

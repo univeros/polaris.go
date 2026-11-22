@@ -14,7 +14,6 @@ input:
     clientId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\ConsentRevokeEndpoint
   description: >
     The consent goes, and every access and refresh token the client holds for the caller is revoked.
     Recorded as oauth.consent_revoked.

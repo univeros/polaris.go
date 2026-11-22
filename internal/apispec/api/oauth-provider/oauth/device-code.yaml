@@ -18,7 +18,6 @@ input:
     resource: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\DeviceCodeEndpoint
   description: >
     RFC 8628 §3.1, for a client with the device grant on a server with a deviceUrl: the device code the
     device polls the token endpoint with, the user code the person types on the host's page

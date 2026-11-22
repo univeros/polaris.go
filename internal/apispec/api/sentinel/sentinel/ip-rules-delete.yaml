@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sentinel\Http\Admin\DeleteIpRuleEndpoint
   description: >
     Needs own on the instance; recorded as sentinel.ip_rule_deleted.
 

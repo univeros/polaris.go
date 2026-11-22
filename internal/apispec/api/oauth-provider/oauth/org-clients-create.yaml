@@ -27,7 +27,6 @@ input:
     tos_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\Organization\CreateClientEndpoint
   description: >
     A confidential (a secret, in this response only, or private_key_jwt) or public (PKCE, none) client:
     redirect_uris (https, or http on loopback, or a custom scheme), grant_types (authorization_code,

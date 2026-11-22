@@ -16,7 +16,6 @@ input:
     clientId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\Organization\ReadClientEndpoint
   description: >
     One client of the organization, by its record id.
 

@@ -19,7 +19,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Audit\Http\OrganizationEndpoint
   description: >
     The caller's active organization only; the same filters and cursor as /audit/me.
 

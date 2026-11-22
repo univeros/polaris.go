@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\MfaFactorsEndpoint
   description: >
     Returns every factor the authenticated user has, confirmed and pending,
     with masked destinations. Each factor carries id, type, default and

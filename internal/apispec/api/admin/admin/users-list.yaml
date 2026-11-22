@@ -17,7 +17,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Users\ListUsersEndpoint
   description: >
     Oldest first (ids are UUID v7); email is an exact match; status is active, disabled or
     locked; cursor is the next_cursor of the previous page; limit 50 by default, 200 at most.

@@ -14,7 +14,6 @@ input:
     approve: { type: boolean, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\CibaDecideEndpoint
   description: >
     The user approves (the client gets tokens as them at its next poll) or refuses the request
     addressed to them. Recorded as oauth.ciba_decided.

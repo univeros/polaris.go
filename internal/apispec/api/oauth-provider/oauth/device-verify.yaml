@@ -14,7 +14,6 @@ input:
     user_code: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\DeviceVerifyEndpoint
   description: >
     For the host's device page: the client and the scopes behind the code the signed-in user typed
     (dashes and case do not matter), so they can decide with POST /oauth2/device/approve.

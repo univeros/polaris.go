@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\OAuth\Http\UserinfoEndpoint
   description: >
     For one of this provider's access tokens with the openid scope (verified by core's bearer resolver,
     DPoP binding included): sub, and email and email_verified with the email scope, name and

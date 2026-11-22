@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Organizations\ReadOrganizationEndpoint
   description: >
     The organization with its members and their roles. Needs read on the instance or on this
     organization.

@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Users\DeleteUserEndpoint
   description: >
     Anonymises the account as core's erasure does (tombstone row, factors and challenges
     scrubbed, sessions ended); deleting yourself is refused. Needs manage; recorded as

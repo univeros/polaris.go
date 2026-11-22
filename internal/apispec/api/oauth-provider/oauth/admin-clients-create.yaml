@@ -28,7 +28,6 @@ input:
     tos_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\Admin\AdminCreateClientEndpoint
   description: >
     Like the organization's route, instance-wide (organization_id null) or for an organization the
     principal covers, and the operator may mark the client trusted: its users are not asked for

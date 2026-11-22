@@ -17,7 +17,6 @@ input:
     expires_at: { type: string, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Grants\CreateGrantEndpoint
   description: >
     One grant per user: a new grant replaces the previous one. scope is instance or an
     organization id (an organization-scoped owner grants on their organization only). Needs own;

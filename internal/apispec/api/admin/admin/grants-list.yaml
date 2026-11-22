@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Admin\Http\Grants\ListGrantsEndpoint
   description: >
     Needs own on the instance.
 

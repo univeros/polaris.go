@@ -22,7 +22,6 @@ input:
     enabled: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\CreateProviderEndpoint
   description: >
     type is saml (config: sso_url, certificate, optional slo_url, slo_response_url, idp_initiated) or
     oidc (config: client_id, optional client_secret, scopes, issuer; the secret is encrypted at rest and

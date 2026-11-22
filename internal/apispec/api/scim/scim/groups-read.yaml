@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\ReadGroupEndpoint
   description: >
     One role with its members.
 

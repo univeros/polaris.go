@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\Admin\AdminRevokeAgentEndpoint
   description: >
     The same kill switch as the owner's: tokens, grants and approvals ended, the chain sealed. Needs own
     on the agent's organization (or the instance). Recorded as agent.revoked and agent.receipt.sealed.

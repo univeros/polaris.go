@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Users\ReadUserEndpoint
   description: >
     The user with their last activity. Needs read on the instance.
 

@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Sessions\ListSessionsEndpoint
   description: >
     The active sessions (refresh-token families), as GET /auth/sessions lists them for the user.
     Needs read.

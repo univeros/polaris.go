@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\ResumeEndpoint
   description: >
     A suspended agent acts again. A revoked agent cannot be resumed. Recorded as agent.resumed.
 

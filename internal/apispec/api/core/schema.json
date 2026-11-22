@@ -41,8 +41,7 @@
         },
         "domain": {
             "type": "object",
-            "required": ["class"],
-            "properties": { "class": { "type": "string" }, "description": { "type": "string" } }
+            "properties": { "description": { "type": "string" } }
         },
         "output": {
             "type": "object",

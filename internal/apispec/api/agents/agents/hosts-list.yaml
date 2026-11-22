@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Agents\Http\ListHostsEndpoint
   description: >
     The caller's live hosts, and their active organization's when they hold org.update in it.
 

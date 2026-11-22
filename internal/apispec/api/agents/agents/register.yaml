@@ -20,7 +20,6 @@ input:
     capabilities: { type: "?list<mixed>", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\RegisterEndpoint
   description: >
     An agent for the caller (acting in their active organization), or for the organization
     organization_id names when it is the caller's active one and they hold org.update in it (checked by

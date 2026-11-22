@@ -18,7 +18,6 @@ input:
     metadata: { type: "?object", rules: [optional] }
 
 domain:
-  class: Polaris\ApiKeys\Http\UpdateEndpoint
   description: >
     A field left out keeps its value; rate_limit null and expires_at null clear them. New permissions
     are bounded by what the caller holds in the key's organization, which must be their active one.

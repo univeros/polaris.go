@@ -16,7 +16,6 @@ input:
     provider_id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\AddDomainEndpoint
   description: >
     A domain belongs to one organization across the instance (409 when claimed). Once verified, a
     sign-in with an email of the domain goes to provider_id. Recorded as sso.domain_added.

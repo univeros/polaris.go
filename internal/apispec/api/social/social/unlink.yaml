@@ -15,7 +15,6 @@ input:
     provider: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Social\Http\UnlinkEndpoint
   description: >
     Removes the link and the provider tokens. Refused when it is the only way into the account (no
     password and no other provider): social_last_credential. Step-up gated.

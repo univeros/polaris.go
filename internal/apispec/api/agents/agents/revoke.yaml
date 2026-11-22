@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\RevokeEndpoint
   description: >
     The agent is revoked for good: its OAuth client is disabled and every token of it revoked, its
     grants revoked, its pending approvals cancelled, and its receipt chain sealed with a final receipt

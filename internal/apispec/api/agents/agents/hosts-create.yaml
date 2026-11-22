@@ -16,7 +16,6 @@ input:
     default_capabilities: { type: "?list<string>", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\CreateHostEndpoint
   description: >
     A runtime that enrols agents (a Claude Code install, a worker) for the caller, or for an organization
     they hold org.update in (their active one). The enrolment token (peh_...) is in this response only

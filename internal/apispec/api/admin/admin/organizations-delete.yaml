@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Organizations\DeleteOrganizationEndpoint
   description: >
     Soft-deletes the organization as core does (status suspended, members' sessions on it
     ended). Needs manage on the instance or on this organization; recorded as

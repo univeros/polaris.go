@@ -27,7 +27,6 @@ input:
     disabled: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\Organization\UpdateClientEndpoint
   description: >
     A field left out keeps its value; disabled true stops the client at the token endpoint. Recorded as
     oauth.client_updated with what changed.

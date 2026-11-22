@@ -14,7 +14,6 @@ input:
     name: { type: string, rules: [required, "max:80"] }
 
 domain:
-  class: Polaris\Passkey\Http\RenameEndpoint
   description: >
     The new name, also the label of the core factor the passkey backs. A passkey that is not the
     caller's is not found.

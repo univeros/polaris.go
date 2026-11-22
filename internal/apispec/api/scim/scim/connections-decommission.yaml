@@ -16,7 +16,6 @@ input:
     connectionId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Organization\DecommissionConnectionEndpoint
   description: >
     The token stops; the provisioned users and their memberships stay. The connection remains listed
     as decommissioned. Recorded as scim.connection_decommissioned.

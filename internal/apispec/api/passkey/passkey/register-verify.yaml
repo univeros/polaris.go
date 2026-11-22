@@ -17,7 +17,6 @@ input:
     name: { type: "?string", rules: [optional, "max:80"] }
 
 domain:
-  class: Polaris\Passkey\Http\RegisterVerifyEndpoint
   description: >
     Verifies the attestation against the challenge, the relying party and the allowed origins, and stores
     the passkey. When the plugin enrols passkeys as MFA factors (the default), the passkey is also a

@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\DeleteGrantEndpoint
   description: >
     The owner revokes an active or pending grant of an agent they manage; it takes effect at the agent's
     next request (its tokens' permissions are intersected with its live grants on every route).

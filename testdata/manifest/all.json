@@ -26,7 +26,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\ResendVerificationEndpoint",
+            "name": "polaris.auth.email-verify-resend",
             "errors": [
                 {
                     "status": 422,
@@ -59,7 +59,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\VerifyEmailEndpoint",
+            "name": "polaris.auth.email-verify",
             "errors": [
                 {
                     "status": 400,
@@ -98,7 +98,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\AcceptInviteEndpoint",
+            "name": "polaris.auth.invites-accept",
             "errors": [
                 {
                     "status": 400,
@@ -136,7 +136,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Jwks\\JwksEndpoint",
+            "name": "polaris.auth.jwks",
             "errors": [],
             "events": []
         },
@@ -174,7 +174,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\LoginEndpoint",
+            "name": "polaris.auth.login",
             "errors": [
                 {
                     "status": 401,
@@ -214,7 +214,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\LogoutAllEndpoint",
+            "name": "polaris.auth.logout-all",
             "errors": [
                 {
                     "status": 401,
@@ -240,7 +240,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\LogoutEndpoint",
+            "name": "polaris.auth.logout",
             "errors": [
                 {
                     "status": 401,
@@ -264,7 +264,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\MeEndpoint",
+            "name": "polaris.auth.me",
             "errors": [
                 {
                     "status": 401,
@@ -297,7 +297,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\MfaChallengeEndpoint",
+            "name": "polaris.auth.mfa.challenge",
             "errors": [
                 {
                     "status": 401,
@@ -356,7 +356,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\OtpFactorConfirmEndpoint",
+            "name": "polaris.auth.mfa.email-confirm",
             "errors": [
                 {
                     "status": 401,
@@ -405,7 +405,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\EmailEnrollEndpoint",
+            "name": "polaris.auth.mfa.email-enroll",
             "errors": [
                 {
                     "status": 401,
@@ -448,7 +448,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\DeleteFactorEndpoint",
+            "name": "polaris.auth.mfa.factor-delete",
             "errors": [
                 {
                     "status": 401,
@@ -503,7 +503,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\UpdateFactorEndpoint",
+            "name": "polaris.auth.mfa.factor-update",
             "errors": [
                 {
                     "status": 401,
@@ -535,7 +535,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\MfaFactorsEndpoint",
+            "name": "polaris.auth.mfa.factors-list",
             "errors": [
                 {
                     "status": 401,
@@ -559,7 +559,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\RegenerateRecoveryCodesEndpoint",
+            "name": "polaris.auth.mfa.recovery-codes-regenerate",
             "errors": [
                 {
                     "status": 401,
@@ -606,7 +606,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\OtpFactorConfirmEndpoint",
+            "name": "polaris.auth.mfa.sms-confirm",
             "errors": [
                 {
                     "status": 401,
@@ -654,7 +654,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\SmsEnrollEndpoint",
+            "name": "polaris.auth.mfa.sms-enroll",
             "errors": [
                 {
                     "status": 401,
@@ -697,7 +697,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\StepUpChallengeEndpoint",
+            "name": "polaris.auth.mfa.step-up-challenge",
             "errors": [
                 {
                     "status": 401,
@@ -765,7 +765,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\StepUpVerifyEndpoint",
+            "name": "polaris.auth.mfa.step-up",
             "errors": [
                 {
                     "status": 401,
@@ -823,7 +823,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\TotpConfirmEndpoint",
+            "name": "polaris.auth.mfa.totp-confirm",
             "errors": [
                 {
                     "status": 401,
@@ -861,7 +861,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\TotpEnrollEndpoint",
+            "name": "polaris.auth.mfa.totp-enroll",
             "errors": [
                 {
                     "status": 401,
@@ -911,7 +911,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\MfaVerifyEndpoint",
+            "name": "polaris.auth.mfa.verify",
             "errors": [
                 {
                     "status": 401,
@@ -971,7 +971,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\ChangePasswordEndpoint",
+            "name": "polaris.auth.password.change",
             "errors": [
                 {
                     "status": 401,
@@ -1024,7 +1024,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\ForgotPasswordEndpoint",
+            "name": "polaris.auth.password.forgot",
             "errors": [
                 {
                     "status": 422,
@@ -1068,7 +1068,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\ResetPasswordEndpoint",
+            "name": "polaris.auth.password.reset",
             "errors": [
                 {
                     "status": 401,
@@ -1126,7 +1126,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\RegisterEndpoint",
+            "name": "polaris.auth.register",
             "errors": [
                 {
                     "status": 422,
@@ -1161,7 +1161,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\RevokeSessionEndpoint",
+            "name": "polaris.auth.session-revoke",
             "errors": [
                 {
                     "status": 401,
@@ -1193,7 +1193,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Auth\\SessionsEndpoint",
+            "name": "polaris.auth.sessions-list",
             "errors": [
                 {
                     "status": 401,
@@ -1226,7 +1226,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\SwitchOrgEndpoint",
+            "name": "polaris.auth.switch-org",
             "errors": [
                 {
                     "status": 401,
@@ -1277,7 +1277,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Auth\\RefreshTokenEndpoint",
+            "name": "polaris.auth.token-refresh",
             "errors": [
                 {
                     "status": 401,
@@ -1328,7 +1328,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\CreateOrganizationEndpoint",
+            "name": "polaris.orgs.create",
             "errors": [
                 {
                     "status": 401,
@@ -1377,7 +1377,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\DeleteOrganizationEndpoint",
+            "name": "polaris.orgs.delete",
             "errors": [
                 {
                     "status": 401,
@@ -1434,7 +1434,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\RevokeInviteEndpoint",
+            "name": "polaris.orgs.invite-revoke",
             "errors": [
                 {
                     "status": 401,
@@ -1487,7 +1487,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\CreateInviteEndpoint",
+            "name": "polaris.orgs.invites-create",
             "errors": [
                 {
                     "status": 401,
@@ -1536,7 +1536,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ListInvitesEndpoint",
+            "name": "polaris.orgs.invites-list",
             "errors": [
                 {
                     "status": 401,
@@ -1564,7 +1564,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Orgs\\ListOrganizationsEndpoint",
+            "name": "polaris.orgs.list",
             "errors": [
                 {
                     "status": 401,
@@ -1607,7 +1607,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\RemoveMemberEndpoint",
+            "name": "polaris.orgs.member-remove",
             "errors": [
                 {
                     "status": 401,
@@ -1656,7 +1656,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ChangeMemberRolesEndpoint",
+            "name": "polaris.orgs.member-roles-update",
             "errors": [
                 {
                     "status": 401,
@@ -1710,7 +1710,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ChangeMemberStatusEndpoint",
+            "name": "polaris.orgs.member-status-update",
             "errors": [
                 {
                     "status": 401,
@@ -1763,7 +1763,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ListMembersEndpoint",
+            "name": "polaris.orgs.members-list",
             "errors": [
                 {
                     "status": 401,
@@ -1802,7 +1802,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ReadOrganizationEndpoint",
+            "name": "polaris.orgs.read",
             "errors": [
                 {
                     "status": 401,
@@ -1853,7 +1853,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\DeleteRoleEndpoint",
+            "name": "polaris.orgs.role-delete",
             "errors": [
                 {
                     "status": 401,
@@ -1908,7 +1908,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\UpdateRoleEndpoint",
+            "name": "polaris.orgs.role-update",
             "errors": [
                 {
                     "status": 401,
@@ -1981,7 +1981,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\CreateRoleEndpoint",
+            "name": "polaris.orgs.roles-create",
             "errors": [
                 {
                     "status": 401,
@@ -2030,7 +2030,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\ListRolesEndpoint",
+            "name": "polaris.orgs.roles-list",
             "errors": [
                 {
                     "status": 401,
@@ -2071,7 +2071,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Orgs\\UpdateOrganizationEndpoint",
+            "name": "polaris.orgs.update",
             "errors": [
                 {
                     "status": 401,
@@ -2109,7 +2109,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Http\\Orgs\\ListPermissionsEndpoint",
+            "name": "polaris.permissions.list",
             "errors": [
                 {
                     "status": 401,
@@ -2142,7 +2142,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Users\\DeleteUserEndpoint",
+            "name": "polaris.users.delete",
             "errors": [
                 {
                     "status": 401,
@@ -2191,7 +2191,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Users\\DisableUserEndpoint",
+            "name": "polaris.users.disable",
             "errors": [
                 {
                     "status": 401,
@@ -2244,7 +2244,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Users\\EnableUserEndpoint",
+            "name": "polaris.users.enable",
             "errors": [
                 {
                     "status": 401,
@@ -2291,7 +2291,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Users\\ReadUserEndpoint",
+            "name": "polaris.users.read",
             "errors": [
                 {
                     "status": 401,
@@ -2333,7 +2333,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Http\\Users\\UpdateUserEndpoint",
+            "name": "polaris.users.update",
             "errors": [
                 {
                     "status": 401,
@@ -2410,7 +2410,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Audit\\Http\\MeEndpoint",
+            "name": "polaris.audit.me",
             "errors": [
                 {
                     "status": 401,
@@ -2481,7 +2481,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Audit\\Http\\OrganizationEndpoint",
+            "name": "polaris.audit.organization",
             "errors": [
                 {
                     "status": 401,
@@ -2517,7 +2517,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Audit\\Http\\TypesEndpoint",
+            "name": "polaris.audit.types",
             "errors": [
                 {
                     "status": 401,
@@ -2606,7 +2606,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Audit\\QueryAuditEndpoint",
+            "name": "polaris.admin.audit-query",
             "errors": [
                 {
                     "status": 401,
@@ -2667,7 +2667,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Audit\\CreateDrainEndpoint",
+            "name": "polaris.admin.drains-create",
             "errors": [
                 {
                     "status": 401,
@@ -2726,7 +2726,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Audit\\DeleteDrainEndpoint",
+            "name": "polaris.admin.drains-delete",
             "errors": [
                 {
                     "status": 401,
@@ -2773,7 +2773,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Audit\\ListDrainsEndpoint",
+            "name": "polaris.admin.drains-list",
             "errors": [
                 {
                     "status": 401,
@@ -2826,7 +2826,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Audit\\TestDrainEndpoint",
+            "name": "polaris.admin.drains-test",
             "errors": [
                 {
                     "status": 401,
@@ -2897,7 +2897,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Grants\\CreateGrantEndpoint",
+            "name": "polaris.admin.grants-create",
             "errors": [
                 {
                     "status": 401,
@@ -2948,7 +2948,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Grants\\DeleteGrantEndpoint",
+            "name": "polaris.admin.grants-delete",
             "errors": [
                 {
                     "status": 401,
@@ -2986,7 +2986,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Admin\\Http\\Grants\\ListGrantsEndpoint",
+            "name": "polaris.admin.grants-list",
             "errors": [
                 {
                     "status": 401,
@@ -3059,7 +3059,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Keys\\CreateKeyEndpoint",
+            "name": "polaris.admin.keys-create",
             "errors": [
                 {
                     "status": 401,
@@ -3106,7 +3106,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Keys\\DeleteKeyEndpoint",
+            "name": "polaris.admin.keys-delete",
             "errors": [
                 {
                     "status": 401,
@@ -3144,7 +3144,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Admin\\Http\\Keys\\ListKeysEndpoint",
+            "name": "polaris.admin.keys-list",
             "errors": [
                 {
                     "status": 401,
@@ -3185,7 +3185,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Mfa\\ListFactorsEndpoint",
+            "name": "polaris.admin.mfa-list",
             "errors": [
                 {
                     "status": 401,
@@ -3238,7 +3238,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Mfa\\RemoveFactorEndpoint",
+            "name": "polaris.admin.mfa-remove",
             "errors": [
                 {
                     "status": 401,
@@ -3290,7 +3290,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Mfa\\ResetMfaEndpoint",
+            "name": "polaris.admin.mfa-reset",
             "errors": [
                 {
                     "status": 401,
@@ -3338,7 +3338,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Organizations\\DeleteOrganizationEndpoint",
+            "name": "polaris.admin.organizations-delete",
             "errors": [
                 {
                     "status": 401,
@@ -3402,7 +3402,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Organizations\\ListOrganizationsEndpoint",
+            "name": "polaris.admin.organizations-list",
             "errors": [
                 {
                     "status": 401,
@@ -3447,7 +3447,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Organizations\\UpdateMemberRolesEndpoint",
+            "name": "polaris.admin.organizations-member-roles",
             "errors": [
                 {
                     "status": 401,
@@ -3503,7 +3503,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Organizations\\ReadOrganizationEndpoint",
+            "name": "polaris.admin.organizations-read",
             "errors": [
                 {
                     "status": 401,
@@ -3548,7 +3548,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Sessions\\ListSessionsEndpoint",
+            "name": "polaris.admin.sessions-list",
             "errors": [
                 {
                     "status": 401,
@@ -3593,7 +3593,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Sessions\\RevokeAllSessionsEndpoint",
+            "name": "polaris.admin.sessions-revoke-all",
             "errors": [
                 {
                     "status": 401,
@@ -3648,7 +3648,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Sessions\\RevokeSessionEndpoint",
+            "name": "polaris.admin.sessions-revoke",
             "errors": [
                 {
                     "status": 401,
@@ -3686,7 +3686,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Admin\\Http\\StatsEndpoint",
+            "name": "polaris.admin.stats",
             "errors": [
                 {
                     "status": 401,
@@ -3727,7 +3727,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\BanUserEndpoint",
+            "name": "polaris.admin.users-ban",
             "errors": [
                 {
                     "status": 401,
@@ -3779,7 +3779,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\DeleteUserEndpoint",
+            "name": "polaris.admin.users-delete",
             "errors": [
                 {
                     "status": 401,
@@ -3831,7 +3831,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\ImpersonateUserEndpoint",
+            "name": "polaris.admin.users-impersonate",
             "errors": [
                 {
                     "status": 401,
@@ -3906,7 +3906,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\ListUsersEndpoint",
+            "name": "polaris.admin.users-list",
             "errors": [
                 {
                     "status": 401,
@@ -3951,7 +3951,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\SetPasswordEndpoint",
+            "name": "polaris.admin.users-password",
             "errors": [
                 {
                     "status": 401,
@@ -4003,7 +4003,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\ReadUserEndpoint",
+            "name": "polaris.admin.users-read",
             "errors": [
                 {
                     "status": 401,
@@ -4048,7 +4048,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Admin\\Http\\Users\\UnbanUserEndpoint",
+            "name": "polaris.admin.users-unban",
             "errors": [
                 {
                     "status": 401,
@@ -4132,7 +4132,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sentinel\\Http\\Admin\\ListDecisionsEndpoint",
+            "name": "polaris.sentinel.decisions-list",
             "errors": [
                 {
                     "status": 401,
@@ -4193,7 +4193,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sentinel\\Http\\Admin\\CreateIpRuleEndpoint",
+            "name": "polaris.sentinel.ip-rules-create",
             "errors": [
                 {
                     "status": 401,
@@ -4240,7 +4240,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sentinel\\Http\\Admin\\DeleteIpRuleEndpoint",
+            "name": "polaris.sentinel.ip-rules-delete",
             "errors": [
                 {
                     "status": 401,
@@ -4278,7 +4278,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Sentinel\\Http\\Admin\\ListIpRulesEndpoint",
+            "name": "polaris.sentinel.ip-rules-list",
             "errors": [
                 {
                     "status": 401,
@@ -4319,7 +4319,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sentinel\\Http\\Admin\\UnblockEndpoint",
+            "name": "polaris.sentinel.unblock",
             "errors": [
                 {
                     "status": 401,
@@ -4366,7 +4366,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Admin\\AdminDeleteProviderEndpoint",
+            "name": "polaris.sso.admin-providers-delete",
             "errors": [
                 {
                     "status": 401,
@@ -4429,7 +4429,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Admin\\AdminListProvidersEndpoint",
+            "name": "polaris.sso.admin-providers-list",
             "errors": [
                 {
                     "status": 401,
@@ -4490,7 +4490,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\OidcCallbackEndpoint",
+            "name": "polaris.sso.callback-oidc",
             "errors": [
                 {
                     "status": 403,
@@ -4554,7 +4554,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\SamlCallbackEndpoint",
+            "name": "polaris.sso.callback-saml",
             "errors": [
                 {
                     "status": 403,
@@ -4620,7 +4620,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\AddDomainEndpoint",
+            "name": "polaris.sso.domains-add",
             "errors": [
                 {
                     "status": 401,
@@ -4681,7 +4681,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\DeleteDomainEndpoint",
+            "name": "polaris.sso.domains-delete",
             "errors": [
                 {
                     "status": 401,
@@ -4721,7 +4721,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\ListDomainsEndpoint",
+            "name": "polaris.sso.domains-list",
             "errors": [
                 {
                     "status": 401,
@@ -4772,7 +4772,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\VerifyDomainEndpoint",
+            "name": "polaris.sso.domains-verify",
             "errors": [
                 {
                     "status": 401,
@@ -4823,7 +4823,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\ExchangeEndpoint",
+            "name": "polaris.sso.exchange",
             "errors": [
                 {
                     "status": 422,
@@ -4876,7 +4876,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\LogoutEndpoint",
+            "name": "polaris.sso.logout",
             "errors": [
                 {
                     "status": 401,
@@ -4910,7 +4910,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\MetadataEndpoint",
+            "name": "polaris.sso.metadata",
             "errors": [
                 {
                     "status": 404,
@@ -5001,7 +5001,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\CreateProviderEndpoint",
+            "name": "polaris.sso.providers-create",
             "errors": [
                 {
                     "status": 401,
@@ -5058,7 +5058,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\DeleteProviderEndpoint",
+            "name": "polaris.sso.providers-delete",
             "errors": [
                 {
                     "status": 401,
@@ -5098,7 +5098,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\ListProvidersEndpoint",
+            "name": "polaris.sso.providers-list",
             "errors": [
                 {
                     "status": 401,
@@ -5149,7 +5149,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\ReadProviderEndpoint",
+            "name": "polaris.sso.providers-read",
             "errors": [
                 {
                     "status": 401,
@@ -5204,7 +5204,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\TestProviderEndpoint",
+            "name": "polaris.sso.providers-test",
             "errors": [
                 {
                     "status": 401,
@@ -5299,7 +5299,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Organization\\UpdateProviderEndpoint",
+            "name": "polaris.sso.providers-update",
             "errors": [
                 {
                     "status": 401,
@@ -5366,7 +5366,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\SignInEndpoint",
+            "name": "polaris.sso.sign-in",
             "errors": [
                 {
                     "status": 403,
@@ -5439,7 +5439,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\SloPostEndpoint",
+            "name": "polaris.sso.slo-post",
             "errors": [
                 {
                     "status": 403,
@@ -5518,7 +5518,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Sso\\Http\\Flow\\SloRedirectEndpoint",
+            "name": "polaris.sso.slo-redirect",
             "errors": [
                 {
                     "status": 403,
@@ -5565,7 +5565,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Admin\\AdminDeleteConnectionEndpoint",
+            "name": "polaris.scim.admin-connections-delete",
             "errors": [
                 {
                     "status": 401,
@@ -5628,7 +5628,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Admin\\AdminListConnectionsEndpoint",
+            "name": "polaris.scim.admin-connections-list",
             "errors": [
                 {
                     "status": 401,
@@ -5691,7 +5691,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Organization\\CreateConnectionEndpoint",
+            "name": "polaris.scim.connections-create",
             "errors": [
                 {
                     "status": 401,
@@ -5748,7 +5748,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Organization\\DecommissionConnectionEndpoint",
+            "name": "polaris.scim.connections-decommission",
             "errors": [
                 {
                     "status": 401,
@@ -5788,7 +5788,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Scim\\Http\\Organization\\ListConnectionsEndpoint",
+            "name": "polaris.scim.connections-list",
             "errors": [
                 {
                     "status": 401,
@@ -5839,7 +5839,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Organization\\ReadConnectionEndpoint",
+            "name": "polaris.scim.connections-read",
             "errors": [
                 {
                     "status": 401,
@@ -5894,7 +5894,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Organization\\RotateConnectionEndpoint",
+            "name": "polaris.scim.connections-rotate",
             "errors": [
                 {
                     "status": 401,
@@ -5961,7 +5961,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\CreateGroupEndpoint",
+            "name": "polaris.scim.groups-create",
             "errors": [
                 {
                     "status": 401,
@@ -6008,7 +6008,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\DeleteGroupEndpoint",
+            "name": "polaris.scim.groups-delete",
             "errors": [
                 {
                     "status": 401,
@@ -6067,7 +6067,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ListGroupsEndpoint",
+            "name": "polaris.scim.groups-list",
             "errors": [
                 {
                     "status": 401,
@@ -6116,7 +6116,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\PatchGroupEndpoint",
+            "name": "polaris.scim.groups-patch",
             "errors": [
                 {
                     "status": 401,
@@ -6171,7 +6171,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ReadGroupEndpoint",
+            "name": "polaris.scim.groups-read",
             "errors": [
                 {
                     "status": 401,
@@ -6224,7 +6224,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ReplaceGroupEndpoint",
+            "name": "polaris.scim.groups-replace",
             "errors": [
                 {
                     "status": 401,
@@ -6262,7 +6262,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ResourceTypesEndpoint",
+            "name": "polaris.scim.resource-types",
             "errors": [
                 {
                     "status": 401,
@@ -6290,7 +6290,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\SchemasEndpoint",
+            "name": "polaris.scim.schemas",
             "errors": [
                 {
                     "status": 401,
@@ -6318,7 +6318,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ServiceProviderConfigEndpoint",
+            "name": "polaris.scim.service-provider-config",
             "errors": [
                 {
                     "status": 401,
@@ -6395,7 +6395,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\CreateUserEndpoint",
+            "name": "polaris.scim.users-create",
             "errors": [
                 {
                     "status": 401,
@@ -6442,7 +6442,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\DeleteUserEndpoint",
+            "name": "polaris.scim.users-delete",
             "errors": [
                 {
                     "status": 401,
@@ -6498,7 +6498,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ListUsersEndpoint",
+            "name": "polaris.scim.users-list",
             "errors": [
                 {
                     "status": 401,
@@ -6547,7 +6547,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\PatchUserEndpoint",
+            "name": "polaris.scim.users-patch",
             "errors": [
                 {
                     "status": 401,
@@ -6604,7 +6604,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ReadUserEndpoint",
+            "name": "polaris.scim.users-read",
             "errors": [
                 {
                     "status": 401,
@@ -6681,7 +6681,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Scim\\Http\\Resources\\ReplaceUserEndpoint",
+            "name": "polaris.scim.users-replace",
             "errors": [
                 {
                     "status": 401,
@@ -6748,7 +6748,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\EmailOtpResetPasswordEndpoint",
+            "name": "polaris.passwordless.email-otp-reset-password",
             "errors": [
                 {
                     "status": 422,
@@ -6802,7 +6802,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\EmailOtpSendEndpoint",
+            "name": "polaris.passwordless.email-otp-send",
             "errors": [
                 {
                     "status": 422,
@@ -6845,7 +6845,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\EmailOtpVerifyEmailEndpoint",
+            "name": "polaris.passwordless.email-otp-verify-email",
             "errors": [
                 {
                     "status": 422,
@@ -6894,7 +6894,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\EmailOtpVerifyEndpoint",
+            "name": "polaris.passwordless.email-otp-verify",
             "errors": [
                 {
                     "status": 403,
@@ -6941,7 +6941,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\MagicLinkConfirmEndpoint",
+            "name": "polaris.passwordless.magic-link-confirm",
             "errors": [
                 {
                     "status": 403,
@@ -6988,7 +6988,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\MagicLinkExchangeEndpoint",
+            "name": "polaris.passwordless.magic-link-exchange",
             "errors": [
                 {
                     "status": 422,
@@ -7035,7 +7035,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\MagicLinkSendEndpoint",
+            "name": "polaris.passwordless.magic-link-send",
             "errors": [
                 {
                     "status": 422,
@@ -7072,7 +7072,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\MagicLinkVerifyEndpoint",
+            "name": "polaris.passwordless.magic-link-verify",
             "errors": [
                 {
                     "status": 422,
@@ -7100,7 +7100,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Passwordless\\Http\\OneTimeTokenGenerateEndpoint",
+            "name": "polaris.passwordless.one-time-token-generate",
             "errors": [
                 {
                     "status": 401,
@@ -7137,7 +7137,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\OneTimeTokenVerifyEndpoint",
+            "name": "polaris.passwordless.one-time-token-verify",
             "errors": [
                 {
                     "status": 422,
@@ -7177,7 +7177,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\PhoneAddEndpoint",
+            "name": "polaris.passwordless.phone-add",
             "errors": [
                 {
                     "status": 401,
@@ -7227,7 +7227,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\PhoneConfirmEndpoint",
+            "name": "polaris.passwordless.phone-confirm",
             "errors": [
                 {
                     "status": 401,
@@ -7277,7 +7277,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\PhoneSendEndpoint",
+            "name": "polaris.passwordless.phone-send",
             "errors": [
                 {
                     "status": 422,
@@ -7319,7 +7319,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passwordless\\Http\\PhoneVerifyEndpoint",
+            "name": "polaris.passwordless.phone-verify",
             "errors": [
                 {
                     "status": 403,
@@ -7375,7 +7375,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Username\\Http\\SignInEndpoint",
+            "name": "polaris.username.sign-in",
             "errors": [
                 {
                     "status": 401,
@@ -7434,7 +7434,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Username\\Http\\UpdateEndpoint",
+            "name": "polaris.username.update",
             "errors": [
                 {
                     "status": 401,
@@ -7475,7 +7475,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Anonymous\\Http\\ConvertEndpoint",
+            "name": "polaris.anonymous.convert",
             "errors": [
                 {
                     "status": 401,
@@ -7511,7 +7511,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Anonymous\\Http\\SignInEndpoint",
+            "name": "polaris.anonymous.sign-in",
             "errors": [],
             "events": [
                 "user.logged_in"
@@ -7532,7 +7532,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\MultiSession\\Http\\LastMethodEndpoint",
+            "name": "polaris.multi-session.last-method",
             "errors": [],
             "events": []
         },
@@ -7551,7 +7551,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\MultiSession\\Http\\ListEndpoint",
+            "name": "polaris.multi-session.list",
             "errors": [
                 {
                     "status": 401,
@@ -7588,7 +7588,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\MultiSession\\Http\\RevokeEndpoint",
+            "name": "polaris.multi-session.revoke",
             "errors": [
                 {
                     "status": 401,
@@ -7629,7 +7629,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\MultiSession\\Http\\SwitchEndpoint",
+            "name": "polaris.multi-session.switch",
             "errors": [
                 {
                     "status": 401,
@@ -7665,7 +7665,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Social\\Http\\AccountsEndpoint",
+            "name": "polaris.social.accounts",
             "errors": [
                 {
                     "status": 401,
@@ -7722,7 +7722,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\CallbackPostEndpoint",
+            "name": "polaris.social.callback-post",
             "errors": [
                 {
                     "status": 403,
@@ -7805,7 +7805,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\CallbackEndpoint",
+            "name": "polaris.social.callback",
             "errors": [
                 {
                     "status": 403,
@@ -7872,7 +7872,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\ExchangeEndpoint",
+            "name": "polaris.social.exchange",
             "errors": [
                 {
                     "status": 422,
@@ -7917,7 +7917,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\LinkEndpoint",
+            "name": "polaris.social.link",
             "errors": [
                 {
                     "status": 401,
@@ -7962,7 +7962,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\OneTapEndpoint",
+            "name": "polaris.social.one-tap",
             "errors": [
                 {
                     "status": 403,
@@ -8025,7 +8025,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\StartEndpoint",
+            "name": "polaris.social.start",
             "errors": [
                 {
                     "status": 404,
@@ -8062,7 +8062,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\TokenEndpoint",
+            "name": "polaris.social.token",
             "errors": [
                 {
                     "status": 401,
@@ -8107,7 +8107,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Social\\Http\\UnlinkEndpoint",
+            "name": "polaris.social.unlink",
             "errors": [
                 {
                     "status": 401,
@@ -8143,7 +8143,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Passkey\\Http\\AuthenticateOptionsEndpoint",
+            "name": "polaris.passkey.authenticate-options",
             "errors": [],
             "events": []
         },
@@ -8171,7 +8171,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passkey\\Http\\AuthenticateVerifyEndpoint",
+            "name": "polaris.passkey.authenticate-verify",
             "errors": [
                 {
                     "status": 403,
@@ -8230,7 +8230,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passkey\\Http\\DeleteEndpoint",
+            "name": "polaris.passkey.delete",
             "errors": [
                 {
                     "status": 401,
@@ -8268,7 +8268,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Passkey\\Http\\ListEndpoint",
+            "name": "polaris.passkey.list",
             "errors": [
                 {
                     "status": 401,
@@ -8292,7 +8292,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Passkey\\Http\\RegisterOptionsEndpoint",
+            "name": "polaris.passkey.register-options",
             "errors": [
                 {
                     "status": 401,
@@ -8338,7 +8338,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passkey\\Http\\RegisterVerifyEndpoint",
+            "name": "polaris.passkey.register-verify",
             "errors": [
                 {
                     "status": 401,
@@ -8394,7 +8394,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Passkey\\Http\\RenameEndpoint",
+            "name": "polaris.passkey.rename",
             "errors": [
                 {
                     "status": 401,
@@ -8485,7 +8485,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\CreateEndpoint",
+            "name": "polaris.api-keys.create",
             "errors": [
                 {
                     "status": 401,
@@ -8536,7 +8536,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\DeleteEndpoint",
+            "name": "polaris.api-keys.delete",
             "errors": [
                 {
                     "status": 401,
@@ -8575,7 +8575,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\ListEndpoint",
+            "name": "polaris.api-keys.list",
             "errors": [
                 {
                     "status": 401,
@@ -8612,7 +8612,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\ReadEndpoint",
+            "name": "polaris.api-keys.read",
             "errors": [
                 {
                     "status": 401,
@@ -8649,7 +8649,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\RotateEndpoint",
+            "name": "polaris.api-keys.rotate",
             "errors": [
                 {
                     "status": 401,
@@ -8725,7 +8725,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\UpdateEndpoint",
+            "name": "polaris.api-keys.update",
             "errors": [
                 {
                     "status": 401,
@@ -8776,7 +8776,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\ApiKeys\\Http\\VerifyEndpoint",
+            "name": "polaris.api-keys.verify",
             "errors": [
                 {
                     "status": 401,
@@ -8927,7 +8927,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Admin\\AdminCreateClientEndpoint",
+            "name": "polaris.oauth.admin-clients-create",
             "errors": [
                 {
                     "status": 401,
@@ -8970,7 +8970,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Admin\\AdminDeleteClientEndpoint",
+            "name": "polaris.oauth.admin-clients-delete",
             "errors": [
                 {
                     "status": 401,
@@ -9004,7 +9004,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\Admin\\AdminListClientsEndpoint",
+            "name": "polaris.oauth.admin-clients-list",
             "errors": [
                 {
                     "status": 401,
@@ -9032,7 +9032,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\AuthorizationServerEndpoint",
+            "name": "polaris.oauth.authorization-server",
             "errors": [],
             "events": []
         },
@@ -9148,7 +9148,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\AuthorizeEndpoint",
+            "name": "polaris.oauth.authorize",
             "errors": [
                 {
                     "status": 302,
@@ -9201,7 +9201,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\CibaDecideEndpoint",
+            "name": "polaris.oauth.ciba-decide",
             "errors": [
                 {
                     "status": 401,
@@ -9235,7 +9235,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\CibaPendingEndpoint",
+            "name": "polaris.oauth.ciba-pending",
             "errors": [
                 {
                     "status": 401,
@@ -9324,7 +9324,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\CibaEndpoint",
+            "name": "polaris.oauth.ciba",
             "errors": [
                 {
                     "status": 401,
@@ -9366,7 +9366,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\ConsentsListEndpoint",
+            "name": "polaris.oauth.consents-list",
             "errors": [
                 {
                     "status": 401,
@@ -9399,7 +9399,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\ConsentRevokeEndpoint",
+            "name": "polaris.oauth.consents-revoke",
             "errors": [
                 {
                     "status": 401,
@@ -9446,7 +9446,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\DecisionEndpoint",
+            "name": "polaris.oauth.decision",
             "errors": [
                 {
                     "status": 401,
@@ -9498,7 +9498,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\DeviceApproveEndpoint",
+            "name": "polaris.oauth.device-approve",
             "errors": [
                 {
                     "status": 401,
@@ -9565,7 +9565,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\DeviceCodeEndpoint",
+            "name": "polaris.oauth.device-code",
             "errors": [
                 {
                     "status": 401,
@@ -9606,7 +9606,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\DeviceVerifyEndpoint",
+            "name": "polaris.oauth.device-verify",
             "errors": [
                 {
                     "status": 401,
@@ -9683,7 +9683,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\IntrospectEndpoint",
+            "name": "polaris.oauth.introspect",
             "errors": [
                 {
                     "status": 400,
@@ -9711,7 +9711,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\OpenIdConfigurationEndpoint",
+            "name": "polaris.oauth.openid-configuration",
             "errors": [],
             "events": []
         },
@@ -9839,7 +9839,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Organization\\CreateClientEndpoint",
+            "name": "polaris.oauth.org-clients-create",
             "errors": [
                 {
                     "status": 401,
@@ -9896,7 +9896,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Organization\\DeleteClientEndpoint",
+            "name": "polaris.oauth.org-clients-delete",
             "errors": [
                 {
                     "status": 401,
@@ -9945,7 +9945,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Organization\\ListClientsEndpoint",
+            "name": "polaris.oauth.org-clients-list",
             "errors": [
                 {
                     "status": 401,
@@ -9996,7 +9996,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Organization\\ReadClientEndpoint",
+            "name": "polaris.oauth.org-clients-read",
             "errors": [
                 {
                     "status": 401,
@@ -10140,7 +10140,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\Organization\\UpdateClientEndpoint",
+            "name": "polaris.oauth.org-clients-update",
             "errors": [
                 {
                     "status": 401,
@@ -10279,7 +10279,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\RegisterEndpoint",
+            "name": "polaris.oauth.register",
             "errors": [
                 {
                     "status": 403,
@@ -10358,7 +10358,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\RevokeEndpoint",
+            "name": "polaris.oauth.revoke",
             "errors": [
                 {
                     "status": 400,
@@ -10533,7 +10533,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\OAuth\\Http\\TokenEndpoint",
+            "name": "polaris.oauth.token",
             "errors": [
                 {
                     "status": 400,
@@ -10605,7 +10605,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\UserinfoPostEndpoint",
+            "name": "polaris.oauth.userinfo-post",
             "errors": [
                 {
                     "status": 401,
@@ -10633,7 +10633,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\OAuth\\Http\\UserinfoEndpoint",
+            "name": "polaris.oauth.userinfo",
             "errors": [
                 {
                     "status": 401,
@@ -10661,7 +10661,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Mcp\\Http\\McpEndpoint",
+            "name": "polaris.mcp.mcp",
             "errors": [
                 {
                     "status": 400,
@@ -10693,7 +10693,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Mcp\\Http\\ProtectedResourceEndpoint",
+            "name": "polaris.mcp.protected-resource",
             "errors": [],
             "events": []
         },
@@ -10712,7 +10712,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\Admin\\AdminListAgentsEndpoint",
+            "name": "polaris.agents.admin-list",
             "errors": [
                 {
                     "status": 401,
@@ -10749,7 +10749,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\Admin\\AdminRevokeAgentEndpoint",
+            "name": "polaris.agents.admin-revoke",
             "errors": [
                 {
                     "status": 401,
@@ -10806,7 +10806,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\DecideApprovalEndpoint",
+            "name": "polaris.agents.approvals-decide",
             "errors": [
                 {
                     "status": 401,
@@ -10853,7 +10853,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\ListApprovalsEndpoint",
+            "name": "polaris.agents.approvals-list",
             "errors": [
                 {
                     "status": 401,
@@ -10886,7 +10886,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\ReadApprovalEndpoint",
+            "name": "polaris.agents.approvals-read",
             "errors": [
                 {
                     "status": 401,
@@ -10914,7 +10914,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\CapabilitiesEndpoint",
+            "name": "polaris.agents.capabilities",
             "errors": [
                 {
                     "status": 401,
@@ -10942,7 +10942,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\ConfigurationEndpoint",
+            "name": "polaris.agents.configuration",
             "errors": [],
             "events": []
         },
@@ -10997,7 +10997,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\EnrollEndpoint",
+            "name": "polaris.agents.enroll",
             "errors": [
                 {
                     "status": 401,
@@ -11054,7 +11054,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\ExecuteEndpoint",
+            "name": "polaris.agents.execute",
             "errors": [
                 {
                     "status": 401,
@@ -11123,7 +11123,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\DeleteGrantEndpoint",
+            "name": "polaris.agents.grants-delete",
             "errors": [
                 {
                     "status": 401,
@@ -11193,7 +11193,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\RequestGrantsEndpoint",
+            "name": "polaris.agents.grants-request",
             "errors": [
                 {
                     "status": 401,
@@ -11270,7 +11270,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\CreateHostEndpoint",
+            "name": "polaris.agents.hosts-create",
             "errors": [
                 {
                     "status": 401,
@@ -11315,7 +11315,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\DeleteHostEndpoint",
+            "name": "polaris.agents.hosts-delete",
             "errors": [
                 {
                     "status": 401,
@@ -11343,7 +11343,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\ListHostsEndpoint",
+            "name": "polaris.agents.hosts-list",
             "errors": [
                 {
                     "status": 401,
@@ -11367,7 +11367,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\ListAgentsEndpoint",
+            "name": "polaris.agents.list",
             "errors": [
                 {
                     "status": 401,
@@ -11400,7 +11400,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\VerifyReceiptEndpoint",
+            "name": "polaris.agents.receipts-verify",
             "errors": [
                 {
                     "status": 401,
@@ -11453,7 +11453,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\ListReceiptsEndpoint",
+            "name": "polaris.agents.receipts",
             "errors": [
                 {
                     "status": 401,
@@ -11533,7 +11533,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\RegisterEndpoint",
+            "name": "polaris.agents.register",
             "errors": [
                 {
                     "status": 401,
@@ -11582,7 +11582,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\ResumeEndpoint",
+            "name": "polaris.agents.resume",
             "errors": [
                 {
                     "status": 401,
@@ -11625,7 +11625,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\RevokeEndpoint",
+            "name": "polaris.agents.revoke",
             "errors": [
                 {
                     "status": 401,
@@ -11660,7 +11660,7 @@
                 "source": "none",
                 "fields": []
             },
-            "class": "Polaris\\Agents\\Http\\SessionEndpoint",
+            "name": "polaris.agents.session",
             "errors": [
                 {
                     "status": 401,
@@ -11705,7 +11705,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\ShowAgentEndpoint",
+            "name": "polaris.agents.show",
             "errors": [
                 {
                     "status": 401,
@@ -11742,7 +11742,7 @@
                     }
                 ]
             },
-            "class": "Polaris\\Agents\\Http\\SuspendEndpoint",
+            "name": "polaris.agents.suspend",
             "errors": [
                 {
                     "status": 401,

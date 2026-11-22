@@ -14,7 +14,6 @@ input:
     identifier: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sentinel\Http\Admin\UnblockEndpoint
   description: >
     Forgets what the velocity and credential-stuffing signals counted for an email or an IP address,
     so a locked-out person can try again; an IP rule is removed with its own route. Needs support on

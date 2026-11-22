@@ -18,7 +18,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Audit\Http\MeEndpoint
   description: >
     Newest first, cursor-paginated (next_cursor is the last id of the page; pass it as cursor);
     names is a comma-separated list of catalog names; from and to are ISO-8601 datetimes.

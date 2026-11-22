@@ -14,7 +14,6 @@ input:
     organization_id: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\ApiKeys\Http\ListEndpoint
   description: >
     Every key of the caller that is not revoked, newest first: its name, owner, the organization it acts
     in, the last four characters of its secret, permissions, rate limit, status (active, rotated while

@@ -15,7 +15,6 @@ input:
     drainId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Audit\TestDrainEndpoint
   description: >
     Records admin.drain_tested for the organization, delivered to its drains like any event, and
     answers the drain's state afterwards (last_delivery_at, last_error). Needs own.

@@ -15,7 +15,6 @@ input:
     drainId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Audit\DeleteDrainEndpoint
   description: >
     Needs own; recorded as admin.drain_deleted.
 

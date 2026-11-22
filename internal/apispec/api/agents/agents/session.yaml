@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Agents\Http\SessionEndpoint
   description: >
     AAP's status: the agent, its mode and owner, its host, how it authenticated, and its grants with
     their status and remaining budget (an agent polls it while an approval is pending).
