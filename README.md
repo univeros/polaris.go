@@ -94,6 +94,7 @@ SCIM), [`signin-methods`](examples/signin-methods) (passwordless, passkeys, soci
 | **Sessions** | Short-lived JWTs (RS256 or EdDSA, JWKS published), rotating refresh tokens with reuse detection, cookie or body delivery, sign out everywhere |
 | **Organizations** | Multi-tenant organizations, members, invitations, roles and permissions resolved per request, your own permissions in the catalog |
 | **Your data** | Hooks in the account's transaction, your own JWT claims, a Go API (`p.Users()`, `p.Orgs()`, `p.Sessions()`, `p.Can()`) with the same rules as the routes |
+| **Migration** | `p.Users().Import` brings existing accounts with their password hashes (bcrypt, PBKDF2, scrypt; from your own table, Auth0, Firebase, Django, Devise, Laravel): no forced reset, upgraded to Argon2id on first sign-in ([Migrating your users](llms.txt)) |
 | **Operations** | OpenTelemetry traces and metrics, a CLI (`init`, `migrate`, `doctor`, `schema:*`, `keys:generate`), PostgreSQL, MySQL, SQLite |
 
 ## Plugins
@@ -210,14 +211,16 @@ func TestSignUp(t *testing.T) {
 Polaris is pre-1.0. The host surface and the plugin SDK listed in [`API.md`](API.md) only change with
 a recorded decision and a release note, and CI checks every pull request for incompatible changes to
 them. Stored data (password hashes, encrypted secrets, issued tokens, the schema) stays readable
-across releases.
+across releases. [`CHANGELOG.md`](CHANGELOG.md) says what changes in each release;
+[`docs/v1.md`](docs/v1.md) what 1.0 still requires.
 
 ## Contributing and security
 
-Contributions go through pull requests with CI green; [`AGENT.md`](AGENT.md) has the rules (tests
-first, `make qa`). Report a vulnerability privately through
+Contributions go through pull requests with CI green; [`CONTRIBUTING.md`](CONTRIBUTING.md) has the
+workflow and [`AGENT.md`](AGENT.md) the rules (tests first, `make qa`). Report a vulnerability
+privately through
 [GitHub security advisories](https://github.com/univeros/polaris.go/security/advisories/new), not in
-an issue.
+an issue; [`SECURITY.md`](SECURITY.md) says what to include and what happens next.
 
 ## License
 

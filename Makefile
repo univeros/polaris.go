@@ -1,4 +1,4 @@
-.PHONY: qa fmt vet lint vuln apicheck test bench
+.PHONY: qa fmt vet lint vuln apicheck test bench fuzz
 
 # Tool versions, fetched with `go run` (never in go.mod).
 GOLANGCI_LINT ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
@@ -33,3 +33,10 @@ test:
 
 bench:
 	go test -run '^$$' -bench . -benchmem ./...
+
+# fuzz fuzzes every fuzz target for FUZZTIME each (FUZZ: a regexp of target names). CI runs it
+# weekly with 60s (.github/workflows/fuzz.yml); `make qa` only runs the seed corpora.
+FUZZTIME ?= 10s
+FUZZ     ?= .
+fuzz:
+	FUZZTIME=$(FUZZTIME) scripts/fuzz.sh '$(FUZZ)'
