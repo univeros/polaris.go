@@ -1350,26 +1350,48 @@ they are closed now. Each change is additive; tests were written first.
   and `*sql.Tx` share (`ExecContext`, `QueryContext`, `QueryRowContext`), so a hook writes the
   host's rows with plain `database/sql`. Statements go to the driver as written: `$1` on PostgreSQL,
   `?` on MySQL and SQLite (documented on `Conn`). This is the formerly unexported `conner`.
-- **Events wait for the commit of a `Store.Tx`.** Under a host transaction, events (and so the
-  verification and invitation mail the notify listener sends) were dispatched when Polaris's part
-  was done, before the host committed: a rolled-back signup still mailed. Now the default
-  dispatcher is wrapped (`wiring.deferUntilCommit`) so that an event raised inside a
-  `sqlstore.Store.Tx` is queued on that transaction (`Store.AfterCommit`) and dispatched right
-  after the outermost commit, in order, with the ctx it was raised with (which no longer joins the
-  finished transaction, so a listener's writes use the pool); a rollback drops the queue, and a
-  rolled-back savepoint drops what it queued. The wrapper finds `AfterCommit` through `Unwrap`, so
-  `telemetry/otel.Store` keeps it; an adapter without it (memstore) dispatches at once, as before.
-  `Store.Tx` is therefore the host's transaction (`db.Tx(ctx, fn)`, writes through
-  `db.Conn(ctx)`), and the hooks example uses it. `sqlstore.WithTx` (a host's own `*sql.Tx`) is
-  unchanged and documented: Polaris cannot see that commit, so its events go out before it.
-  Polaris's own code dispatches after its transactions return, so outside a host transaction
-  nothing changes for routes or Go calls; a listener that ran inside an enclosing transaction now
-  runs after it, in its own. Rejected: a transactional outbox table (durable delivery is a
-  separate feature; this only stops sending what never committed); wrapping `*sql.Tx` to see
-  `Commit` (a host's ORM owns its transaction type). Delivery is still at-most-once: a crash
-  between the commit and the dispatch loses the events, as a crash after any commit did before.
-  Tests: `TestStoreTxDefersEventsUntilCommit` (no event or mail inside the transaction or after its
-  rollback; both after the commit; failed before: `user.registered` and the mail inside),
+- **Two-phase event delivery.** Under a host transaction, events (and so the verification and
+  invitation mail the notify listener sends) were delivered when Polaris's part was done, before
+  the host committed: a rolled-back signup still mailed. A first version of this change deferred
+  every listener until the commit; review rejected it, because it traded that bug for another:
+  the listeners that write to the store lose their atomicity with the action. The audit trail's
+  row and the erasure listeners' deletes (`internal/maintenance.EraseOnUserDeleted`, decision 61,
+  and the plugins' own erasure and revocation listeners) commit or roll back with the action only
+  when they run inside its transaction; deferred, a crash between the commit and the dispatch
+  loses an audit row or leaves an erased user's plugin rows behind, which breaks the erasure
+  guarantee. So delivery now has two phases, decided per listener when the graph is built:
+  - **Inside the transaction (as before):** core's audit log, every plugin's `Listeners` (every
+    in-tree one writes to the store: audit recorder and activity, erasure, revocations, sentinel's
+    device records), and the host's new `Config.TxListeners` (for a host listener that writes its
+    own rows through `db.Conn(ctx)`).
+  - **After the commit:** the mail listener, the metrics listener and `Config.Listeners`. They are
+    wrapped by `wiring.Graph.Deferred(l)`, which queues the call on the transaction ctx carries
+    (`sqlstore.Store.AfterCommit`) and runs it right after the outermost commit, in order, with the
+    ctx the event was raised with (that ctx no longer joins the finished transaction). A rollback
+    drops the queue, and a rolled-back savepoint drops what it queued. Outside a transaction, under
+    `WithTx`, or on an adapter without `AfterCommit` (memstore), the call happens at once.
+    `Deferred` finds `AfterCommit` through `Unwrap`, so `telemetry/otel.Store` keeps it. A plugin
+    with a listener whose effect leaves the database (a webhook) wraps it in `g.Deferred`.
+
+  The default for `Config.Listeners` is deferred, because a host listener is usually a side
+  effect (mail, webhooks, queues, telemetry); the opt-in for database work is a separate field, not
+  a marker on the function. A `Listener` is a func, so a marker such as `event.InTx(l)` could not be
+  recognised later without comparing code pointers, and inlining makes those unreliable.
+  `Config.Events` (a host dispatcher) receives every event when it is raised; the listeners
+  `Graph.Listeners` hands it already carry their phase. `Store.Tx` is the host's transaction
+  (`db.Tx(ctx, fn)`, writes through `db.Conn(ctx)`), and the hooks example uses it.
+  `sqlstore.WithTx` (a host's own `*sql.Tx`) is unchanged and documented: Polaris cannot see that
+  commit, so the deferred phase runs before it. Polaris's own code delivers after its
+  transactions return, so outside a host transaction nothing changes for routes or Go calls.
+  Rejected: deferring every listener (above); a transactional outbox table (durable delivery is a
+  separate feature); wrapping `*sql.Tx` to see `Commit` (a host's ORM owns its transaction type).
+  The deferred phase is at-most-once: a crash between the commit and the call loses a mail, as a
+  crash after any commit did before. Tests: `TestStoreTxDeliversEventsInTwoPhases`. It uses the
+  audit plugin, a `TxListeners` row, a `Listeners` recorder and the mailer. Inside a host
+  `db.Tx`, a signup's audit row and host row exist while the mail and listener wait; after a
+  rollback none survives; after a commit all ran once. An erasure's activity-row delete and its
+  audit row roll back with the host's rollback and are kept with its commit. The test fails with
+  the plugin listeners deferred. Also `TestDeferredWaitsForTheCommitOfAWrappedAdapter`,
   `TestAfterCommitWaitsForTheOutermostCommit`, `TestConnJoinsTheTransactionCarriedByCtx`,
   `ExampleStore_Tx`.
 - **`ErrEmailNotVerified`.** `Sessions().Issue` refused an unverified account with a bare
@@ -1399,10 +1421,10 @@ they are closed now. Each change is additive; tests were written first.
   production.
 
 API.md §1 lists the new names (`DevEnv`, `EnvDev`, `Polaris.Wrap`, `Invitation`, `Orgs.Invite`,
-`ErrEmailNotVerified`, `Store.Tx`/`Conn`/`AfterCommit`/`Close`, `Conn`, `polaristest.Hasher`, and
-package `event` for listeners); `scripts/api-stable.txt` already covers them (whole packages).
+`ErrEmailNotVerified`, `Config.TxListeners`, `Store.Tx`/`Conn`/`AfterCommit`/`Close`, `Conn`,
+`polaristest.Hasher`, and package `event` for listeners; `wiring.Graph.Deferred` in §2); `scripts/api-stable.txt` already covers them (whole packages).
 Security review: `DevEnv` cannot set a secret without the explicit flag and never replaces one
 already set; the invitation token is returned once, as the event carried it, and is not part of
 the loggable struct; `SignIn.OrganizationID` applies the switch route's membership checks and the
-escalation guard still bounds `Invite`. The event deferral changes when listeners run, not what
-they see; the audit listener keeps writing every committed event.
+escalation guard still bounds `Invite`. Two-phase delivery keeps the audit trail and erasure atomic
+with the action; it only delays what leaves the database.

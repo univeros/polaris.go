@@ -44,7 +44,10 @@ type EndpointProvider interface {
 	Endpoints(g *Graph) (map[string]endpoint.Endpoint, error)
 }
 
-// ListenerProvider subscribes to domain events.
+// ListenerProvider subscribes to domain events. Its listeners run when an event is raised, inside
+// the transaction that raised it, so their store writes (an audit row, an erased user's rows)
+// commit or roll back with the action; wrap one whose effect leaves the database (a webhook) with
+// Graph.Deferred so it runs only after the commit.
 type ListenerProvider interface {
 	Listeners(g *Graph) []event.Listener
 }

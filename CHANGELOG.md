@@ -19,7 +19,8 @@ marked **Breaking**.
   a host route outside `Protect`; `polaris.DevEnv` generates throwaway secrets for local
   development and refuses to run without `POLARIS_DEV=1`; `polaristest.Hasher()` is the cheap test
   Argon2id for a host's own `polaris.Config` in tests; `sqlstore.Store.Conn(ctx)` (plain
-  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`.
+  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
+  `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
   Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
 
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
@@ -42,12 +43,15 @@ marked **Breaking**.
 
 ### Changed
 
-- Events raised inside a `sqlstore.Store.Tx` are dispatched after that transaction commits, and
-  dropped when it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx` around
-  `p.Users().Create` and its own writes no longer sends the verification mail of a signup it then
-  rolls back. Under `sqlstore.WithTx` (the host's own `*sql.Tx`) events still go out before the
-  host commits: Polaris cannot see that commit. Listeners that wrote inside the transaction now
-  write after it, in their own (decision 66).
+- Event delivery has two phases. Listeners that write to the store (core's audit, every plugin's
+  listeners: audit, erasure, revocations) run inside the transaction that raised the event, as
+  before. The mail listener, metrics and `Config.Listeners` now run after a `sqlstore.Store.Tx`
+  commits and never after it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx`
+  around `p.Users().Create` no longer mails for a signup it then rolls back. A host listener that
+  writes to the database and must stay atomic moves to the new `Config.TxListeners`; plugins wrap a
+  listener with effects outside the database in `Graph.Deferred`. Under `sqlstore.WithTx` the
+  deferred listeners still run before the host commits: Polaris cannot see that commit
+  (decision 66).
 - The examples run with `POLARIS_DEV=1 go run ./examples/<name>` (`polaris.DevEnv` replaces each
   example's copy of a key generator), and their tests use `polaristest.Hasher()`: a `-race` run of
   each takes seconds instead of 45–90 s.

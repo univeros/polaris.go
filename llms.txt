@@ -108,10 +108,13 @@ ListFor, AddMember, SetRoles, RemoveMember, Invite. `p.Sessions()`: Issue, Refre
 rules, events and audit as the HTTP routes; the caller is trusted (no permission check; an
 invitation's roles stay within its inviter's). `Sessions().Issue` refuses an unverified email with
 `ErrEmailNotVerified` (also `ErrForbidden`) while `Auth.Flows.RequireVerifiedEmail` is on (the
-default): create accounts you verified yourself with `NewUser.EmailVerified`. Inside `db.Tx` the
-events (and the mail their listeners send) wait for the commit; `db.AfterCommit(ctx, fn)` does the
-same for your side effects. Your own `*sql.Tx` (an ORM's) joins with `sqlstore.WithTx(ctx, tx)`, but
-Polaris cannot see that commit, so there events go out before you commit.
+default): create accounts you verified yourself with `NewUser.EmailVerified`. Events reach listeners
+in two phases. Listeners that write to the database run inside the transaction that raised the
+event and commit or roll back with it: Polaris's audit trail and erasure, and your
+`cfg.TxListeners` (write with `db.Conn(ctx)`). `cfg.Listeners` and the mail run after the commit
+and never after a rollback (mail, webhooks, queues); `db.AfterCommit(ctx, fn)` does the same for
+your own side effects. Your own `*sql.Tx` (an ORM's) joins with `sqlstore.WithTx(ctx, tx)`, but
+Polaris cannot see that commit, so there `cfg.Listeners` and the mail run before you commit.
 
 ## Migrating your users
 

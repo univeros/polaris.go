@@ -152,7 +152,7 @@ func llmsHooks(cfg polaris.Config, db *sqlstore.Store, mux *http.ServeMux) {
 	_, _, _, _, _, _, _, _ = u.Get, u.ByEmail, u.Create, u.Import, u.SetPassword, u.Disable, u.Enable, u.Delete
 	_, _, _, _, _, _, _ = o.Create, o.Get, o.ListFor, o.AddMember, o.SetRoles, o.RemoveMember, o.Invite
 	_, _, _, _ = sess.Issue, sess.Refresh, sess.Revoke, sess.RevokeAll
-	_, _ = cfg.Listeners, cfg.Middleware
+	_, _, _ = cfg.Listeners, cfg.TxListeners, cfg.Middleware
 	_, _, _ = db.AfterCommit, sqlstore.WithTx, db.Close
 	_ = polaris.NewUser{}.EmailVerified
 	_ = cfg.Auth.Flows.RequireVerifiedEmail

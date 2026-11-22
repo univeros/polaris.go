@@ -141,9 +141,10 @@ func (s *Store) Exec(ctx context.Context, statement string, args ...any) error {
 // returned unchanged; a nil error commits or releases the savepoint.
 //
 // It is also the host's transaction: Polaris calls (p.Users().Create(ctx, …)) and the host's own
-// SQL through Conn(ctx), made with the ctx fn receives, commit or roll back together, and the
-// events those calls raise (with the mail their listeners send) wait for the commit (see
-// AfterCommit): a rolled-back transaction raises none.
+// SQL through Conn(ctx), made with the ctx fn receives, commit or roll back together. So do the
+// listeners that write to the database (the audit trail, the erasure of an erased user's rows,
+// Config.TxListeners): they run inside it. The listeners whose effect leaves the database (the
+// mail, Config.Listeners) wait for the commit (see AfterCommit) and never run after a rollback.
 //
 //	err := db.Tx(ctx, func(ctx context.Context) error {
 //		u, err := p.Users().Create(ctx, polaris.NewUser{Email: email})
@@ -182,9 +183,9 @@ func (s *Store) Tx(ctx context.Context, fn func(ctx context.Context) error) erro
 // nested Tx (savepoint) that queued fn, drops it. Outside a Store.Tx it queues nothing and reports
 // false; so it does under WithTx, whose commit is the host's own call Polaris never sees.
 //
-// Polaris queues the events raised inside a Store.Tx this way, so listeners, and the mail they
-// send, see only what committed. The ctx fn captured stays usable: it no longer joins the
-// finished transaction.
+// Polaris runs its listeners whose effect leaves the database (the mail, Config.Listeners) this
+// way, so nothing goes out for work that did not commit. The ctx fn captured stays usable: it no
+// longer joins the finished transaction.
 func (s *Store) AfterCommit(ctx context.Context, fn func()) bool {
 	t, ok := ctx.Value(txKey{s}).(*txState)
 	if !ok || !t.root.owned || t.root.done.Load() {
@@ -254,9 +255,10 @@ type hostTxKey struct{}
 // and returns the error.
 //
 // tx must come from the same database the Store uses (sqlstore.Store.DB().BeginTx). Polaris
-// cannot see the host commit tx, so events are dispatched when Polaris's work is done, before the
-// host commits: a listener with side effects outside the database (mail) runs even if the host
-// then rolls back. Store.Tx has none of that: its events wait for its commit. On PostgreSQL, a
+// cannot see the host commit tx, so the listeners with effects outside the database (mail,
+// Config.Listeners) run when Polaris's work is done, before the host commits, even if the host
+// then rolls back; the ones that write to the database run inside tx, as under Store.Tx. Store.Tx
+// has neither caveat: those listeners wait for its commit. On PostgreSQL, a
 // failed statement aborts the whole transaction; only the savepoint around each Polaris
 // transaction recovers from it.
 func WithTx(ctx context.Context, tx *sql.Tx) context.Context {

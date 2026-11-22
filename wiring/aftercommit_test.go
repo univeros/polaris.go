@@ -30,25 +30,29 @@ type wrapped struct{ store.Adapter }
 
 func (w wrapped) Unwrap() store.Adapter { return w.Adapter }
 
-func TestEventsWaitForTheCommitOfAWrappedAdapter(t *testing.T) {
+func TestDeferredWaitsForTheCommitOfAWrappedAdapter(t *testing.T) {
 	var got []string
-	var bus event.Bus
-	bus.Subscribe(func(_ context.Context, e event.Event) { got = append(got, e.EventName()) })
+	listener := func(_ context.Context, e event.Event) { got = append(got, e.EventName()) }
 	tx := &queueing{Adapter: memstore.New(schema.Core()...), open: true}
-	d := deferUntilCommit(wrapped{tx}, &bus)
+	deferred := (&Graph{committer: committerOf(wrapped{tx})}).Deferred(listener)
 
-	d.Dispatch(context.Background(), event.UserRegistered{})
+	deferred(context.Background(), event.UserRegistered{})
 	if len(got) != 0 || len(tx.queued) != 1 {
-		t.Fatalf("inside a transaction: dispatched %v, queued %d", got, len(tx.queued))
+		t.Fatalf("inside a transaction: ran %v, queued %d", got, len(tx.queued))
 	}
 	tx.queued[0]()
 	tx.open = false
-	d.Dispatch(context.Background(), event.UserDeleted{})
+	deferred(context.Background(), event.UserDeleted{})
 	if len(got) != 2 || got[0] != event.NameUserRegistered || got[1] != event.NameUserDeleted {
 		t.Fatalf("after the commit, then outside one: %v", got)
 	}
 
-	if d := deferUntilCommit(memstore.New(), &bus); d != event.Dispatcher(&bus) {
-		t.Fatal("an adapter without AfterCommit keeps the dispatcher as it is")
+	if committerOf(memstore.New()) != nil {
+		t.Fatal("memstore has no AfterCommit: its listeners run at once")
+	}
+	got = nil
+	(&Graph{}).Deferred(listener)(context.Background(), event.UserDeleted{})
+	if len(got) != 1 {
+		t.Fatal("without AfterCommit Deferred runs the listener at once")
 	}
 }

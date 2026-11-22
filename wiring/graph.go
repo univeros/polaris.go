@@ -59,13 +59,21 @@ type Config struct {
 	Logger    *slog.Logger    // default: slog.Default()
 	// Events receives every domain event. Default: an in-process event.Bus with core's, the
 	// plugins' and Listeners already subscribed. A host passing its own dispatcher subscribes
-	// Graph.Listeners (which include Listeners) itself. An event raised inside a transaction of
-	// DB (sqlstore.Store.Tx) reaches it after that transaction commits, and never if it rolls
-	// back; under sqlstore.WithTx, whose commit Polaris does not see, at once.
+	// Graph.Listeners (which include Listeners) itself. It receives every event when it is
+	// raised, inside the transaction if there is one; the listeners Graph.Listeners returns
+	// already wait for the commit where they should (Graph.Deferred).
 	Events event.Dispatcher
-	// Listeners are the host's own event listeners (telemetry, webhooks), subscribed after core's
-	// and the plugins'. Package event names the events (a type switch on event.UserRegistered, …).
+	// Listeners are the host's own event listeners for effects outside the database (mail,
+	// webhooks, queues, telemetry), subscribed after core's and the plugins'. An event raised
+	// inside a transaction (sqlstore.Store.Tx) reaches them right after it commits, and never if
+	// it rolls back (Graph.Deferred). Package event names the events (a type switch on
+	// event.UserRegistered, …).
 	Listeners []event.Listener
+	// TxListeners are the host's listeners that write to the database: they run when the event is
+	// raised, inside its transaction, so a write made with their ctx (sqlstore.Store.Conn(ctx))
+	// commits or rolls back with the action, as Polaris's own audit and erasure listeners do.
+	// Keep them to database work; anything else belongs in Listeners.
+	TxListeners []event.Listener
 
 	// Hooks keep the host's own user data and token claims in step with Polaris; see Hooks.
 	Hooks Hooks
@@ -141,7 +149,8 @@ type Graph struct {
 	plugins   []Plugin
 	byID      map[string]Plugin
 	listeners []event.Listener
-	bus       *event.Bus // the default dispatcher, nil when the host passed its own
+	bus       *event.Bus     // the default dispatcher, nil when the host passed its own
+	committer afterCommitter // DB's AfterCommit, for Deferred; nil without one
 
 	core *services.Services // the concrete services, for core only (internal/services)
 }
@@ -172,6 +181,9 @@ func New(cfg Config) (*Graph, error) {
 	}
 	if slices.ContainsFunc(cfg.Listeners, func(l event.Listener) bool { return l == nil }) {
 		errs = append(errs, errors.New("polaris: Config.Listeners holds a nil listener; remove it"))
+	}
+	if slices.ContainsFunc(cfg.TxListeners, func(l event.Listener) bool { return l == nil }) {
+		errs = append(errs, errors.New("polaris: Config.TxListeners holds a nil listener; remove it"))
 	}
 	if slices.ContainsFunc(cfg.Middleware, func(m func(http.Handler) http.Handler) bool { return m == nil }) {
 		errs = append(errs, errors.New("polaris: Config.Middleware holds a nil middleware; remove it"))
@@ -252,7 +264,7 @@ func (g *Graph) defaults() {
 		g.bus = &event.Bus{}
 		g.events = g.bus
 	}
-	g.events = deferUntilCommit(g.db, g.events)
+	g.committer = committerOf(g.db)
 }
 
 // pluginPorts merges the ports plugins serve: the first plugin (registration order) providing a
@@ -449,17 +461,22 @@ func (g *Graph) buildServices() error {
 }
 
 func (g *Graph) collectListeners() {
+	// Listeners that write to the store run inside the transaction that raised the event; the
+	// ones whose effect leaves the database wait for its commit (Deferred).
 	g.listeners = []event.Listener{
 		observe.AuditLog(g.repos.AuditLog, g.clock, g.logger),
-		notify.Listener(g.mailer, g.repos.Users, g.logger),
-		observe.Metrics(g.metrics),
+		g.Deferred(notify.Listener(g.mailer, g.repos.Users, g.logger)),
+		g.Deferred(observe.Metrics(g.metrics)),
 	}
 	for _, p := range g.plugins {
 		if lp, ok := p.(ListenerProvider); ok {
 			g.listeners = append(g.listeners, lp.Listeners(g)...)
 		}
 	}
-	g.listeners = append(g.listeners, g.config.Listeners...)
+	g.listeners = append(g.listeners, g.config.TxListeners...)
+	for _, l := range g.config.Listeners {
+		g.listeners = append(g.listeners, g.Deferred(l))
+	}
 	if g.bus != nil {
 		g.bus.Subscribe(g.listeners...)
 	}

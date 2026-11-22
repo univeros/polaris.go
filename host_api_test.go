@@ -8,13 +8,17 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
 )
 
@@ -139,56 +143,93 @@ func TestOrgsInviteHandsTheHostTheToken(t *testing.T) {
 	is(t, err, polaris.ErrNotFound, "an unknown organization")
 }
 
-// A Store.Tx is the host's transaction: Polaris's writes, the hook's and the host's own commit
-// or roll back together, and the events (with the mail they send) wait for the commit.
-func TestStoreTxDefersEventsUntilCommit(t *testing.T) {
+// A Store.Tx is the host's transaction, and event delivery has two phases. Listeners that write
+// to the store (the audit recorder, the erasure listeners, Config.TxListeners) run inside it and
+// commit or roll back with it; the others (the mail, Config.Listeners) run after the commit and
+// never after a rollback.
+func TestStoreTxDeliversEventsInTwoPhases(t *testing.T) {
 	ctx := context.Background()
 	var db *sqlstore.Store
-	srv := polaristest.New(t, polaristest.WithConfig(func(c *polaris.Config) {
+	var mu sync.Mutex
+	var deferred []string
+	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{})), polaristest.WithConfig(func(c *polaris.Config) {
 		db = c.DB.(*sqlstore.Store)
-		c.Hooks.OnUserCreated = func(ctx context.Context, u polaris.User) error {
-			_, err := db.Conn(ctx).ExecContext(ctx, "INSERT INTO app_profiles (user_id) VALUES ("+placeholder(db)+")", u.ID)
-			return err
-		}
+		c.TxListeners = []event.Listener{func(ctx context.Context, e event.Event) {
+			_, err := db.Conn(ctx).ExecContext(ctx, "INSERT INTO app_log (name) VALUES ("+placeholder(db)+")", e.EventName())
+			ok(t, err)
+		}}
+		c.Listeners = []event.Listener{func(_ context.Context, e event.Event) {
+			mu.Lock()
+			defer mu.Unlock()
+			deferred = append(deferred, e.EventName())
+		}}
 	}))
-	_, err := db.Conn(ctx).ExecContext(ctx, "CREATE TABLE app_profiles (user_id VARCHAR(36) PRIMARY KEY)")
+	_, err := db.Conn(ctx).ExecContext(ctx, "CREATE TABLE app_log (name VARCHAR(64) NOT NULL)")
 	ok(t, err)
-	profiles := func() int {
-		var n int
-		ok(t, db.Conn(ctx).QueryRowContext(ctx, "SELECT COUNT(*) FROM app_profiles").Scan(&n))
+	count := func(ctx context.Context, table string, c store.Criteria) int64 {
+		t.Helper()
+		n, err := db.Count(ctx, table, c)
+		ok(t, err)
 		return n
 	}
-	quiet := func(when string) {
-		t.Helper()
-		if len(srv.Events.All()) != 0 || len(srv.Mailer.Sent()) != 0 {
-			t.Fatalf("%s: events %v, %d mails", when, srv.Events.Names(), len(srv.Mailer.Sent()))
-		}
+	ran := func(name string) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Contains(deferred, name)
 	}
-
 	refuse := errors.New("the host's own rule")
+
+	// A signup: the audit row and the host's TxListener row follow the transaction; the
+	// verification mail and the host's Listener wait for the commit.
 	err = db.Tx(ctx, func(ctx context.Context) error {
 		_, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com"}) // unverified: a verification mail
 		ok(t, err)
-		quiet("inside the transaction")
+		if count(ctx, audit.TableEvents, store.Criteria{"name": audit.UserSignedUp}) != 1 || count(ctx, "app_log", nil) != 1 {
+			t.Fatal("inside the transaction: the transactional listeners have not run")
+		}
+		if ran("user.registered") || len(srv.Mailer.Sent()) != 0 {
+			t.Fatal("inside the transaction: a deferred listener ran")
+		}
 		return refuse
 	})
 	is(t, err, refuse, "the host's rollback")
-	quiet("after the rollback")
-	if _, err := srv.Users().ByEmail(ctx, "ada@example.com"); !errors.Is(err, polaris.ErrNotFound) || profiles() != 0 {
-		t.Fatalf("after the rollback: %v, %d profiles", err, profiles())
+	if count(ctx, audit.TableEvents, store.Criteria{"name": audit.UserSignedUp}) != 0 || count(ctx, "app_log", nil) != 0 || ran("user.registered") || len(srv.Mailer.Sent()) != 0 {
+		t.Fatal("after the rollback: an audit row, a host row, a listener or a mail survived")
 	}
-
 	ok(t, db.Tx(ctx, func(ctx context.Context) error {
-		ada, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com"})
-		if err != nil {
-			return err
-		}
-		_, err = srv.Orgs().Create(ctx, ada.ID, "Acme", "")
-		quiet("inside the transaction")
+		_, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com"})
 		return err
 	}))
-	if names := srv.Events.Names(); !slices.Equal(names, []string{"user.registered", "org.created"}) || len(srv.Mailer.Sent()) != 1 || profiles() != 1 {
-		t.Fatalf("after the commit: events %v, %d mails, %d profiles", names, len(srv.Mailer.Sent()), profiles())
+	if count(ctx, audit.TableEvents, store.Criteria{"name": audit.UserSignedUp}) != 1 || count(ctx, "app_log", nil) != 1 || !ran("user.registered") || len(srv.Mailer.Sent()) != 1 {
+		t.Fatal("after the commit: every listener ran once and the mail went out")
+	}
+
+	// An erasure: the audit plugin's erasure listener deletes the user's activity row inside the
+	// erasing transaction.
+	bob, err := srv.Users().Create(ctx, polaris.NewUser{Email: "bob@example.com", EmailVerified: true})
+	ok(t, err)
+	_, err = srv.Sessions().Issue(ctx, polaris.SignIn{UserID: bob.ID}) // records bob's activity
+	ok(t, err)
+	activity := func(ctx context.Context) int64 {
+		return count(ctx, audit.TableActivity, store.Criteria{"user_id": bob.ID})
+	}
+	if activity(ctx) != 1 {
+		t.Fatal("no activity row to erase")
+	}
+	err = db.Tx(ctx, func(ctx context.Context) error {
+		ok(t, srv.Users().Delete(ctx, bob.ID))
+		if activity(ctx) != 0 {
+			t.Fatal("inside the erasing transaction: the activity row is still there")
+		}
+		return refuse
+	})
+	is(t, err, refuse, "the host's rollback")
+	if activity(ctx) != 1 || count(ctx, audit.TableEvents, store.Criteria{"name": audit.UserDeleted}) != 0 || ran("user.deleted") {
+		t.Fatal("after the rollback: the erasure, its audit row or its listener survived")
+	}
+	ok(t, db.Tx(ctx, func(ctx context.Context) error { return srv.Users().Delete(ctx, bob.ID) }))
+	if activity(ctx) != 0 || count(ctx, audit.TableEvents, store.Criteria{"name": audit.UserDeleted}) != 1 || !ran("user.deleted") {
+		t.Fatal("after the commit: the erasure and its audit row are kept, the listener ran")
 	}
 }
 

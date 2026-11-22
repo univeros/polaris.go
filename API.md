@@ -36,10 +36,12 @@ permission, and resolves the caller's authority on every request; `Require(perms
 answers 401 to a credential that does not verify (never anonymous); `verify` accepts only RS256 and
 EdDSA access tokens of the configured issuer and audience, and refuses DPoP-bound ones; hooks run
 inside the account's transaction; `Hooks.Claims` refuses reserved names; the programmatic API applies the HTTP routes'
-rules, events and audit, for a trusted caller (the actor recorded is `system`); an event raised
-inside a `sqlstore.Store.Tx` is dispatched after that transaction commits and never when it rolls
-back (under `sqlstore.WithTx`, whose commit Polaris does not see, when Polaris's work is done);
-`DevEnv` refuses to run without `POLARIS_DEV=1`.
+rules, events and audit, for a trusted caller (the actor recorded is `system`); listeners that
+write to the store (core's audit, plugins' listeners, `Config.TxListeners`) run inside the
+transaction that raised the event, while `Config.Listeners` and the mail run after a
+`sqlstore.Store.Tx` commits and never after it rolls back (under `sqlstore.WithTx`, whose commit
+Polaris does not see, when Polaris's work is done); `DevEnv` refuses to run without
+`POLARIS_DEV=1`.
 
 `event` is listed here because `Config.Listeners` takes `event.Listener` and a listener switches on
 the event types; aliasing them in `polaris` would give every event two names.
