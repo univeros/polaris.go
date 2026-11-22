@@ -139,15 +139,19 @@ func (p *Plugin) BearerResolvers(*wiring.Graph) []pipeline.BearerResolver {
 }
 
 // Listeners erase what an erased user or organization leaves behind: a user's consents and
-// tokens, an organization's clients and their tokens.
+// tokens, codes, device codes and CIBA requests; an organization's clients and their tokens.
 func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 	return []event.Listener{func(ctx context.Context, e event.Event) {
 		var err error
 		switch e := e.(type) {
 		case event.UserDeleted:
+			user := store.Criteria{"user_id": e.UserID}
 			err = errors.Join(
-				deleteWhere(ctx, p.graph.DB(), TableConsents, store.Criteria{"user_id": e.UserID}),
-				p.tokens.deleteWhere(ctx, store.Criteria{"user_id": e.UserID}))
+				deleteWhere(ctx, p.graph.DB(), TableConsents, user),
+				p.tokens.deleteWhere(ctx, user),
+				deleteWhere(ctx, p.graph.DB(), TableCodes, user),
+				deleteWhere(ctx, p.graph.DB(), TableDeviceCodes, user),
+				deleteWhere(ctx, p.graph.DB(), TableCIBARequests, user))
 		case event.OrganizationDeleted:
 			err = p.eraseOrganization(ctx, e.OrganizationID)
 		}

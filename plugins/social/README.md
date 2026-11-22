@@ -84,8 +84,9 @@ With `plugins/audit` registered they become audit rows (`Plugin.AuditNames`). No
 
 - Social works without audit. A `event.UserDeleted` erases the user's provider accounts (email,
   profile, tokens) through the plugin's listener.
-- Open: unlinking the last credential is not transactional; a link started in one
-  browser can be completed in another.
+- Unlinking checks for the last credential and deletes in one transaction with the user's row
+  locked, so concurrent unlinks cannot leave an account without a way to sign in. A flow
+  completes only in the browser that started it (a binding cookie, decision 39).
 
 ## Example
 

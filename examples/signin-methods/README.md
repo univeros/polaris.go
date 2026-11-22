@@ -46,18 +46,20 @@ means wait, or restart the server.
 
 ### 1. Magic link
 
-Send it; the link is in the log. Opening it redirects to `/signed-in?code=…` (the host's page; a
-real front end trades the code itself); the code is exchanged for core's login envelope. The link
-works once.
+Send it; the link is in the log. Opening it (GET) shows a page with one "Sign in" button and
+spends nothing, so a mail scanner that follows the link leaves it usable. The button posts back to
+the link, which redirects to `/signed-in?code=…` (the host's page; a real front end trades the code
+itself); the code is exchanged for core's login envelope. The link works once.
 
 ```sh
 curl -s -X POST $BASE/magic-link/send -H "$json" -d '{"email":"ada@example.com"}'
 # {"data":{"status":"sent"}}
 LINK=$(grep -o "$BASE/magic-link/verify?token=[A-Za-z0-9_-]*" "$LOG" | tail -1)
-CODE=$(curl -s -L "$LINK" | jq -r .code)        # {"code":"R1Xty4mPO3cI…","state":""}
+curl -s "$LINK" | grep -o '<form method="post">'  # the page; nothing spent
+CODE=$(curl -s -L -d '' "$LINK" | jq -r .code)   # the button: {"code":"R1Xty4mPO3cI…","state":""}
 curl -s -X POST $BASE/magic-link/exchange -H "$json" -d "{\"code\":\"$CODE\"}" | jq -c '.data | {user, token_type, expires_in}'
 # {"user":{"email":"ada@example.com","email_verified":true,"id":"01a20237-9da3-…"},"token_type":"Bearer","expires_in":900}
-curl -s "$LINK"
+curl -s -d '' "$LINK"
 # {"detail":"The token is unknown, used or expired.","error":"passwordless_token_invalid",…,"status":422,…}
 ```
 

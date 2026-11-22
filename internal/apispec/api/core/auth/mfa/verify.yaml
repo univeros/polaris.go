@@ -20,7 +20,8 @@ input:
 domain:
   class: Polaris\Http\Auth\MfaVerifyEndpoint
   description: >
-    Authenticated by the login_mfa ticket. Checks the code against the named
+    Authenticated by the login_mfa ticket. A ticket that lists its factors (a sign-in that ruled
+    some out) takes only those and recovery codes. Checks the code against the named
     factor (TOTP, sms, or email) or, when factor_id is omitted or
     type=recovery, against the user's recovery codes. On success the real
     access + refresh token pair is minted (same shape as a normal login) with
@@ -38,7 +39,7 @@ output:
 
 errors:
   - { status: 401, code: unauthorized }        # missing or expired mfa_token
-  - { status: 404, code: not_found }           # unknown or foreign factor
+  - { status: 404, code: not_found }           # unknown or foreign factor, or one the ticket did not offer
   - { status: 422, code: invalid_code }
   - { status: 422, code: validation_failed }   # envelope is {"errors": ["..."]} when code is missing
 

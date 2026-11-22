@@ -69,6 +69,8 @@ retries the same request with `captcha_token`). Admin routes answer `…/admin/u
 
 ## Host integration
 
+- Erasing a user deletes its known devices (`event.UserDeleted`). Past decisions keep the
+  address of the attempt; they are keyed by address, not by user.
 - Without a `Captcha` verifier nothing can answer a challenge: the challenge band is recorded and let
   through.
 - The middleware reads JSON and form bodies and sets the `polaris_device` cookie

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -434,6 +435,41 @@ func TestUnlinkingTheLastCredentialIsRefused(t *testing.T) {
 	s, _ := h.p.start(h.ctx, "acme", "", nil, "01900000-0000-7000-8000-000000000000")
 	_, err := h.callback("acme", map[string]any{"code": "good", "state": s.State})
 	refused(t, err, kindTokenInvalid, "the session's user is gone")
+}
+
+// Two concurrent unlinks of an account's two providers (and no password) leave one: the check and
+// the delete are one transaction with the user's row locked (decision 61).
+func TestConcurrentUnlinksNeverRemoveTheLastCredential(t *testing.T) {
+	h := newHarness(t)
+	ada, _ := userOf(h.signIn("google", ""))["id"].(string)
+	missing := "github"
+	for round := range 10 {
+		if out := h.signIn(missing, ada); out["status"] != "linked" {
+			t.Fatalf("round %d: link %s: %v", round, missing, out)
+		}
+		if len(h.accounts(ada)) != 2 {
+			t.Fatalf("round %d: %+v", round, h.accounts(ada))
+		}
+		start := make(chan struct{})
+		errs := make([]error, 2)
+		var wg sync.WaitGroup
+		for i, provider := range []string{"google", "github"} {
+			wg.Go(func() {
+				<-start
+				errs[i] = h.p.unlink(h.ctx, ada, provider)
+			})
+		}
+		close(start)
+		wg.Wait()
+		left := h.accounts(ada)
+		if len(left) != 1 {
+			t.Fatalf("round %d: %d accounts left (%v); the user must keep one way in", round, len(left), errs)
+		}
+		if (errs[0] == nil) == (errs[1] == nil) {
+			t.Fatalf("round %d: one unlink wins, the other is refused: %v", round, errs)
+		}
+		missing = map[string]string{"google": "github", "github": "google"}[left[0].Provider]
+	}
 }
 
 func TestAppleAndMicrosoftReadTheIdToken(t *testing.T) {

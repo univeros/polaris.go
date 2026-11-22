@@ -46,6 +46,7 @@ caller's session is not on it), `…/multi-session/session_not_found` (404),
 
 ## Host integration
 
+- Erasing a user deletes its device records (`event.UserDeleted`).
 - The client sends the device back in the header `multisession.Header` or the cookie
   `multisession.Cookie`. Only server-minted ids are accepted, and a sign-in joining a device that
   has accounts rotates its id (a planted id never names the victim's device).

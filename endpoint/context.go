@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/univeros/polaris.go/manifest"
@@ -18,6 +19,7 @@ const (
 	keyClient
 	keyRoute
 	keyObserved
+	keyMFATicketFactors
 )
 
 // Observed is what the pipeline resolved for a request, for middleware wrapped outside it
@@ -62,6 +64,18 @@ func WithMFATicket(ctx context.Context, userID string) context.Context {
 func MFATicket(ctx context.Context) (userID string, ok bool) {
 	userID, ok = ctx.Value(keyMFATicket).(string)
 	return userID, ok
+}
+
+// WithMFATicketFactors records the factor ids the request's login_mfa ticket is restricted to.
+func WithMFATicketFactors(ctx context.Context, factorIDs []string) context.Context {
+	return context.WithValue(ctx, keyMFATicketFactors, factorIDs)
+}
+
+// MFATicketAllows reports whether the request's login_mfa ticket lets factorID complete the
+// gate: true for an unrestricted ticket, and for "" (a recovery code).
+func MFATicketAllows(ctx context.Context, factorID string) bool {
+	ids, restricted := ctx.Value(keyMFATicketFactors).([]string)
+	return !restricted || factorID == "" || slices.Contains(ids, factorID)
 }
 
 // authorityFunc yields the request's authority, resolving it at most once.

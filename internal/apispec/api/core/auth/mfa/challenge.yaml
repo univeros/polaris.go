@@ -32,7 +32,7 @@ output:
 
 errors:
   - { status: 401, code: unauthorized }          # missing or expired mfa_token
-  - { status: 404, code: not_found }             # unknown or foreign factor
+  - { status: 404, code: not_found }             # unknown or foreign factor, or one the ticket did not offer
   - { status: 422, code: unsupported_factor }    # TOTP or other non-sendable factor
   - { status: 422, code: validation_failed }     # envelope is {"errors": ["..."]} when factor_id is missing
   - { status: 429, code: too_many_requests }     # resend cooldown

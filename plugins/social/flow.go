@@ -19,6 +19,7 @@ import (
 
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
 
@@ -392,29 +393,39 @@ func (p *Plugin) linkFromSession(ctx context.Context, id string, prof Profile, t
 	return map[string]any{"status": "linked", "account": linked.wire()}, nil
 }
 
-// unlink removes the user's account of a provider, unless it is their only way in.
+// unlink removes the user's account of a provider, unless it is their only way in. The check and
+// the delete are one transaction that first locks the user's row (a no-op update), so concurrent
+// unlinks, or an unlink and a dropped password, run one after the other and see each other's
+// outcome.
 func (p *Plugin) unlink(ctx context.Context, userID, providerID string) error {
-	acct, err := p.findAccount(ctx, ownedKey(userID, providerID))
-	if err != nil {
-		return err
-	}
-	if acct == nil {
-		return refuse(kindNotLinked, "No "+providerID+" account is linked.")
-	}
-	u, err := p.user(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if u != nil && u.PasswordHash == nil {
-		all, err := p.accountsOf(ctx, userID)
+	var acct *account
+	err := p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if _, err := p.g.DB().Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil {
+			return err
+		}
+		var err error
+		if acct, err = p.findAccount(ctx, ownedKey(userID, providerID)); err != nil {
+			return err
+		}
+		if acct == nil {
+			return refuse(kindNotLinked, "No "+providerID+" account is linked.")
+		}
+		u, err := p.user(ctx, userID)
 		if err != nil {
 			return err
 		}
-		if len(all) == 1 {
-			return refuse(kindLastCredential, "This is the only way to sign in to the account; set a password or link another provider first.")
+		if u != nil && u.PasswordHash == nil {
+			all, err := p.accountsOf(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if len(all) == 1 {
+				return refuse(kindLastCredential, "This is the only way to sign in to the account; set a password or link another provider first.")
+			}
 		}
-	}
-	if err := p.unlinkAccount(ctx, *acct); err != nil {
+		return p.unlinkAccount(ctx, *acct)
+	})
+	if err != nil {
 		return err
 	}
 	p.g.Events().Dispatch(ctx, Event{Name: EventUnlinked, UserID: userID, Provider: providerID, Data: map[string]any{"account_id": acct.ProviderAccountID}})

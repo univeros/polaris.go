@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -251,6 +252,26 @@ func TestMFATickets(t *testing.T) {
 	raw, err = access.Issue(token.Claims{}.With("jti", "jti-1").With("purpose", PurposeLoginMFA))
 	must(t, err)
 	reject("no subject", raw)
+	for name, factors := range map[string]any{"factors not a list": "f-1", "factors not strings": []any{1}} {
+		raw, err = access.Issue(token.Claims{}.With("sub", "user-123").With("jti", "jti-1").With("purpose", PurposeLoginMFA).With("mfa_factors", factors))
+		must(t, err)
+		reject(name, raw)
+	}
+
+	// A restricted ticket names its factors; an unrestricted one names none (any factor).
+	if _, factors, err := tickets.AuthenticateFactors(ticket); factors != nil || err != nil {
+		t.Fatalf("unrestricted: %v %v", factors, err)
+	}
+	restricted, err := tickets.IssueFor("user-123", []string{"f-2", "f-3"})
+	must(t, err)
+	if sub, factors, err := tickets.AuthenticateFactors(restricted); sub != "user-123" || !slices.Equal(factors, []string{"f-2", "f-3"}) || err != nil {
+		t.Fatalf("restricted: %q %v %v", sub, factors, err)
+	}
+	if none, err := tickets.IssueFor("user-123", nil); err != nil {
+		t.Fatal(err)
+	} else if _, factors, err := tickets.AuthenticateFactors(none); factors == nil || len(factors) != 0 || err != nil {
+		t.Fatalf("restricted to no factor (recovery codes only): %v %v", factors, err)
+	}
 
 	foreignCfg := cfg
 	foreignCfg.PublicKey, foreignCfg.PrivateKey = otherPub, otherPriv

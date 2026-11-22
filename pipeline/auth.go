@@ -93,12 +93,23 @@ func (p *Pipeline) mfaTicket(next http.Handler) http.Handler {
 			unauthorized(w)
 			return
 		}
-		userID, err := p.opts.MFATickets.Authenticate(r.Context(), raw)
+		ctx := r.Context()
+		var userID string
+		var err error
+		if restricted, ok := p.opts.MFATickets.(MFATicketFactors); ok {
+			var factors []string
+			userID, factors, err = restricted.AuthenticateFactors(ctx, raw)
+			if factors != nil {
+				ctx = endpoint.WithMFATicketFactors(ctx, factors)
+			}
+		} else {
+			userID, err = p.opts.MFATickets.Authenticate(ctx, raw)
+		}
 		if err != nil {
 			unauthorized(w)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(endpoint.WithMFATicket(r.Context(), userID)))
+		next.ServeHTTP(w, r.WithContext(endpoint.WithMFATicket(ctx, userID)))
 	})
 }
 

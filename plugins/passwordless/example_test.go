@@ -17,8 +17,9 @@ import (
 	"github.com/univeros/polaris.go/store/memstore"
 )
 
-// A magic link signs a new address up: the email links to /magic-link/verify, which redirects to
-// the application with a one-minute code; the application trades the code for the session.
+// A magic link signs a new address up: the email links to /magic-link/verify, whose page posts back
+// to it (a mail scanner opening the link spends nothing); the POST redirects to the application
+// with a one-minute code, which the application trades for the session.
 func Example() {
 	private, public := contracttest.TestRSAKeyPEM() // AUTH_JWT_* in production
 	auth := config.Defaults()
@@ -44,13 +45,16 @@ func Example() {
 
 	fmt.Println(send(http.MethodPost, "/magic-link/send", `{"email":"ada@example.com"}`).Code)
 	link, _ := url.Parse(mailer.Sent()[0].Data["link"].(string)) // https://auth.example.com/magic-link/verify?token=…
-	redirect := send(http.MethodGet, link.RequestURI(), "")
-	back, _ := url.Parse(redirect.Header().Get("Location")) // https://app.example.com/signed-in?code=…
+	page := send(http.MethodGet, link.RequestURI(), "")          // spends nothing: a page with a "Sign in" button
+	fmt.Println(page.Code, page.Header().Get("Content-Type"))
+	redirect := send(http.MethodPost, link.RequestURI(), "") // the button posts back to the link
+	back, _ := url.Parse(redirect.Header().Get("Location"))  // https://app.example.com/signed-in?code=…
 	fmt.Println(redirect.Code, back.Host+back.Path)
 	session := send(http.MethodPost, "/magic-link/exchange", `{"code":"`+back.Query().Get("code")+`"}`)
 	fmt.Println(session.Code, strings.Contains(session.Body.String(), `"refresh_token"`))
 	// Output:
 	// 202
+	// 200 text/html; charset=utf-8
 	// 302 app.example.com/signed-in
 	// 200 true
 }

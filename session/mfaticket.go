@@ -31,9 +31,28 @@ func NewMFATickets(accessConfig token.Config, ttl time.Duration) (*MFATickets, e
 	return &MFATickets{codec: c}, nil
 }
 
-// Issue mints a ticket for the user who cleared the password step.
+// ticketFactorsClaim lists the factor ids a restricted ticket may complete the gate with.
+const ticketFactorsClaim = "mfa_factors"
+
+// Issue mints a ticket for the user who cleared the password step; any of the user's confirmed
+// factors completes it.
 func (m *MFATickets) Issue(userID string) (string, error) {
-	raw, err := m.codec.Issue(token.Claims{}.With("sub", userID).With("jti", repository.NewID()).With("purpose", PurposeLoginMFA))
+	return m.issue(token.Claims{}.With("sub", userID))
+}
+
+// IssueFor mints a ticket that only the factors factorIDs (and the user's recovery codes)
+// complete: a sign-in whose own proof rules some factors out (a code to the same mailbox, the
+// passkey just used) offers the others only.
+func (m *MFATickets) IssueFor(userID string, factorIDs []string) (string, error) {
+	ids := make([]any, len(factorIDs))
+	for i, id := range factorIDs {
+		ids[i] = id
+	}
+	return m.issue(token.Claims{}.With("sub", userID).With(ticketFactorsClaim, ids))
+}
+
+func (m *MFATickets) issue(c token.Claims) (string, error) {
+	raw, err := m.codec.Issue(c.With("jti", repository.NewID()).With("purpose", PurposeLoginMFA))
 	if err != nil {
 		return "", fmt.Errorf("session: mfa ticket: %w", err)
 	}
@@ -44,17 +63,39 @@ func (m *MFATickets) Issue(userID string) (string, error) {
 // subject, the user id. Anything else (an access token, another purpose, no subject) fails with
 // an error wrapping token.ErrInvalidToken.
 func (m *MFATickets) Authenticate(raw string) (string, error) {
+	userID, _, err := m.AuthenticateFactors(raw)
+	return userID, err
+}
+
+// AuthenticateFactors is Authenticate that also returns the factor ids the ticket is restricted to
+// (IssueFor); nil when any confirmed factor completes it (Issue).
+func (m *MFATickets) AuthenticateFactors(raw string) (string, []string, error) {
 	t, err := m.codec.Verify(raw)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if p, _ := t.Claim("purpose").(string); p != PurposeLoginMFA {
-		return "", fmt.Errorf("%w: the token is not a login-MFA ticket", token.ErrInvalidToken)
+		return "", nil, fmt.Errorf("%w: the token is not a login-MFA ticket", token.ErrInvalidToken)
 	}
 	if t.Subject() == "" {
-		return "", fmt.Errorf("%w: the login-MFA ticket carries no subject", token.ErrInvalidToken)
+		return "", nil, fmt.Errorf("%w: the login-MFA ticket carries no subject", token.ErrInvalidToken)
 	}
-	return t.Subject(), nil
+	listed, restricted := t.Claim(ticketFactorsClaim).([]any)
+	if !restricted {
+		if t.Claim(ticketFactorsClaim) != nil {
+			return "", nil, fmt.Errorf("%w: the login-MFA ticket's factors are not a list", token.ErrInvalidToken)
+		}
+		return t.Subject(), nil, nil
+	}
+	factors := make([]string, 0, len(listed))
+	for _, v := range listed {
+		id, ok := v.(string)
+		if !ok {
+			return "", nil, fmt.Errorf("%w: the login-MFA ticket's factors are not strings", token.ErrInvalidToken)
+		}
+		factors = append(factors, id)
+	}
+	return t.Subject(), factors, nil
 }
 
 // UserPrincipals is the identity-only PrincipalResolver:

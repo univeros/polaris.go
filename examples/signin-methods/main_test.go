@@ -50,9 +50,16 @@ func TestSignInMethods(t *testing.T) {
 		return fmt.Sprint(msgs[len(msgs)-1].Vars[name])
 	}
 
-	// Magic link: send, open (302 to the landing page with a code), exchange.
+	// Magic link: send, open (a page with a "Sign in" button; opening spends nothing), press it
+	// (302 to the landing page with a code), exchange.
 	c.do("POST", "/magic-link/send", "", map[string]any{"email": "ada@example.com"}, http.StatusAccepted)
-	res, err := c.noRedirect().Get(lastVar("link"))
+	link := lastVar("link")
+	page, err := c.noRedirect().Get(link)
+	if err != nil || page.StatusCode != http.StatusOK {
+		t.Fatalf("magic link page: %v %v", page, err)
+	}
+	page.Body.Close()
+	res, err := c.noRedirect().PostForm(link, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -14,7 +15,8 @@ import (
 // Route names.
 const (
 	RouteMagicLinkSend        = "polaris.passwordless.magic-link-send"
-	RouteMagicLinkVerify      = "polaris.passwordless.magic-link-verify"
+	RouteMagicLinkVerify      = "polaris.passwordless.magic-link-verify"  // GET: the confirmation page
+	RouteMagicLinkConfirm     = "polaris.passwordless.magic-link-confirm" // POST: spends the link
 	RouteMagicLinkExchange    = "polaris.passwordless.magic-link-exchange"
 	RouteEmailOTPSend         = "polaris.passwordless.email-otp-send"
 	RouteEmailOTPVerify       = "polaris.passwordless.email-otp-verify"
@@ -41,7 +43,8 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 	}
 	return map[string]endpoint.Endpoint{
 		RouteMagicLinkSend:        endpoint.Func(v.magicLinkSend),
-		RouteMagicLinkVerify:      endpoint.Func(v.magicLinkVerify),
+		RouteMagicLinkVerify:      endpoint.Func(v.magicLinkOpen),
+		RouteMagicLinkConfirm:     endpoint.Func(v.magicLinkConfirm),
 		RouteMagicLinkExchange:    endpoint.Func(v.magicLinkExchange),
 		RouteEmailOTPSend:         endpoint.Func(v.emailOTPSend),
 		RouteEmailOTPVerify:       endpoint.Func(v.emailOTPVerify),
@@ -85,6 +88,8 @@ func (v *service) refuse(ctx context.Context, err error) endpoint.Result {
 		return problem(http.StatusConflict, "Phone taken")
 	case KindSessionRequired:
 		return problem(http.StatusForbidden, "Session required")
+	case KindMFASameChannel:
+		return problem(http.StatusForbidden, "Second factor on the same channel")
 	}
 	return problem(http.StatusUnprocessableEntity, "Invalid input")
 }
@@ -122,7 +127,59 @@ func (v *service) magicLinkSend(ctx context.Context, in *endpoint.Input) endpoin
 	return sent()
 }
 
-func (v *service) magicLinkVerify(ctx context.Context, in *endpoint.Input) endpoint.Result {
+// magicLinkPage is what opening a magic link answers: one button that posts back to the same URL
+// (the token stays in its query), so a mail scanner's GET spends nothing. It is the same for every
+// link and needs no JavaScript.
+var magicLinkPage = []byte(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Sign in</title></head>
+<body>
+<main>
+<h1>Sign in</h1>
+<p>Continue to sign in with the link from your email.</p>
+<form method="post"><button type="submit">Sign in</button></form>
+</main>
+</body>
+</html>
+`)
+
+// magicLinkOpen answers GET /magic-link/verify: the confirmation page for a live link, the
+// problem a spent or unknown one has always answered. It spends nothing.
+func (v *service) magicLinkOpen(ctx context.Context, in *endpoint.Input) endpoint.Result {
+	tok := text(in, "token")
+	if tok == "" {
+		return invalid("token is required.")
+	}
+	live, err := v.secrets.liveToken(ctx, kindMagicLink, tok)
+	if err != nil {
+		return v.refuse(ctx, err)
+	}
+	if !live {
+		return v.refuse(ctx, errTokenInvalid)
+	}
+	return endpoint.Result{Status: http.StatusOK, Raw: magicLinkPage}.
+		WithHeader("Content-Type", "text/html; charset=utf-8").
+		WithHeader("Cache-Control", "no-store").
+		WithHeader("Referrer-Policy", "no-referrer").
+		WithHeader("X-Content-Type-Options", "nosniff").
+		WithHeader("Content-Security-Policy", v.magicLinkCSP())
+}
+
+// magicLinkCSP lets the page's form post to Polaris and end, through the POST's redirect, on a
+// redirect URI's origin (browsers apply form-action to that redirect too); nothing else loads.
+func (v *service) magicLinkCSP() string {
+	forms := []string{"'self'"}
+	for _, raw := range v.s.redirectURIs {
+		if u, err := url.Parse(raw); err == nil && u.Scheme != "" && u.Host != "" {
+			forms = append(forms, u.Scheme+"://"+u.Host)
+		}
+	}
+	return "default-src 'none'; form-action " + strings.Join(forms, " ") + "; frame-ancestors 'none'; base-uri 'none'"
+}
+
+// magicLinkConfirm answers POST /magic-link/verify: it spends the link and redirects with the
+// hand-off code.
+func (v *service) magicLinkConfirm(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	tok := text(in, "token")
 	if tok == "" {
 		return invalid("token is required.")

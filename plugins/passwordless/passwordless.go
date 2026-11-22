@@ -2,8 +2,10 @@
 // in without a password, each ending in core's login envelope behind core's MFA gate.
 //
 //   - Magic links: POST /magic-link/send emails a link to GET /magic-link/verify, valid once for 15
-//     minutes; the verify redirects to an allowed redirect URI with a one-minute code that
-//     POST /magic-link/exchange trades, once, for the envelope (tokens never travel in a URL).
+//     minutes. Opening it spends nothing (mail scanners follow links): it answers a page whose one
+//     button posts back to the link, and that POST redirects to an allowed redirect URI with a
+//     one-minute code that POST /magic-link/exchange trades, once, for the envelope (session tokens
+//     never travel in a URL).
 //   - Email codes: POST /email-otp/send emails a 6-digit code (5 minutes, 5 attempts) for signing in
 //     (POST /email-otp/verify), verifying the address (POST /email-otp/verify-email) or resetting the
 //     password (POST /email-otp/reset-password).
@@ -33,7 +35,9 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -215,6 +219,7 @@ const (
 	KindPasswordInvalid    Kind = "password_invalid"
 	KindPhoneTaken         Kind = "phone_taken"
 	KindSessionRequired    Kind = "session_required"
+	KindMFASameChannel     Kind = "mfa_same_channel"
 )
 
 // Error is a refused passwordless step; Detail is what the client may read, Errors the rule
@@ -243,6 +248,7 @@ var (
 	ErrPasswordInvalid    error = &Error{Kind: KindPasswordInvalid}
 	ErrPhoneTaken         error = &Error{Kind: KindPhoneTaken}
 	ErrSessionRequired    error = &Error{Kind: KindSessionRequired}
+	ErrMFASameChannel     error = &Error{Kind: KindMFASameChannel}
 )
 
 var (
@@ -251,4 +257,12 @@ var (
 	errDisabled        = &Error{Kind: KindAccountDisabled, Detail: "This account is disabled."}
 	errPhoneTaken      = &Error{Kind: KindPhoneTaken, Detail: "Another account uses this phone number."}
 	errSessionRequired = &Error{Kind: KindSessionRequired, Detail: "A one-time token needs a live session."}
+	errMFASameChannel  = &Error{Kind: KindMFASameChannel, Detail: "The account's only second factor sends its code where this sign-in's went, so it proves nothing more: sign in with the password, or add another factor (an authenticator app, a passkey, another address)."}
 )
+
+// Listeners delete an erased user's pending links, codes and verified phone (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableSecrets, Column: "user_id"},
+		maintenance.UserRows{Table: TablePhones, Column: "user_id"})}
+}

@@ -1,15 +1,18 @@
 package passwordless_test
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/plugins/passwordless"
 	"github.com/univeros/polaris.go/polaristest"
@@ -125,6 +128,39 @@ func (f *flow) amr(access string) []string {
 	return out
 }
 
+// The mfa_token of a passwordless sign-in is good only for the factors it offered: a code sent to
+// the mailbox the sign-in already proved cannot complete the gate, even when the client names
+// that factor (decision 61).
+func TestTheMFATicketTakesOnlyTheFactorsItOffered(t *testing.T) {
+	srv := polaristest.New(t, polaristest.WithPlugins(passwordless.New(passwordless.Config{BaseURL: base, RedirectURIs: []string{done}})))
+	f := &flow{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), nil)}
+	f.login("ada@example.com")
+	ada, err := srv.Users().ByEmail(t.Context(), "ada@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	for id, addr := range map[string]string{"same": "ada@example.com", "backup": "ada@backup.example"} {
+		if err := srv.Graph().Repos().MFAFactors.Insert(t.Context(), model.MFAFactor{ID: id, UserID: ada.ID, Type: "email", Email: &addr, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	status(t, f.c.Post("/email-otp/send", map[string]any{"email": "ada@example.com"}), 202)
+	gate := data(t, f.c.Post("/email-otp/verify", map[string]any{"email": "ada@example.com", "code": f.mailCode()}))
+	ticket := contracttest.Bearer(gate["mfa_token"].(string))
+	if offered, _ := gate["factors"].([]any); len(offered) != 1 || offered[0].(map[string]any)["id"] != "backup" {
+		t.Fatalf("offered %v", gate["factors"])
+	}
+	status(t, f.c.Post("/auth/mfa/challenge", map[string]any{"factor_id": "same"}, ticket), 404, "a factor the ticket did not offer")
+	status(t, f.c.Post("/auth/mfa/verify", map[string]any{"factor_id": "same", "code": "123456"}, ticket), 404, "a factor the ticket did not offer")
+	status(t, f.c.Post("/auth/mfa/challenge", map[string]any{"factor_id": "backup"}, ticket), 200)
+	session := data(t, f.c.Post("/auth/mfa/verify", map[string]any{"factor_id": "backup", "code": f.mailCode()}, ticket))
+	if session["access_token"] == nil {
+		t.Fatalf("the offered factor completes the gate: %v", session)
+	}
+}
+
 func TestPasswordlessFlow(t *testing.T) {
 	t.Run("testAMagicLinkSignsUpRedirectsWithACodeAndExchangesItOnce", func(t *testing.T) {
 		f := newFlow(t, "testAMagicLinkSignsUpRedirectsWithACodeAndExchangesItOnce")
@@ -138,13 +174,28 @@ func TestPasswordlessFlow(t *testing.T) {
 		}
 
 		problem(t, f.c.Get("/magic-link/verify"), 422, "passwordless_invalid_input")
-		verify := f.c.Get("/magic-link/verify?token=" + param(t, link, "token"))
+		opened := "/magic-link/verify?token=" + param(t, link, "token")
+		// Opening the link spends nothing (a mail scanner's GET leaves it usable): it answers a
+		// page whose one button posts back to the same URL (decision 61).
+		for _, who := range []string{"a mail scanner", "the user"} {
+			page := f.c.Get(opened)
+			status(t, page, 200, who+" opens the link")
+			body, _ := io.ReadAll(page.Body)
+			if !strings.HasPrefix(page.Header.Get("Content-Type"), "text/html") || !strings.Contains(string(body), `<form method="post">`) ||
+				page.Header.Get("Cache-Control") != "no-store" || page.Header.Get("Referrer-Policy") != "no-referrer" ||
+				// the POST redirects to the app: form-action must allow its origin, or browsers block it
+				!strings.Contains(page.Header.Get("Content-Security-Policy"), "form-action 'self' https://app.example;") {
+				t.Fatalf("page %v %s", page.Header, body)
+			}
+		}
+		verify := f.c.Form(opened, url.Values{})
 		status(t, verify, 302)
 		location := verify.Header.Get("Location")
 		if !strings.HasPrefix(location, done+"?code=") {
 			t.Fatalf("location %q", location)
 		}
-		problem(t, f.c.Get("/magic-link/verify?token="+param(t, link, "token")), 422, "passwordless_token_invalid", "a link works once")
+		problem(t, f.c.Get(opened), 422, "passwordless_token_invalid", "a spent link answers its page no more")
+		problem(t, f.c.Form(opened, url.Values{}), 422, "passwordless_token_invalid", "a link works once")
 
 		code := param(t, location, "code")
 		problem(t, f.c.Post("/magic-link/exchange", nil), 422, "passwordless_invalid_input")

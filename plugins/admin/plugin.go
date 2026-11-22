@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/repository"
@@ -205,4 +207,10 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 		return Resolution{}, err
 	}
 	return Resolution{Principal: &Principal{ID: userID, Type: TypeUser, Role: RoleOwner, Scope: ScopeInstance}}, nil
+}
+
+// Listeners delete an erased user's operator grants (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableGrants, Column: "user_id"})}
 }

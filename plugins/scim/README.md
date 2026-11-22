@@ -69,6 +69,8 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
 
 ## Host integration
 
+- Erasing a user, by any path, deletes its directory provenance and user mappings
+  (`event.UserDeleted`).
 - Tokens start with `pst_` (`scim.TokenPrefix`), carry 256 random bits and are stored as a keyed hash.
 - `deprovision` is `scim.DeprovisionDeactivate` (default: the user is banned, their sessions end, the
   membership this connection created is removed) or `scim.DeprovisionDelete` (the account is

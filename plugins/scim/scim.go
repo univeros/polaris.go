@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"
 )
 
@@ -95,4 +98,13 @@ func (*Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 func Of(g *wiring.Graph) *Plugin {
 	p, _ := g.Plugin(ID).(*Plugin)
 	return p
+}
+
+// Listeners delete an erased user's directory provenance, stored name parts and user mappings
+// (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableProvenance, Column: "user_id"},
+		maintenance.UserRows{Table: TableUserNames, Column: "user_id"},
+		maintenance.UserRows{Table: TableResources, Column: "local_id", Where: store.Criteria{"kind": KindUser}})}
 }

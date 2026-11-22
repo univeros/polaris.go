@@ -45,8 +45,8 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 			t.Errorf("route %s missing", name)
 		}
 	}
-	if !p.Catalog().Has("billing.invoice_paid") || len(g.Listeners()) != 5 {
-		t.Fatalf("catalog or listeners (%d): core's three, the recorder, the activity tracker", len(g.Listeners()))
+	if !p.Catalog().Has("billing.invoice_paid") || len(g.Listeners()) != 6 {
+		t.Fatalf("catalog or listeners (%d): core's three, the recorder, the activity tracker, the activity erasure", len(g.Listeners()))
 	}
 
 	srv.Events.Dispatch(ctx, event.UserRegistered{UserID: "u1", Email: "ada@example.com", VerificationToken: "tok"})

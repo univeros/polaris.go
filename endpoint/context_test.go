@@ -25,3 +25,14 @@ func TestObservedRecordsRouteAndToken(t *testing.T) {
 		t.Fatal("WithRoute without Observed")
 	}
 }
+
+func TestMFATicketAllowsOnlyTheFactorsItWasRestrictedTo(t *testing.T) {
+	open := context.Background()
+	if !MFATicketAllows(open, "f-1") {
+		t.Fatal("an unrestricted ticket takes any factor")
+	}
+	restricted := WithMFATicketFactors(open, []string{"f-2"})
+	if MFATicketAllows(restricted, "f-1") || !MFATicketAllows(restricted, "f-2") || !MFATicketAllows(restricted, "") {
+		t.Fatal("a restricted ticket takes its factors and a recovery code only")
+	}
+}

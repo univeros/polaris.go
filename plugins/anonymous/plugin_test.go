@@ -49,6 +49,12 @@ type env struct {
 
 func boot(t *testing.T, cfg anonymous.Config, hooks ...polaris.Hooks) env {
 	t.Helper()
+	return bootOn(t, func(db store.Adapter) store.Adapter { return db }, cfg, hooks...)
+}
+
+// bootOn boots with the database wrapped by wrap (a failing adapter).
+func bootOn(t *testing.T, wrap func(store.Adapter) store.Adapter, cfg anonymous.Config, hooks ...polaris.Hooks) env {
+	t.Helper()
 	private, public := contracttest.TestRSAKeyPEM()
 	auth := config.Defaults()
 	auth.Issuer = "https://issuer.test"
@@ -58,7 +64,7 @@ func boot(t *testing.T, cfg anonymous.Config, hooks ...polaris.Hooks) env {
 	events := &recorder{}
 	p, err := polaris.New(polaris.Config{
 		Secrets: config.Secrets{AppKey: strings.Repeat("k", 32), JWTPrivateKey: private, JWTPublicKey: public},
-		Auth:    auth, DB: db, Clock: clk, Events: events, Plugins: []polaris.Plugin{plugin},
+		Auth:    auth, DB: wrap(db), Clock: clk, Events: events, Plugins: []polaris.Plugin{plugin},
 		Hooks: append(hooks, polaris.Hooks{})[0],
 	})
 	if err != nil {
@@ -332,5 +338,52 @@ func TestConcurrentConversionsConvertOnce(t *testing.T) {
 	wg.Wait()
 	if wins.Load() != 1 || hooks.Load() != 1 {
 		t.Fatalf("wins %d hooks %d", wins.Load(), hooks.Load())
+	}
+}
+
+// failingUpdates fails every Update of table while armed.
+type failingUpdates struct {
+	store.Adapter
+	table string
+	armed atomic.Bool
+}
+
+func (f *failingUpdates) Update(ctx context.Context, table string, c store.Criteria, d store.Data) (int64, error) {
+	if f.armed.Load() && table == f.table {
+		return 0, errors.New("the database refused the write")
+	}
+	return f.Adapter.Update(ctx, table, c, d)
+}
+
+// A conversion is one transaction: when ending the guest fails after OnConvert ran, nothing is
+// recorded, the guest keeps its session and a retry converts it (decision 61).
+func TestAConversionWhoseEndingFailsConvertsNothingAndCanBeRetried(t *testing.T) {
+	ctx := context.Background()
+	failing := &failingUpdates{table: "auth_users"}
+	var hooks atomic.Int32
+	e := bootOn(t, func(db store.Adapter) store.Adapter { failing.Adapter = db; return failing },
+		anonymous.Config{OnConvert: func(context.Context, string, string) error { hooks.Add(1); return nil }})
+	_, guest := e.signIn(t)
+	ada, session := e.account(t, "ada@example.com")
+
+	failing.armed.Store(true)
+	if _, err := e.guests.Convert(ctx, guest.ID, session.AccessToken); err == nil {
+		t.Fatal("the guest could not be disabled, yet the conversion was reported done")
+	}
+	failing.armed.Store(false)
+	row, _ := e.db.FindOne(ctx, anonymous.TableGuests, store.Criteria{"user_id": guest.ID})
+	if row["converted_at"] != nil {
+		t.Fatalf("a conversion that did not end the guest was recorded: %v", row)
+	}
+	if e.status(t, guest.ID) != model.UserStatusActive || e.liveSessions(t, guest.ID) != 1 {
+		t.Fatal("a failed conversion half-ended the guest")
+	}
+
+	userID, err := e.guests.Convert(ctx, guest.ID, session.AccessToken)
+	if err != nil || userID != ada.ID {
+		t.Fatalf("retry: %q %v", userID, err)
+	}
+	if e.status(t, guest.ID) != model.UserStatusDisabled || e.liveSessions(t, guest.ID) != 0 || hooks.Load() != 2 {
+		t.Fatalf("after the retry: status %s, %d live sessions, %d hook runs", e.status(t, guest.ID), e.liveSessions(t, guest.ID), hooks.Load())
 	}
 }

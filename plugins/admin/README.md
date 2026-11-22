@@ -87,6 +87,7 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
 
 ## Host integration
 
+- Erasing a user deletes its operator grants (`event.UserDeleted`).
 - An impersonation token carries `amr ["impersonation"]` and the `admin.ClaimImpersonatedBy` /
   `admin.ClaimImpersonatorType` claims; it cannot be refreshed and is never an operator. A superadmin
   cannot be impersonated.

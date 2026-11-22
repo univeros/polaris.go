@@ -53,6 +53,8 @@ Uses core's `audit.read`.
 
 ## Host integration
 
+- Erasing a user deletes its activity row (`event.UserDeleted`); its events stay, the trail
+  outlives the account.
 - `audit.Of(g).Record(ctx, audit.Event{…})` writes your own events; dispatching an
   event that implements `audit.Auditable` does the same.
 - Values wrapped in `audit.Sensitive` and keys like `password|secret|token|code|otp` are redacted

@@ -1,0 +1,37 @@
+# POST /magic-link/verify: the confirmation page's button; spends the link.
+endpoint:
+  method: POST
+  path: /magic-link/verify
+  summary: Sign in with a magic link
+  tags: [passwordless]
+  auth: public
+  rate_limit: token_consume
+  effect: write
+  receipt: false
+
+input:
+  source: query
+  fields:
+    token: { type: string, rules: [required], sensitive: true }
+
+domain:
+  class: Polaris\Passwordless\Http\MagicLinkConfirmEndpoint
+  description: >
+    The button of the page GET /magic-link/verify answers posts here, with the link's token still in
+    the query (a token field in the body works too). Spends the token, signs the user in (signing up
+    an unknown address when sign-up is on; core's MFA gate applies, offering only factors that do not
+    send their code to this address) and redirects (302) to the redirect_uri with a code, valid once
+    for 60 seconds, for POST /magic-link/exchange. An unknown, used or expired token answers a problem
+    document instead, since its redirect target is not known.
+
+output:
+  status: 302
+  example: {}
+
+errors:
+  - { status: 403, code: passwordless_account_disabled }
+  - { status: 403, code: passwordless_mfa_same_channel }   # the only second factor delivers where the link went
+  - { status: 422, code: passwordless_invalid_input }
+  - { status: 422, code: passwordless_token_invalid }
+
+events: [user.logged_in]

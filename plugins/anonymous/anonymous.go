@@ -14,8 +14,10 @@
 // POST /anonymous/sign-in creates a core user with the placeholder email <id>@anonymous.invalid
 // (RFC 2606), no password, no organization, and answers core's login envelope (201) with
 // amr ["anonymous"]. POST /anonymous/convert, with the guest's bearer and the new account's
-// access_token in the body, runs OnConvert, then records the conversion, ends the guest's
-// sessions and disables it; its id stays for the host's data.
+// access_token in the body, records the conversion, runs OnConvert, disables the guest and ends its
+// sessions, all in one transaction; its id stays for the host's data. The guest's access token is
+// refused at once with the denylist on (AUTH_ACCESS_TOKEN_DENYLIST); without it, it answers until
+// it expires, for a disabled account that holds no permission.
 package anonymous
 
 import (
@@ -26,7 +28,9 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -55,8 +59,11 @@ var (
 
 // Config configures the plugin; the zero value is the defaults.
 type Config struct {
-	// OnConvert moves the host's data from the guest to the account it became. It runs before
-	// anything is recorded: an error converts nothing and the guest can retry. nil: nothing to move.
+	// OnConvert moves the host's data from the guest to the account it became. It runs inside the
+	// conversion's transaction (as Hooks.OnUserCreated does): write through ctx and the move commits
+	// or rolls back with the conversion. An error converts nothing and the guest can retry. A write
+	// outside that transaction is not undone when a later step fails and the retry runs OnConvert
+	// again, so such a hook must be idempotent. nil: nothing to move.
 	OnConvert func(ctx context.Context, guestID, userID string) error
 	// PruneAfter is the age past which Prune deletes an unconverted guest; zero: 30 days. It must
 	// be at least a day.
@@ -128,4 +135,10 @@ func (p *Plugin) Prune(ctx context.Context) (int, error) { return p.guests.Prune
 // Endpoints serves the /anonymous routes.
 func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) {
 	return p.endpoints(), nil
+}
+
+// Listeners delete an erased user's guest row (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableGuests, Column: "user_id"})}
 }
