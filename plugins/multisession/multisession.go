@@ -22,7 +22,9 @@ import (
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -105,4 +107,10 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 // Middleware tracks the device on every Polaris route.
 func (p *Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{p.middleware}
+}
+
+// Listeners delete an erased user's device records (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableDevices, Column: "user_id"})}
 }

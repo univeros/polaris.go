@@ -24,6 +24,7 @@ import (
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -114,9 +115,11 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 	return p.endpoints(), nil
 }
 
-// Listeners subscribes the recorder and the activity tracker.
-func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
-	return []event.Listener{p.recorder.Listen, p.activity.Listen}
+// Listeners subscribes the recorder and the activity tracker, and deletes an erased user's
+// activity row (the events stay: the trail outlives the account).
+func (p *Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{p.recorder.Listen, p.activity.Listen,
+		maintenance.EraseOnUserDeleted(g.DB(), g.Logger(), maintenance.UserRows{Table: TableActivity, Column: "user_id"})}
 }
 
 // Catalog is the closed list of event names.

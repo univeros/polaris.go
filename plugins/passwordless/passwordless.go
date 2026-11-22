@@ -33,7 +33,9 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -252,3 +254,10 @@ var (
 	errPhoneTaken      = &Error{Kind: KindPhoneTaken, Detail: "Another account uses this phone number."}
 	errSessionRequired = &Error{Kind: KindSessionRequired, Detail: "A one-time token needs a live session."}
 )
+
+// Listeners delete an erased user's pending links, codes and verified phone (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+		maintenance.UserRows{Table: TableSecrets, Column: "user_id"},
+		maintenance.UserRows{Table: TablePhones, Column: "user_id"})}
+}
