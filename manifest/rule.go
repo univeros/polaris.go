@@ -173,4 +173,3 @@ func compileDelimited(pattern string) (*regexp.Regexp, error) {
 	}
 	return regexp.Compile(body)
 }
-

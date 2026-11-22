@@ -5,20 +5,27 @@ import (
 	"strings"
 )
 
-// IsEmail reports whether s is an email address by the rules the "email" input rule has always
-// applied (clients and stored addresses depend on the exact set): at most 320 bytes, ASCII only, an RFC 5321 local part (dot-atoms or quoted strings) of at most 64 units, a
-// whole address of at most 254 units, and a domain that is a dotted host name (labels of at most
-// 63 characters, a top-level label starting with a letter, or an xn-- label) or a bracketed IPv4,
-// IPv6 or IPv6-mapped IPv4 literal.
+// IsEmail reports whether s is an email address by Polaris's email rule, the one the "email" input
+// rule and account creation apply. An address is ASCII only, at most 320 bytes, and:
 //
-// The rules are one PCRE pattern with lookaheads; RE2 has none, so the lookaheads are checked by
-// hand around the same alternatives, case-insensitively like the pattern's /i.
+//   - a local part of dot-separated atoms (RFC 5322 atext) or quoted strings (ASCII but NUL, tab, CR,
+//     LF, space, quote and backslash, or a backslash escaping any ASCII character), at most 64 units;
+//   - an "@";
+//   - a domain that is a host name of at least two dot-separated labels (letters, digits and inner
+//     hyphens, at most 63 characters each, an optional xn-- prefix; the last label starts with a
+//     letter or is an xn-- label), or a bracketed literal: IPv4 (no leading zeros), or IPv6 (full,
+//     compressed or IPv4-mapped) after an "IPv6:" tag;
+//   - at most 254 units in all, where a unit is one character, one escaped character, or either
+//     of those with the quotes around it.
+//
+// Letters match in any case. Nothing is trimmed. The accepted set is a contract and does not change:
+// testdata/manifest/email.tsv and TestEmailRuleEdgeCases pin it.
 func IsEmail(s string) bool {
 	if len(s) > 320 {
 		return false
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] >= 0x80 { // no part of the pattern accepts a byte above 0x7F
+		if s[i] >= 0x80 { // ASCII only
 			return false
 		}
 	}
@@ -61,8 +68,9 @@ var (
 	hexThenColn = regexp.MustCompile(`(?i)[a-f0-9]:`)
 )
 
-// isAddressLiteral matches the bracketed domain forms; the compressed IPv6 forms carry the
-// lookaheads (?!(?:.*[a-f0-9][:\]]){7,}) and (?!(?:.*[a-f0-9]:){5,}), applied after "IPv6:".
+// isAddressLiteral matches the bracketed domain forms. A compressed IPv6 literal holds at most six
+// groups (fewer than seven hex digits followed by ":" or the closing bracket), a compressed
+// IPv4-mapped one at most four (fewer than five hex digits followed by ":").
 func isAddressLiteral(literal string) bool {
 	switch {
 	case ipv6Full.MatchString(literal), ipv4Plain.MatchString(literal), ipv4v6Full.MatchString(literal):
@@ -75,7 +83,7 @@ func isAddressLiteral(literal string) bool {
 	return false
 }
 
-// hasLongLabel is the lookahead (?!.*[^.]{64,}) at the start of a host name: no run of 64 non-dots.
+// hasLongLabel reports a host-name label of 64 characters or more.
 func hasLongLabel(host string) bool {
 	for _, label := range strings.Split(host, ".") {
 		if len(label) >= 64 {
@@ -85,13 +93,9 @@ func hasLongLabel(host string) bool {
 	return false
 }
 
-// unitBounds checks the pattern's two leading lookaheads,
-//
-//	(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){255,})
-//	(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){65,}@)
-//
-// by tracking every position a run of k units can reach: no run reaches 255 units, and no run of
-// 65 or more units stops before an "@".
+// unitBounds checks the two length limits in units (see IsEmail): no reading of s as a run of
+// units reaches 255, and none of 65 or more ends right before an "@". It tracks every position a
+// run of k units can reach.
 func unitBounds(s string) bool {
 	reach := map[int]bool{0: true}
 	for k := 0; len(reach) > 0; k++ {

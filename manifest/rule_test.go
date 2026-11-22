@@ -147,6 +147,48 @@ func TestParseRuleRegexDelimiters(t *testing.T) {
 	}
 }
 
+// TestEmailRuleEdgeCases pins the edges of Polaris's email rule. The accepted set is a contract:
+// a narrower rule would lock out accounts whose addresses passed it, a wider one would let in
+// addresses that never did. The case of letters never matters to the rule (stored addresses are
+// lowercased by identity.NormalizeEmail, which never changes what the rule accepts).
+func TestEmailRuleEdgeCases(t *testing.T) {
+	long := func(c string, n int) string { return strings.Repeat(c, n) }
+	for in, want := range map[string]bool{
+		"ADA@EXAMPLE.COM":            true,
+		"a+tag@b.co":                 true,
+		"a.b.c@d.e":                  true,
+		`""@b.co`:                    true,  // an empty quoted local part
+		`"a b"@b.co`:                 false, // a space inside quotes must be escaped
+		"a@[1.2.3.4]":                true,
+		"a@[01.2.3.4]":               false, // no leading zeros in an IPv4 literal
+		"a@[IPV6:::1]":               true,  // the IPv6 tag in any case
+		"a@[::1]":                    false, // an IPv6 literal needs its tag
+		"postmaster@[IPv6:0::0]":     true,
+		" ada@example.com":           false, // nothing is trimmed: callers trim first
+		"ada@example.com ":           false,
+		"ada@example.com\r\n":        false,
+		"ada@example.com\x00":        false,
+		"a@b..com":                   false,
+		"a@b-.com":                   false,
+		"a@-b.com":                   false,
+		"a@b":                        false, // one label is not a host name
+		"a@b.com.":                   false,
+		"a@xn--.com":                 false,
+		"a@B_C.com":                  false,
+		"a(comment)@b.co":            false, // no comments
+		"é@b.co":                     false, // ASCII only
+		"a@münchen.de":               false, // IDNs in their xn-- form only
+		long("a", 64) + "@b.co":      true,
+		long("a", 65) + "@b.co":      false,
+		"a@" + long("b", 63) + ".co": true,
+		"a@" + long("b", 64) + ".co": false,
+	} {
+		if got := IsEmail(in); got != want {
+			t.Errorf("IsEmail(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
 // TestIsEmail replays testdata/manifest/email.tsv: each line is a JSON string and T or F, the
 // expected verdict (the known-answer set the email rule must keep).
 func TestIsEmail(t *testing.T) {

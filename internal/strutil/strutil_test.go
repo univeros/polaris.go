@@ -5,11 +5,11 @@ import "testing"
 func TestTrimStripsOnlyItsSixEdgeBytes(t *testing.T) {
 	for in, want := range map[string]string{
 		" \t\n\r\x00\x0Bada\x0B\x00\r\n\t ": "ada",
-		"\fada\f":                          "\fada\f", // form feed stays
-		" ada ":                  " ada ",
-		"a b":                              "a b",
-		"":                                 "",
-		"\xff ":                            "\xff",
+		"\fada\f":                           "\fada\f", // form feed stays
+		" ada ":                             " ada ",
+		"a b":                               "a b",
+		"":                                  "",
+		"\xff ":                             "\xff",
 	} {
 		if got := Trim(in); got != want {
 			t.Errorf("Trim(%q) = %q, want %q", in, got, want)
