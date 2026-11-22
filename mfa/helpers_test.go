@@ -2,6 +2,7 @@ package mfa
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -115,7 +116,10 @@ func (f *fakeSessions) StepUp(_ context.Context, userID, organizationID, session
 
 type fakeTickets struct{}
 
-func (fakeTickets) Issue(userID string) (string, error) { return "ticket-" + userID, nil }
+// IssueFor names the factors the ticket is restricted to.
+func (fakeTickets) IssueFor(userID string, factorIDs []string) (string, error) {
+	return "ticket-" + userID + ":" + strings.Join(factorIDs, ","), nil
+}
 
 // fakePrincipals resolves an email-verified member with fixed roles (StubSessionPrincipalResolver).
 type fakePrincipals struct{}

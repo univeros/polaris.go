@@ -2,6 +2,7 @@ package passwordless
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"regexp"
@@ -132,11 +133,11 @@ func (e env) reload(id string) model.User {
 	return u
 }
 
-func (e env) factor(userID string) {
+// factor confirms an email factor of userID delivering to addr (id "factor-"+addr).
+func (e env) factor(userID, addr string) {
 	e.t.Helper()
-	addr := "ada@example.com"
 	now := e.clk.Now()
-	if err := e.g.Repos().MFAFactors.Insert(context.Background(), model.MFAFactor{ID: "factor-" + userID, UserID: userID, Type: "email", Email: &addr, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := e.g.Repos().MFAFactors.Insert(context.Background(), model.MFAFactor{ID: "factor-" + addr, UserID: userID, Type: "email", Email: &addr, IsDefault: true, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -432,7 +433,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("testCoresMfaGateHoldsUnlessTurnedOff", func(t *testing.T) {
 		e := boot(t, Config{})
 		ada := e.user("ada@example.com", true)
-		e.factor(ada.ID)
+		e.factor(ada.ID, "ada@backup.example")
 		ok(t, e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn))
 		data := must[envelope](t)(e.v.signInWithEmailCode(e.ctx, "ada@example.com", e.mailCode()))
 		if data["mfa_required"] != true || data["mfa_token"] == "" || data["access_token"] != nil {
@@ -441,10 +442,56 @@ func TestPlugin(t *testing.T) {
 
 		e = boot(t, Config{SkipMFAGate: true})
 		ada = e.user("ada@example.com", true)
-		e.factor(ada.ID)
+		e.factor(ada.ID, "ada@backup.example")
 		ok(t, e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn))
 		if data := must[envelope](t)(e.v.signInWithEmailCode(e.ctx, "ada@example.com", e.mailCode())); data["access_token"] == nil {
 			t.Fatalf("gate off %v", data)
+		}
+	})
+
+	// A code or link proves the mailbox (or phone) it went to; a second code to the same place
+	// proves nothing more, so the gate offers only the other factors (decision 61).
+	t.Run("AFactorOnTheSignInsChannelIsNotASecondFactor", func(t *testing.T) {
+		e := boot(t, Config{})
+		ada := e.user("ada@example.com", true)
+		e.factor(ada.ID, "Ada@Example.com")
+		e.factor(ada.ID, "ada@backup.example")
+		offered := func(data envelope) []string {
+			raw, _ := json.Marshal(data["factors"]) // a FactorView list, or its JSON after a hand-off
+			var list []struct{ ID string }
+			_ = json.Unmarshal(raw, &list)
+			var ids []string
+			for _, f := range list {
+				ids = append(ids, f.ID)
+			}
+			return ids
+		}
+		ok(t, e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn))
+		data := must[envelope](t)(e.v.signInWithEmailCode(e.ctx, "ada@example.com", e.mailCode()))
+		if data["mfa_required"] != true || !slices.Equal(offered(data), []string{"factor-ada@backup.example"}) {
+			t.Fatalf("email code: %v", data)
+		}
+		ok(t, e.v.sendMagicLink(e.ctx, "ada@example.com", ""))
+		location := must[string](t)(e.v.verifyMagicLink(e.ctx, e.linkToken()))
+		data = must[envelope](t)(e.v.exchange(e.ctx, query(t, location)["code"]))
+		if !slices.Equal(offered(data), []string{"factor-ada@backup.example"}) {
+			t.Fatalf("magic link: %v", data)
+		}
+
+		bob := e.user("bob@example.com", true)
+		e.factor(bob.ID, "bob@example.com")
+		ok(t, e.v.sendEmailCode(e.ctx, "bob@example.com", PurposeSignIn))
+		_, err := e.v.signInWithEmailCode(e.ctx, "bob@example.com", e.mailCode())
+		refused(t, err, ErrMFASameChannel, "the only factor is the sign-in's mailbox")
+
+		phone := "+14155550101"
+		ok(t, e.v.attachPhone(e.ctx, bob.ID, phone))
+		now := e.clk.Now()
+		ok(t, e.g.Repos().MFAFactors.Insert(e.ctx, model.MFAFactor{ID: "sms-bob", UserID: bob.ID, Type: "sms", PhoneE164: &phone, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}))
+		ok(t, e.v.sendPhone(e.ctx, phone))
+		data = must[envelope](t)(e.v.signInWithPhone(e.ctx, phone, e.smsCode()))
+		if !slices.Equal(offered(data), []string{"factor-bob@example.com"}) {
+			t.Fatalf("phone: the sms factor to the same phone is not offered, the email one is: %v", data)
 		}
 	})
 

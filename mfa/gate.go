@@ -94,16 +94,19 @@ type LoginChallenge struct {
 	Factors  []FactorView
 }
 
-// BeginLogin mints the login_mfa ticket for a user who passed the password step and lists
-// confirmed (from ConfirmedFactors) as the client sees them.
+// BeginLogin mints the login_mfa ticket for a user who passed the first step and lists confirmed
+// (from ConfirmedFactors, or the part of it the first step leaves usable) as the client sees them.
+// The ticket completes the gate with those factors only (or a recovery code): a factor left out
+// is refused at /auth/mfa/challenge and /auth/mfa/verify.
 func (s *Service) BeginLogin(userID string, confirmed []model.MFAFactor) (LoginChallenge, error) {
-	ticket, err := s.tickets.Issue(userID)
-	if err != nil {
-		return LoginChallenge{}, fmt.Errorf("mfa: issue login ticket: %w", err)
-	}
+	ids := make([]string, len(confirmed))
 	views := make([]FactorView, len(confirmed))
 	for i, f := range confirmed {
-		views[i] = ViewOf(f)
+		ids[i], views[i] = f.ID, ViewOf(f)
+	}
+	ticket, err := s.tickets.IssueFor(userID, ids)
+	if err != nil {
+		return LoginChallenge{}, fmt.Errorf("mfa: issue login ticket: %w", err)
 	}
 	return LoginChallenge{UserID: userID, MFAToken: ticket, Factors: views}, nil
 }

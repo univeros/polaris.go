@@ -42,6 +42,10 @@ func (a ticketAdapter) Authenticate(_ context.Context, ticket string) (string, e
 	return a.g.tickets.Authenticate(ticket)
 }
 
+func (a ticketAdapter) AuthenticateFactors(_ context.Context, ticket string) (string, []string, error) {
+	return a.g.tickets.AuthenticateFactors(ticket)
+}
+
 type denylistAdapter struct{ g *Graph }
 
 func (a denylistAdapter) Revoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error) {

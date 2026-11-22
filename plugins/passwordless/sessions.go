@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -100,6 +102,21 @@ type facts struct {
 	organizationID string
 	mfa            bool
 	authTime       *int64
+	// channel is where the sign-in's code or link went (model.FactorEmail with the address,
+	// model.FactorSMS with the number): a factor delivering there proves nothing more.
+	channel, destination string
+}
+
+// sameChannel reports whether f delivers its codes where the sign-in's went.
+func (f facts) sameChannel(factor model.MFAFactor) bool {
+	switch {
+	case f.channel == "" || factor.Type != f.channel:
+		return false
+	case factor.Type == model.FactorEmail:
+		return factor.Email != nil && strings.EqualFold(*factor.Email, f.destination)
+	default:
+		return factor.PhoneE164 != nil && *factor.PhoneE164 == f.destination
+	}
 }
 
 // open opens a session for a user who just proved a factor: core's mfa_required answer when the
@@ -109,9 +126,13 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 		return nil, errDisabled
 	}
 	if f.gate && v.s.respectMFA {
-		factors, err := v.g.MFA().ConfirmedFactors(ctx, u.ID)
+		confirmed, err := v.g.MFA().ConfirmedFactors(ctx, u.ID)
 		if err != nil {
 			return nil, err
+		}
+		factors := slices.DeleteFunc(slices.Clone(confirmed), f.sameChannel)
+		if len(confirmed) > 0 && len(factors) == 0 {
+			return nil, errMFASameChannel
 		}
 		if len(factors) > 0 {
 			ch, err := v.g.MFA().BeginLogin(u.ID, factors)

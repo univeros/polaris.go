@@ -17,6 +17,9 @@ func (m *mfaAPI) challenge(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if !ok {
 		return endpoint.Unauthorized()
 	}
+	if !endpoint.MFATicketAllows(ctx, mfaField(in, "factor_id")) {
+		return endpoint.NotFound(mfaMsgFactorNotFound) // the sign-in ruled this factor out
+	}
 	return m.sendChallenge(ctx, in, userID, mfa.PurposeLoginMFA)
 }
 
@@ -57,6 +60,9 @@ func (m *mfaAPI) verify(ctx context.Context, in *endpoint.Input) endpoint.Result
 	code := mfaField(in, "code")
 	if code == "" {
 		return endpoint.Unprocessable([]string{mfaMsgNeedCode})
+	}
+	if !endpoint.MFATicketAllows(ctx, mfaVerifyFactor(in)) {
+		return endpoint.NotFound(mfaMsgFactorNotFound) // the sign-in ruled this factor out
 	}
 	tokens, err := services.Of(m.g).MFA.VerifyLogin(ctx, userID, mfaVerifyFactor(in), code, endpoint.Client(ctx))
 	if res, failed := m.verifyFailure(ctx, "verify login", err); failed {

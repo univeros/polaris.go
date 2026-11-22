@@ -217,6 +217,7 @@ const (
 	KindPasswordInvalid    Kind = "password_invalid"
 	KindPhoneTaken         Kind = "phone_taken"
 	KindSessionRequired    Kind = "session_required"
+	KindMFASameChannel     Kind = "mfa_same_channel"
 )
 
 // Error is a refused passwordless step; Detail is what the client may read, Errors the rule
@@ -245,6 +246,7 @@ var (
 	ErrPasswordInvalid    error = &Error{Kind: KindPasswordInvalid}
 	ErrPhoneTaken         error = &Error{Kind: KindPhoneTaken}
 	ErrSessionRequired    error = &Error{Kind: KindSessionRequired}
+	ErrMFASameChannel     error = &Error{Kind: KindMFASameChannel}
 )
 
 var (
@@ -253,6 +255,7 @@ var (
 	errDisabled        = &Error{Kind: KindAccountDisabled, Detail: "This account is disabled."}
 	errPhoneTaken      = &Error{Kind: KindPhoneTaken, Detail: "Another account uses this phone number."}
 	errSessionRequired = &Error{Kind: KindSessionRequired, Detail: "A one-time token needs a live session."}
+	errMFASameChannel  = &Error{Kind: KindMFASameChannel, Detail: "The account's only second factor sends its code where this sign-in's went, so it proves nothing more: sign in with the password, or add another factor (an authenticator app, a passkey, another address)."}
 )
 
 // Listeners delete an erased user's pending links, codes and verified phone (event.UserDeleted).

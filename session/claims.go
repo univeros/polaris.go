@@ -26,7 +26,7 @@ var reservedClaims = map[string]bool{
 	"scp": true, "client_id": true, "email_verified": true,
 	// Polaris core and plugins
 	"org": true, "roles": true, "mfa": true, "delegated": true, "impersonated_by": true, "impersonator_type": true,
-	"purpose": true, "api_key": true, "api_key_rate_limit": true, "agent_id": true,
+	"purpose": true, "mfa_factors": true, "api_key": true, "api_key_rate_limit": true, "agent_id": true,
 	"actor_type": true, "receipt_id": true, "receipt_hash": true, "seq": true,
 }
 

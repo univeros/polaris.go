@@ -62,6 +62,13 @@ type MFATickets interface {
 	Authenticate(ctx context.Context, ticket string) (userID string, err error)
 }
 
+// MFATicketFactors is an MFATickets that also reports the factor ids a ticket is restricted to
+// (nil: any of the user's confirmed factors); the pipeline records them with
+// endpoint.WithMFATicketFactors.
+type MFATicketFactors interface {
+	AuthenticateFactors(ctx context.Context, ticket string) (userID string, factorIDs []string, err error)
+}
+
 // StepUpVerifier reports whether the user has a confirmed MFA factor: only such users must step
 // up on a step_up route.
 type StepUpVerifier interface {

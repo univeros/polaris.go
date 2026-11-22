@@ -28,6 +28,7 @@ output:
 
 errors:
   - { status: 403, code: passwordless_account_disabled }
+  - { status: 403, code: passwordless_mfa_same_channel }   # the only second factor delivers where the sign-in did
   - { status: 422, code: passwordless_invalid_input }
   - { status: 422, code: passwordless_token_invalid }
 

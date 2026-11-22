@@ -91,7 +91,7 @@ func (v *service) verifyMagicLink(ctx context.Context, tok string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	e, err := v.open(ctx, u, facts{amr: []string{AMRMagicLink}, gate: true})
+	e, err := v.open(ctx, u, facts{amr: []string{AMRMagicLink}, gate: true, channel: model.FactorEmail, destination: data.Email})
 	if err != nil {
 		return "", err
 	}
@@ -152,7 +152,7 @@ func (v *service) signInWithEmailCode(ctx context.Context, email, code string) (
 	if err != nil {
 		return nil, err
 	}
-	return v.open(ctx, u, facts{amr: []string{AMREmailOTP}, gate: true})
+	return v.open(ctx, u, facts{amr: []string{AMREmailOTP}, gate: true, channel: model.FactorEmail, destination: email})
 }
 
 // spendFor spends a code sent to an existing, enabled account.
@@ -329,7 +329,7 @@ func (v *service) signInWithPhone(ctx context.Context, phone, code string) (enve
 	if !found || owner != u.ID {
 		return nil, errCodeInvalid
 	}
-	return v.open(ctx, u, facts{amr: []string{AMRPhone}, gate: true})
+	return v.open(ctx, u, facts{amr: []string{AMRPhone}, gate: true, channel: model.FactorSMS, destination: e164})
 }
 
 // addPhone texts a confirmation code to a number the user wants to add, unless another account

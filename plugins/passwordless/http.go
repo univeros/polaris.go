@@ -85,6 +85,8 @@ func (v *service) refuse(ctx context.Context, err error) endpoint.Result {
 		return problem(http.StatusConflict, "Phone taken")
 	case KindSessionRequired:
 		return problem(http.StatusForbidden, "Session required")
+	case KindMFASameChannel:
+		return problem(http.StatusForbidden, "Second factor on the same channel")
 	}
 	return problem(http.StatusUnprocessableEntity, "Invalid input")
 }

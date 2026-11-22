@@ -72,9 +72,10 @@ type Sessions interface {
 	StepUp(ctx context.Context, userID, organizationID, sessionID string) (string, error)
 }
 
-// Tickets mints the short-lived login_mfa ticket; *session.MFATickets is the implementation.
+// Tickets mints the short-lived login_mfa ticket, restricted to the factors the gate offered;
+// *session.MFATickets is the implementation.
 type Tickets interface {
-	Issue(userID string) (string, error)
+	IssueFor(userID string, factorIDs []string) (string, error)
 }
 
 // PrincipalResolver resolves a user's authorization context for the post-MFA session;

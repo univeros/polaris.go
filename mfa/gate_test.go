@@ -73,7 +73,7 @@ func TestBeginLoginMintsATicketAndMasksFactorViews(t *testing.T) {
 	smsF := model.MFAFactor{ID: "f-sms", UserID: "user-1", Type: model.FactorSMS, PhoneE164: ptr("+14155550123"), ConfirmedAt: ptr(at(gateAt))}
 	res, err := h.service(t).BeginLogin("user-1", []model.MFAFactor{totpF, smsF})
 	must(t, err)
-	if res.UserID != "user-1" || res.MFAToken != "ticket-user-1" {
+	if res.UserID != "user-1" || res.MFAToken != "ticket-user-1:f-totp,f-sms" { // the ticket takes only the listed factors
 		t.Fatalf("%+v", res)
 	}
 	want := []FactorView{
