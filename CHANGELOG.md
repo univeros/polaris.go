@@ -9,6 +9,15 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-22
+
+Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds three
+tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
+a remedy if your data needs a manual step (see the admin entry under Security). Read the
+**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
+429 bodies, `budget_exhausted` and whole-second token timestamps.
+
 ### Added
 
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
@@ -286,7 +295,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1
