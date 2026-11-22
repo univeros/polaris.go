@@ -146,6 +146,9 @@ func TestVerifyRefusesOutOfBoundImportedHashes(t *testing.T) {
 
 func TestParseImportedBoundsHold(t *testing.T) {
 	for _, e := range readImported(t) {
+		if strings.HasPrefix(e.Hash, "$2") {
+			continue // bcrypt: verified by golang.org/x/crypto/bcrypt, not parseImported
+		}
 		p, err := parseImported(e.Hash)
 		if err != nil {
 			t.Fatalf("%s: %v", e.Hash, err)

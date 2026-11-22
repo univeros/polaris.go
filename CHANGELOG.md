@@ -22,6 +22,10 @@ marked **Breaking**.
   `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
   `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
   Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
+- SECURITY.md states the policy from v1.0.0: the latest minor gets every security fix, the previous
+  minor gets Critical and High fixes for 3 months after a new minor, and each fix is a GitHub
+  security advisory with a CVE. [docs/stored-formats.md](docs/stored-formats.md) lists the stored
+  data and tokens every 1.x release keeps reading (decision 71).
 
 ### Changed
 
