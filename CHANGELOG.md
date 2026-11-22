@@ -12,7 +12,7 @@ marked **Breaking**.
 ## [0.5.0] - 2026-11-22
 
 Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
-`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds three
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
 tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
 a remedy if your data needs a manual step (see the admin entry under Security). Read the
 **Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
