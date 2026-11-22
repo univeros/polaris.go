@@ -46,7 +46,9 @@ caller's session is not on it), `…/multi-session/session_not_found` (404),
 
 ## Host integration
 
-- Erasing a user deletes its device records (`event.UserDeleted`).
+- Erasing a user deletes its device records inside the erasure's transaction (`wiring.UserEraser`).
+- The device cookie is `Secure` when the request came over TLS or the configured issuer
+  (`AUTH_ISSUER`) is https, so it is behind a proxy that ends TLS too.
 - The client sends the device back in the header `multisession.Header` or the cookie
   `multisession.Cookie`. Only server-minted ids are accepted, and a sign-in joining a device that
   has accounts rotates its id (a planted id never names the victim's device).

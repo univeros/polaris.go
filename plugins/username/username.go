@@ -24,7 +24,6 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
@@ -314,8 +313,8 @@ func (u *Usernames) write(ctx context.Context, userID, normalized, display strin
 	return nil
 }
 
-// Listeners delete an erased user's usernames (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
-		maintenance.UserRows{Table: TableUsernames, Column: "user_id"})}
+// EraseUser implements wiring.UserEraser: an erased user's usernames go with the account, in its
+// transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.g.DB(), userID, maintenance.UserRows{Table: TableUsernames, Column: "user_id"})
 }

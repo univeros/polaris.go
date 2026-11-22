@@ -26,7 +26,8 @@ Every field is optional; the zero value keeps 90 days, no chain, the database si
 | `Sinks` | none | beside the database: `audit.LogSink`, `audit.FileSink`, `audit.WebhookSink`, yours (`audit.SinkFunc`) |
 | `Names` | none | your own event names (`name => description`); unknown names are rejected |
 | `ActivityInterval` | 5 min | how often a user's `last_active_at` is written |
-| `HTTPClient` | nil | enables delivery to the organizations' drains |
+| `Drains` | off | deliver the organizations' drains, to public addresses only |
+| `HTTPClient` | nil | your client for drain delivery instead of the guarded default; setting it turns `Drains` on, and what it may reach is then yours to bound |
 | `WebhookAttempts` | 3 | attempts per drain delivery |
 
 ## Routes
@@ -54,8 +55,10 @@ Uses core's `audit.read`.
 
 ## Host integration
 
-- Erasing a user deletes its activity row (`event.UserDeleted`); its events stay, the trail
-  outlives the account.
+- Erasing a user deletes its activity row inside the erasure's transaction (`wiring.UserEraser`);
+  its events stay, the trail outlives the account.
+- A row written while serving an operator's impersonation token (`plugins/admin`) carries
+  `impersonated_by` (the operator's id) in its `data`, beside the user as actor.
 - `audit.Of(g).Record(ctx, audit.Event{…})` writes your own events; dispatching an
   event that implements `audit.Auditable` does the same.
 - Values wrapped in `audit.Sensitive` and keys like `password|secret|token|code|otp` are redacted
@@ -73,7 +76,19 @@ Uses core's `audit.read`.
   that table; until then chained writes fail with an error naming it. SQLite needs a busy timeout
   (`_pragma=busy_timeout(5000)`) for concurrent writers to wait rather than fail.
 - Organizations' drains are managed through `Plugin.Drains()` and the `/admin` routes of
-  `plugins/admin`.
+  `plugins/admin`. An organization's owner chooses the endpoint, so delivery is guarded: with
+  `Drains: true` the client connects to public unicast addresses only, decided after DNS resolution
+  (a name that resolves to a private, loopback, link-local or metadata address is refused), and
+  redirects are never followed, whichever client is used. With your own `HTTPClient` the address
+  guard is yours (an egress proxy, a dialer `Control`).
+- A drain never holds the writer: a batch is delivered after the transaction that recorded it
+  commits (never when it rolls back), on its own goroutine, within 15 s in all, at most 32 batches
+  in flight (one more is dropped and logged). Under `sqlstore.WithTx`, whose commit Polaris does not
+  see, it starts at once. Order between batches is not guaranteed; `occurred_at` and `id` order
+  them. Call `Plugin.WaitDrains(ctx)` before the process exits.
+- A drain's `last_error` is a category the organization's owner may read: `refused` (not a public
+  address), `timeout`, `unreachable`, or `HTTP <status>`. The transport's own error is in your log
+  ("Audit drain failed"), never in the row.
 
 ## Example
 

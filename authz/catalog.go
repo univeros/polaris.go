@@ -55,6 +55,11 @@ var corePermissions = []Permission{
 // adminScoped are the platform-admin permissions granted only to superadmin, never to org roles.
 var adminScoped = []string{UsersRead, UsersManage}
 
+// PlatformOnly reports whether permission is one only the platform superadmin holds (users.read,
+// users.manage: they reach every account of the instance). No organization's role grants one:
+// the authority resolver ignores such a grant and Migrate removes it.
+func PlatformOnly(permission string) bool { return slices.Contains(adminScoped, permission) }
+
 // RoleTemplate is a system role: seeded once with no organization (is_system), and cloned into
 // each new organization as its editable copy.
 type RoleTemplate struct {

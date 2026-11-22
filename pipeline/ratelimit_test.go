@@ -177,3 +177,30 @@ func TestOuterLimiterHeadersWin(t *testing.T) {
 		t.Fatalf("second: %d %v", second.Code, second.Header())
 	}
 }
+
+// An IPv6 client is budgeted by its /64: one subscriber holds at least that many addresses, so a
+// budget per address is no budget (decision 76). IPv4 stays per address.
+func TestAnIPv6ClientIsLimitedByItsNetwork(t *testing.T) {
+	core, _ := manifests(t)
+	o := options(t, core)
+	o.Auth.RateLimits.Login = config.RateLimit{Limit: 2, Window: time.Minute, KeyPrefix: "auth.login"}
+	mw := newPipeline(t, o).ipRateLimit(&counting{})
+	from := func(addr string) int {
+		r := routed(t, core, "POST", "/auth/login")
+		r.RemoteAddr = addr
+		return serve(mw, r).Code
+	}
+	for i, tc := range []struct {
+		addr string
+		want int
+	}{
+		{"[2001:db8:1:2::1]:1000", 200}, {"[2001:db8:1:2:ffff:ffff:ffff:9]:1000", 200}, {"[2001:db8:1:2:abcd::7]:1000", 429},
+		{"[2001:db8:1:3::1]:1000", 200}, // another /64
+		{"198.51.100.1:1000", 200}, {"198.51.100.1:1000", 200}, {"198.51.100.1:1000", 429}, {"198.51.100.2:1000", 200},
+		{"[::ffff:198.51.100.2]:1000", 200}, {"[::ffff:198.51.100.2]:1000", 429}, // the same IPv4 client, mapped
+	} {
+		if got := from(tc.addr); got != tc.want {
+			t.Errorf("request %d from %s: %d, want %d", i, tc.addr, got, tc.want)
+		}
+	}
+}

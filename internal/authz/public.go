@@ -42,6 +42,7 @@ var (
 
 // The public functions.
 var (
-	Forbidden  = pub.Forbidden
-	NewCatalog = pub.NewCatalog
+	Forbidden    = pub.Forbidden
+	NewCatalog   = pub.NewCatalog
+	PlatformOnly = pub.PlatformOnly
 )

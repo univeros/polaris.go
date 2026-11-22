@@ -146,8 +146,12 @@ func TestTheLogAndArrayChannels(t *testing.T) {
 	log := &Log{Logger: slog.New(slog.NewTextHandler(&buf, nil))}
 	id, err := log.Send(context.Background(), Message{Kind: KindSMS, To: "+1", Template: "sms.otp", Text: "Code 1"})
 	check(t, err == nil && id == "" && log.Name() == "log" && log.Supports("anything"), "log")
-	check(t, strings.Contains(buf.String(), "Code 1"), "the body is logged: %s", buf.String())
+	check(t, strings.Contains(buf.String(), "sms.otp") && strings.Contains(buf.String(), "+1"), "the template and recipient are logged: %s", buf.String())
+	check(t, !strings.Contains(buf.String(), "Code 1"), "the body is not logged unless asked: %s", buf.String())
 	_, _ = (&Log{}).Send(context.Background(), Message{})
+	buf.Reset()
+	_, _ = (&Log{Logger: slog.New(slog.NewTextHandler(&buf, nil)), Bodies: true}).Send(context.Background(), Message{Kind: KindSMS, To: "+1", Template: "sms.otp", Text: "Code 1"})
+	check(t, strings.Contains(buf.String(), "Code 1"), "Bodies logs the body: %s", buf.String())
 
 	mem := NewMemory("mail", KindEmail)
 	check(t, !mem.Supports(KindSMS) && NewMemory("").Name() == "memory" && NewMemory("").Supports(KindSMS), "kinds")

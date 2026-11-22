@@ -75,10 +75,22 @@ type MFAFactorTypeProvider interface {
 // AccessEraser is a plugin that stores ways to act as a user: provider links, passkeys, API keys,
 // OAuth grants, agents, phone numbers. EraseAccess deletes the user's, with ctx (it runs inside
 // the transaction of Identity.ProveEmail's first proof, so an error rolls the proof back): what
-// existed before anyone proved the account's mailbox is not the mailbox owner's. A plugin adding
+// existed before anyone proved the account's mailbox is not the mailbox owner's. It also runs
+// inside the transaction that erases or removes the account (see UserEraser). A plugin adding
 // such a table implements it.
 type AccessEraser interface {
 	EraseAccess(ctx context.Context, userID string) error
+}
+
+// UserEraser is a plugin that keeps rows about a user which are not ways to act as one (those
+// are AccessEraser's): activity, device records, provenance, operator grants, usernames.
+// EraseUser deletes the user's, with ctx: it runs inside the transaction that erases
+// (anonymizes) or removes the account, after EraseAccess, so an error rolls the erasure back and
+// nothing about an erased user is left behind by a failure. A plugin adding a table with a user
+// column implements it (or AccessEraser); a listener of event.UserDeleted runs after the commit
+// and cannot fail the erasure.
+type UserEraser interface {
+	EraseUser(ctx context.Context, userID string) error
 }
 
 // Ports are core ports a plugin serves; a nil field is not provided.

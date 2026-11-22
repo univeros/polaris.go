@@ -19,8 +19,9 @@ input:
 domain:
   description: >
     One grant per user: a new grant replaces the previous one. scope is instance or an
-    organization id (an organization-scoped owner grants on their organization only). Needs own;
-    recorded as admin.grant_created.
+    organization id (an organization-scoped owner grants on their organization only, and only to
+    a user whose current grant, if any, is on that organization and who is not a superadmin: 403
+    admin_forbidden otherwise). Needs own; recorded as admin.grant_created.
 
 output:
   status: 201

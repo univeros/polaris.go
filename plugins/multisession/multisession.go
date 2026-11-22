@@ -18,11 +18,11 @@
 package multisession
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
@@ -109,8 +109,8 @@ func (p *Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{p.middleware}
 }
 
-// Listeners delete an erased user's device records (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
-		maintenance.UserRows{Table: TableDevices, Column: "user_id"})}
+// EraseUser implements wiring.UserEraser: an erased user's device records go with the account, in
+// its transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.g.DB(), userID, maintenance.UserRows{Table: TableDevices, Column: "user_id"})
 }

@@ -490,11 +490,12 @@ func TestDrainsDeliverAnOrganizationsMatchingEventsAndRecordTheOutcome(t *testin
 	}
 
 	ft := &fakeTransport{}
-	sink := drainSink{drains: drains, client: &http.Client{Transport: ft}, attempts: 1, sleep: func(time.Duration) {}, logger: slog.New(&recordingHandler{})}
+	sink := &drainSink{drains: drains, client: &http.Client{Transport: ft}, attempts: 1, sleep: func(time.Duration) {}, logger: slog.New(&recordingHandler{})}
 	in := signedIn("u1", clk.Now(), "org1")
 	invited := Event{Name: OrgMemberInvited, OccurredAt: clk.Now(), ActorID: "owner1", OrganizationID: "org1"}
 	verified := Event{Name: UserEmailVerified, OccurredAt: clk.Now(), ActorID: "u1", OrganizationID: "org1"}
 	_ = sink.Write(ctx, in, invited, verified, signedIn("u3", clk.Now(), ""))
+	sink.wait(ctx)
 	if len(ft.requests) != 1 || ft.requests[0].URL.String() != "https://acme.example.test/audit" {
 		t.Fatalf("deliveries %d", len(ft.requests))
 	}
@@ -507,9 +508,10 @@ func TestDrainsDeliverAnOrganizationsMatchingEventsAndRecordTheOutcome(t *testin
 	if after.LastDeliveryAt == nil || after.LastError != "" || after.Map()["last_delivery_at"] == nil {
 		t.Fatalf("outcome %+v", after)
 	}
-	failing := drainSink{drains: drains, client: &http.Client{Transport: &fakeTransport{statuses: []int{500}}}, attempts: 1, sleep: func(time.Duration) {}, logger: slog.New(&recordingHandler{})}
+	failing := &drainSink{drains: drains, client: &http.Client{Transport: &fakeTransport{statuses: []int{500}}}, attempts: 1, sleep: func(time.Duration) {}, logger: slog.New(&recordingHandler{})}
 	_ = failing.Write(ctx, in)
-	if failed, _, _ := drains.Find(ctx, hook.ID); !strings.Contains(failed.LastError, "HTTP 500") {
+	failing.wait(ctx)
+	if failed, _, _ := drains.Find(ctx, hook.ID); failed.LastError != "HTTP 500" {
 		t.Fatalf("failure %q", failed.LastError)
 	}
 	if deleted, _ := drains.Delete(ctx, hook.ID); !deleted {

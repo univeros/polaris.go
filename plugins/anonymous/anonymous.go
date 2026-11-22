@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
@@ -137,8 +136,8 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 	return p.endpoints(), nil
 }
 
-// Listeners delete an erased user's guest row (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
-		maintenance.UserRows{Table: TableGuests, Column: "user_id"})}
+// EraseUser implements wiring.UserEraser: an erased user's guest row goes with the account, in its
+// transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.guests.g.DB(), userID, maintenance.UserRows{Table: TableGuests, Column: "user_id"})
 }
