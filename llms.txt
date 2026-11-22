@@ -120,6 +120,7 @@ security.HashChecker`); it upgrades on sign-in the same way.
 - `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); observes by default, `Mode: sentinel.Enforce` blocks and challenges.
 - `plugins/sso` — `sso.New(sso.Config{})`: SAML 2.0 and OIDC sign-in per organization, verified domains, single logout; an IdP signs in only members or users on the org's verified domains.
 - `plugins/scim` — `scim.New(scim.Config{})`: SCIM 2.0 provisioning per organization with an org-managed connection token; changes global accounts only when the connection created them.
+- `plugins/ui` — `ui.New(ui.Config{AppName: "Acme", AfterSignIn: "/dashboard"})`: server-rendered sign-in, MFA, sign-up, verification, reset, sign-out and OAuth consent / device pages under `/auth/ui` (no JavaScript); `web.RequireSignIn(p.Protect(h))` for your pages.
 
 ## Agents: declare what agents may do
 
@@ -238,7 +239,7 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 
 - `examples/` — complete programs (each runs with zero setup: `go run ./examples/<name>`, SQLite and
   keys generated at start; the README has the curl walkthrough with real output; `main_test.go` keeps it working):
-  `minimal` (core, one protected route), `api-keys`, `agents` (capabilities in process and behind
+  `minimal` (core, one protected route), `api-keys`, `webapp` (server-rendered pages with `plugins/ui`), `agents` (capabilities in process and behind
   `ag.Protect`, an agent built with package `agent`: enrol, grants, approval, budget and constraint
   refusals, receipts, kill switch), `mcp` (your MCP server behind `mcp.Protect`, Polaris's `/mcp`,
   token exchange per resource), `b2b` (organizations, your permissions, roles, invitations, org API

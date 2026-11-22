@@ -1,0 +1,8 @@
+{{define "content"}}
+<p>{{.T.device_intro}}</p>
+<form method="get" action="{{.Base}}/device">
+<label for="user_code">{{.T.device_code}}</label>
+<input id="user_code" name="user_code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required maxlength="32" value="{{.UserCode}}" autofocus>
+<button type="submit">{{.T.continue}}</button>
+</form>
+{{end}}

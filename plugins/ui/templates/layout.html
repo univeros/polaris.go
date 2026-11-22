@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>{{.Title}} · {{.App.Name}}</title>
+<link rel="stylesheet" href="{{.Base}}/style.css">
+</head>
+<body>
+<main>
+<header class="brand">{{if .App.Logo}}<img src="{{.App.Logo}}" alt="" height="40">{{end}}<span>{{.App.Name}}</span></header>
+<h1>{{.Title}}</h1>
+{{if .Errors}}<div class="alert" role="alert" tabindex="-1" autofocus>
+<p><strong>{{.T.error_summary}}</strong></p>
+<ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>
+</div>{{end}}
+{{if .Notice}}<p class="notice" role="status">{{.Notice}}</p>{{end}}
+{{template "content" .}}
+{{if or .App.Terms .App.Privacy}}<footer>{{if .App.Terms}}<a href="{{.App.Terms}}">{{.T.terms}}</a>{{end}}{{if .App.Privacy}}<a href="{{.App.Privacy}}">{{.T.privacy}}</a>{{end}}</footer>{{end}}
+</main>
+</body>
+</html>

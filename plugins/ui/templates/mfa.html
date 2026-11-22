@@ -1,0 +1,16 @@
+{{define "content"}}
+<p>{{.T.mfa_intro}}</p>
+<form method="post" action="{{.Base}}/mfa">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<fieldset>
+<legend>{{.T.mfa_method}}</legend>
+{{range .Factors}}<label class="choice"><input type="radio" name="factor_id" value="{{.ID}}"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+{{end}}<label class="choice"><input type="radio" name="factor_id" value="recovery"> {{.T.mfa_recovery}}</label>
+</fieldset>
+<label for="code">{{.T.code}}</label>
+<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="64" autofocus>
+<button type="submit" name="action" value="verify">{{.T.verify}}</button>
+<button type="submit" name="action" value="send" class="secondary" formnovalidate>{{.T.mfa_send}}</button>
+</form>
+<p><a href="{{.Base}}/sign-in">{{.T.back_to_sign_in}}</a></p>
+{{end}}

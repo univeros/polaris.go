@@ -1,0 +1,7 @@
+{{define "content"}}
+<p>{{.T.sign_out_intro}}</p>
+<form method="post" action="{{.Base}}/sign-out">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button type="submit">{{.T.sign_out}}</button>
+</form>
+{{end}}

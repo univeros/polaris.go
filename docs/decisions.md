@@ -875,3 +875,87 @@ here (`docs/auth/*`, `docs/cookie-mode`, "spec §N") are removed or described in
   key the contract fixtures; the `"generator": "php"` field of the known-answer vectors, which the
   vector tests check; the `cache.ErrInvalidKey` error text naming PSR-16, which hosts may match; the
   501 text "This endpoint is not ported yet."; and the history sentence in `AGENT.md`.
+
+## 57. 2026-11-22 — plugins/ui: server-rendered sign-in pages
+
+Polaris was a JSON API only: a Go team wrote every screen before a user could sign in, and
+`plugins/oauth` needed a host-written login and consent page before it worked at all. `plugins/ui`
+(id `ui`) serves the pages a browser without JavaScript needs: sign in, the MFA step, sign up, "check
+your email" and verification, forgot and reset password, sign out, the OAuth consent and device
+pages. `html/template`, embedded templates and one stylesheet (about 10 KB), no dependency.
+
+- **Mounting.** The pages are not manifest routes: the route specs model JSON input and output and
+  feed the OpenAPI export, and describing HTML forms there would make both worse. A new optional
+  interface, `wiring.HandlerProvider` (`Handler(g) (prefix, http.Handler)`), gives a plugin every
+  request at or under one prefix (`/auth/ui`), inside `Config.Middleware`, ahead of the pipeline;
+  `polaris.New` refuses a prefix that overlaps a manifest route or another plugin's. Requests
+  elsewhere reach the pipeline unchanged.
+- **Same entry points.** A page runs the JSON route in process (`POST /auth/login`,
+  `/auth/register`, `/auth/mfa/verify`, `/oauth2/authorize/decision`, …) through a second pipeline
+  over the same graph, built the way `plugins/mcp` builds its tool dispatcher (body token delivery,
+  every endpoint, the plugins' middleware). It shares the rate-limit store, so the per-IP buckets are
+  the route's (`TestRateLimitsAreTheRoutes`: a JSON attempt and page attempts spend one budget);
+  sentinel's middleware judges it (`TestSentinelJudgesThePages`); lockout, timing parity, the MFA
+  gate, events and audit are core's because the endpoint is core's. Calling the services directly
+  would have skipped the pipeline, where rate limits and sentinel live.
+- **Session transport.** Core's session is used as is (the refresh-token family, rotation, reuse
+  detection, denylist). Core's cookie delivery cannot carry it for a browser without JavaScript: it
+  needs the `X-Polaris-CSRF` header and scopes the refresh cookie to `/auth/token/refresh`, and the
+  access token stays in the JSON body. So the pages keep the pair in their own HttpOnly, Secure
+  cookies: `__Host-polaris_session` (access token, `SameSite=Lax`, its TTL) and
+  `__Secure-polaris_ui_refresh` (refresh token, `Path=/auth/ui`, only the pages read it). The plugin's
+  bearer resolver reads the session cookie, so `p.Protect` and the bearer routes accept a browser;
+  an `Authorization` or `X-Api-Key` header wins. `RequireSignIn(h)` turns a GET's 401 into a redirect
+  to `/auth/ui/refresh`, which rotates the refresh token through `POST /auth/token/refresh` or asks
+  for a sign-in.
+- **One configured origin.** The pages' origin is `ui.Config.BaseURL`'s (default the issuer +
+  `PathPrefix`), never one derived from the request: the Host header and `r.TLS` are not read and
+  `X-Forwarded-*` is not trusted. It is what a browser's `Origin` must equal (form posts, and the
+  session cookie on non-GET requests), the origin a `return_to` URL may name, and the session rule:
+  an https origin issues sessions whatever the connection, a loopback http origin too
+  (development), any other http origin refuses every form and warns at startup. So the pages work
+  behind a TLS-terminating proxy with an internal Host, as `plugins/social`'s binding cookie learnt
+  to follow `BaseURL` (#50), and a forged Host cannot make a cross-site Origin look same-origin.
+  The pages are served on that origin only: under another name they render but refuse every post
+  with a link to the configured origin (`__Host-` cookies belong to one host); hosts redirect other
+  names at the proxy. A `BaseURL` that is not an absolute http(s) URL fails `polaris.New`.
+- **OAuth.** `plugins/oauth` gains `oauth.PageProvider`: a plugin implementing it fills the
+  `ConsentURL` and `DeviceURL` the host left empty (an explicit URL still wins). With `ui`
+  installed, a filled `DeviceURL` turns the device flow on.
+
+Security review (rule 6):
+
+- **CSRF.** Core's cookie-mode guard needs a custom header a form cannot send, so the pages use a
+  signed double-submit token: a random nonce in `__Host-polaris_csrf` (HttpOnly, Secure, Path=/,
+  SameSite=Strict; the `__Host-` prefix stops a sibling subdomain from planting it) and, in every
+  form, its HMAC from core's pepper (`Pepper.Hash("ui.csrf", nonce)`, keyed from `APP_KEY`), checked
+  with `Pepper.Matches` in constant time. A post whose `Origin` (or `Sec-Fetch-Site`) is not the
+  configured origin is refused before the token is looked at. The session cookie adds no CSRF surface to other
+  routes: the resolver uses it for GET, HEAD and OPTIONS, and for any other method only when `Origin`
+  or `Sec-Fetch-Site` says same-origin (no header: no credential), which covers the host's own
+  routes behind `p.Protect`.
+- **Redirects.** `return_to`, `AfterSignIn` and `AfterSignOut` are a same-origin path (not `//`, no
+  backslash, no control character) or an http(s) URL on the configured origin or
+  `Config.RedirectOrigins`; anything else ends on `AfterSignIn` and is not echoed into the form. The
+  configured targets are checked at startup. The consent and device pages redirect only to what
+  the provider answers (the client's registered redirect URI); that origin joins the consent page's
+  `form-action`, nothing else.
+- **Headers.** Every response: `Cache-Control: no-store`; `Content-Security-Policy: default-src
+  'none'; style-src 'self'; img-src 'self' [logo origin]; form-action 'self' [RedirectOrigins]
+  [client]; frame-ancestors 'none'; base-uri 'none'` (no script at all, no inline style; the
+  colours are generated into the stylesheet, validated as hex); `X-Frame-Options: DENY`;
+  `Referrer-Policy: no-referrer` (reset tokens ride in URLs); `X-Content-Type-Options: nosniff`.
+  Every value reaches HTML through `html/template`'s contextual escaping.
+- **Enumeration.** The pages show what the routes answer and no more: sign-up always continues to
+  "check your email", forgot and resend always show the same notice, a wrong password, an unknown
+  account and a locked account read "Incorrect email or password". Only what the JSON route already
+  tells (an unverified email under `RequireVerifiedEmail`, a disabled account) is shown.
+- **Tokens.** The email verification link verifies on GET (verification is idempotent and signs
+  nobody in); a reset link only fills the form, and the reset is a POST. The MFA ticket rides in a
+  short-lived HttpOnly cookie scoped to the pages, never in the HTML.
+- **Ceiling.** Two tabs refreshing the same session at once present one refresh token twice, and
+  reuse detection ends the session (as for any cookie client); the user signs in again.
+
+Not in v1: passkeys (the WebAuthn ceremony needs JavaScript), social and magic-link buttons (each needs
+a landing page registered among that plugin's redirect URIs), account settings and organization
+screens. `cli` knows the plugin (`--plugins=ui`).

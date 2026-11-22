@@ -1,0 +1,10 @@
+{{define "content"}}
+<p>{{.T.forgot_intro}}</p>
+<form method="post" action="{{.Base}}/forgot">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="email">{{.T.email}}</label>
+<input id="email" name="email" type="email" autocomplete="email" required maxlength="320" value="{{.Email}}" autofocus>
+<button type="submit">{{.T.forgot_send}}</button>
+</form>
+<p><a href="{{.Base}}/sign-in">{{.T.back_to_sign_in}}</a></p>
+{{end}}

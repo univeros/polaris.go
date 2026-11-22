@@ -31,6 +31,7 @@ import (
 	"github.com/univeros/polaris.go/plugins/scim"
 	"github.com/univeros/polaris.go/plugins/sentinel"
 	"github.com/univeros/polaris.go/plugins/sso"
+	"github.com/univeros/polaris.go/plugins/ui"
 	"github.com/univeros/polaris.go/plugins/username"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
@@ -84,6 +85,7 @@ func standardPlugins() []standardPlugin {
 		{"sentinel", sentinel.ID, base + "sentinel", "sentinel.New(sentinel.Config{})", func(*source) polaris.Plugin { return sentinel.New(sentinel.Config{}) }},
 		{"sso", sso.ID, base + "sso", "sso.New(sso.Config{})", func(*source) polaris.Plugin { return sso.New(sso.Config{}) }},
 		{"scim", scim.ID, base + "scim", "scim.New(scim.Config{})", func(*source) polaris.Plugin { return scim.New(scim.Config{}) }},
+		{"ui", ui.ID, base + "ui", `ui.New(ui.Config{AppName: "Acme", AfterSignIn: "/dashboard"})`, func(*source) polaris.Plugin { return ui.New(ui.Config{}) }},
 	}
 }
 

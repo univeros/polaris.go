@@ -13,6 +13,11 @@ marked **Breaking**.
 
 - `SECURITY.md`: how to report a vulnerability privately, and what happens next.
 - This changelog. Each GitHub Release now carries its version's section as release notes.
+- `plugins/ui`: server-rendered sign-in, MFA, sign-up, email verification, forgot / reset password,
+  sign-out and OAuth consent / device pages under `/auth/ui`, without JavaScript;
+  `RequireSignIn(p.Protect(h))` for your own pages; `examples/webapp` (decision 57).
+- `wiring.HandlerProvider`: a plugin serves HTML pages under its own path prefix.
+- `oauth.PageProvider`: a plugin (`ui`) fills the `ConsentURL` and `DeviceURL` you left empty.
 - `p.Require(permissions...)`, `Protect` as `func(http.Handler) http.Handler` middleware, and
   `p.Authenticate` for routes open to anonymous callers (a token that does not verify is still
   401). `polaris.RequireKind` and `polaris.RequireOrganization` (decision 55).

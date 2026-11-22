@@ -87,6 +87,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if !baseURLPattern.MatchString(p.settings.baseURL) {
 		return fmt.Errorf("oauth: the base URL %q is not an absolute http(s) URL: set oauth.Config.BaseURL", p.settings.baseURL)
 	}
+	p.usePages(g)
 	once := &onceGuard{cache: g.Cache()}
 	p.graph, p.issuer = g, g.Auth().Issuer
 	p.scopes = newScopes(g.Catalog(), p.settings.scopes)
@@ -102,6 +103,29 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		repos: g.Repos(), ttl: p.settings.cibaTTL}
 	p.dpop = &dpop{once: once, clock: g.Clock()}
 	return nil
+}
+
+// PageProvider is a plugin serving a consent page and a device page (plugins/ui implements it):
+// when one is registered, its pages fill the ConsentURL and DeviceURL the host left empty.
+type PageProvider interface {
+	OAuthPages(g *wiring.Graph) (consentURL, deviceURL string)
+}
+
+func (p *Plugin) usePages(g *wiring.Graph) {
+	for _, plugin := range g.Plugins() {
+		pages, ok := plugin.(PageProvider)
+		if !ok {
+			continue
+		}
+		consent, device := pages.OAuthPages(g)
+		if p.settings.consentURL == "" {
+			p.settings.consentURL = consent
+		}
+		if p.settings.deviceURL == "" {
+			p.settings.deviceURL = device
+		}
+		return
+	}
 }
 
 // Endpoints serves the 26 oauth routes.

@@ -118,6 +118,7 @@ cfg, err := polaris.FromEnv(db,
 | [`username`](plugins/username) | Case-insensitive usernames; sign in with username or email |
 | [`anonymous`](plugins/anonymous) | Guest sessions converted on sign-up |
 | [`multisession`](plugins/multisession) | Several accounts per device, switch without signing in again |
+| [`ui`](plugins/ui) | Server-rendered sign-in, sign-up, MFA, verification, reset and OAuth consent pages; no JavaScript |
 
 | Machines and agents | What it does |
 |---|---|
