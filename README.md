@@ -78,6 +78,10 @@ func invoices(w http.ResponseWriter, r *http.Request) {
 user, an API key, an OAuth client or an agent; the same check covers all of them. A complete program is
 in [`examples/minimal`](examples/minimal/main.go).
 
+Databases: PostgreSQL 17, MySQL 8.4 (CI runs every suite on both) and SQLite (the bundled pure-Go
+driver, SQLite 3.54, no cgo). Other versions are untested. `Migrate` keeps the schema current across
+releases: it creates missing tables and adds missing columns and indexes, and never drops data.
+
 More complete programs, each one `go run` away with no setup and a curl walkthrough:
 [`agents`](examples/agents) (an AI agent end to end), [`mcp`](examples/mcp) (your MCP server
 behind Polaris tokens), [`b2b`](examples/b2b) (organizations, roles, invitations, API keys, SSO,

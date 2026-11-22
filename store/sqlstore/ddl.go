@@ -106,13 +106,17 @@ func CreateTable(m schema.Model, d store.Dialect) ([]string, error) {
 	}
 	out := []string{"CREATE TABLE " + q(m.Table) + " (\n" + strings.Join(lines, ",\n") + "\n)"}
 	for _, idx := range m.Indexes {
-		unique := ""
-		if idx.Unique {
-			unique = "UNIQUE "
-		}
-		out = append(out, fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, q(idx.Name), q(m.Table), joinQuoted(idx.Columns, d)))
+		out = append(out, createIndex(m.Table, idx, d))
 	}
 	return out, nil
+}
+
+func createIndex(table string, idx schema.Index, d store.Dialect) string {
+	unique := ""
+	if idx.Unique {
+		unique = "UNIQUE "
+	}
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, quote(idx.Name, d), quote(table, d), joinQuoted(idx.Columns, d))
 }
 
 func columnDefinition(f schema.Field, d store.Dialect) (string, error) {

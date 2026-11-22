@@ -16,7 +16,7 @@ import (
 
 var sqlTargets = map[string]store.Dialect{"sql:postgres": store.Postgres, "sql:mysql": store.MySQL, "sql:sqlite": store.SQLite}
 
-const remedyDiff = "run `polaris migrate` to create the missing tables; it never alters an existing table, so change mismatched columns and indexes by hand"
+const remedyDiff = "run `polaris migrate` to create the missing tables, columns and indexes; it never drops a column or changes its type, so change mismatched columns by hand"
 
 func schemaExport(a *app, fs *flag.FlagSet) runFunc {
 	target := fs.String("target", "sql:postgres", "sql:postgres | sql:mysql | sql:sqlite")
@@ -48,16 +48,16 @@ func migrate(a *app, _ *flag.FlagSet) runFunc {
 		if err != nil {
 			return report{}, err
 		}
-		created, err := p.Migrate(ctx)
+		changes, err := p.Migrate(ctx)
 		if err != nil {
-			return report{}, fail(err.Error(), "check that the database user may create tables; `polaris schema:diff` lists what is missing")
+			return report{}, fail(err.Error(), "check that the database user may create and alter tables; `polaris schema:diff` lists what is missing")
 		}
 		text := "The Polaris tables exist"
-		if len(created) > 0 {
-			text = fmt.Sprintf("Created %d table(s): %s", len(created), strings.Join(created, ", "))
+		if len(changes) > 0 {
+			text = fmt.Sprintf("Applied %d change(s): %s", len(changes), strings.Join(changes, ", "))
 		}
 		text += "; seeded the permission catalog and the system roles.\n"
-		return report{text: text, data: map[string]any{"created": nonNil(created)}}, nil
+		return report{text: text, data: map[string]any{"created": nonNil(changes)}}, nil
 	}
 }
 

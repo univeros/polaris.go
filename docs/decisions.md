@@ -1008,8 +1008,7 @@ Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
   index on `prev_hash` (the first row's prev_hash is NULL, so two first rows still fork; a chain
   re-started after the chain was off would collide with the first one; it also needed the index
   added to existing tables); advisory locks (different per dialect, none on SQLite).
-  **Upgrade:** `Migrate` creates the table (`CreateMissing` creates missing tables already); the
-  lock row is inserted by the first chained write (a concurrent insert by another replica is a
+  **Upgrade:** `Migrate` creates the table (a missing table, nothing altered); the lock row is inserted by the first chained write (a concurrent insert by another replica is a
   duplicate and ignored). Rows, hashes and `Verify` are unchanged: existing chains keep verifying
   and the next write links to their newest row. A host that upgrades without running `Migrate`
   gets chained writes failing with an error naming the table and `Migrate` (logged by the recorder,
@@ -1026,18 +1025,22 @@ Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
   (`store.ErrDuplicate`) it runs again, now as the update of the row there, which is what the same
   two grants answer when they arrive one after the other (the route's 200 with the grant, its id
   kept). Up to three attempts. On SQLite writers are serialized, so the duplicate could not happen.
-  **Upgrade:** the unique index is added to existing tables by `Migrate` (decision 63's mechanism;
-  the old index is dropped after it). A database that already holds two grants for one user
-  (only this race made them) is refused, not repaired: `Migrate` fails naming
-  `polaris_admin_grant` and the duplicate `user_id` values to remove, and changes nothing else in
-  that table. Keeping "the strongest" was rejected: grants carry a scope (the instance or one
+  **Upgrade:** `Migrate` adds the unique index to existing tables and then drops the old one
+  (decision 63: `.Unique(…, "polaris_admin_grant_user_unique").DropIndex("polaris_admin_grant_user_index")`).
+  A database that already holds two grants for one user (only this race made them) is refused, not
+  repaired: `Migrate` fails with "if polaris_admin_grant holds duplicate (user_id) values, remove
+  the duplicate rows and migrate again", deletes nothing and keeps the old index. Keeping "the strongest" was rejected: grants carry a scope (the instance or one
   organization), so there is no strongest across scopes, and choosing which operator power survives
   is the operator's call. The remedy (query and revoke) is in the admin README and the changelog.
   Security review: removes a way to hold two operator grants with `For` answering either one; no
   check is weakened; the retry only re-runs the same authorized upsert. Tests:
   `TestConcurrentFirstGrantsOfOneUserKeepOneRow` (memory, PostgreSQL, MySQL: 20 rounds of 8
   concurrent first grants over two stores; before the fix PostgreSQL kept 2 rows and MySQL 5),
-  `TestAnUpgradeWithDuplicateGrantsIsRefusedWithTheRemedy`.
+  `TestAnUpgradeWithDuplicateGrantsIsRefusedWithTheRemedy` (SQLite, PostgreSQL, MySQL: refused
+  with the old index kept, then, once the extra grant is revoked, the index replaced and `Diff`
+  empty). `TestMigrateUpgradesEveryReleasedSchema` (decision 63) reaches the fresh schema from
+  v0.4.1 with exactly three changes: `polaris_audit_chain` created, the admin index created and the
+  old one dropped; the `admin` and `audit` DDL goldens are regenerated.
 - **MCP: `tools/list` is paginated (#27).** The 2026-07-28 profile and the 2025 stdio revisions
   page list results with `params.cursor` / `nextCursor`. A result now carries at most
   `mcp.ToolsPageSize` (100) tools; when more follow, `nextCursor` is the base64url of the last
@@ -1054,3 +1057,58 @@ Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
   is input validated before use and leaks nothing about other callers' tools (any name outside the
   caller's list, existing or not, is the same error). Test: `TestToolsListIsPaginated` (287 tools
   in three pages, no tool twice, the short list unchanged, invalid cursors refused).
+
+## 63. 2026-11-22 — Schema evolution: additive, declared in the schema DSL
+
+1.x will change tables that exist in deployed databases (a unique index on a plugin table, a column
+for SCIM name parts), and `Migrate` only created missing tables (`CreateMissing`). The mechanism:
+
+- **The schema DSL stays the single source.** A table is declared as the latest release wants it.
+  `sqlstore.Store.Migrate(ctx, models)` inspects each table and creates it when missing (the table,
+  then its indexes) or, on an existing table, adds every declared column it lacks
+  (`ALTER TABLE … ADD COLUMN`) and every declared index it lacks (matched by columns and
+  uniqueness, as `Diff` matches), then drops the indexes a model retires with
+  `Model.DropIndex(name)` (a new `DroppedIndexes` field). A fresh install never sees a retired name.
+  `Polaris.Migrate` calls it, finding it through `Unwrap` (telemetry/otel's wrapper) and falling
+  back to `CreateMissing` for an adapter without one.
+- **Safe by default.** It never drops a table or a column and never changes a type, nullability
+  or default: `schema:diff` reports those and they stay manual. It plans every table before the
+  first statement and refuses, changing nothing, a column added to an existing table that is NOT
+  NULL without a default (SQLite cannot add one, PostgreSQL fails on a table with rows) or part of
+  the primary key, and an index both declared and dropped (Migrate would drop and recreate it on
+  every boot). A unique index that meets duplicate rows fails with the remedy (remove the
+  duplicates, migrate again); it never deletes rows. A foreign key on an existing table is not
+  added (SQLite cannot); a new relation goes on a new table.
+- **Idempotent on every replica.** Each step is checked against the live table before it runs;
+  when its statement fails and a fresh inspection shows the change in place (another replica got
+  there first: none of the three dialects has `ADD COLUMN IF NOT EXISTS` and MySQL has no `CREATE
+  INDEX IF NOT EXISTS`), the step counts as done. A second run changes nothing.
+- **What it returns.** `Polaris.Migrate` returned the tables it created; it now returns what it
+  changed: each created table by name (as before), then `"<table>: added column <c>"`,
+  `"<table>: created index <i>"`, `"<table>: dropped index <i>"`. On a database that only lacked
+  tables the result is unchanged. `polaris migrate` prints "Applied N change(s)"; its JSON keeps
+  the `created` key, holding the same list.
+
+How a plugin declares a change: add the field to its `schema.Table(…)` (`.AsNullable()` or
+`.WithDefault(v)`); add an index with `.Index`/`.Unique` under a new name; to turn an index into a
+unique one, declare the unique index under a new name and `.DropIndex("<old name>")`. Then
+regenerate the plugin's DDL golden (`go test ./cli -run TestPluginDDLGoldens -update`); the
+upgrade test checks `Migrate` reaches the new schema from the released one.
+
+Why not versioned migration steps (a table of applied step ids, SQL per dialect): every additive
+change would need three hand-written dialect variants and a step id, for what the DSL already
+says; a diff-driven step cannot drift from the fresh-install DDL. A change the DSL cannot express
+(a rename, a type change, a backfill) is when a versioned step is worth adding; none is needed
+yet.
+
+Guards, all in `make qa` (SQLite) and the database matrix (PostgreSQL 17, MySQL 8.4):
+`TestMigrateAddsColumnsAndIndexesAndKeepsRows`, `TestMigrateIsSafeOnConcurrentReplicas`,
+`TestMigrateRefusesWhatItCannotApplySafely`, `TestMigrateNamesTheFixWhenAUniqueIndexMeetsDuplicates`
+(`store/sqlstore`); `TestMigrateUpgradesEveryReleasedSchema` (`cli`: applies the schema
+`polaris schema:export --plugins=<all>` printed at v0.4.1, `testdata/upgrade/v0.4.1.*.sql`, runs
+`Migrate`, and compares every table with a fresh install, index names included; a release that
+changes the schema adds its predecessor's export there); `TestPluginDDLGoldens` (one golden per
+plugin per dialect in `testdata/ddl`, like core's). Lint: revive's `exported` rule now fails on an
+exported name without a doc comment (its "X …" wording check is not enforced: the event types
+read "UserLoggedIn: …"). Security review: no security-critical package changes; `Migrate` runs
+DDL built from the compiled-in schema only, quoting every identifier, never from input.

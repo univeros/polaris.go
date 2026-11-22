@@ -61,6 +61,12 @@ func TestQuickstart(t *testing.T) {
 	if again, err := p.Migrate(ctx); err != nil || len(again) != 0 {
 		t.Fatalf("second migrate must be a no-op: %v %v", again, err)
 	}
+	if err := db.Exec(ctx, `DROP INDEX "auth_email_verifications_user_index"`); err != nil {
+		t.Fatal(err)
+	}
+	if again, err := p.Migrate(ctx); err != nil || len(again) != 1 || again[0] != "auth_email_verifications: created index auth_email_verifications_user_index" {
+		t.Fatalf("migrate must restore a missing index of an existing table: %v %v", again, err)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", p.Handler())
