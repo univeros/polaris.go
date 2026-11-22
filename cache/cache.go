@@ -48,7 +48,7 @@ func ValidateKey(key string) error {
 		return fmt.Errorf("%w: a cache key must be a non-empty string", ErrInvalidKey)
 	}
 	if strings.ContainsAny(key, reservedKeyChars) {
-		return fmt.Errorf("%w: %q contains a character reserved by PSR-16 (%s)", ErrInvalidKey, key, reservedKeyChars)
+		return fmt.Errorf("%w: %q contains a reserved character (%s)", ErrInvalidKey, key, reservedKeyChars)
 	}
 	return nil
 }

@@ -62,7 +62,7 @@ func checkOffset(label string, ttl int) int {
 func TestJWTVectors(t *testing.T) {
 	var v jwtVectors
 	readVector(t, "jwt.json", &v)
-	if v.Generator != "php" || len(v.Cases) == 0 {
+	if v.Generator != "recorded" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
 	for _, c := range v.Cases {
@@ -266,7 +266,7 @@ func (c oauthCase) codec(t *testing.T, side oauthSide, instant string) *Codec {
 func TestOAuthJWTVectors(t *testing.T) {
 	var v oauthVectors
 	readVector(t, "oauth-jwt.json", &v)
-	if v.Generator != "php" || len(v.Cases) == 0 {
+	if v.Generator != "recorded" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
 	for _, c := range v.Cases {
@@ -318,7 +318,7 @@ func TestReceiptVectors(t *testing.T) {
 		Cases     []receiptCase `json:"cases"`
 	}
 	readVector(t, "receipt.json", &v)
-	if v.Generator != "php" || len(v.Cases) == 0 {
+	if v.Generator != "recorded" || len(v.Cases) == 0 {
 		t.Fatalf("unexpected vector file: %+v", v)
 	}
 	for _, c := range v.Cases {

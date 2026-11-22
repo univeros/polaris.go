@@ -1,5 +1,5 @@
 {
-    "generator": "php",
+    "generator": "recorded",
     "chains": [
         {
             "alg": "RS256",
