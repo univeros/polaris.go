@@ -226,6 +226,12 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 	return p.endpoints(), nil
 }
 
+// EraseAccess implements wiring.AccessEraser: the provider accounts linked before anyone proved
+// the user's mailbox go with its first proof.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	return p.unlinkAll(ctx, userID)
+}
+
 // Listeners erase an erased user's provider accounts (their email, profile and tokens).
 func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 	return []event.Listener{func(ctx context.Context, e event.Event) {

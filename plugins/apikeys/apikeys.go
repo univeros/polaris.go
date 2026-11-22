@@ -154,6 +154,12 @@ func (p *Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{p.middleware}
 }
 
+// EraseAccess implements wiring.AccessEraser: the keys minted before anyone proved the user's
+// mailbox go with its first proof.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	return p.keys.DeleteForUser(ctx, userID)
+}
+
 // Listeners erase the keys of an erased user or organization, and the organization keys a
 // departing member acts for.
 func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {

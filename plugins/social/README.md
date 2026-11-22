@@ -87,6 +87,23 @@ With `plugins/audit` registered they become audit rows (`Plugin.AuditNames`). No
 `provider_error`, `account_disabled`, `email_unverified` (403), `account_exists`, `account_linked`,
 `email_mismatch`, `last_credential`, `no_refresh` (409), `not_linked` (404).
 
+## An email the provider does not vouch for
+
+A provider that returns an address without saying it verified it (`email_verified` false or
+missing) proves nothing about who owns the mailbox, so nothing is created in that address's name:
+
+- with `Auth.Flows.RequireVerifiedEmail` on (the default), the sign-up answers `email_unverified`
+  and leaves **no account and no link** behind. The person signs up with the address another way
+  (registration, an email code) and links the provider from their account;
+- with it off, the account is created unverified and signs in. When someone later proves the
+  mailbox (a verification link on an account without a password, a password reset, an email code or
+  magic link, a trusted provider, SSO), that first proof removes the provider link with everything
+  else that could sign in before it (`Identity.ProveEmail`); the owner links the provider again
+  from their account.
+
+A trusted provider's verified email linking to an unverified account is such a first proof: the
+password, factors, passkeys, keys, other providers' links and sessions of the unproven account go.
+
 ## Host integration
 
 - Social works without audit. A `event.UserDeleted` erases the user's provider accounts (email,

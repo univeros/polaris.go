@@ -6,10 +6,12 @@ import "github.com/univeros/polaris.go/schema"
 const (
 	TableProviders = "polaris_sso_provider"
 	TableDomains   = "polaris_sso_domain"
+	// TableAccounts records the accounts an organization's providers created (decision 68).
+	TableAccounts = "polaris_sso_account"
 )
 
-// Models returns the two tables, providers and domains; their columns are the schema existing
-// databases hold.
+// Models returns the tables: providers, domains and provisioned accounts; their columns are the
+// schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableProviders,
@@ -38,5 +40,15 @@ func Models() []schema.Model {
 		).
 			Unique([]string{"domain"}, "polaris_sso_domain_unique").
 			Index([]string{"organization_id"}, "polaris_sso_domain_org_index"),
+		// Added after v0.5.0 (decision 68): the accounts an organization's providers provisioned
+		// just in time. Such an account, or one on a domain the organization verified, is the only
+		// existing account a provider signs in. Migrate creates it.
+		schema.Table(TableAccounts,
+			schema.StringField("id", 36).AsPrimary(),
+			schema.StringField("organizationId", 36),
+			schema.StringField("userId", 36),
+			schema.StringField("providerId", 36).AsNullable(),
+			schema.DateTimeField("createdAt"),
+		).Unique([]string{"organization_id", "user_id"}, "polaris_sso_account_unique"),
 	}
 }

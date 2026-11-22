@@ -248,6 +248,34 @@ func (s *service) permissionsOf(ctx context.Context, a Agent) ([]string, error) 
 	return out, err
 }
 
+// ClientPermissions implements oauth.ClientAuthority: an agent's own token (client credentials)
+// may carry the permissions its live grants require and the user it acts as holds now; an
+// inactive agent holds none. owned is false when clientID is not an agent.
+func (p *Plugin) ClientPermissions(ctx context.Context, clientID string) ([]string, bool, error) {
+	a, found, err := p.s.agent(ctx, clientID)
+	if err != nil || !found {
+		return nil, false, err
+	}
+	if !a.Active() {
+		return nil, true, nil
+	}
+	granted, err := p.s.permissionsOf(ctx, a)
+	if err != nil {
+		return nil, true, err
+	}
+	held := []string{}
+	for _, permission := range granted {
+		ok, err := p.s.ownerHolds(ctx, a, permission)
+		if err != nil {
+			return nil, true, err
+		}
+		if ok {
+			held = append(held, permission)
+		}
+	}
+	return held, true, nil
+}
+
 // ownerHolds reports whether the user the agent acts as holds the permission now, in its
 // organization.
 func (s *service) ownerHolds(ctx context.Context, a Agent, permission string) (bool, error) {

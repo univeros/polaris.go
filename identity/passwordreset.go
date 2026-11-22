@@ -65,7 +65,8 @@ func (s *Service) ForgotPassword(ctx context.Context, email string, client token
 
 // ResetPassword sets a new password from a reset token, clears any lockout (proving control of
 // the email is a legitimate recovery), consumes the token, revokes every session (reason
-// password_change) and dispatches event.PasswordChanged.
+// password_change) and dispatches event.PasswordChanged. The token proves the mailbox: an
+// unverified account becomes verified, as a first proof (ProveEmail).
 //
 // A new password failing the policy returns a *PasswordError (checked first). An unknown,
 // consumed or expired token, or a disabled account, returns ErrInvalidResetToken: a disabled
@@ -97,8 +98,6 @@ func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string,
 	if err != nil {
 		return fmt.Errorf("identity: reset password: %w", err)
 	}
-	next := clearLockout(user)
-	next.PasswordHash, next.UpdatedAt = &hash, now
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		// Single use under concurrency too: only the request that flips consumed_at goes on.
 		claimed, err := s.db.Update(ctx, "auth_password_resets",
@@ -110,7 +109,15 @@ func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string,
 		if claimed != 1 {
 			return refuse(ErrInvalidResetToken, msgBadReset)
 		}
-		return s.repos.Users.Update(ctx, user, next)
+		// The token came through the mailbox: for an account nobody had proven it is the first
+		// proof, and what could sign in before goes with the old password.
+		proven, _, err := s.ProveEmail(ctx, user.ID, false)
+		if err != nil {
+			return err
+		}
+		next := clearLockout(proven)
+		next.PasswordHash, next.UpdatedAt = &hash, now
+		return s.repos.Users.Update(ctx, proven, next)
 	})
 	if errors.Is(err, ErrInvalidResetToken) {
 		return err

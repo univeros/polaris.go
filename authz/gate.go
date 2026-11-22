@@ -21,6 +21,10 @@ type Caller struct {
 	OrganizationID       string // "" when no organization is active
 	Delegated            bool
 	DelegatedPermissions []string
+	// OrganizationBound marks a session an organization's identity provider opened
+	// (token.Token.OrganizationBound): it holds what the user's roles in OrganizationID grant and
+	// never the superadmin override, which a tenant's identity provider must not reach.
+	OrganizationBound bool
 }
 
 // Gate is the programmatic authorization check: does the
@@ -35,9 +39,13 @@ func NewGate(resolver *Resolver) *Gate { return &Gate{resolver: resolver} }
 // Authority returns the caller's database-resolved authority. For a delegated caller the scope is
 // the intersection of the owner's scope and DelegatedPermissions, and the roles are the owner's
 // without superadmin: the global override, and the escalation and cross-organization exemptions
-// that follow it, stay with the owner.
+// that follow it, stay with the owner. An OrganizationBound caller who is a superadmin holds
+// nothing.
 func (g *Gate) Authority(ctx context.Context, c Caller) (Authority, error) {
 	a, err := g.resolver.Resolve(ctx, c.UserID, c.OrganizationID)
+	if err == nil && c.OrganizationBound && a.IsSuperadmin() {
+		return none(), nil // the override replaces the organization's roles: nothing is left
+	}
 	if err != nil || !c.Delegated {
 		return a, err
 	}

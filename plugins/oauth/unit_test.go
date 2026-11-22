@@ -588,11 +588,11 @@ func TestTheGoAPIIssuesExchangesAndVerifies(t *testing.T) {
 		}
 	}
 	exchanged, err := p.Exchange(ctx, c, ExchangeRequest{SubjectToken: resp.AccessToken, SubjectTokenType: TokenTypeAccessToken,
-		ActorToken: resp.AccessToken, ActorTokenType: TokenTypeAccessToken, Scopes: []string{"org.read"}})
+		ActorToken: resp.AccessToken, ActorTokenType: TokenTypeAccessToken, Scopes: []string{"profile"}})
 	must(t, err)
 	introspected, err := p.tokens.introspect(ctx, exchanged.AccessToken)
 	must(t, err)
-	if introspected["act"].(map[string]any)["sub"] != user.ID || introspected["scope"] != "org.read" {
+	if introspected["act"].(map[string]any)["sub"] != user.ID || introspected["scope"] != "profile" {
 		t.Errorf("the actor token's subject acts: %v", introspected)
 	}
 
@@ -606,7 +606,8 @@ func TestTheGoAPIIssuesExchangesAndVerifies(t *testing.T) {
 	if principal.Subject() != user.ID || principal.Claim("auth_time") != nil || !hasAMR(principal) {
 		t.Errorf("principal %v", principal.Claims())
 	}
-	if perms, ok := principal.Delegation(); !ok || strings.Join(perms, ",") != "org.read" {
+	// Ada is in no organization, so the org.read asked for is not in her token (decision 69).
+	if perms, ok := principal.Delegation(); !ok || len(perms) != 0 {
 		t.Errorf("delegated %v", perms)
 	}
 	r.Header.Set("Authorization", "DPoP "+resp.AccessToken)
@@ -681,5 +682,22 @@ func TestTheDefaultOperatorsAreTheSuperadmins(t *testing.T) {
 	}
 	if _, refused := p.operator(ctx, r, false, "org-2"); refused == nil {
 		t.Error("outside its scope")
+	}
+}
+
+// A trusted client's scopes are its own permissions (decision 69): only an operator changes them.
+func TestOnlyAnOperatorChangesATrustedClientsScopes(t *testing.T) {
+	ctx := context.Background()
+	p, _ := boot(t, Config{})
+	issued, err := p.CreateClient(ctx, ClientFields{"name": "Bot", "trusted": true, "scopes": []any{"org.read"},
+		"grant_types": []any{GrantClientCredentials}}, "", "", true)
+	must(t, err)
+	_, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"scopes": []any{"org.read", "users.manage"}}, false)
+	wantCode(t, err, CodeInvalidClientMetadata, "an organization widening a trusted client")
+	if _, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"name": "Bot 2", "scopes": []any{"org.read"}}, false); err != nil {
+		t.Errorf("unchanged scopes: %v", err)
+	}
+	if _, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"scopes": []any{"users.manage"}}, true); err != nil {
+		t.Errorf("an operator: %v", err)
 	}
 }

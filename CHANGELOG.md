@@ -68,6 +68,106 @@ marked **Breaking**.
 - `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
   `%2520`); each path segment is now escaped once (decision 65).
 
+## [0.5.1] - 2026-11-22
+
+Security fixes from the pre-1.0 security review (decisions 68 and 69). Upgrade now and **run
+`Migrate`** (one new table, `polaris_sso_account`). Some fixes change what clients see; read every
+entry if you use `plugins/sso`, `plugins/social`, `plugins/oauth` (with `verify` or `mcp.Protect`
+downstream), `plugins/admin` or `plugins/ui`. In particular: accounts an SSO provider created
+before this release sign in through SSO again once the organization verifies its email domain or
+you call `sso.Of(g).MarkProvisioned`; SSO sessions stay in their organization; OAuth tokens carry
+only the permission scopes their subject holds.
+
+### Added
+
+- For plugin authors: `wiring.Identity.ProveEmail`, the optional `wiring.AccessEraser` (a plugin
+  that stores a way to act as a user removes it on the mailbox's first proof),
+  `token.Token.OrganizationBound`, `token.AMRSSO`, `authz.Caller.OrganizationBound`,
+  `pipeline.DeniesBound`, `session.ErrOrganizationBound`. For hosts:
+  `Principal.OrganizationBound`, `sso.Plugin.MarkProvisioned`.
+- `oauth.ClientAuthority`: a plugin whose OAuth clients act as themselves says which permissions
+  such a client holds (`plugins/agents` implements it with `Plugin.ClientPermissions`).
+
+### Security
+
+- sso: a provider signs in an existing account only when its organization owns the account: one of
+  its providers created it just in time, one of its SCIM directories created it, or the account's
+  email domain is verified for the organization. Being a member of the organization is no longer
+  enough. **Breaking, client-visible:** other accounts answer 403 `sso/user_unknown`, including
+  accounts a provider created before this release: verify the organization's email domain, or
+  record them with `sso.Of(g).MarkProvisioned(ctx, organizationID, userID)`. An IdP LogoutRequest
+  ends sessions under the same rule. A platform superadmin no longer signs in through an
+  organization's provider.
+- sso: the session a provider opens is bound to the provider's organization (`amr` holds `sso`;
+  sessions opened before the upgrade included). **Client-visible:** `POST /auth/switch-org` to
+  another organization answers 403, and so does every route reserved to the account holder: the
+  password, MFA factors and step-up, passkeys, API keys, provider links, phone numbers, agents,
+  OAuth consent, creating or joining an organization, the profile, account deletion and
+  logout-everywhere. Reading, logging out, refreshing and the organization's permissioned routes
+  work as before. A user who needs the others signs in to the account itself. Hosts read
+  `Principal.OrganizationBound` and should refuse it on routes that act on the user's account or
+  on data outside the organization.
+- The first proof of an account's mailbox is one operation on every path (`Identity.ProveEmail`):
+  a password reset, a passwordless email code or magic link, a trusted social link and an SSO
+  sign-in on a verified domain, for an account whose email was never verified, mark it verified
+  and remove what could act as it before: the password, MFA factors and recovery codes, passkeys,
+  provider links, API keys, OAuth grants, agents, the confirmed phone and every session. Before,
+  each path removed a different part, and a provider account linked to an unverified account kept
+  signing in after the mailbox's owner took the account over. **Client-visible:** a password reset
+  (core's and the passwordless code) now verifies an unverified account (`email_verified` true,
+  `user.email_verified` dispatched); a verification link or code on an account that has no
+  password removes the same things; with a password it confirms the registration and removes
+  nothing, as before.
+- social: a sign-up whose provider does not vouch for the email creates no account and no link
+  when unverified accounts cannot sign in (`RequireVerifiedEmail`, the default). It answered 403
+  `social/email_unverified` before too, but left both behind in the address's name.
+  **Client-visible:** the address stays free to register; the person signs up another way and
+  links the provider from their account.
+- ui: opening the email verification link no longer verifies (mail scanners follow links).
+  **Client-visible:** `GET /auth/ui/verify?token=…` answers a page with one button, and its
+  CSRF-guarded POST verifies. New message key `verify_confirm`; a host template replacing
+  `verify.html` keeps working and may use `.TokenGiven`.
+- `plugins/oauth`: a scope that is a permission name (`org.read`, one of your
+  `Config.Permissions`) is put in an access token only if the token's subject holds that
+  permission when the token is minted: at issue, on every refresh and on a token exchange. A user
+  holds what their roles grant in the token's organization. A client acting as itself
+  (`client_credentials`) holds none, unless an operator registered it `trusted` with the
+  permission in its `scopes`, or it is an agent of `plugins/agents` (its live grants that its
+  owner holds). Before, any permission scope a client asked for was granted; the host's own routes
+  were not affected (they intersect with the user's permissions on every request), but a service
+  checking tokens with `verify.Require` or `mcp.Protect` read a permission the subject did not
+  hold. **Client-visible:** a token response's `scope` may list fewer scopes than requested
+  (RFC 6749 §3.3); clients should read it. `PATCH /orgs/{id}/oauth/clients/{clientId}` answers 400
+  `invalid_client_metadata` when it changes the `scopes` of a trusted client (an operator sets
+  them). If you run `verify` or `mcp.Protect` in other services, upgrade the Polaris host; their
+  documentation now says what a scope proves: only a permission scope is an authorization check,
+  a `Config.Scopes` scope says what the client asked for (decision 69).
+- `plugins/admin`: an operator below `owner` can no longer ban, unban, set the password of, remove
+  or reset the MFA of, or delete the account of a superadmin or of an operator whose grant is of
+  its own role or above. **Client-visible:** those requests answer 403 `admin/forbidden`; an
+  `owner` manages every account as before (decision 69).
+- MFA: second-factor attempts are limited per user, not only per IP. After
+  `auth.lockout.max_attempts` (5) codes that did not clear at the MFA login step or step-up,
+  recovery codes included, every code of that user is answered as a wrong one until
+  `auth.lockout.lock_duration` (15 minutes) has passed since the first; a code that clears resets
+  the count. **Client-visible:** during that window a right code answers the wrong-code 422
+  (decision 69).
+- MFA: an email or SMS code attempt is counted before the code is compared, so requests sent
+  together cannot get more compares than `auth.otp.max_attempts` (decision 69).
+- `plugins/ui`: `GET /auth/ui/refresh` renews the session only for a navigation the browser marks
+  `Sec-Fetch-Site: same-origin` or `none` (or without the header). **Client-visible:** arriving
+  from a link on another site with an expired access cookie shows a page with one "Continue" link
+  (messages `refresh_title`, `refresh_intro`) that renews the session, instead of renewing at
+  once (decision 69).
+- `plugins/agents`: on the plugin's routes a request JWT's `aud` is checked against
+  `Config.BaseURL`'s origin (default: the oauth plugin's base URL) instead of the request's `Host`
+  header; a TLS-terminating proxy no longer has to set `r.TLS` for them. **Client-visible:** an
+  agent calling Polaris under another host name gets `aud_mismatch`. An autonomous agent's own
+  token carries only the grant permissions its owner still holds (decision 69).
+- `verify`, `mcp.Protect`: a failed fetch of the issuer's JWK Set is remembered for 5 seconds, so
+  requests answer 503 at once while the issuer is down instead of waiting for one another's
+  timeout (decision 69).
+
 ## [0.5.0] - 2026-11-22
 
 Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
@@ -360,7 +460,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0

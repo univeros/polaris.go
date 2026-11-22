@@ -31,3 +31,14 @@ CREATE TABLE `polaris_sso_domain` (
 CREATE UNIQUE INDEX `polaris_sso_domain_unique` ON `polaris_sso_domain` (`domain`);
 
 CREATE INDEX `polaris_sso_domain_org_index` ON `polaris_sso_domain` (`organization_id`);
+
+CREATE TABLE `polaris_sso_account` (
+    `id` VARCHAR(36) NOT NULL,
+    `organization_id` VARCHAR(36) NOT NULL,
+    `user_id` VARCHAR(36) NOT NULL,
+    `provider_id` VARCHAR(36) NULL,
+    `created_at` DATETIME NOT NULL,
+    PRIMARY KEY (`id`)
+);
+
+CREATE UNIQUE INDEX `polaris_sso_account_unique` ON `polaris_sso_account` (`organization_id`, `user_id`);

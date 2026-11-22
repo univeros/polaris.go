@@ -41,6 +41,13 @@ http.Handle("/", h) // the MCP endpoint and /.well-known/oauth-protected-resourc
 // in a tool: claims := mcp.Claims(ctx) // sub, scope, client_id, act, …
 ```
 
+`Protect` checks the token locally, so a scope is all it knows. A Polaris permission name in
+`Scopes` is an authorization check as of the token's issue (the oauth plugin grants a permission
+scope only to a subject that holds it). A scope that is not a permission, like `deploy` above
+(`oauth.Config.Scopes`), says only that the client was allowed to ask for it, which with dynamic
+client registration is anyone: decide what the caller may do from a permission scope, or from `sub`
+and `client_id` in `mcp.Claims`.
+
 ## Config
 
 | Field | Default | Purpose |

@@ -14,9 +14,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
@@ -36,6 +38,9 @@ var (
 	// signature: the whole family has been revoked and event.RefreshReuseDetected dispatched by
 	// the time it is returned. It matches ErrInvalidGrant too.
 	ErrRefreshReuse = fmt.Errorf("%w: refresh token already used", ErrInvalidGrant)
+	// ErrOrganizationBound reports a SwitchOrganization out of a session an organization's
+	// identity provider opened (amr "sso"): it stays in that organization.
+	ErrOrganizationBound = errors.New("session: bound to its organization")
 	// ErrInvalidConfig reports a Config missing a dependency.
 	ErrInvalidConfig = errors.New("session: invalid configuration")
 )
@@ -262,9 +267,15 @@ func (s *Service) StepUp(ctx context.Context, userID, organizationID, sessionID 
 		return "", fmt.Errorf("session: step-up: %w", err)
 	}
 	authTime := s.now().Unix()
-	p.MFA, p.AMR, p.AuthTime = true, []string{"pwd", "otp"}, &authTime
+	amr := []string{"pwd", "otp"}
+	if organizationBound(deref(active.AMR)) {
+		// A factor proved on a session an identity provider opened does not make it the account
+		// holder's: it stays bound to its organization.
+		amr = []string{token.AMRSSO, "otp"}
+	}
+	p.MFA, p.AMR, p.AuthTime = true, amr, &authTime
 	after := active
-	after.MFA, after.AMR, after.AuthTime = true, ptr("pwd,otp"), &authTime
+	after.MFA, after.AMR, after.AuthTime = true, ptr(strings.Join(amr, ",")), &authTime
 	if err := s.tokens.Update(ctx, active, after); err != nil {
 		return "", fmt.Errorf("session: step-up: %w", err)
 	}
@@ -280,6 +291,9 @@ func (s *Service) SwitchOrganization(ctx context.Context, userID, organizationID
 	active, err := s.liveToken(ctx, sessionID)
 	if err != nil {
 		return "", err
+	}
+	if organizationBound(deref(active.AMR)) && deref(active.OrganizationID) != organizationID {
+		return "", ErrOrganizationBound
 	}
 	after := active
 	after.OrganizationID = &organizationID
@@ -321,6 +335,11 @@ func (s *Service) revokeFamily(ctx context.Context, familyID, reason string, now
 // auth_time is p's, never re-stamped: it is the last full authentication. Config.Claims adds the
 // host's claims last.
 func (s *Service) Mint(ctx context.Context, p token.SessionPrincipal, sessionID string, extra token.Claims) (string, error) {
+	if slices.Contains(amrOf(p), token.AMRSSO) && slices.Contains(p.Roles, authz.RoleSuperadmin) {
+		// A session an organization's identity provider opened never carries the platform
+		// override (authz.Gate resolves it the same way): the token says so too.
+		p.Roles, p.Scope = []string{}, nil
+	}
 	claims, err := token.AccessClaims{
 		Subject: p.UserID, ID: repository.NewID(), SessionID: sessionID, OrganizationID: p.OrganizationID,
 		Roles: p.Roles, Scope: p.Scope, EmailVerified: p.EmailVerified, MFA: p.MFA, AMR: amrOf(p),
@@ -411,6 +430,12 @@ func newSecret() (string, error) {
 		return "", fmt.Errorf("session: random secret: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// organizationBound reports whether a session's stored amr ("sso", "sso,otp") is an identity
+// provider's: see token.Token.OrganizationBound.
+func organizationBound(amr string) bool {
+	return slices.Contains(strings.Split(amr, ","), token.AMRSSO)
 }
 
 func amrOf(p token.SessionPrincipal) []string {

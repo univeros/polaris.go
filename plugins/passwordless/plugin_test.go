@@ -416,6 +416,52 @@ func TestPlugin(t *testing.T) {
 		refused(t, e.v.resetPassword(ctx, "ada@example.com", code, "another new passphrase"), ErrCodeInvalid, "once")
 	})
 
+	// Whoever registered an address without proving it may have left more than a password: the
+	// first proof of the mailbox (a sign-in code, a reset code) removes every way in they made.
+	t.Run("TheFirstProofOfTheMailboxRemovesWhatCameBefore", func(t *testing.T) {
+		e := boot(t, Config{})
+		ctx := e.ctx
+		planted := func(email, phone string) model.User {
+			u := e.user(email, false)
+			now := time.Now().UTC().Truncate(time.Second)
+			ok(t, e.g.DB().Insert(ctx, TablePhones, store.Row{"user_id": u.ID, "e164": phone, "verified_at": now, "created_at": now}))
+			ok(t, e.g.Repos().MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now}))
+			return u
+		}
+		left := func(u model.User) (phones int64, factors int) {
+			phones, err := e.g.DB().Count(ctx, TablePhones, store.Criteria{"user_id": u.ID})
+			ok(t, err)
+			list, err := e.g.Repos().MFAFactors.ListByUser(ctx, u.ID)
+			ok(t, err)
+			return phones, len(list)
+		}
+
+		ada := planted("ada@example.com", "+15550100")
+		ok(t, e.v.sendEmailCode(ctx, "ada@example.com", PurposeSignIn))
+		data := must[envelope](t)(e.v.signInWithEmailCode(ctx, "ada@example.com", e.mailCode()))
+		if phones, factors := left(ada); data["access_token"] == nil || phones != 0 || factors != 0 || e.reload(ada.ID).PasswordHash != nil {
+			t.Fatalf("a sign-in code: session %v, phones %d, factors %d", data["access_token"] != nil, phones, factors)
+		}
+
+		grace := planted("grace@example.com", "+15550101")
+		ok(t, e.v.sendEmailCode(ctx, "grace@example.com", PurposeResetPassword))
+		ok(t, e.v.resetPassword(ctx, "grace@example.com", e.mailCode(), "a brand new passphrase"))
+		if phones, factors := left(grace); phones != 0 || factors != 0 || e.reload(grace.ID).EmailVerifiedAt == nil {
+			t.Fatalf("a reset code: phones %d, factors %d", phones, factors)
+		}
+		if res, err := e.g.Identity().Login(ctx, "grace@example.com", "a brand new passphrase", token.ClientContext{}); err != nil || res.UserID != grace.ID {
+			t.Fatalf("the owner signs in with the new password: %v", err)
+		}
+
+		// A verification code confirms the registration that set the password: nothing goes.
+		lin := planted("lin@example.com", "+15550102")
+		ok(t, e.v.sendEmailCode(ctx, "lin@example.com", PurposeVerifyEmail))
+		ok(t, e.v.verifyEmail(ctx, "lin@example.com", e.mailCode()))
+		if phones, factors := left(lin); phones != 1 || factors != 1 || e.reload(lin.ID).PasswordHash == nil || e.reload(lin.ID).EmailVerifiedAt == nil {
+			t.Fatalf("a verification code: phones %d, factors %d", phones, factors)
+		}
+	})
+
 	t.Run("AResetLiftsALockAndVerifies", func(t *testing.T) {
 		e := boot(t, Config{})
 		u := e.user("ada@example.com", false)

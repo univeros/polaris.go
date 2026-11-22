@@ -54,6 +54,14 @@ the methods plugins call; the services behind them may grow and change freely. A
 needs is added to its interface. `TestGraphAccessorsReturnOnlyStableTypes` keeps every `Graph`
 accessor on a stable type.
 
+Two rules a plugin follows (decision 68). A path that establishes control of an account's mailbox
+calls `Graph.Identity().ProveEmail` and never writes `email_verified_at` itself; a plugin whose
+tables hold a way to act as a user (a credential, a key, a grant) implements `wiring.AccessEraser`,
+so a mailbox's first proof removes what was there before it. And a route reserved to the account
+holder declares no `requires_permissions` and an `effect` other than `read` (or `step_up`): the
+pipeline keeps delegated credentials (`pipeline.DeniesDelegate`) and organization-bound SSO
+sessions (`pipeline.DeniesBound`, `token.Token.OrganizationBound`) off it.
+
 Stable with them, because the SDK's signatures name them: packages `model` (the rows; frozen with
 the database) and `schema` (the table DSL a `SchemaProvider` uses); `Graph.Repos` (`repository.Repos`,
 its repositories, `repository.Table`, `NewID`, `ErrNotFound`); `security.Encrypter`; and the

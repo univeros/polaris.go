@@ -373,4 +373,29 @@ func TestAuthorization(t *testing.T) {
 			t.Fatal("the account holder may")
 		}
 	})
+	t.Run("a session an identity provider opened stays off the account's own routes", func(t *testing.T) {
+		bound := issue(t, "user-1", map[string]any{"amr": []string{"sso"}})
+		if !bound.OrganizationBound() || user.OrganizationBound() || issue(t, "user-1", map[string]any{"amr": []string{"pwd", "otp"}}).OrganizationBound() {
+			t.Fatal("amr sso, and only it, binds a session to its organization")
+		}
+		msg := `{"error":"forbidden","message":"` + MsgOrganizationBound + `"}`
+		for _, r := range []*http.Request{
+			req("POST", "/auth/switch-org", bound), req("POST", "/auth/password/change", bound), req("POST", "/auth/mfa/totp/enroll", bound),
+			req("DELETE", "/auth/mfa/factors/{id}", bound), req("POST", "/auth/mfa/step-up", bound), req("POST", "/auth/logout-all", bound),
+			req("POST", "/orgs", bound), req("POST", "/auth/invites/accept", bound), req("DELETE", "/users/{id}", bound), req("PATCH", "/users/{id}", bound),
+		} {
+			if w := serve(authorize(stubGate{})(&counting{}), r); w.Code != 403 || w.Body.String() != msg {
+				t.Errorf("%s %s: %d %s", r.Method, r.URL.Path, w.Code, w.Body)
+			}
+		}
+		// It reads, ends itself, and does what its organization's permissions allow.
+		for _, r := range []*http.Request{req("GET", "/auth/me", bound), req("POST", "/auth/logout", bound), req("GET", "/orgs", bound)} {
+			if w := serve(authorize(stubGate{})(&counting{}), r); w.Code != 200 {
+				t.Errorf("%s %s: %d", r.Method, r.URL.Path, w.Code)
+			}
+		}
+		if w := serve(authorize(stubGate{grants: grants{"roles.manage"}})(&counting{}), req("DELETE", rt.Path, bound)); w.Code != 200 {
+			t.Errorf("a permission of its organization: %d", w.Code)
+		}
+	})
 }

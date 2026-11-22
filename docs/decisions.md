@@ -1312,6 +1312,135 @@ erasure. It is keyed by address, not user id, and `event.UserDeleted` does not c
 (the row is already a tombstone when it is dispatched); erasing it needs the address passed along
 or a retention prune, a separate change.
 
+## 68. 2026-11-22 — Account boundaries: what an organization's IdP may reach, the first proof of a mailbox, verification links
+
+Three ways across an account's boundary, found by a security review with running tests, all
+closed. Each is client-visible; the changelog lists what a host or client sees.
+
+- **sso: an organization's IdP signs in only the accounts the organization owns (supersedes the
+  rule of #43).** #43 let a provider sign in an existing account that was "already a member of that
+  organization or its email domain is verified for it". Membership was the mistake: any user can
+  create an organization, configure an IdP that asserts any email, and invite people; a person who
+  accepted became an account that organization's IdP could open, with a session like any other.
+  Now a provider signs in an existing account only when (`owns`) one of the organization's
+  providers created it just in time (a new table, `polaris_sso_account`, written with the account),
+  one of its SCIM directories created it (`scim.Plugin.Provisioned`: the provenance row carries the
+  account's creation time, the test SCIM's own `owns` already used), or the account's email domain
+  is verified for the organization. Anything else answers `sso/user_unknown`. An IdP LogoutRequest
+  ends sessions under the same rule (it was "members"). An unverified account on a verified domain
+  is proven by the sign-in (below). **Break, deliberate:** accounts a provider created before this
+  release have no record; they sign in again once the organization verifies their domain, or the
+  host records them (`sso.Plugin.MarkProvisioned`). No heuristic can tell them from a member who
+  signed up alone, so none is tried. Run `Migrate` (one new table).
+- **sso: the session an IdP opens is bound to its organization.** Even for an account the
+  organization owns, whoever runs the IdP is not the account holder, and #43's session was a full
+  one: fresh `auth_time`, no MFA gate, free to `switch-org` to any other organization of the user
+  and to change the password, factors and keys. The binding is the session's `amr` holding `sso`
+  (already stored on the refresh-token row and minted into every access token, so there is no
+  schema change and sessions issued before the upgrade are bound too); `token.Token.OrganizationBound`
+  reads it. Enforced in four places: `session.SwitchOrganization` refuses another organization
+  (`ErrOrganizationBound`, 403); `session.StepUp` keeps `sso` in the amr (`sso,otp`), so proving a
+  factor does not unbind it; the pipeline's authorization step refuses a bound session
+  (`pipeline.DeniesBound`) on every route that needs no permission and writes, destroys or is a
+  step-up route, which is the rule that already keeps delegated credentials off the account
+  holder's routes (`pipeline.DeniesDelegate`), minus logging out of the session itself; and
+  neither the token (`session.Mint`) nor `authz.Gate` (`Caller.OrganizationBound`) gives a bound
+  session the superadmin override, while the provider refuses to sign a superadmin in at all.
+  Routes with a permission stay open to it in its organization, step-up ones included: the IdP
+  sign-in is the recent authentication there, and nowhere else, since it cannot leave. The rule is
+  by route shape, not a list, so a new self-service route is closed to bound sessions by default.
+  Hosts see `Principal.OrganizationBound`. Consequence accepted: a user whose only way in is the
+  IdP cannot enroll a factor, mint an API key, approve an OAuth client or register an agent; they
+  sign in to the account itself for that. Reads without a permission (`/auth/me`, the lists of the
+  user's sessions, organizations, factors, keys) stay open.
+- **One operation for the first proof of a mailbox: `identity.Service.ProveEmail`.** An account
+  can exist before anyone proved its address (a registration never verified; a social sign-up
+  whose provider did not vouch for the email). Whoever made it may not own the mailbox, and each
+  path that later proved the mailbox cleaned up a different subset: the verification link and the
+  password reset nothing (the reset did not even mark the account verified), a passwordless
+  sign-in the password, a trusted social link the password, the sessions and the other provider
+  links. So a provider account linked before the proof stayed a way into the account after its
+  owner verified it or reset its password. Now every path calls `ProveEmail` (through
+  `wiring.Identity`, decision 51) and nothing else writes `email_verified_at` on an existing
+  account: core's verification link and reset, passwordless email codes, magic links and reset
+  codes, the trusted social link, SSO. On the first proof of an account it marks it verified and,
+  in one transaction, drops the password and lockout state, the MFA factors, recovery codes and
+  pending challenges, what the plugins hold (a new optional interface, `wiring.AccessEraser`:
+  social links, passkeys, API keys, OAuth consents, tokens and codes, agents and hosts, the
+  passwordless phone and pending secrets; each reuses its erasure code, run inside the
+  transaction rather than from an event), and every session; then dispatches
+  `user.email_verified`. On a proven account it does nothing. A reset then sets the new password
+  in the same transaction. One distinction is kept, as a parameter: a registration's own
+  verification message (core's link, the passwordless `verify-email` code) confirms the
+  registration, so when the account has a password it is marked verified and nothing is removed
+  (removing would add nothing: whoever holds that password could put it all back, and dropping
+  the password would break every registration); an account without a password has no
+  registration to confirm and gets the full first proof.
+- **social: no account and no link for an email the provider does not vouch for, when no session
+  opens.** With `RequireVerifiedEmail` (the default) the sign-up committed the account and the link
+  and then refused the session, leaving both waiting in the address's name. It now refuses first
+  (`social/email_unverified`, same status; nothing written). With `RequireVerifiedEmail` off the
+  account is created and signs in as before, and the first proof removes the link.
+- **ui: opening the verification link verifies nothing.** `GET /auth/ui/verify?token=` verified at
+  once (#57 reasoned that verification is idempotent and signs nobody in). Mail scanners follow
+  links, so a registration made with someone else's address was confirmed by that person's mail
+  system. The GET now renders the page with the token in a hidden field and one button; the
+  CSRF-guarded POST verifies, as #61 did for magic links. Core has no GET verification route
+  (`POST /auth/email/verify` only). A host template overriding `verify.html` keeps working (its
+  field arrives filled).
+
+Security review (rule 6), per item:
+
+- *IdP ownership.* Only refuses more, except SCIM-created accounts, accepted on the record SCIM's
+  own ownership check trusts. `MarkProvisioned` is in-process, for the host. Residual: an
+  organization that verified a domain can sign in every account on it, by design (it controls
+  those mailboxes). Tests: `TestAMembershipDoesNotLetTheOrganizationsIdPSignTheMemberIn` (failed
+  before: the member was signed in), `TestTheAccountsAnOrganizationProvisionedAreItsIdPsToSignIn`,
+  `TestAnOrganizationsIdPCannotClaimOutsideAccounts` (unchanged, passes).
+- *Bound sessions.* The marker is inside the signed token and on the server-side session row; a
+  client cannot remove it, refresh restores it from the row, step-up preserves it. Paths that mint
+  a session or a credential from a session (multi-session switch, one-time tokens, OAuth consent,
+  API keys, agents) are all permission-less writes and so refused. Residual: a service that
+  resolves an actor's authority itself from the user id does not see the binding; with the
+  sign-in refusal and the refusals above that leaves reads by an account made superadmin while its
+  bound session lives. Tests: `TestAnSSOSessionStaysInItsOrganization` (HTTP; failed before:
+  switch-org, password change, factor enrolment, account deletion all answered 200),
+  `TestAnSSOSessionCarriesNoSuperadminOverride` (failed before),
+  `TestAnIdentityProvidersSessionStaysBoundToItsOrganization`, `TestAuthorization` (bound cases),
+  `TestAnOrganizationBoundCallerNeverHoldsTheSuperadminOverride`.
+- *First proof.* One transaction: a failure in any plugin's removal rolls the proof back
+  (`TestAFailedFirstProofChangesNothing`); concurrent proofs run the removal once (a conditional
+  update claims it); sessions are revoked last because the denylist watermark is in the cache.
+  Nothing is weakened: every path removes at least what it removed before. Residual, inherent to
+  confirming a registration by link: a person who confirms a registration they did not make
+  leaves its password holder in control; the page says so. Tests:
+  `TestAnUnvouchedEmailLeavesNoAccountAndNoLink` and
+  `TestTheFirstProofOfTheMailboxRemovesWhatCameBefore` (social, HTTP; both failed before: the
+  account and link were created, and the link survived the owner's reset and signed in),
+  `TestTheFirstProofOfAMailboxRemovesEveryWayIn` and
+  `TestConfirmingARegistrationKeepsWhatItsPasswordHolderHas` (every plugin booted, a row in every
+  access table), `TestAResetIsTheFirstProofOfAnUnprovenMailbox`,
+  `TestTheVerificationLinkConfirmsARegistration`, passwordless
+  `TheFirstProofOfTheMailboxRemovesWhatCameBefore`.
+- *Verification page.* The token stays in the page the link already names; the POST needs the
+  same-origin `Origin` and the signed double-submit token of #57. A scanner that also submits
+  forms would still verify (none known to by default). Test:
+  `TestOpeningTheVerificationLinkVerifiesNothing` (failed before: the GET verified).
+
+Contract fixtures replay unchanged (no recorded exchange crossed these boundaries); the route
+specs of the changed routes describe the new behaviour. Breaking for `make apicheck` only: the
+narrow interface `wiring.Identity` gains `ProveEmail`, which API.md §2 allows without notice (only
+Polaris implements those interfaces). Otherwise the API is additive (`wiring.Identity.ProveEmail`,
+`wiring.AccessEraser`, `token.AMRSSO`, `Token.OrganizationBound`, `authz.Caller.OrganizationBound`,
+`polaris.Principal.OrganizationBound`, `pipeline.DeniesBound`, `session.ErrOrganizationBound`,
+`sso.Plugin.MarkProvisioned`, `sso.TableAccounts`, `scim.Plugin.Provisioned`,
+`identity.Config.OnEmailProven`).
+
+Left open: existing databases may hold provider links made before this release on unverified
+accounts; they go at the account's first proof. On accounts already verified they cannot be told
+from the owner's own links by Polaris; a host can list the `polaris_social_account` rows created
+before their account's `email_verified_at`. Bound sessions keep the permission-less reads.
+
 ## 67. 2026-11-22 — Only the system role is the superadmin
 
 The security review for v1 (docs/v1.md 4.2) found that the platform superadmin was recognised by
@@ -1337,6 +1466,103 @@ organization roles slugged "superadmin" (`SELECT * FROM auth_roles WHERE slug = 
 organization_id IS NOT NULL`) and review their audit log for what such members did. Tests:
 `TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin` (authz, every backend) and the
 reserved-slug refusal in `TestCreateRoleRefusals` (orgs).
+
+## 69. 2026-11-22 — Authorization bounds: OAuth scopes, operator reach, second-factor attempts
+
+Seven findings of a security review, each reproduced by a failing test before its fix. Released
+as v0.5.1.
+
+- **oauth: a permission scope is granted only to a subject that holds the permission.** A scope
+  that is a permission name was granted to whoever asked: on consent, on the device and CIBA
+  grants, on a token exchange and to `client_credentials`, limited only by the client's own
+  `scopes` list (empty: every scope). The host was not affected, because its resolver intersects
+  the token's scopes with the user's authority on every request (a client acting as itself
+  resolves to nothing). A service that checks tokens without the database (`verify.Require`,
+  `mcp.Protect`) had only the `scope` claim, and with a caller-chosen `resource` as `aud` it
+  accepted a permission scope the subject never held. Now `tokens.issue`, which every grant goes
+  through, keeps a permission scope in the access token only if the subject holds the permission
+  at that moment: a user, by `authz.Resolver` in the token's organization; a client acting as
+  itself, only when an operator registered it `trusted` with the permission in its `scopes`, or
+  when a plugin that owns the client answers for it (`oauth.ClientAuthority`, new: `plugins/agents`
+  answers the permissions of the agent's live grants that its owner holds). The refresh token
+  keeps the consented scopes and each refresh and exchange is bounded again, so a lost permission
+  leaves at the next token and a regained one returns. An organization's client route can no
+  longer change the `scopes` of a trusted client (they are now that client's authority).
+  Non-permission scopes (`openid`, `profile`, `email`, `offline_access`, `Config.Scopes`) are
+  granted as before. **Client-visible:** a token response's `scope` (and the token's) may list
+  fewer scopes than requested, which RFC 6749 §3.3 allows; `PATCH /orgs/{id}/oauth/clients/{id}`
+  answers 400 `invalid_client_metadata` for a changed `scopes` on a trusted client. One agents
+  fixture step is edited (a user without the permission exchanging for `members.read` now gets
+  `"scope": ""`). `oauth.Plugin.IssueTokens` is bounded the same way. The `verify` package
+  documentation said `Claims.Scopes` are the permissions the token was issued with; it now says
+  what a permission scope proves and that any other scope proves only what the client asked for,
+  and `mcp.Protect` says the same.
+  Security review: the bound is in the one function that mints access tokens, so no grant skips
+  it; it only removes scopes. A trusted client's listed scopes are set by an operator (`own`) or
+  the Go API. Left as is, and documented: a non-permission scope of `Config.Scopes` is still
+  granted to any client allowed to ask for it, a self-registered one included, so it is not proof
+  of authority for a remote verifier. Tests: `TestAClientHoldsNoPermissionScopeOfItsOwn`,
+  `TestAUsersPermissionScopesAreBoundedByTheirAuthority` (issue, refresh, exchange),
+  `TestOnlyAnOperatorChangesATrustedClientsScopes`, `TestAnAgentsOwnTokenIsBoundedByItsOwnersAuthority`;
+  the oauth fixtures replay unchanged.
+- **admin: `Manage` on an account does not reach up.** Ban, unban, set password, remove a factor,
+  reset MFA and delete checked only the caller's `Manage` capability, so an operator with the
+  `admin` role could set the password or reset the MFA of an `owner` operator or a superadmin and
+  sign in as them; impersonation already refused a superadmin. Now one helper, `manageUser`, used
+  by those six routes: below `RoleOwner`, the target may not be a superadmin (whatever the
+  account's status, so a disabled one cannot be unbanned from below) nor hold an operator grant of
+  the caller's role or above. **Client-visible:** such a request answers 403 `admin/forbidden`.
+  Session revocation (`Support`) and member-role changes are unchanged: they do not give the
+  caller the target's credentials. Security review: only refuses more; an owner's reach is
+  unchanged. Test: `TestOnlyAnOwnerManagesAnEqualOrHigherOperatorOrASuperadmin` (admin key and
+  admin user against an owner, a peer admin and a disabled superadmin, six actions each; a support
+  operator's account and an owner caller still pass). The admin fixtures replay unchanged.
+- **mfa: second-factor attempts are limited per user.** Wrong codes at `/auth/mfa/verify` and
+  step-up were limited per IP only (`mfa_confirm`); the password lockout counts password failures,
+  and the `login_mfa` ticket is stateless, so whoever held the password could mint tickets and
+  keep guessing TOTP or recovery codes from many addresses. Now `VerifyLogin` and `VerifyStepUp`
+  count every attempt of the user before checking it (in the cache, as the OTP send budget is) and
+  a code that clears resets the count: after `auth.lockout.max_attempts` attempts that did not
+  clear, every code, a right one and a recovery code included, is refused as a wrong one
+  (`ErrInvalidOTP`, the same 422) until `auth.lockout.lock_duration` has passed since the first.
+  No new setting. **Client-visible:** a user who mistypes the second factor five times waits up to
+  15 minutes (defaults) and sees the wrong-code answer meanwhile. Security review: the refusal
+  discloses nothing a wrong code does not; the counter is atomic within a process and, like the
+  send budget, not across replicas (the per-IP limit bounds the residual). Whoever holds the
+  password can make the second step unavailable for the window, as with the password lockout.
+  Test: `TestRepeatedWrongSecondFactorCodesCloseTheGateForAWhile`.
+- **mfa: an OTP attempt is reserved before the compare.** `VerifyOTP` read the challenge, compared
+  the code, and only then spent an attempt, so requests in flight together could each get a
+  compare beyond `max_attempts`. Now the conditional UPDATE (`attempts < max_attempts`) runs first
+  and the code is compared only if it applied, as `plugins/passwordless` does; a right code spends
+  an attempt too. Test: `TestACorrectCodeIsRefusedWhenTheBudgetWasSpentAfterTheRead` (the budget
+  is spent between this request's read and its compare; memory and SQLite).
+- **ui: `/refresh` does not rotate for a navigation another site started.** `GET /auth/ui/refresh`
+  rotates the refresh token and the cookie is `SameSite=Lax`, so another site could navigate the
+  browser there; two such navigations carrying the same cookie read as a reused token and end the
+  session family. Now a request whose `Sec-Fetch-Site` is neither `same-origin` nor `none` gets a
+  page with one link to the same URL (messages `refresh_title`, `refresh_intro`), and following it
+  renews the session. Chosen over a reuse grace period in core, which would weaken reuse
+  detection for every client. **Client-visible:** a user who arrives from a link on another site
+  with an expired access cookie sees that page once instead of being returned at once. A browser
+  that sends no `Sec-Fetch-Site` is served as before. Security review: refuses more; the link is
+  built from the validated `return_to`. Test: `TestANavigationFromAnotherSiteDoesNotRotateTheRefreshToken`.
+- **agents: a request JWT's `aud` is compared with the configured origin.** On the plugin's own
+  routes the expected `aud` was built from the request's `Host` header and `r.TLS`, so a JWT an
+  agent signed for another server was accepted when that server forwarded it with its own `Host`.
+  Now it is the called path on `Config.BaseURL`'s origin (default: the oauth plugin's base URL),
+  as `plugins/ui` does; a TLS-terminating proxy no longer needs `r.TLS` set for these routes.
+  Host routes behind `Protect` / `Guard` still compare with the URL as requested (a bound
+  `Protect` may be mounted at any URL), which the README now states. Requiring `htm` was
+  considered and left optional: `jti` is single-use and existing agents may omit it.
+  **Client-visible:** an agent that reached Polaris under a host name other than the base URL's
+  now gets `aud_mismatch`. Test: `TestARequestJWTForAnotherOriginIsRefusedWhateverTheHostHeader`.
+- **verify, mcp.Protect: a failed JWK Set fetch is remembered for 5 seconds.** The fetch runs under
+  a mutex, so while the issuer was down every request waited for the one before it to time out.
+  Now a failure is kept for `jwtverify.FailureBackoff` and requests that need a fetch answer
+  `ErrUnavailable` (503) at once; a fetch that failed because its own request was cancelled is
+  not remembered. A cached set inside its TTL keeps verifying as before. Test:
+  `TestAFailedJWKSFetchIsRememberedBriefly`.
 
 ## 65. 2026-11-22 — Plugins speak Go on the wire
 

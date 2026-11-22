@@ -14,7 +14,9 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -162,6 +164,11 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 // core's permission check.
 func (*Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{activeOrganization}
+}
+
+// Listeners delete an erased user's provisioning records (event.UserDeleted).
+func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
+	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(), maintenance.UserRows{Table: TableAccounts, Column: "user_id"})}
 }
 
 // Of returns the sso plugin registered on g, nil when absent.

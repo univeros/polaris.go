@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/model"
@@ -235,11 +236,11 @@ func (p *Plugin) IdPLogout(ctx context.Context, providerID string, m LogoutMessa
 		return "", err
 	}
 	if err == nil {
-		member, err := p.member(ctx, u.ID, prov.OrganizationID)
+		owned, err := p.owns(ctx, prov.OrganizationID, u)
 		if err != nil {
 			return "", err
 		}
-		if member {
+		if owned {
 			userID = u.ID
 			if revoked, err = p.g.Sessions().RevokeAll(ctx, u.ID, logoutRevoke); err != nil {
 				return "", err
@@ -345,6 +346,11 @@ func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirec
 	if err != nil {
 		return "", err
 	}
+	if slices.Contains(principal.Roles, authz.RoleSuperadmin) {
+		// The platform override is not an organization's to hand out: an operator signs in to
+		// the account itself.
+		return "", p.rejectAs(ctx, prov, ReasonUserUnknown, "a platform superadmin does not sign in through an organization's identity provider", client)
+	}
 	now := p.g.Clock().Now().UTC().Truncate(time.Second)
 	authTime := now.Unix()
 	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = true, false, []string{AMR}, &authTime
@@ -403,7 +409,11 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			if err := p.mayLink(ctx, prov, existing); err != nil {
 				return err
 			}
-			u = existing
+			// The organization that verified the domain vouches for the mailbox: for an account
+			// nobody had proven, this is the first proof.
+			if u, _, err = p.g.Identity().ProveEmail(ctx, existing.ID, false); err != nil {
+				return err
+			}
 		case !errors.Is(err, repository.ErrNotFound):
 			return err
 		case !prov.JIT.Enabled:
@@ -418,6 +428,9 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			if err := p.g.Identity().InsertUser(ctx, u); err != nil {
 				return err
 			}
+			if err := p.markProvisioned(ctx, prov.OrganizationID, u.ID, prov.ID); err != nil {
+				return err
+			}
 			provisioned = true
 		}
 		joined, err = p.join(ctx, prov, u.ID)
@@ -428,26 +441,54 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 
 // mayLink refuses to sign an existing account in through a provider the account's owner never
 // chose: an organization admin runs the organization's IdP and could assert anyone's email. The
-// account must be a member of the organization already, or its email's domain verified for it.
+// organization must own the account (owns); being a member of it is not enough, since joining an
+// organization does not hand it the account.
 func (p *Plugin) mayLink(ctx context.Context, prov Provider, u model.User) error {
-	member, err := p.member(ctx, u.ID, prov.OrganizationID)
-	if err != nil || member {
+	owned, err := p.owns(ctx, prov.OrganizationID, u)
+	if err != nil || owned {
 		return err
 	}
-	verified, err := p.DomainVerified(ctx, prov.OrganizationID, u.Email[strings.LastIndex(u.Email, "@")+1:])
-	if err != nil || verified {
-		return err
-	}
-	return refuse(ReasonUserUnknown, "an account exists for "+u.Email+" outside the organization and its domain is not verified for it")
+	return refuse(ReasonUserUnknown, "an account exists for "+u.Email+" that the organization did not provision and its domain is not verified for the organization")
 }
 
-// member reports whether the user has a membership (in any state) in the organization.
-func (p *Plugin) member(ctx context.Context, userID, organizationID string) (bool, error) {
-	_, err := p.g.Repos().Memberships.ByUserAndOrganization(ctx, userID, organizationID)
-	if errors.Is(err, repository.ErrNotFound) {
-		return false, nil
+// provisionedBy is what the scim plugin answers (found as g.Plugin("scim")): whether a directory
+// of the organization created the account.
+type provisionedBy interface {
+	Provisioned(ctx context.Context, organizationID string, u model.User) (bool, error)
+}
+
+// owns reports whether the organization's identity provider may speak for the account: one of
+// its providers provisioned it just in time (TableAccounts), one of its directories did (scim),
+// or the account's email is on a domain the organization verified.
+func (p *Plugin) owns(ctx context.Context, organizationID string, u model.User) (bool, error) {
+	row, err := p.g.DB().FindOne(ctx, TableAccounts, store.Criteria{"organization_id": organizationID, "user_id": u.ID})
+	if err != nil || row != nil {
+		return row != nil, err
 	}
-	return err == nil, err
+	if directory, ok := p.g.Plugin("scim").(provisionedBy); ok {
+		if created, err := directory.Provisioned(ctx, organizationID, u); err != nil || created {
+			return created, err
+		}
+	}
+	return p.DomainVerified(ctx, organizationID, u.Email[strings.LastIndex(u.Email, "@")+1:])
+}
+
+// MarkProvisioned records that the organization's identity provider provisioned the account, so
+// its providers keep signing it in. The just-in-time path records it itself; a host calls it for
+// the accounts a provider created before v0.5.1, when the organization cannot verify their
+// email domain. Only for accounts the organization created: its identity provider can sign in as
+// them.
+func (p *Plugin) MarkProvisioned(ctx context.Context, organizationID, userID string) error {
+	return p.markProvisioned(ctx, organizationID, userID, "")
+}
+
+func (p *Plugin) markProvisioned(ctx context.Context, organizationID, userID, providerID string) error {
+	row, err := p.g.DB().FindOne(ctx, TableAccounts, store.Criteria{"organization_id": organizationID, "user_id": userID})
+	if err != nil || row != nil {
+		return err
+	}
+	return p.g.DB().Insert(ctx, TableAccounts, store.Row{"id": repository.NewID(), "organization_id": organizationID, "user_id": userID,
+		"provider_id": store.Nullable(optional(providerID)), "created_at": p.g.Clock().Now().UTC().Truncate(time.Second)})
 }
 
 // join makes the user an active member with the provider's roles; false when they were one.
@@ -490,9 +531,14 @@ func (p *Plugin) join(ctx context.Context, prov Provider, userID string) (bool, 
 
 // reject records a refused assertion with its reason; the caller reads a generic problem.
 func (p *Plugin) reject(ctx context.Context, prov Provider, reason string, client token.ClientContext) *Error {
+	return p.rejectAs(ctx, prov, ReasonAssertionInvalid, reason, client)
+}
+
+// rejectAs is reject answering another reason.
+func (p *Plugin) rejectAs(ctx context.Context, prov Provider, as, reason string, client token.ClientContext) *Error {
 	p.record(ctx, Event{Name: AuditAssertionRejected, ActorType: audit.ActorSystem, OrganizationID: prov.OrganizationID,
 		Data: map[string]any{"provider_id": prov.ID, "reason": reason}}, client)
-	return refuse(ReasonAssertionInvalid, reason)
+	return refuse(as, reason)
 }
 
 func (p *Plugin) record(ctx context.Context, e Event, client token.ClientContext) {
