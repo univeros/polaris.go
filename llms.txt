@@ -27,8 +27,7 @@ mux := http.NewServeMux()
 mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
 mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
 // in the handler: who, ok := polaris.PrincipalFrom(r.Context()) — who.UserID, who.OrganizationID,
-// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated,
-// who.OrganizationBound (an SSO session: it speaks for the user inside who.OrganizationID only).
+// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated.
 ```
 
 Environment: `APP_KEY` (≥ 32 bytes: `openssl rand -base64 32`), `AUTH_JWT_PRIVATE_KEY` and
