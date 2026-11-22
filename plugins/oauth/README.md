@@ -37,7 +37,7 @@ off, no device flow.
 | `DisableClientIDMetadata` | off | refuse `https` client ids |
 | `DPoP` | `oauth.DPoPOptional` | `DPoPOff`, `DPoPOptional`, `DPoPRequired` |
 | `Scopes` | none | extra scopes (`name → description`) beyond permissions and OpenID |
-| `TrustedClients` | none | client ids whose users are never asked for consent |
+| `TrustedClients` | none | client ids you trust like a client registered `trusted` (see "Trusted clients") |
 | `Operators` | superadmin = owner | who calls `/admin/oauth`; with `plugins/admin` its operators are used |
 | `Audiences` | none | further `aud` values accepted (e.g. `<BaseURL>/mcp` of `plugins/mcp`) |
 
@@ -84,7 +84,7 @@ first issue, on every refresh and on a token exchange:
 - a user: what their roles grant in the token's organization (nothing without an organization);
 - a client acting as itself (`client_credentials`): nothing, unless an operator registered it
   `trusted` with the permission in its `scopes` (`POST /admin/oauth/clients`; an organization
-  cannot change a trusted client's scopes), or a plugin that owns the client vouches for it
+  cannot change a trusted client, see below), or a plugin that owns the client vouches for it
   (`oauth.ClientAuthority`: `plugins/agents` answers an agent's live grants that its owner holds).
 
 The refresh token keeps the scopes that were consented, so a permission the user gains back
@@ -92,6 +92,66 @@ returns at the next refresh. Other scopes (`openid`, `profile`, `email`, `offlin
 `Config.Scopes`) are granted as asked: they describe what the client requested, not what anyone may
 do. A service that checks tokens without this database (`verify`, `mcp.Protect`) should require
 permission scopes to authorize.
+
+A plugin that grants its clients permissions for a time implements `oauth.ClientGrantWindows`
+beside `ClientAuthority` (`plugins/agents`: a grant with `expires_at`). A token of such a client,
+its own or one a user delegated to it, carries a permission scope only while a grant covers it,
+and expires no later than that grant: `expires_in` can be shorter than `AccessTokenTTL`.
+
+## Trusted clients
+
+An operator trusts a client by registering it `trusted` (`POST /admin/oauth/clients`,
+`CreateClient` with `mayTrust`) or by listing its id in `Config.TrustedClients`. A trusted client:
+
+- gets its code without a consent screen;
+- may exchange and introspect tokens issued to other clients (a gateway or a resource server);
+- registered `trusted`, holds the permission scopes the operator listed for `client_credentials`.
+
+So what it is belongs to the operator. Its organization (`PATCH /orgs/{id}/oauth/clients/{clientId}`)
+changes `name`, `logo_uri`, `policy_uri`, `tos_uri` and `disabled`, and nothing else: a different
+`type`, `redirect_uris`, `grant_types`, `scopes`, `token_endpoint_auth_method`, `jwks`, `jwks_uri`,
+`client_uri` or `dpop_bound_access_tokens` answers 400 `invalid_client_metadata`. Change those with
+`UpdateClient(…, mayTrust true)`, or delete the client and register it again.
+
+## Consent
+
+A consent is the user's for one client in one organization (the session's active organization
+when they approved; none for a session outside any). The same client asking in another
+organization shows the screen again. `GET /oauth2/consents` lists one entry per client and
+organization; `DELETE /oauth2/consents/{clientId}` removes them all and revokes the client's
+tokens for the user. `Migrate` replaces the table's unique index (`polaris_oauth_consent_unique`
+by `polaris_oauth_consent_org_unique`); a consent recorded before counts for the organization it
+names.
+
+## Token exchange and introspection
+
+`grant_type=urn:ietf:params:oauth:grant-type:token-exchange` takes as `subject_token` (and
+`actor_token`):
+
+- the access token of a live session of the user. A session that was logged out, an operator's
+  impersonation token and a session an organization's identity provider opened (`amr` `sso`) are
+  refused (`invalid_grant`): the exchanged token would outlive or outreach them;
+- an access token this provider issued **to the same client**, or whose `aud` is the client's id.
+  Another client's token is refused (`invalid_grant`) unless the exchanging client is trusted.
+
+The new token's audience is the subject's (RFC 8707). Without `resource` it is the subject's own:
+a token for `https://api.example` stays one, it does not become a token for this server. With
+`resource`: a subject for this server (a session, `aud` the issuer or one of `Config.Audiences`)
+narrows to any resource; a subject for another resource keeps it (`invalid_target` otherwise)
+unless the client is trusted, or the subject's `aud` is the authenticated client's own id and the
+new resource is not this server.
+
+`POST /oauth2/introspect` answers a client about the tokens issued to it and the tokens whose
+`aud` is its client id; a trusted client reads any token. To any other client a token is
+`{"active": false}` (RFC 7662 §4). A resource server that introspects other clients' tokens is
+registered `trusted`, or verifies the JWT itself (`verify`).
+
+## DPoP
+
+A proof's `htu` is the URL of the request on this server: the origin of `Config.BaseURL` (scheme
+and host; default `Auth.Issuer`) and the path the client sent. The `Host` header is not read, so
+behind a proxy that rewrites it nothing changes, and a proof made for another server does not
+verify here. Set `BaseURL` to the public URL clients call.
 
 ## Problems
 

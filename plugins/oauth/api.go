@@ -36,7 +36,10 @@ func (p *Plugin) CreateClient(ctx context.Context, fields ClientFields, organiza
 }
 
 // UpdateClient changes a registered client (a field left out keeps its value; disabled true stops
-// it at the token endpoint) and returns it with the names of what changed.
+// it at the token endpoint) and returns it with the names of what changed. Without mayTrust (an
+// organization), a client an operator trusted keeps its type, redirect URIs, grants, scopes,
+// authentication method, keys, client_uri and DPoP binding: changing one is an *Error with
+// CodeInvalidClientMetadata.
 func (p *Plugin) UpdateClient(ctx context.Context, c Client, fields ClientFields, mayTrust bool) (Client, []string, error) {
 	return p.clients.update(ctx, c, fields, mayTrust)
 }
@@ -69,15 +72,21 @@ func (p *Plugin) IssueTokens(ctx context.Context, c Client, g Grant) (TokenRespo
 }
 
 // Exchange performs a token exchange (RFC 8693) for c, as the token endpoint does: the subject's
-// scopes narrowed, act naming c (or the actor token's subject) and chained.
+// scopes narrowed, its audience kept, act naming c (or the actor token's subject) and chained.
+// The subject is a live session of the user (not an impersonation token nor a session an identity
+// provider opened) or an access token issued to c (any client's when an operator trusted c), else
+// CodeInvalidGrant; a resource other than the subject's audience is CodeInvalidTarget unless the
+// subject was for this server or c is trusted.
 func (p *Plugin) Exchange(ctx context.Context, c Client, req ExchangeRequest) (TokenResponse, error) {
 	return p.exchange(ctx, c, req)
 }
 
 // VerifyDPoP verifies the DPoP proof of r (bound to accessToken when not "") and returns the
-// thumbprint of its key, "" when r carries no proof. A proof is accepted once.
+// thumbprint of its key, "" when r carries no proof. The proof must name the URL of r on this
+// server: the origin of Config.BaseURL and the path requested, never the Host header. A proof is
+// accepted once.
 func (p *Plugin) VerifyDPoP(r *http.Request, accessToken string) (string, error) {
-	return p.dpop.verify(r.Context(), r.Header.Get(DPoPHeader), r.Method, requestURL(r), accessToken)
+	return p.dpop.verify(r.Context(), r.Header.Get(DPoPHeader), r.Method, ownURL(p.settings.baseURL, r), accessToken)
 }
 
 // Permissions are the permission names among scopes: what a token with them may do on Polaris

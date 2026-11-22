@@ -38,8 +38,14 @@ domain:
     refresh_token (rotated; a spent token presented again revokes its family), client_credentials,
     urn:ietf:params:oauth:grant-type:device_code (polled), urn:openid:params:grant-type:ciba
     (auth_req_id, polled), urn:ietf:params:oauth:grant-type:token-exchange (subject_token, optional
-    actor_token, resource or audience; the token carries act). A DPoP proof binds the tokens to the
-    client's key (cnf.jkt, token_type DPoP). The response is an RFC 6749 token response, never cached;
+    actor_token, resource or audience; the token carries act). An exchange takes a live session of
+    the user (not an impersonation token, nor a session an identity provider opened) or an access
+    token issued to the same client (any client's for a client an operator trusted), else
+    invalid_grant; the new token keeps the subject's audience unless the subject was for this
+    server or the client is trusted, else invalid_target. A DPoP proof (htu: this endpoint's URL
+    under the configured base URL) binds the tokens to the client's key (cnf.jkt, token_type DPoP).
+    expires_in is shorter than the access-token lifetime when a grant behind a permission scope
+    ends sooner. The response is an RFC 6749 token response, never cached;
     a refusal is an RFC 9457 problem whose error is the RFC 6749 code. Accepts a form or JSON body.
 
 output:

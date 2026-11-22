@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -32,6 +33,7 @@ func (f ClientFields) has(key string) bool { _, ok := f[key]; return ok }
 // apply validates fields onto a copy of c: what is given is checked and replaces what c holds;
 // creating, the absent fields take their defaults. The result is checked as a whole.
 func (s *clients) apply(c Client, f ClientFields, mayTrust, creating bool) (Client, error) {
+	registered := c
 	if f.set("name") || creating {
 		name, ok := f["name"].(string)
 		name = strings.Trim(name, " \t\n\r\x00\x0B")
@@ -190,7 +192,21 @@ func (s *clients) apply(c Client, f ClientFields, mayTrust, creating bool) (Clie
 			c.DisabledAt = &now
 		}
 	}
+	// A trusted client's users are not asked for consent: where its codes go, how it proves who it
+	// is and what it may ask for are what the operator trusted.
+	if !mayTrust && !creating && s.settings.trusts(registered) && !sameRegistration(registered, c) {
+		return c, invalidMetadata("Only an operator changes the type, redirect_uris, grant_types, scopes, token_endpoint_auth_method, jwks, jwks_uri, client_uri or dpop_bound_access_tokens of a trusted client.")
+	}
 	return c, s.consistent(c, mayTrust)
+}
+
+// sameRegistration reports whether a and b are the same client to the protocol: everything but
+// what a page shows about it (name, logo_uri, policy_uri, tos_uri) and whether it is disabled.
+func sameRegistration(a, b Client) bool {
+	return a.Type == b.Type && a.TokenEndpointAuthMethod == b.TokenEndpointAuthMethod &&
+		slices.Equal(a.RedirectURIs, b.RedirectURIs) && slices.Equal(a.GrantTypes, b.GrantTypes) &&
+		slices.Equal(a.Scopes, b.Scopes) && reflect.DeepEqual(a.JWKS, b.JWKS) && a.JWKSURI == b.JWKSURI &&
+		a.ClientURI == b.ClientURI && a.DPoPBound == b.DPoPBound
 }
 
 // consistent checks the client as a whole.

@@ -9,60 +9,6 @@ marked **Breaking**.
 
 ## [Unreleased]
 
-### Security
-
-Operator reach and hardening before 1.0 (decision 76). **Client-visible** marks what a client or an
-operator's tool sees change.
-
-- admin: impersonation follows the reach rule of `Manage`: below `owner`, an operator cannot
-  impersonate an operator of its own role or above. **Client-visible:** 403 `admin/forbidden`.
-- admin, core: an impersonation token is not the account holder. It carries no `auth_time`, and
-  every route that needs no permission and writes, destroys or is a step-up route refuses it
-  (`pipeline.DeniesImpersonation`, `token.Token.ImpersonatedBy`); the MCP tool list hides those
-  tools from it. Audit rows written while serving one carry `impersonated_by`. **Client-visible:**
-  such a route answers 403 `forbidden`; the token has no `auth_time` claim.
-- admin: an organization-scoped owner replaces a user's operator grant only when the grant already
-  there is on its organization, and never grants to a superadmin. **Client-visible:**
-  `POST /admin/grants` answers 403 `admin/forbidden` otherwise.
-- admin: a session an organization's identity provider opened is no operator. **Client-visible:**
-  `/admin/*` answers it 401 `admin/unauthorized`.
-- agents: the auto-approval policy does not refill a budget. After an agent exhausts a grant of a
-  capability, its next request for it waits for a person until the spent grant's window has passed
-  (a budget without a window: always). **Client-visible:** `POST /agents/grants/request` answers
-  that grant `pending`, with an approval to complete, where it answered `active`.
-- audit, admin: drains are delivered to public addresses only (after DNS resolution), without
-  following redirects, after the recording transaction commits and off the writer's goroutine
-  (15 s per batch, 32 batches in flight). New `audit.Config.Drains`; `Config.HTTPClient` still turns
-  delivery on and is then used as given, so a host that passes its own client bounds what it
-  reaches (set `Drains: true` and leave `HTTPClient` nil for the guarded client). New
-  `audit.Plugin.WaitDrains`. **Client-visible:** `POST /admin/organizations/{id}/drains` answers
-  422 for an endpoint with credentials, a literal non-public address or `localhost`; a drain's
-  `last_error` is a category (`refused`, `timeout`, `unreachable`, `HTTP <status>`) instead of the
-  transport's error text; a drain endpoint that answered through a redirect now fails with
-  `HTTP 3xx`.
-- authz: no organization role grants a platform permission (`users.read`, `users.manage`), whatever
-  its rows say (`authz.PlatformOnly`), and `Migrate` removes such grants from organization roles,
-  returning one line and logging one warning per removal. Review the audit log of the members of a
-  role it names. **Client-visible:** a member who held such a grant gets 403 on other users'
-  `/users/{id}`.
-- Erasing an account erases what the plugins hold about it inside the same transaction
-  (`wiring.UserEraser`, new, and `wiring.AccessEraser`): a failure rolls the erasure back instead
-  of being logged. A third-party plugin that erases in an `event.UserDeleted` listener keeps
-  working, after the commit as before; implement `wiring.UserEraser` to join the transaction.
-- multisession, sentinel: the device cookies are `Secure` when the configured issuer is https, not
-  only when the request itself came over TLS (a proxy that ends TLS). **Client-visible:** the
-  `Secure` attribute on `polaris_ms_device` and `polaris_device`.
-- messaging: with no channel configured, the log carries a message's recipient and template only,
-  never its subject, body or variables (codes, reset links), and startup logs a warning.
-  `messaging.Log` logs bodies only with the new `Bodies: true`.
-- Per-IP rate limits key an IPv6 client by its /64 and an IPv4-mapped address by its IPv4 address.
-  **Client-visible:** IPv6 clients in one /64 share the per-IP budgets (429 sooner).
-- `polaris.New` logs a warning when `Config.Hasher` is an Argon2id below the default cost
-  (`polaristest.Hasher()` in a production `Config`); silent under `go test`.
-- **Breaking** (Go API, decision 76; nothing a host or a plugin calls): the `Listeners` method of
-  the admin, multisession, anonymous, username, sso, scim and passwordless plugins is removed;
-  they erase through `EraseUser` / `EraseAccess` now.
-
 ### Added
 
 - `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
@@ -122,6 +68,97 @@ operator's tool sees change.
   verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
   `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
 
+### Security
+
+Operator reach and hardening before 1.0 (decision 76). **Client-visible** marks what a client or an
+operator's tool sees change.
+
+- admin: impersonation follows the reach rule of `Manage`: below `owner`, an operator cannot
+  impersonate an operator of its own role or above. **Client-visible:** 403 `admin/forbidden`.
+- admin, core: an impersonation token is not the account holder. It carries no `auth_time`, and
+  every route that needs no permission and writes, destroys or is a step-up route refuses it
+  (`pipeline.DeniesImpersonation`, `token.Token.ImpersonatedBy`); the MCP tool list hides those
+  tools from it. Audit rows written while serving one carry `impersonated_by`. **Client-visible:**
+  such a route answers 403 `forbidden`; the token has no `auth_time` claim.
+- admin: an organization-scoped owner replaces a user's operator grant only when the grant already
+  there is on its organization, and never grants to a superadmin. **Client-visible:**
+  `POST /admin/grants` answers 403 `admin/forbidden` otherwise.
+- admin: a session an organization's identity provider opened is no operator. **Client-visible:**
+  `/admin/*` answers it 401 `admin/unauthorized`.
+- agents: the auto-approval policy does not refill a budget. After an agent exhausts a grant of a
+  capability, its next request for it waits for a person until the spent grant's window has passed
+  (a budget without a window: always). **Client-visible:** `POST /agents/grants/request` answers
+  that grant `pending`, with an approval to complete, where it answered `active`.
+- audit, admin: drains are delivered to public addresses only (after DNS resolution), without
+  following redirects, after the recording transaction commits and off the writer's goroutine
+  (15 s per batch, 32 batches in flight). New `audit.Config.Drains`; `Config.HTTPClient` still turns
+  delivery on and is then used as given, so a host that passes its own client bounds what it
+  reaches (set `Drains: true` and leave `HTTPClient` nil for the guarded client). New
+  `audit.Plugin.WaitDrains`. **Client-visible:** `POST /admin/organizations/{id}/drains` answers
+  422 for an endpoint with credentials, a literal non-public address or `localhost`; a drain's
+  `last_error` is a category (`refused`, `timeout`, `unreachable`, `HTTP <status>`) instead of the
+  transport's error text; a drain endpoint that answered through a redirect now fails with
+  `HTTP 3xx`.
+- authz: no organization role grants a platform permission (`users.read`, `users.manage`), whatever
+  its rows say (`authz.PlatformOnly`), and `Migrate` removes such grants from organization roles,
+  returning one line and logging one warning per removal. Review the audit log of the members of a
+  role it names. **Client-visible:** a member who held such a grant gets 403 on other users'
+  `/users/{id}`.
+- Erasing an account erases what the plugins hold about it inside the same transaction
+  (`wiring.UserEraser`, new, and `wiring.AccessEraser`): a failure rolls the erasure back instead
+  of being logged. A third-party plugin that erases in an `event.UserDeleted` listener keeps
+  working, after the commit as before; implement `wiring.UserEraser` to join the transaction.
+- multisession, sentinel: the device cookies are `Secure` when the configured issuer is https, not
+  only when the request itself came over TLS (a proxy that ends TLS). **Client-visible:** the
+  `Secure` attribute on `polaris_ms_device` and `polaris_device`.
+- messaging: with no channel configured, the log carries a message's recipient and template only,
+  never its subject, body or variables (codes, reset links), and startup logs a warning.
+  `messaging.Log` logs bodies only with the new `Bodies: true`.
+- Per-IP rate limits key an IPv6 client by its /64 and an IPv4-mapped address by its IPv4 address.
+  **Client-visible:** IPv6 clients in one /64 share the per-IP budgets (429 sooner).
+- `polaris.New` logs a warning when `Config.Hasher` is an Argon2id below the default cost
+  (`polaristest.Hasher()` in a production `Config`); silent under `go test`.
+- **Breaking** (Go API, decision 76; nothing a host or a plugin calls): the `Listeners` method of
+  the admin, multisession, anonymous, username, sso, scim and passwordless plugins is removed;
+  they erase through `EraseUser` / `EraseAccess` now.
+Found by a security review with running tests; each is fixed with the regression test that failed
+before (decision 75). Run `Migrate` (one index of `polaris_oauth_consent` is replaced).
+
+- **oauth: an organization cannot repoint a trusted client.** On a client an operator registered
+  `trusted`, or listed in `oauth.Config.TrustedClients`, the organization's route changes only
+  `name`, `logo_uri`, `policy_uri`, `tos_uri` and `disabled`. **Client-visible:** `PATCH
+  /orgs/{id}/oauth/clients/{clientId}` answers 400 `invalid_client_metadata` for a different
+  `type`, `redirect_uris`, `grant_types`, `token_endpoint_auth_method`, `jwks`, `jwks_uri`,
+  `client_uri` or `dpop_bound_access_tokens` on such a client (`scopes` already did, decision 69).
+  `oauth.Plugin.UpdateClient` without `mayTrust` does the same.
+- **oauth: a token exchange stays within the subject's client and audience.** **Client-visible**
+  at `POST /oauth2/token` with the token-exchange grant: an access token issued to another client
+  is refused as `subject_token` or `actor_token` (400 `invalid_grant`) unless the exchanging client
+  is trusted; without `resource` the new token keeps the subject token's audience (it was the
+  issuer); a `resource` other than the subject's audience answers 400 `invalid_target` unless the
+  subject was for this server or the client is trusted. A session is a subject only while it is
+  the user's own live session: a logged-out session, an operator's impersonation token and a
+  session an organization's identity provider opened answer 400 `invalid_grant`.
+  `oauth.Plugin.Exchange` does the same.
+- **oauth: a DPoP proof is for this server's URL.** The `htu` of a proof is compared with the
+  origin of `oauth.Config.BaseURL` and the path requested, not with the request's `Host` header.
+  **Client-visible:** a deployment reached under a host name other than its `BaseURL` (default
+  `Auth.Issuer`) must set `BaseURL` to the URL clients call, as the discovery documents already
+  assume; proofs naming any other origin answer `invalid_dpop_proof` (401 on a resource route).
+- **oauth: introspection answers the token's own client.** **Client-visible:** `POST
+  /oauth2/introspect` answers `{"active": false}` for a token issued to another client, unless the
+  token's `aud` is the caller's client id or the caller is trusted. A resource server that
+  introspects other clients' tokens is registered `trusted`.
+- **oauth: a consent counts in the organization it was given in.** **Client-visible:** the same
+  client asking the same user in another organization (or outside any) gets 409
+  `consent_required` again; `GET /oauth2/consents` lists one consent per client and organization.
+  Existing consents keep counting for the organization they name.
+- **oauth, agents: a token ends with the grant behind its permission scopes.** A token of an
+  agent, its own or one a user delegated to it, carries a permission scope only while a live grant
+  covers it and expires no later than that grant. **Client-visible:** such a token response's
+  `expires_in` (and the token's `exp`) can be shorter than the access-token lifetime, and after a
+  windowed grant expired the scope is no longer issued. New for plugins:
+  `oauth.ClientGrantWindows`, implemented by `agents.Plugin.ClientPermissionsUntil`.
 
 ## [0.6.0] - 2026-11-22
 
