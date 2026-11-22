@@ -47,7 +47,8 @@ rule; `errors` lists them), `…/username/taken` (409).
 
 ## Host integration
 
-- Erasing a user deletes its username (`event.UserDeleted`), so the name is free again.
+- Erasing a user deletes its username inside the erasure's transaction (`wiring.UserEraser`), so the
+  name is free again.
 - `username.Of(p.Graph()).Usernames()` is the service: `Set(ctx, userID, username, display)`,
   `ForUser(ctx, userID)`, `UserID(ctx, username)`, `Violations(username)`. `Set` returns a
   `*username.InvalidError` (matches `username.ErrInvalid`) or `username.ErrTaken`.

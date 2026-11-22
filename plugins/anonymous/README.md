@@ -64,7 +64,7 @@ Sign-in dispatches core's `user.logged_in`. `Prune` dispatches `event.UserDelete
 - Two concurrent conversions run `OnConvert` once. A conversion that fails at any step (the hook,
   disabling the guest, ending its sessions) answers 500 and leaves the guest as it was: its
   sessions live, and a retry converts it. A guest is never reported converted with live sessions.
-- Erasing a user deletes its guest row (`event.UserDeleted`).
+- Erasing a user deletes its guest row, inside the erasure's transaction (`wiring.UserEraser`).
 - Guard sign-in with `plugins/sentinel`: add `anonymous.SentinelRoutes` (judged as a sign-up) to
   `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 

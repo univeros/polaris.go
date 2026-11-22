@@ -23,9 +23,9 @@ type requested struct {
 
 // requestGrants creates one grant per capability asked (a name or {name, constraints}): active at
 // once when the policy auto-approves the risk tier within its budget ceiling, the owner holds
-// the permission and the agent has not exhausted a grant of the capability whose window still
-// runs (spentGrant); pending otherwise. A capability already held live, or already waiting, is
-// answered as it is. The caller holds the transaction.
+// the permission, and the agent neither exhausted a grant of the capability whose window still
+// runs nor had one revoked (personDecides); pending otherwise. A capability already held live, or
+// already waiting, is answered as it is. The caller holds the transaction.
 func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requested, error) {
 	var out requested
 	if len(asked) == 0 || len(asked) > maxGrantsPerRequest {
@@ -76,12 +76,13 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 		g = withBudget(g, parsed.budget)
 		policy, auto := s.settings.autoApprove[capability.Risk]
 		if auto {
-			// A budget the agent already spent is not refilled by asking again: a person decides.
-			spent, err := s.spentGrant(ctx, a, name)
+			// A budget the agent already spent is not refilled by asking again, and a revoked
+			// capability is not handed back by the policy: a person decides.
+			decided, err := s.personDecides(ctx, a, name)
 			if err != nil {
 				return out, err
 			}
-			auto = !spent
+			auto = !decided
 		}
 		holds := false
 		if auto && withinPolicy(parsed.budget, policy) {
@@ -235,18 +236,25 @@ func (s *service) activeGrant(ctx context.Context, a Agent, capability string) (
 	return nil, err
 }
 
-// spentGrant reports whether the agent exhausted a grant of the capability whose budget window
-// has not passed (a budget without a window never passes). The policy does not approve another
-// while it holds: the budget would be spent as many times as the agent asks.
-func (s *service) spentGrant(ctx context.Context, a Agent, capability string) (bool, error) {
+// personDecides reports whether a request for capability must wait for a person rather than the
+// auto-approval policy: the agent exhausted a grant of it whose budget window has not passed (a
+// budget without a window never passes: otherwise the budget would be spent as many times as the
+// agent asks), or a grant of it was revoked (taking back access stands until a person approves
+// again). A denial does not: a person denied a request the policy did not cover, and the policy
+// still covers the smaller ones it was set for.
+func (s *service) personDecides(ctx context.Context, a Agent, capability string) (bool, error) {
 	exhausted, err := s.grantsOf(ctx, a, GrantExhausted)
+	if err != nil {
+		return false, err
+	}
 	now := s.clock.Now()
 	for _, g := range exhausted {
 		if g.Capability == capability && (g.ExpiresAt == nil || g.ExpiresAt.After(now)) {
-			return true, err
+			return true, nil
 		}
 	}
-	return false, err
+	revoked, err := s.grantWith(ctx, a, capability, GrantRevoked)
+	return revoked != nil, err
 }
 
 func (s *service) grantWith(ctx context.Context, a Agent, capability, status string) (*Grant, error) {

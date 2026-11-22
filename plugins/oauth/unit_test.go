@@ -720,3 +720,31 @@ func TestOnlyAnOperatorRepointsAClientTheHostTrusts(t *testing.T) {
 		t.Errorf("an operator: %v", err)
 	}
 }
+
+// A session an organization's identity provider opened (amr sso, decision 68) stays in that
+// organization: even for a superadmin it is no instance operator on the OAuth admin routes.
+func TestAnOrganizationBoundSessionIsNoDefaultOperator(t *testing.T) {
+	ctx := context.Background()
+	p, srv := boot(t, Config{})
+	root := addUser(t, srv, "root@example.com")
+	org, err := srv.Polaris.Orgs().Create(ctx, root.ID, "Root", "")
+	must(t, err)
+	membership, err := srv.Graph().DB().FindOne(ctx, "auth_memberships", store.Criteria{"user_id": root.ID, "organization_id": org.ID})
+	must(t, err)
+	role, err := srv.Graph().DB().FindOne(ctx, "auth_roles", store.Criteria{"slug": "superadmin", "organization_id": nil})
+	must(t, err)
+	must(t, srv.Graph().DB().Insert(ctx, "auth_membership_roles", store.Row{"membership_id": membership.String("id"), "role_id": role.String("id")}))
+	r := httptest.NewRequest(http.MethodGet, "/admin/oauth/clients", nil)
+	plain, err := srv.Graph().Tokens().Issue(token.Claims{}.With("sub", root.ID).With("jti", "p"))
+	must(t, err)
+	r.Header.Set("Authorization", "Bearer "+plain)
+	if _, refused := p.operator(ctx, r, true, ""); refused != nil {
+		t.Fatalf("the superadmin's own session is an operator: %+v", refused)
+	}
+	bound, err := srv.Graph().Tokens().Issue(token.Claims{}.With("sub", root.ID).With("jti", "b").With("org", org.ID).With("amr", []string{token.AMRSSO}))
+	must(t, err)
+	r.Header.Set("Authorization", "Bearer "+bound)
+	if _, refused := p.operator(ctx, r, false, ""); refused == nil {
+		t.Error("an SSO-bound session of a superadmin acted as an instance operator")
+	}
+}

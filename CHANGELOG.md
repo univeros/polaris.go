@@ -115,6 +115,10 @@ Account provisioning and email proof (decision 74). Upgrade; no schema change.
 - `wiring.Identity` gains `ChangeEmail` (the one place an account's address changes); `sso` and
   `scim` implement `wiring.AccessEraser`.
 
+- `plugins/oauth` without the admin plugin: a session an organization's identity provider opened
+  is no operator on the OAuth admin routes, even for a superadmin (decision 77).
+- `plugins/agents`: a capability whose grant was revoked is not auto-approved again when the agent
+  asks; a person decides (decision 77). **Client-visible:** such a request answers `pending`.
 
 Operator reach and hardening before 1.0 (decision 76). **Client-visible** marks what a client or an
 operator's tool sees change.

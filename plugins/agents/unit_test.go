@@ -520,17 +520,17 @@ func TestTheAskerCannotWidenTheAutoApprovalBudget(t *testing.T) {
 	if policy.Status != GrantActive || *policy.BudgetTotal != 100 || policy.ApprovedVia != ViaAuto || policy.ExpiresAt == nil {
 		t.Errorf("policy %+v", policy)
 	}
-	_, _ = p.s.endGrant(ctx, policy, []string{GrantActive}, GrantRevoked)
-	narrower := ask(h, map[string]any{"count": json.Number("10"), "window": json.Number("60")})
+	// Each ask below is a fresh agent: a person's revocation is binding (decision 77), so the
+	// same agent asking again would wait for a person whatever the budget.
+	narrower := ask(holder(t, p, srv), map[string]any{"count": json.Number("10"), "window": json.Number("60")})
 	if narrower.Status != GrantActive || *narrower.BudgetTotal != 10 {
 		t.Errorf("narrower %+v", narrower)
 	}
-	_, _ = p.s.endGrant(ctx, narrower, []string{GrantActive}, GrantRevoked)
 	for _, wider := range []map[string]any{
 		{"count": json.Number("1000000000"), "window": json.Number("60")}, {"count": json.Number("100")},
 		{"count": json.Number("100"), "window": json.Number("7200")}, {"amount": json.Number("10"), "field": "amount", "window": json.Number("60")},
 	} {
-		g := ask(h, wider)
+		g := ask(holder(t, p, srv), wider)
 		if g.Status != GrantPending {
 			t.Errorf("%v: %s", wider, g.Status)
 		}
@@ -868,5 +868,28 @@ func TestTheDiscoveryDocumentMatchesTheProtocolSchema(t *testing.T) {
 	}
 	if perms := p.Permissions(); perms["deploy.staging"] == "" || perms["members.read"] != "" {
 		t.Errorf("permissions %v", perms)
+	}
+}
+
+// A person who revoked a capability decides again: the auto-approval policy does not hand the
+// agent the capability back when it asks again. A denial of a request outside the policy does
+// not stop the policy from approving a smaller one (decision 77).
+func TestARevokedCapabilityIsNotAutoApprovedAgain(t *testing.T) {
+	p, srv := bootUnit(t, Config{AutoApprove: map[string]Budget{RiskLow: {Count: 100, Window: time.Hour}}})
+	ctx := context.Background()
+	ask := func(a Agent) Grant {
+		res, err := p.s.requestGrants(ctx, a, []any{"members"})
+		must(t, err)
+		return res.grants[0]
+	}
+	h := holder(t, p, srv)
+	first := ask(h)
+	if first.Status != GrantActive || first.ApprovedVia != ViaAuto {
+		t.Fatalf("first ask %+v", first)
+	}
+	_, err := p.s.endGrant(ctx, first, []string{GrantActive}, GrantRevoked)
+	must(t, err)
+	if again := ask(h); again.Status != GrantPending {
+		t.Errorf("after a person revoked it, the capability came back as %s via %q", again.Status, again.ApprovedVia)
 	}
 }
