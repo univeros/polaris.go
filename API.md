@@ -126,10 +126,14 @@ types and manifest rules.
 Two rules a plugin follows (decision 68). A path that establishes control of an account's mailbox
 calls `Graph.Identity().ProveEmail` and never writes `email_verified_at` itself; a plugin whose
 tables hold a way to act as a user (a credential, a key, a grant) implements `wiring.AccessEraser`,
-so a mailbox's first proof removes what was there before it. And a route reserved to the account
+so a mailbox's first proof removes what was there before it. A plugin whose tables hold anything
+else about a user implements `wiring.UserEraser` (decision 76): both run inside the transaction
+that erases or removes the account, so a failure rolls the erasure back; a listener of
+`event.UserDeleted` runs after the commit and cannot. And a route reserved to the account
 holder declares no `requires_permissions` and an `effect` other than `read` (or `step_up`): the
-pipeline keeps delegated credentials (`pipeline.DeniesDelegate`) and organization-bound SSO
-sessions (`pipeline.DeniesBound`, `token.Token.OrganizationBound`) off it. Every path that creates
+pipeline keeps delegated credentials (`pipeline.DeniesDelegate`), organization-bound SSO
+sessions (`pipeline.DeniesBound`, `token.Token.OrganizationBound`) and operators' impersonation
+tokens (`pipeline.DeniesImpersonation`, `token.Token.ImpersonatedBy`) off it. Every path that creates
 or deletes an account goes through `Graph.Identity().InsertUser` / `OnUserDeleted`.
 
 ## 4. Internal

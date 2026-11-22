@@ -221,7 +221,7 @@ func (p *Plugin) lists(rt *manifest.Route, c caller, allows func(...string) bool
 		// call itself is authorized by the route.
 		probe.RequiresPermissions = nil
 	}
-	return !pipeline.DeniesDelegate(&probe, c.token) && !pipeline.DeniesBound(&probe, c.token) && allows(probe.RequiresPermissions...)
+	return !pipeline.DeniesDelegate(&probe, c.token) && !pipeline.DeniesBound(&probe, c.token) && !pipeline.DeniesImpersonation(&probe, c.token) && allows(probe.RequiresPermissions...)
 }
 
 const orgRoute = "/orgs/{id}/"

@@ -2,6 +2,7 @@ package scim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -10,10 +11,10 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"
@@ -121,8 +122,10 @@ func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
 	if err != nil || len(rows) == 0 {
 		return err
 	}
+	// It also runs when the account is erased (Identity.OnUserDeleted): a user already removed has
+	// no address to keep anything for.
 	u, err := p.g.Repos().Users.Get(ctx, userID)
-	if err != nil {
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return err
 	}
 	for _, row := range rows {
@@ -146,11 +149,11 @@ func Of(g *wiring.Graph) *Plugin {
 	return p
 }
 
-// Listeners delete an erased user's directory provenance, stored name parts and user mappings
-// (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
+// EraseUser implements wiring.UserEraser: an erased user's directory provenance, stored name
+// parts and user mappings go with the account, in its transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.g.DB(), userID,
 		maintenance.UserRows{Table: TableProvenance, Column: "user_id"},
 		maintenance.UserRows{Table: TableUserNames, Column: "user_id"},
-		maintenance.UserRows{Table: TableResources, Column: "local_id", Where: store.Criteria{"kind": KindUser}})}
+		maintenance.UserRows{Table: TableResources, Column: "local_id", Where: store.Criteria{"kind": KindUser}})
 }

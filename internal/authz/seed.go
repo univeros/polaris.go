@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/univeros/polaris.go/clock"
@@ -56,6 +57,56 @@ func Seed(ctx context.Context, db store.Adapter, catalog Catalog, clk clock.Cloc
 		}
 		return nil
 	})
+}
+
+// DropPlatformGrants removes every grant of a platform permission (PlatformOnly) from the roles
+// of organizations, in one transaction: such rows could only be written while an organization
+// role passed for the superadmin (decision 67), and the resolver no longer honours them. It logs
+// each removal on log (nil: slog.Default) and returns one line per removal. The system roles
+// (no organization) keep theirs. Idempotent; Polaris.Migrate runs it.
+func DropPlatformGrants(ctx context.Context, db store.Adapter, log *slog.Logger) ([]string, error) {
+	if log == nil {
+		log = slog.Default()
+	}
+	r := repository.New(db)
+	var removed []string
+	err := db.Tx(ctx, func(ctx context.Context) error {
+		removed = nil
+		perms, err := r.Permissions.List(ctx)
+		if err != nil {
+			return err
+		}
+		for _, p := range perms {
+			if !PlatformOnly(p.Key) {
+				continue
+			}
+			grants, err := r.RolePermissions.Find(ctx, store.Criteria{"permission_id": p.ID}, store.Query{})
+			if err != nil {
+				return err
+			}
+			for _, g := range grants {
+				role, err := r.Roles.Get(ctx, g.RoleID)
+				if errors.Is(err, repository.ErrNotFound) || (err == nil && role.OrganizationID == nil) {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				if err := r.RolePermissions.Delete(ctx, g); err != nil {
+					return err
+				}
+				removed = append(removed, fmt.Sprintf("auth_role_permissions: removed %s from role %s of organization %s", p.Key, role.ID, *role.OrganizationID))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("authz: drop platform grants: %w", err)
+	}
+	for _, line := range removed {
+		log.WarnContext(ctx, "polaris: a platform permission was removed from an organization role; review what its members did (decision 76)", "change", line)
+	}
+	return removed, nil
 }
 
 func ensurePermission(ctx context.Context, r *repository.Repos, p Permission) (string, error) {

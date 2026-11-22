@@ -63,7 +63,18 @@
 // # Impersonation
 //
 // POST /admin/users/{id}/impersonate answers an access token whose sub is the user, with amr
-// ["impersonation"], mfa false, the impersonated_by and impersonator_type claims and no session:
-// it cannot be refreshed, stepped up, switched or logged out, and lives one access-token TTL. A
-// superadmin cannot be impersonated; a disabled or locked account is refused.
+// ["impersonation"], mfa false, no auth_time, the impersonated_by and impersonator_type claims
+// and no session: it cannot be refreshed, stepped up, switched or logged out, and lives one
+// access-token TTL. It reads as the user and does what the user's permissions allow; it is not
+// the account holder, so the pipeline refuses it on every route that needs no permission and
+// writes, destroys or is a step-up route (pipeline.DeniesImpersonation), and the audit rows of
+// what it does carry impersonated_by. A superadmin cannot be impersonated; below owner, neither
+// can an operator of the caller's role or above; a disabled or locked account is refused.
+//
+// # Bounds
+//
+// A session an organization's identity provider opened (token.Token.OrganizationBound) is no
+// operator, whatever its user holds. POST /admin/grants replaces a user's grant only from within
+// the caller's scope: an organization's owner cannot replace a grant on the instance or on another
+// organization, nor give one to a superadmin.
 package admin

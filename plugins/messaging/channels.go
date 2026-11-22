@@ -21,9 +21,14 @@ import (
 	"time"
 )
 
-// Log is the development channel: every message, body included, goes to the logger (nil:
-// slog.Default()). It supports every kind.
-type Log struct{ Logger *slog.Logger }
+// Log is the development channel: every message goes to the logger (nil: slog.Default()) instead
+// of being delivered. It logs the kind, template and recipient; the subject, body and variables
+// (codes, reset links) only with Bodies, which is for a developer's machine: whoever reads that
+// log can sign in as the recipient. It supports every kind.
+type Log struct {
+	Logger *slog.Logger
+	Bodies bool
+}
 
 // Name implements Channel.
 func (*Log) Name() string { return "log" }
@@ -37,8 +42,11 @@ func (l *Log) Send(ctx context.Context, m Message) (string, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	logger.InfoContext(ctx, "messaging: message (not delivered: log channel)", "kind", m.Kind, "template", m.Template,
-		"to", m.To, "subject", m.Subject, "text", m.Text, "html", m.HTML, "vars", m.Vars)
+	attrs := []any{"kind", m.Kind, "template", m.Template, "to", m.To}
+	if l.Bodies {
+		attrs = append(attrs, "subject", m.Subject, "text", m.Text, "html", m.HTML, "vars", m.Vars)
+	}
+	logger.InfoContext(ctx, "messaging: message (not delivered: log channel)", attrs...)
 	return "", nil
 }
 

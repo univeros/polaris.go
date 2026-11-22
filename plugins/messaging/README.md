@@ -26,7 +26,7 @@ The zero value logs every message (the development default).
 
 | Field | Default | Purpose |
 | --- | --- | --- |
-| `Email`, `SMS` | none | main channel of each kind; with no channel at all every message goes to the log |
+| `Email`, `SMS` | none | main channel of each kind; with no channel at all nothing is delivered: each message is logged with its recipient and template only (never the body: it holds codes and reset links), and a warning says so at startup |
 | `Channels` | none | more channels, tried after them in order (any kind) |
 | `Locale` | `"en"` | default locale |
 | `Templates` | none | instance overrides, `locale => key => messaging.Template{Subject, Text, HTML}` |
@@ -38,7 +38,9 @@ The zero value logs every message (the development default).
 | `Outbox` | nil (deliver on the request) | a queue; its worker calls `Sender.Dispatch` |
 
 Channels: `messaging.SMTP` (net/smtp, STARTTLS when offered), `messaging.Twilio`,
-`messaging.Vonage`, `messaging.HTTPSMS` (your `Request` builder for any provider), `messaging.Log`,
+`messaging.Vonage`, `messaging.HTTPSMS` (your `Request` builder for any provider), `messaging.Log`
+(recipient and template; `&messaging.Log{Bodies: true}` also logs subject, body and variables, for
+a developer's machine only: whoever reads that log can sign in as the recipient),
 `messaging.NewMemory(name, kinds...)`; or implement `messaging.Channel`. A failing channel hands the
 message to the next one of its kind, then the fallback.
 

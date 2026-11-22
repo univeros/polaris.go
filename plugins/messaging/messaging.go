@@ -106,6 +106,8 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		}
 	}
 	if len(channels) == 0 {
+		// Nothing is delivered: say so once, and log who and which template, never the body.
+		g.Logger().Warn("messaging: no channel is configured; messages are logged (recipient and template only), not delivered. Set Config.Email / Config.SMS, or &messaging.Log{Bodies: true} on a developer's machine.")
 		channels = []Channel{&Log{Logger: g.Logger()}}
 	}
 	if c.Caps == nil {

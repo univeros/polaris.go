@@ -17,9 +17,12 @@ input:
 
 domain:
   description: >
-    A signed webhook drain: an https endpoint, a secret of at least 16 characters (encrypted at
-    rest, never returned), an optional filter of names or prefix.* patterns. Delivered when the
-    audit plugin has an HTTP client. Needs own; recorded as admin.drain_created.
+    A signed webhook drain: an https endpoint on a public host, without credentials (a literal
+    private, loopback or link-local address and localhost are 422), a secret of at least 16
+    characters (encrypted at rest, never returned), an optional filter of names or prefix.*
+    patterns. Delivered when the audit plugin's Drains is on: after the recording transaction
+    commits, to public addresses only, without following redirects. last_error is a category
+    (refused, timeout, unreachable, HTTP <status>). Needs own; recorded as admin.drain_created.
 
 output:
   status: 201

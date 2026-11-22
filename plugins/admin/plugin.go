@@ -11,13 +11,13 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/token"
 	"github.com/univeros/polaris.go/wiring"
 )
 
@@ -30,8 +30,8 @@ const Tag = "admin"
 
 // Impersonation token claims and method.
 const (
-	ClaimImpersonatedBy   = "impersonated_by"   // the operator's id
-	ClaimImpersonatorType = "impersonator_type" // TypeUser or TypeAPIKey
+	ClaimImpersonatedBy   = token.ClaimImpersonatedBy // the operator's id
+	ClaimImpersonatorType = "impersonator_type"       // TypeUser or TypeAPIKey
 	AMRImpersonation      = "impersonation"
 )
 
@@ -159,8 +159,9 @@ func serverError() endpoint.Result {
 // Resolve tells who a credential is, from the client address ip ("" when unknown): a "pak_" key
 // (hash, expiry, allowlist), or a Polaris access token whose user is not disabled and holds a
 // live grant or core's superadmin role (an owner on the instance). An impersonation token
-// resolves to nobody, marked Impersonated. An unknown, expired or forged credential is nobody;
-// err is only a failing store.
+// resolves to nobody, marked Impersonated; so does, unmarked, a session an organization's
+// identity provider opened (token.Token.OrganizationBound). An unknown, expired or forged
+// credential is nobody; err is only a failing store.
 func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, error) {
 	if bearer == "" {
 		return Resolution{}, nil
@@ -180,7 +181,9 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 		return Resolution{Impersonated: true}, nil
 	}
 	userID := tok.Subject()
-	if userID == "" {
+	if userID == "" || tok.OrganizationBound() {
+		// A session an organization's identity provider opened speaks for the user in that
+		// organization only (decision 68): it carries no operator role, grant or superadmin.
 		return Resolution{}, nil
 	}
 	if p.g.Auth().AccessToken.Denylist {
@@ -209,8 +212,8 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 	return Resolution{Principal: &Principal{ID: userID, Type: TypeUser, Role: RoleOwner, Scope: ScopeInstance}}, nil
 }
 
-// Listeners delete an erased user's operator grants (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
-		maintenance.UserRows{Table: TableGrants, Column: "user_id"})}
+// EraseUser implements wiring.UserEraser: an erased user's operator grant goes with the account,
+// in its transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.g.DB(), userID, maintenance.UserRows{Table: TableGrants, Column: "user_id"})
 }

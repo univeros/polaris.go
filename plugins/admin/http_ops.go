@@ -252,12 +252,39 @@ func (p *Plugin) createGrant(ctx context.Context, in *endpoint.Input) endpoint.R
 	if res, ok := p.scopeExists(ctx, scope); !ok {
 		return res
 	}
+	if res, ok := p.replacesGrant(ctx, op, userID); !ok {
+		return res
+	}
 	grant, err := p.grants.Grant(ctx, Grant{UserID: userID, Role: role, Scope: scope, ExpiresAt: expiresAt, GrantedBy: op.ID})
 	if err != nil {
 		return p.fail(ctx, "create grant", err)
 	}
 	return p.recorded(ctx, endpoint.Data(http.StatusCreated, grant.Map()), AuditGrantCreated, op, userID, orgOf(scope),
 		map[string]any{"grant_id": grant.ID, "role": string(role)})
+}
+
+// replacesGrant checks that op may give userID a grant, which replaces the one the user holds
+// (one grant per user): an instance owner always; an organization's owner only when the grant
+// already there is on its organization, and never for a superadmin (the grant would stand in for
+// what the account holds on the instance).
+func (p *Plugin) replacesGrant(ctx context.Context, op Principal, userID string) (endpoint.Result, bool) {
+	if op.Scope == ScopeInstance {
+		return endpoint.Result{}, true
+	}
+	outside, err := p.isSuperadmin(ctx, userID)
+	if err == nil && !outside {
+		var held Grant
+		var found bool
+		held, found, err = p.grants.For(ctx, userID)
+		outside = found && !op.Covers(orgOf(held.Scope))
+	}
+	if err != nil {
+		return p.fail(ctx, "authorize", err), false
+	}
+	if outside {
+		return Forbidden("This user holds an admin role outside the scope of yours; only an instance owner changes it."), false
+	}
+	return endpoint.Result{}, true
 }
 
 // deleteGrant answers DELETE /admin/grants/{id}: the user is an operator no more.

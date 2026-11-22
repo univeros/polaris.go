@@ -39,7 +39,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `Capabilities` | none | `agents.Capability{Name, Description, Input, Permission, Risk, Handler \| Location}` — exactly one of `Handler`, `Location` |
 | `BaseURL` | the oauth plugin's | where Polaris is mounted; the discovery document derives from it |
 | `ApprovalURL` | none | your page where a person types a user code; empty: approvals are in-app |
-| `AutoApprove` | low risk, 100 executions | risk tier → `agents.Budget` granted without a person; empty map turns it off |
+| `AutoApprove` | low risk, 100 executions | risk tier → `agents.Budget` granted without a person; empty map turns it off. A budget is granted once per window: see Host integration |
 | `Strengths` | low, medium `session`; high `step_up` | risk tier → `StrengthSession`, `StrengthStepUp`, `StrengthPasskey` |
 | `ApprovalTTL` | 10 min | how long an approval waits |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
@@ -100,6 +100,10 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
   are not read, so a TLS-terminating proxy needs no setup and another host name is refused
   (`aud_mismatch`). On your routes behind `Protect` / `Guard` the `aud` is the URL as the request
   names it (`Host`, and `r.TLS` for the scheme): serve them only under your own host names.
+- The policy (`AutoApprove`) does not refill a budget: once an agent has exhausted a grant of a
+  capability, its next request for that capability waits for a person (`pending`) until the spent
+  grant's window has passed; a budget without a window is granted by the policy once. A person can
+  approve the new request as usual.
 - An autonomous agent's own token (`client_credentials`) carries the permissions of its live
   grants that its owner holds when the token is issued (`Plugin.ClientPermissions`).
 - Each `Handler` capability is also an MCP tool `agents.<name>` for `plugins/mcp`.

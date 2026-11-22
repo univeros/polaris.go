@@ -72,12 +72,14 @@ retries the same request with `captcha_token`). Admin routes answer `…/admin/u
 
 ## Host integration
 
-- Erasing a user deletes its known devices (`event.UserDeleted`). Past decisions keep the
+- Erasing a user deletes its known devices inside the erasure's transaction (`wiring.UserEraser`). Past decisions keep the
   address of the attempt; they are keyed by address, not by user.
 - Without a `Captcha` verifier nothing can answer a challenge: the challenge band is recorded and let
   through.
 - The middleware reads JSON and form bodies and sets the `polaris_device` cookie
-  (`sentinel.DeviceCookie`) when a guarded request has none.
+  (`sentinel.DeviceCookie`) when a guarded request has none. The cookie is `Secure` when the
+  request came over TLS or the configured issuer (`AUTH_ISSUER`) is https, so it is behind a
+  proxy that ends TLS too.
 - `sentinel.Of(g).Engine().Evaluate(ctx, sentinel.Attempt{…})` judges your own attempts;
   `Engine().Unblock`, `IPRules()` and `Decisions()` serve the same as the admin routes.
 - `Plugin.RefreshDomainList(ctx, url, to)` writes a fresh disposable-domain file; it is read at the

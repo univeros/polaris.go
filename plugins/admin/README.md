@@ -93,10 +93,26 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
 
 ## Host integration
 
-- Erasing a user deletes its operator grants (`event.UserDeleted`).
-- An impersonation token carries `amr ["impersonation"]` and the `admin.ClaimImpersonatedBy` /
-  `admin.ClaimImpersonatorType` claims; it cannot be refreshed and is never an operator. A superadmin
-  cannot be impersonated.
+- Erasing a user deletes its operator grant inside the erasure's transaction (`wiring.UserEraser`).
+- An impersonation token carries `amr ["impersonation"]`, no `auth_time`, and the
+  `admin.ClaimImpersonatedBy` / `admin.ClaimImpersonatorType` claims; it cannot be refreshed and is
+  never an operator. It reads as the user and does what the user's permissions allow, but it is not
+  the account holder: every route that needs no permission and writes, destroys or is a step-up
+  route answers 403 (`pipeline.DeniesImpersonation`: password, factors, passkeys, API keys,
+  sessions, organizations created or joined, deletion). `token.Token.ImpersonatedBy` reads the
+  claim in your own handlers, and audit rows written while serving such a token carry
+  `impersonated_by`. A superadmin cannot be impersonated, and below `RoleOwner` neither can an
+  operator of the caller's role or above (the reach rule above).
+- A session an organization's identity provider opened (`plugins/sso`, `Principal.OrganizationBound`)
+  is never an operator: `/admin` answers it 401 whatever grant or role its user holds. Operators
+  sign in to the account itself.
+- An organization-scoped owner grants roles on its organization, to users who hold no grant or one
+  on that organization. Replacing a grant on the instance or on another organization, or granting
+  to a superadmin, is for an instance owner (403 `admin/forbidden`).
+- A drain's `endpoint` is an https URL of a public host without credentials; a literal private,
+  loopback or link-local address and `localhost` are refused (422), and delivery itself connects
+  to public addresses only (`plugins/audit`). `last_error` is a category: `refused`, `timeout`,
+  `unreachable` or `HTTP <status>`.
 - Your own admin route: declare it with tag `admin.Tag` and `auth: public`, then start the endpoint
   with `op, res, ok := admin.Authorize(ctx, admin.Own, orgID)` and record with
   `admin.Of(g).Record(ctx, name, op, subjectID, orgID, data)`.

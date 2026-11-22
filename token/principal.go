@@ -60,3 +60,12 @@ func (t *Token) OrganizationBound() bool {
 
 // Organization returns the org claim, "" when absent or null.
 func (t *Token) Organization() string { s, _ := t.claims["org"].(string); return s }
+
+// ClaimImpersonatedBy is the claim of a token an operator minted to act as a user (plugins/admin):
+// the operator's id.
+const ClaimImpersonatedBy = "impersonated_by"
+
+// ImpersonatedBy returns the id of the operator a token acts for its subject on behalf of, "" for
+// a token that is not an impersonation. Such a token reads as the user; it is not the account
+// holder (pipeline.DeniesImpersonation).
+func (t *Token) ImpersonatedBy() string { return t.stringClaim(ClaimImpersonatedBy) }

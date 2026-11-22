@@ -2606,3 +2606,166 @@ client-visible; the changelog lists what a client sees.
 
 Verified with `make qa`, `make apicheck BASE=origin/main` and `scripts/test-db-matrix.sh
 ./plugins/oauth/...` (PostgreSQL, MySQL). Fuzz targets unchanged and passing.
+
+## 76. 2026-11-22 — Operator reach and hardening before 1.0
+
+Findings of the security review for v1 in the operator API, the agents' approval policy, the audit
+drains, erasure and a few defaults. Each one that changes behaviour had a failing test before its
+fix. The changelog lists what a client sees.
+
+- **admin: impersonation follows the reach rule, and its token is not the account holder.**
+  Decision 69 gave ban, password, MFA and delete one helper, `manageUser`; `impersonate` kept the
+  bare capability check, so an `admin` operator could mint a token for an `owner` operator's
+  account. The token carried a fresh `auth_time` and no marker the pipeline read, so it passed
+  step-up and every self-service route: it could enrol a factor or register a passkey on the
+  account and keep it. Now (1) `impersonate` goes through the same rule (`reachUser`: below
+  `owner`, not a superadmin, not an operator of the caller's role or above); (2) the token is
+  minted without `auth_time`: it is nobody's recent authentication; (3) the pipeline's
+  authorization step refuses a token carrying `impersonated_by` on every route that needs no
+  permission and writes, destroys or is a step-up route (`pipeline.DeniesImpersonation`), the
+  rule by route shape that already keeps delegated credentials and SSO-bound sessions off the
+  account holder's routes (decision 68), without the logout exception: the token has no session.
+  `plugins/mcp` hides those tools from it. `token.ClaimImpersonatedBy` and
+  `Token.ImpersonatedBy` are the claim in core; `admin.ClaimImpersonatedBy` is that constant.
+  (4) `audit.Recorder.Record` adds `impersonated_by` to the data of every row written while the
+  request's token is an impersonation, so what was done with one names the operator beside the
+  user.
+  Security review: only refuses more. The token still reads what the user reads and does what
+  the user's permissions allow; with no organization in it, that is reads. A host route that
+  resolves the actor from the user id alone does not see the claim (`Token.ImpersonatedBy` is
+  there for it). Tests: `TestImpersonationDoesNotReachUpNorActAsTheAccountHolder` (admin, HTTP;
+  failed before: 201 for an owner and a peer admin, `auth_time` present, factor enrolment,
+  password change, organization creation and logout-all all answered 2xx),
+  `TestAnImpersonatedActionNamesTheOperator` (audit; failed before). Admin fixtures replay
+  unchanged.
+
+- **admin: a grant is replaced only from within the caller's scope.** One grant per user
+  (decision 60) means `POST /admin/grants` replaces the target's grant. The route checked `Own` on
+  the *new* scope only, so an owner scoped to one organization could replace an instance owner's
+  grant, or another organization's operator's, with a `viewer` grant on its own organization,
+  and give a superadmin a grant that then stood in for the superadmin's instance role
+  (`Resolve` reads the grant first). Now an organization-scoped caller is refused (403
+  `admin/forbidden`) when the target holds a live grant its scope does not cover, or is a
+  superadmin (`replacesGrant`); an instance owner is unchanged. Security review: only refuses
+  more. The check and the upsert are two statements: two owners racing on one user can still
+  interleave, both being allowed on what they read. `Grants().Grant`, the Go API and the CLI, is
+  the host's and is not bounded. Test: `TestAGrantIsReplacedOnlyFromWithinTheCallersScope`
+  (failed before: 201 and the three grants rewritten).
+
+- **admin: an organization-bound session is no operator.** The admin routes are `auth: public`
+  (the plugin resolves the operator itself), so `DeniesBound` never ran, and `Resolve` never read
+  the binding: a session an organization's IdP opened for a user who holds a grant, or is a
+  superadmin, had the full role on `/admin/*`. `Resolve` now answers nobody for
+  `tok.OrganizationBound()`, which covers the middleware, `OperatorOf`, `IsOperator` and the
+  plugins that ask through `AuthorizeOperator`. Capping it to the organization was considered:
+  whoever runs the IdP would still hold an operator role they were never given. Test:
+  `TestAnOrganizationBoundSessionIsNoOperator` (failed before: 200). Not covered here:
+  `plugins/oauth`'s own default operator check, used when the admin plugin is absent.
+
+- **agents: the auto-approval policy does not refill a budget.** A grant that spent its budget
+  is `exhausted`, which is not live, so the next request for the capability found no grant and
+  the policy approved a new one with a full budget: a budget of 2 allowed any number of
+  executions. Now the policy does not apply while the agent has an exhausted grant of that
+  capability whose window has not passed (`spentGrant`; a budget without a window never passes):
+  the request is `pending` and a person decides. After the window the policy applies again,
+  which is what a window means. Security review: only withholds an automatic approval. A grant a
+  person revoked is still re-approved by the policy when asked again (unchanged, and tested as
+  such): the policy is the host's statement that the tier needs no person. Tests:
+  `TestASpentAutoApprovedBudgetIsNotRefilledByAskingAgain` (failed before: `active`, via `auto`),
+  `TestThePolicyAppliesAgainAfterTheSpentGrantsWindow`. Agents fixtures replay unchanged.
+
+- **audit: drains are guarded, never hold the writer, and report a category.** An organization's
+  owner chooses a drain's endpoint. Delivery used the host's client as given (any address, any
+  redirect), ran inside the write (under a host transaction, with the chain's lock row held, a
+  slow endpoint stalled every audit writer for attempts × timeout), and stored the transport's
+  error text in `last_error`, which the owner reads: together, a way to probe what the server can
+  reach. Now:
+  - `audit.Config.Drains` turns delivery on with `internal/netguard`'s client: public unicast
+    addresses only, decided at connect time after DNS resolution; redirects are never followed,
+    whichever client is used (`netguard.NoRedirects`, as oauth and sso do). `Config.HTTPClient`
+    still turns delivery on and is used as given: the host's client says where it may go.
+    **Hosts that passed a plain client and want the guard set `Drains: true` and drop the
+    client.** `POST /admin/organizations/{id}/drains` also refuses an endpoint with credentials,
+    a literal non-public address or `localhost` (422); names are judged at connect time.
+  - A batch is handed to `wiring.Graph.Deferred` (decision 66), so it starts after the outermost
+    commit and never after a rollback, and then runs on its own goroutine with its own context
+    (15 s for the batch, retries included; at most 32 batches in flight, one more is dropped
+    and logged). Under `sqlstore.WithTx` there is no commit to wait for and it starts at once,
+    off the transaction. `Plugin.WaitDrains` waits for the deliveries in flight (shutdown,
+    tests); the admin test route calls it, so it still answers the outcome.
+  - `last_error` is `refused`, `timeout`, `unreachable` or `HTTP <status>`
+    (`audit.DrainRefused`, …); the full error goes to the log.
+  Security review: with the default client a DNS answer that changes between resolution and
+  connect is still judged at connect. The status code of a public endpoint is not a secret. With
+  the host's own client the guard is the host's, and the status code then reports on whatever
+  that client reaches; the README says so. Delivery order between batches is no longer
+  guaranteed. A process that exits with deliveries in flight loses them, as it lost a delivery in
+  flight before; drains are best-effort (the database row is the record). Tests:
+  `TestADrainReachesPublicAddressesOnlyAndReportsACategory`,
+  `TestADrainFollowsNoRedirectAndEchoesNoTransportError` (failed before: the redirect target was
+  reached), `TestADrainNeverHoldsTheTransactionThatRecorded` (failed before: delivered inside
+  the transaction and for a rolled-back one), `TestADrainEndpointIsNotALiteralInternalAddress`
+  (admin; failed before: 201). The admin drain fixture replays unchanged.
+
+- **authz: no organization role grants a platform permission.** Decision 67 closed the path by
+  which an organization role passed for the superadmin; while it was open, such a member was
+  exempt from the escalation guard and could put `users.read` / `users.manage` into an
+  organization role, and those rows kept granting the cross-tenant `/users/{id}` routes after the
+  upgrade. The resolver now skips a platform permission (`authz.PlatformOnly`: the catalog's
+  admin-scoped keys) when it flattens an organization's roles; only the system superadmin role
+  yields them. `Migrate` deletes such grants from organization roles
+  (`authz.DropPlatformGrants`, internal), returns one line per removal and logs each as a
+  warning: a removed grant is evidence, and the host should review what the role's members did.
+  Security review: only removes authority no template ever gave an organization role. Tests:
+  `TestAnOrganizationRoleNeverGrantsAPlatformPermission`,
+  `TestPlatformGrantsAreRemovedFromOrganizationRoles` (every backend; both failed before).
+
+- **Erasure erases the plugins' rows in its own transaction.** `AnonymizeUser` committed, then
+  dispatched `event.UserDeleted`; each plugin deleted its rows in a listener that logged a
+  failure. An erasure could report success with an operator grant, a username or device records
+  left behind. Now `Identity.OnUserDeleted`, which every path that erases or removes an account
+  already calls inside its transaction (AGENT.md), runs every plugin's `wiring.AccessEraser`,
+  then every `wiring.UserEraser` (new optional interface: rows about a user that are not ways to
+  act as one), then the host's hook; any error rolls the erasure back. admin, audit, sentinel,
+  multisession, anonymous, username, sso and scim implement `UserEraser` in place of their
+  listener (`maintenance.EraseUser` replaces `EraseOnUserDeleted`); passwordless's listener
+  deleted what its `EraseAccess` deletes and is gone; oauth, passkey, apikeys, agents and social
+  are `AccessEraser`s and keep their listeners for the other events they handle, where the
+  `UserDeleted` case now finds nothing. Sessions are still revoked after the commit (the
+  denylist watermark is in the cache) and `UserDeleted` is still dispatched after it, for hosts
+  and third-party plugins. Test: `TestAnErasureThatCannotEraseAPluginsRowsErasesNothing`
+  (failed before: success reported, account anonymised, the grant's failure only logged).
+
+- **Smaller items.**
+  - *Device cookies behind a proxy.* multisession's and sentinel's cookies were `Secure` only
+    when `r.TLS != nil`; behind a proxy that ends TLS they were not. They are now also `Secure`
+    when the configured issuer is https. Tests:
+    `TestTheDeviceCookieIsSecureBehindATLSTerminatingProxy`,
+    `TestObserveModeRecordsWhatASignalSaidAndLetsEverythingThrough` (both failed before).
+  - *messaging without a channel.* The fallback logged whole messages: reset links and codes. The
+    `Log` channel now logs kind, template and recipient; `Bodies: true` adds the rest, for a
+    developer's machine; `Init` warns when it falls back. Core's own development mail driver
+    (`notify`, with its startup warning) is unchanged. Test: `TestTheLogAndArrayChannels`
+    (failed before).
+  - *IPv6 rate limits.* The per-IP key was the full address, and one subscriber holds a /64. The
+    key is now the /64 for IPv6 and the IPv4 address for an IPv4-mapped one. Test:
+    `TestAnIPv6ClientIsLimitedByItsNetwork` (failed before).
+  - *A weak hasher is named.* `polaris.New` warns when `Config.Hasher` is an Argon2id below the
+    default memory or passes (`polaristest.Hasher()` in production); not under `go test`
+    (`testing.Testing`). Test: `TestAHasherBelowTheDefaultCostIsNamed`.
+  - *Checked, unchanged.* `logout-all` is already refused to an SSO-bound session: the route is
+    `effect: destructive` and `DeniesBound` excepts only the `write` logout of the session itself
+    (`TestAuthorization`'s bound cases and sso's `TestAnSSOSessionStaysInItsOrganization` cover
+    it). ui's refresh and MFA cookies stay `__Secure-`: they are scoped to the pages' path so the
+    refresh token is not sent to every route, and a `__Host-` cookie must be `Path=/`.
+
+API (additive): `token.ClaimImpersonatedBy`, `Token.ImpersonatedBy`, `pipeline.DeniesImpersonation`,
+`pipeline.MsgImpersonation`, `authz.PlatformOnly`, `wiring.UserEraser`, `audit.Config.Drains`,
+`audit.Plugin.WaitDrains`, `audit.Plugin.EraseUser` and the other plugins' `EraseUser`,
+`audit.DrainRefused` / `DrainTimeout` / `DrainUnreachable`, `messaging.Log.Bodies`.
+**Breaking** (Go API, before v1; nothing a host or a plugin calls): the `Listeners` method of the
+admin, multisession, anonymous, username, sso, scim and passwordless plugins is gone (each had no
+other listener; the graph calls it only through `wiring.ListenerProvider`). No new dependency. No schema change; `Migrate` may delete rows of
+`auth_role_permissions` as described. Stored data stays readable; an impersonation token minted
+before the upgrade keeps its `auth_time` until it expires (one access-token TTL) and is refused by
+the new rule all the same.

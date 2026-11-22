@@ -238,8 +238,14 @@ func (p *Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 // Listeners feed the outcomes the engine cannot see at attempt time: a failed sign-in counts for
 // the credential-stuffing ratio; a sign-in records the device of the request with its address and
 // location; an erased user's devices are deleted.
-func (p *Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{p.listen, maintenance.EraseOnUserDeleted(g.DB(), g.Logger(), maintenance.UserRows{Table: TableDevices, Column: "user_id"})}
+func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
+	return []event.Listener{p.listen}
+}
+
+// EraseUser implements wiring.UserEraser: an erased user's devices go with the account, in its
+// transaction.
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.g.DB(), userID, maintenance.UserRows{Table: TableDevices, Column: "user_id"})
 }
 
 func (p *Plugin) listen(ctx context.Context, e event.Event) {

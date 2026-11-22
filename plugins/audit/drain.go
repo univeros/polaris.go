@@ -2,12 +2,16 @@ package audit
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
@@ -151,7 +155,8 @@ func (d *Drains) Delete(ctx context.Context, id string) (bool, error) {
 	return n > 0, err
 }
 
-// RecordDelivery stamps the last delivery and its error ("" on success).
+// RecordDelivery stamps the last delivery and its error ("" on success). The drain's owner reads
+// it: pass a category (DrainRefused, …), not a transport error.
 func (d *Drains) RecordDelivery(ctx context.Context, id, deliveryErr string) error {
 	_, err := d.db.Update(ctx, TableDrains, store.Criteria{"id": id}, store.Data{"last_delivery_at": d.clock.Now(), "last_error": null(deliveryErr)})
 	return err
@@ -173,17 +178,63 @@ func (d *Drains) hydrate(r store.Row) (Drain, error) {
 	return dr, nil
 }
 
+// Delivery bounds: one batch to an organization's drains gets drainTimeout in all (retries
+// included), and at most maxDrainDeliveries batches are in flight; a batch beyond that is dropped
+// and logged, so a slow endpoint cannot pile work up behind it.
+const (
+	drainTimeout       = 15 * time.Second
+	maxDrainDeliveries = 32
+)
+
+// The categories a drain's last_error holds. The transport's own words (addresses, DNS answers,
+// TLS errors) are logged, never stored: the drain's owner reads this field, and they would tell
+// it what this server can reach.
+const (
+	DrainRefused     = "refused"     // the endpoint is not a public address
+	DrainTimeout     = "timeout"     // no answer in time
+	DrainUnreachable = "unreachable" // any other transport failure
+)
+
+// drainFailure is the category of a failed delivery: one of the constants above, or "HTTP <status>".
+func drainFailure(err error) string {
+	var failed *webhookError
+	var timeout interface{ Timeout() bool }
+	switch {
+	case errors.Is(err, netguard.ErrNonPublicAddress):
+		return DrainRefused
+	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout()):
+		return DrainTimeout
+	case errors.As(err, &failed) && failed.status != 0:
+		return fmt.Sprintf("HTTP %d", failed.status)
+	}
+	return DrainUnreachable
+}
+
+// drainBatch carries a delivery through wiring.Graph.Deferred, which delays listeners: it is an
+// event only for that.
+type drainBatch struct{ run func() }
+
+func (drainBatch) EventName() string { return "audit.drain_batch" }
+
 // drainSink delivers each organization's events to its active drains, one WebhookSink per drain,
-// and records the outcome on the drain; a failing drain affects nothing else.
+// and records the outcome on the drain; a failing drain affects nothing else. Delivery never
+// runs on the writer: it starts after the transaction that recorded the events commits (never
+// when it rolls back), on its own goroutine, under drainTimeout.
 type drainSink struct {
 	drains   *Drains
 	client   *http.Client
 	attempts int
 	sleep    func(time.Duration)
 	logger   *slog.Logger
+	// after runs fn once the transaction of ctx commits (nil: at once).
+	after func(ctx context.Context, fn func())
+
+	mu       sync.Mutex
+	inflight int
+	idle     chan struct{} // closed when inflight returns to zero
 }
 
-func (s drainSink) Write(ctx context.Context, events ...Event) error {
+func (s *drainSink) Write(ctx context.Context, events ...Event) error {
 	var orgs []string
 	byOrg := map[string][]Event{}
 	for _, e := range events {
@@ -195,19 +246,69 @@ func (s drainSink) Write(ctx context.Context, events ...Event) error {
 		}
 		byOrg[e.OrganizationID] = append(byOrg[e.OrganizationID], e)
 	}
-	for _, org := range orgs {
-		drains, err := s.drains.ForOrganization(ctx, org, true)
-		if err != nil {
-			return err
-		}
-		for _, dr := range drains {
-			s.deliver(ctx, dr, byOrg[org])
-		}
+	if len(orgs) == 0 {
+		return nil
+	}
+	start := func() { s.start(orgs, byOrg) } //nolint:contextcheck // the delivery outlives the writer and must not join its transaction: start makes its own context
+	if s.after == nil {
+		start()
+	} else {
+		s.after(ctx, start)
 	}
 	return nil
 }
 
-func (s drainSink) deliver(ctx context.Context, dr Drain, batch []Event) {
+// start delivers on a new goroutine. The delivery's context is its own: the writer's may carry a
+// transaction (the host's, under sqlstore.WithTx) or end with the request.
+func (s *drainSink) start(orgs []string, byOrg map[string][]Event) {
+	s.mu.Lock()
+	if s.inflight >= maxDrainDeliveries {
+		s.mu.Unlock()
+		s.logger.Warn("Audit drain delivery dropped: too many in flight", "organizations", len(orgs))
+		return
+	}
+	if s.inflight++; s.inflight == 1 {
+		s.idle = make(chan struct{})
+	}
+	s.mu.Unlock()
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			if s.inflight--; s.inflight == 0 {
+				close(s.idle)
+			}
+			s.mu.Unlock()
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		defer cancel()
+		for _, org := range orgs {
+			drains, err := s.drains.ForOrganization(ctx, org, true)
+			if err != nil {
+				s.logger.ErrorContext(ctx, "Audit drains not read", "organization", org, "reason", err.Error())
+				continue
+			}
+			for _, dr := range drains {
+				s.deliver(ctx, dr, byOrg[org])
+			}
+		}
+	}()
+}
+
+// wait returns when no delivery is in flight, or when ctx ends.
+func (s *drainSink) wait(ctx context.Context) {
+	s.mu.Lock()
+	idle, busy := s.idle, s.inflight > 0
+	s.mu.Unlock()
+	if !busy {
+		return
+	}
+	select {
+	case <-idle:
+	case <-ctx.Done():
+	}
+}
+
+func (s *drainSink) deliver(ctx context.Context, dr Drain, batch []Event) {
 	var accepted []Event
 	for _, e := range batch {
 		if dr.Accepts(e.Name) {
@@ -220,10 +321,11 @@ func (s drainSink) deliver(ctx context.Context, dr Drain, batch []Event) {
 	hook := WebhookSink{URL: dr.Endpoint, Secret: dr.Secret, Client: s.client, Attempts: s.attempts, Sleep: s.sleep}
 	failure := ""
 	if err := hook.Write(ctx, accepted...); err != nil {
-		failure = err.Error()
-		s.logger.WarnContext(ctx, "Audit drain failed", "drain", dr.ID, "reason", failure)
+		failure = drainFailure(err)
+		s.logger.WarnContext(ctx, "Audit drain failed", "drain", dr.ID, "failure", failure, "reason", err.Error())
 	}
-	if err := s.drains.RecordDelivery(ctx, dr.ID, failure); err != nil {
+	// The outcome is recorded even when the delivery used the whole budget.
+	if err := s.drains.RecordDelivery(context.WithoutCancel(ctx), dr.ID, failure); err != nil {
 		s.logger.ErrorContext(ctx, "Audit drain outcome not recorded", "drain", dr.ID, "reason", err.Error())
 	}
 }

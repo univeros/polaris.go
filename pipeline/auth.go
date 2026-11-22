@@ -3,6 +3,7 @@ package pipeline
 import (
 	"net"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -54,16 +55,30 @@ func sanitizeUserAgent(ua string) string {
 	return ua
 }
 
-// clientIP is the rate-limit key of an anonymous caller: the recorded IP, else "unknown".
+// clientIP is the rate-limit key of an anonymous caller: the recorded IP, else "unknown". An
+// IPv6 address is keyed by its /64 (one subscriber holds at least that many addresses, so a
+// budget per address would be none); an IPv4-mapped one by its IPv4 address.
 func clientIP(r *http.Request) string {
-	if ip := endpoint.Client(r.Context()).IP; ip != "" {
+	ip := endpoint.Client(r.Context()).IP
+	if ip == "" {
+		ip = remoteIP(r)
+	}
+	if ip == "" {
+		return "unknown"
+	}
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
 		return ip
 	}
-	if ip := remoteIP(r); ip != "" {
-		return ip
+	if addr = addr.Unmap().WithZone(""); addr.Is4() {
+		return addr.String()
 	}
-	return "unknown"
+	prefix, _ := addr.Prefix(ipv6RateBits)
+	return prefix.String()
 }
+
+// ipv6RateBits is the prefix length an IPv6 client is rate limited by.
+const ipv6RateBits = 64
 
 var bearerPattern = regexp.MustCompile(`(?i)^Bearer\s+(\S.*)$`)
 
@@ -250,6 +265,9 @@ func (p *Pipeline) authorize(next http.Handler) http.Handler {
 		} else if tok != nil && DeniesBound(rt, tok) {
 			endpoint.Write(w, endpoint.Forbidden(MsgOrganizationBound))
 			return
+		} else if tok != nil && DeniesImpersonation(rt, tok) {
+			endpoint.Write(w, endpoint.Forbidden(MsgImpersonation))
+			return
 		}
 		p.permit(w, r, rt.RequiresPermissions, next, false)
 	})
@@ -286,6 +304,24 @@ func DeniesBound(rt *manifest.Route, tok *token.Token) bool {
 	}
 	if rt.Session == manifest.SessionEnd && rt.Effect == manifest.EffectWrite {
 		return false // logging out of this session
+	}
+	return rt.StepUp || rt.Effect != manifest.EffectRead
+}
+
+// MsgImpersonation is what an operator's impersonation token reads on a route reserved to the
+// account holder.
+const MsgImpersonation = "This token was issued to an operator impersonating the user; it cannot act as the account holder."
+
+// DeniesImpersonation: a token an operator minted to act as a user (token.Token.ImpersonatedBy)
+// may read, and may do what a permission the user holds allows. It may not call a route that
+// needs no permission and writes, destroys or is a step-up route: those act on the account
+// itself (password, factors, passkeys, keys, sessions, deletion), and the operator is not the
+// account holder. It has no session, so there is no logout to allow.
+//
+// The MCP server filters tools with it.
+func DeniesImpersonation(rt *manifest.Route, tok *token.Token) bool {
+	if tok.ImpersonatedBy() == "" || len(rt.RequiresPermissions) > 0 {
+		return false
 	}
 	return rt.StepUp || rt.Effect != manifest.EffectRead
 }
