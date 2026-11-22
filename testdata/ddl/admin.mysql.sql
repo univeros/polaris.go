@@ -9,7 +9,7 @@ CREATE TABLE `polaris_admin_grant` (
     PRIMARY KEY (`id`)
 );
 
-CREATE INDEX `polaris_admin_grant_user_index` ON `polaris_admin_grant` (`user_id`);
+CREATE UNIQUE INDEX `polaris_admin_grant_user_unique` ON `polaris_admin_grant` (`user_id`);
 
 CREATE TABLE `polaris_admin_key` (
     `id` VARCHAR(36) NOT NULL,

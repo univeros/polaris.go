@@ -68,10 +68,14 @@ type Config struct {
 	Pepper   *security.Pepper // hashes invitation tokens (context "org_invite")
 	Clock    clock.Clock      // nil: clock.System
 	Events   event.Dispatcher // nil: event.Nop
+	// Catalog gives a new organization's owner, admin and member roles their grants; the zero
+	// value is core's.
+	Catalog authz.Catalog
 }
 
 // Service manages organizations, members, invitations and roles. Safe for concurrent use.
 type Service struct {
+	catalog  authz.Catalog
 	db       store.Adapter
 	r        *repository.Repos
 	resolver *authz.Resolver
@@ -99,7 +103,7 @@ func New(cfg Config) (*Service, error) {
 	}
 	repos := repository.New(cfg.DB)
 	s := &Service{
-		db: cfg.DB, r: repos, resolver: authz.NewResolver(repos), guard: authz.NewEscalationGuard(repos),
+		catalog: cfg.Catalog, db: cfg.DB, r: repos, resolver: authz.NewResolver(repos), guard: authz.NewEscalationGuard(repos),
 		sessions: cfg.Sessions, pepper: cfg.Pepper, clock: cfg.Clock, events: cfg.Events,
 	}
 	if s.clock == nil {

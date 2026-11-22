@@ -8,6 +8,8 @@
 package authz
 
 import (
+	"fmt"
+	"maps"
 	"slices"
 )
 
@@ -73,6 +75,7 @@ type RoleTemplate struct {
 // plugins' contributions. It is an immutable value; the zero value is core only.
 type Catalog struct {
 	contributions []map[string]string
+	roleGrants    map[string][]string // owner/admin/member slug → contributed keys
 }
 
 // NewCatalog returns the core catalog extended by contributions (key → description), applied in
@@ -107,10 +110,50 @@ func (c Catalog) Permissions() []Permission {
 	return out
 }
 
+// WithRoleGrants returns a copy of c whose owner, admin and member templates also grant contributed
+// permissions: grants maps a role slug to permission keys (the host's or a plugin's). Every new
+// organization's copy of the role starts with them, and Seed gives a grant new to a template to
+// every existing organization's copy, once. It refuses another slug (superadmin already holds
+// every permission; a custom role belongs to its organization), a key the catalog lacks, and a
+// core key (the system roles' core permissions are fixed).
+func (c Catalog) WithRoleGrants(grants map[string][]string) (Catalog, error) {
+	known := map[string]bool{}
+	for _, p := range c.Permissions() {
+		known[p.Key] = true
+	}
+	out := Catalog{contributions: c.contributions, roleGrants: maps.Clone(c.roleGrants)}
+	if out.roleGrants == nil {
+		out.roleGrants = map[string][]string{}
+	}
+	for _, slug := range slices.Sorted(maps.Keys(grants)) {
+		if slug != RoleOwner && slug != RoleAdmin && slug != RoleMember {
+			return Catalog{}, fmt.Errorf("authz: role permissions: %q is not a system role; use owner, admin or member (custom roles are granted per organization through /orgs/{id}/roles)", slug)
+		}
+		keys := slices.Clone(out.roleGrants[slug])
+		for _, key := range grants[slug] {
+			switch {
+			case isCore(key):
+				return Catalog{}, fmt.Errorf("authz: role permissions: %s on %s is a core permission; the system roles' core permissions are fixed (edit an organization's admin or member role through /orgs/{id}/roles)", key, slug)
+			case !known[key]:
+				return Catalog{}, fmt.Errorf("authz: role permissions: %s on %s is not in the catalog; declare it in Config.Permissions (or add the plugin that contributes it to Config.Plugins)", key, slug)
+			case !slices.Contains(keys, key):
+				keys = append(keys, key)
+			}
+		}
+		slices.Sort(keys)
+		out.roleGrants[slug] = keys
+	}
+	return out, nil
+}
+
+func isCore(key string) bool {
+	return slices.ContainsFunc(corePermissions, func(p Permission) bool { return p.Key == key })
+}
+
 // RoleTemplates returns the system role templates in seed order: owner (every org permission),
 // admin (owner without org.delete), member (read-only) and superadmin (every core permission).
-// Contributed permissions are granted to no template.
-func (Catalog) RoleTemplates() []RoleTemplate {
+// Contributed permissions are granted only as WithRoleGrants says.
+func (c Catalog) RoleTemplates() []RoleTemplate {
 	var all, orgScoped, adminRole []string
 	for _, p := range corePermissions {
 		all = append(all, p.Key)
@@ -123,9 +166,9 @@ func (Catalog) RoleTemplates() []RoleTemplate {
 		}
 	}
 	return []RoleTemplate{
-		{RoleOwner, "Owner", "Full control of the organization, including deletion and ownership transfer", orgScoped},
-		{RoleAdmin, "Administrator", "Manage the organization and its members, but cannot delete it or transfer ownership", adminRole},
-		{RoleMember, "Member", "Read-only access to the organization, its members and roles", []string{OrgRead, MembersRead, RolesRead}},
+		{RoleOwner, "Owner", "Full control of the organization, including deletion and ownership transfer", append(orgScoped, c.roleGrants[RoleOwner]...)},
+		{RoleAdmin, "Administrator", "Manage the organization and its members, but cannot delete it or transfer ownership", append(adminRole, c.roleGrants[RoleAdmin]...)},
+		{RoleMember, "Member", "Read-only access to the organization, its members and roles", append([]string{OrgRead, MembersRead, RolesRead}, c.roleGrants[RoleMember]...)},
 		{RoleSuperadmin, "Super Admin", "Platform operator with a global override across all organizations", all},
 	}
 }

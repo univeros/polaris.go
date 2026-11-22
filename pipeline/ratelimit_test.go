@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,8 +43,26 @@ func TestRateLimiterAnswers429WithTheHeadersOf10(t *testing.T) {
 	if h.Get("X-RateLimit-Limit") != "2" || h.Get("X-RateLimit-Remaining") != "1" || h.Get("X-RateLimit-Reset") != "1700000300" {
 		t.Fatalf("first: %v", h)
 	}
-	if blocked.Code != 429 || blocked.Header().Get("Retry-After") != "300" || blocked.Header().Get("X-RateLimit-Remaining") != "0" || blocked.Body.Len() != 0 || blocked.Header().Get("Content-Type") != "" {
+	if blocked.Code != 429 || blocked.Header().Get("Retry-After") != "300" || blocked.Header().Get("X-RateLimit-Remaining") != "0" || blocked.Header().Get("Content-Type") != "application/json" ||
+		!strings.Contains(blocked.Body.String(), `"error":"too_many_requests"`) || !strings.Contains(blocked.Body.String(), `"message":`) {
 		t.Fatalf("blocked: %d %v %q", blocked.Code, blocked.Header(), blocked.Body)
+	}
+}
+
+// A plugin route's 429 is an RFC 9457 problem, as every other refusal of a plugin route.
+func TestA429OnAPluginRouteIsAProblem(t *testing.T) {
+	_, all := manifests(t)
+	o := options(t, all)
+	o.RateStore = &fixedStore{}
+	o.Auth.RateLimits.Login = config.RateLimit{Limit: 1, Window: 300 * time.Second, KeyPrefix: "login"}
+	o.Clock = fixedClock(time.Unix(1_700_000_000, 0))
+	mw := newPipeline(t, o).ipRateLimit(&counting{})
+	serve(mw, routed(t, all, "POST", "/passkey/authenticate/verify"))
+	blocked := serve(mw, routed(t, all, "POST", "/passkey/authenticate/verify"))
+	body := blocked.Body.String()
+	if blocked.Code != 429 || blocked.Header().Get("Retry-After") != "300" || blocked.Header().Get("Content-Type") != "application/problem+json" ||
+		!strings.Contains(body, `"type":"https://polaris.univeros.io/problems/too_many_requests"`) || !strings.Contains(body, `"error":"too_many_requests"`) || !strings.Contains(body, `"status":429`) {
+		t.Fatalf("blocked: %d %v %q", blocked.Code, blocked.Header(), body)
 	}
 }
 

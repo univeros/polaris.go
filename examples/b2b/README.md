@@ -31,10 +31,9 @@ It prints an operator key (`operator key (viewer, this run only): pak_…`) and 
 `http://localhost:8080` (`ADDR` changes it). Verification and invitation tokens appear in its log as
 `Polaris dev email (not delivered) … context=map[token:…]`.
 
-One thing the program does that Polaris has no host call for yet: a new organization's `owner` and
-`admin` roles get the host's own permissions (`grantToRole`, run from an `org.created` listener).
-Without it the owner could not put `projects.*` into a role, an invitation or an API key: Polaris
-refuses to grant permissions the caller does not hold.
+Every organization's `owner` and `admin` roles hold the host's own permissions
+(`cfg.RolePermissions`). Without it the owner could not put `projects.*` into a role, an invitation
+or an API key: Polaris refuses to grant permissions the caller does not hold.
 
 ## Walkthrough
 

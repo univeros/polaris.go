@@ -33,7 +33,7 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	srv := polaristest.New(t, polaristest.WithPlugins(p))
 	g := srv.Graph()
 
-	if audit.Of(g) != p || len(g.Schema()) != len(schema.Core())+3 {
+	if audit.Of(g) != p || len(g.Schema()) != len(schema.Core())+4 {
 		t.Fatalf("plugin or schema (%d tables)", len(g.Schema()))
 	}
 	for _, name := range []string{audit.RouteMe, audit.RouteOrganization, audit.RouteTypes} {

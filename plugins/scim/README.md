@@ -14,7 +14,7 @@ import "github.com/univeros/polaris.go/plugins/scim"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), scim.New(scim.Config{}))
 p, err := polaris.New(cfg) // a relative BaseURL fails here
-_, err = p.Migrate(ctx)    // creates polaris_scim_connection, polaris_scim_resource, polaris_scim_membership_provenance
+_, err = p.Migrate(ctx)    // creates polaris_scim_connection, polaris_scim_resource, polaris_scim_membership_provenance, polaris_scim_user_name
 ```
 
 ## Config
@@ -78,6 +78,9 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
 - Filters accept what directories send: `attr eq|co|sw "value"` joined by `and`; anything else is
   `invalidFilter`.
 - The built-in owner, admin and member roles take members but are never renamed or deleted.
+- A User's `displayName` and `name.formatted` are the account's display name; `name.givenName` and
+  `name.familyName` are kept per connection as the directory sent them (for accounts it manages),
+  and answered back so the directory sees no difference.
 - From code: `scim.Of(g).Connections()` (`Create`, `Rotate`, `Decommission`, `List`, `Delete`) and
   `scim.Of(g).BaseURL(connectionID)`.
 

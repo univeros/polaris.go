@@ -82,8 +82,8 @@ func (e env) session(t *testing.T, userID string, extra token.Claims) string {
 func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	e := boot(t)
 	g := e.p.Graph()
-	if admin.Of(g) != e.admin || len(g.Schema()) != len(schema.Core())+5 {
-		t.Fatalf("plugin or schema (%d tables): core, audit's three and the two admin tables", len(g.Schema()))
+	if admin.Of(g) != e.admin || len(g.Schema()) != len(schema.Core())+6 {
+		t.Fatalf("plugin or schema (%d tables): core, audit's four and the two admin tables", len(g.Schema()))
 	}
 	routes := 0
 	for _, r := range g.Manifest().Routes() {

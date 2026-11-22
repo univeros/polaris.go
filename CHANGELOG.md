@@ -9,6 +9,73 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
+  tables, it adds the columns and indexes a release declares on an existing table and drops the
+  indexes it retires. It never drops a table or a column, never changes a column's type, and is
+  safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
+  (decision 63).
+- Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
+- For plugin authors: `endpoint.WithMFATicketFactors` and `endpoint.MFATicketAllows`,
+  `pipeline.MFATicketFactors`, `session.MFATickets.IssueFor` / `AuthenticateFactors`,
+  `passwordless.RouteMagicLinkConfirm`, `passwordless.KindMFASameChannel` /
+  `ErrMFASameChannel`. `mfa.Tickets` (not in the stable API) has `IssueFor` instead of `Issue`, and
+  `mfa_factors` joined the reserved claim names (`session.ReservedClaim`).
+- `Config.RolePermissions`: say which system roles (`owner`, `admin`, `member`) hold your own
+  permissions, e.g. `{"owner": {"invoices.read"}}`. Every organization's copy of the role holds
+  them (existing organizations on the next `Migrate`), so an owner can put them into custom roles,
+  invitations, API keys and agent grants. Before, nobody but a superadmin could grant a host
+  permission; drop any workaround that wrote role grants through `Graph().Repos()` (decision 62).
+- `endpoint.TooManyRequests` for plugin authors: the 429 in the route's error style (decision 62).
+
+### Changed
+
+- `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
+  `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
+  an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
+  the same lines (decision 63).
+- **Client-visible:** `GET /magic-link/verify` answers an HTML page (no JavaScript) with one "Sign
+  in" button instead of the 302; the button posts to the new `POST /magic-link/verify`, which
+  spends the link and answers the 302 with the hand-off code as before. The emailed link,
+  `/magic-link/exchange` and the codes are unchanged. A front end that fetched the link itself
+  and expected the redirect must now POST to it (decision 61).
+- `anonymous.Config.OnConvert` runs inside the conversion's transaction (like
+  `Hooks.OnUserCreated`): write through `ctx` and the move commits or rolls back with the
+  conversion. A hook that writes elsewhere may run again on a retry; keep it idempotent.
+- `plugins/mcp`: `tools/list` is paginated. A result carries at most `mcp.ToolsPageSize` (100)
+  tools and a `nextCursor` when more follow; send it back as `params.cursor`. An invalid cursor is
+  `-32602`. Lists of 100 tools or fewer are unchanged; MCP clients that follow `nextCursor` (the
+  specification requires it) see every tool (decision 60).
+- **Client-visible:** access tokens and OAuth access / ID tokens carry `iat`, `nbf` and `exp` as
+  whole seconds, with `exp` = `iat` + the lifetime exactly; they used to carry microsecond
+  fractions that many JWT libraries refuse. Tokens issued before still verify (decision 62).
+- **Client-visible:** a 429 now has a JSON body: `{"error":"too_many_requests","message":…}` on
+  core routes and your `Protect` routes, an `application/problem+json` document on plugin routes.
+  `Retry-After` and `X-RateLimit-*` are unchanged (decision 62).
+- **Client-visible:** `plugins/agents`: once a grant's budget is spent, further calls answer 403
+  `budget_exhausted` (`agent.ErrBudgetExhausted`) instead of `capability_not_granted`
+  (decision 62).
+- `plugins/scim` adds a table, `polaris_scim_user_name`; run `Migrate` after upgrading
+  (decision 62).
+
+### Fixed
+
+- Erasing a user (`Users().Delete`, the self-service and admin erase, SCIM delete, guest pruning)
+  now deletes every plugin row keyed to it: usernames, verified phones and pending passwordless
+  codes and links, multi-session and sentinel device records, operator grants, OAuth authorization
+  codes, device codes and CIBA requests, SCIM provenance and user mappings, the guest row and the
+  audit activity row. Client-visible: `GET /admin/users/{id}` of an erased user answers
+  `last_active_at: null` (decision 61).
+- The anonymous README said conversion ends the guest's sessions without saying that, with
+  `AUTH_ACCESS_TOKEN_DENYLIST` off, the guest's access token answers until it expires (as every
+  revoked session's does). It now says so; `config.AccessToken.Denylist` documents the window.
+- `plugins/audit`: audit rows of core events (`org.*`, `session.*`, `mfa.*`, `user.*`) record the
+  request's `ip` and `user_agent`, as plugin events already did (decision 62).
+- `plugins/scim`: a User answers back `name.givenName` and `name.familyName` as the directory sent
+  them, so a directory comparing resources sees no difference. A PATCH of one part keeps the other
+  (decision 62).
+
 ### Security
 
 - MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
@@ -27,47 +94,21 @@ marked **Breaking**.
   after `OnConvert` ran, the conversion stayed recorded, the guest's sessions stayed live and a
   retry answered `not_a_guest`; now any failure leaves the guest as it was and a retry converts it
   (decision 61).
-
-### Added
-
-- `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
-  tables, it adds the columns and indexes a release declares on an existing table and drops the
-  indexes it retires. It never drops a table or a column, never changes a column's type, and is
-  safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
-  (decision 63).
-- Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
-- For plugin authors: `endpoint.WithMFATicketFactors` and `endpoint.MFATicketAllows`,
-  `pipeline.MFATicketFactors`, `session.MFATickets.IssueFor` / `AuthenticateFactors`,
-  `passwordless.RouteMagicLinkConfirm`, `passwordless.KindMFASameChannel` /
-  `ErrMFASameChannel`. `mfa.Tickets` (not in the stable API) has `IssueFor` instead of `Issue`, and
-  `mfa_factors` joined the reserved claim names (`session.ReservedClaim`).
-
-### Fixed
-
-- Erasing a user (`Users().Delete`, the self-service and admin erase, SCIM delete, guest pruning)
-  now deletes every plugin row keyed to it: usernames, verified phones and pending passwordless
-  codes and links, multi-session and sentinel device records, operator grants, OAuth authorization
-  codes, device codes and CIBA requests, SCIM provenance and user mappings, the guest row and the
-  audit activity row. Client-visible: `GET /admin/users/{id}` of an erased user answers
-  `last_active_at: null` (decision 61).
-- The anonymous README said conversion ends the guest's sessions without saying that, with
-  `AUTH_ACCESS_TOKEN_DENYLIST` off, the guest's access token answers until it expires (as every
-  revoked session's does). It now says so; `config.AccessToken.Denylist` documents the window.
-
-### Changed
-
-- `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
-  `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
-  an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
-  the same lines (decision 63).
-- **Client-visible:** `GET /magic-link/verify` answers an HTML page (no JavaScript) with one "Sign
-  in" button instead of the 302; the button posts to the new `POST /magic-link/verify`, which
-  spends the link and answers the 302 with the hand-off code as before. The emailed link,
-  `/magic-link/exchange` and the codes are unchanged. A front end that fetched the link itself
-  and expected the redirect must now POST to it (decision 61).
-- `anonymous.Config.OnConvert` runs inside the conversion's transaction (like
-  `Hooks.OnUserCreated`): write through `ctx` and the move commits or rolls back with the
-  conversion. A hook that writes elsewhere may run again on a retry; keep it idempotent.
+- `plugins/audit`: with `HashChain` on, replicas writing at the same time no longer fork the hash
+  chain (two rows linked to one predecessor, or ids out of chain order), which made `Verify`
+  report breaks in an untampered table. Each chained write now first takes the lock row of a new
+  table, `polaris_audit_chain`, so writers in every process append one at a time. **Run
+  `Migrate` after upgrading**: it creates the table; until then chained writes fail (logged) with
+  an error naming it. Existing chains keep verifying. On SQLite, set a busy timeout
+  (`_pragma=busy_timeout(5000)`) so concurrent writers wait (decision 60).
+- `plugins/admin`: two concurrent first grants for one user could both insert, leaving the user
+  with two operator grants of which either one applied. `polaris_admin_grant.user_id` is now unique
+  and the losing grant is applied as an update, as if it had come second (decision 60).
+  **Upgrade:** `Migrate` adds the unique index (`polaris_admin_grant_user_unique`) and drops the old
+  `polaris_admin_grant_user_index`. If your database already holds two grants for one user,
+  `Migrate` stops with an error naming `polaris_admin_grant` and `user_id`. Find them with
+  `SELECT user_id FROM polaris_admin_grant GROUP BY user_id HAVING COUNT(*) > 1`, revoke the ones
+  you do not want (`DELETE /admin/grants/{id}` or `Grants().Revoke`), and run `Migrate` again.
 
 ## [0.4.1] - 2026-11-22
 

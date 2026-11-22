@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/univeros/polaris.go/store"
 )
@@ -60,7 +61,7 @@ func (s *service) evaluate(ctx context.Context, p principal, name string, raw an
 		return evaluation{}, err
 	}
 	if g == nil {
-		return evaluation{}, refuse(ErrCapabilityNotGranted, fmt.Sprintf("The agent holds no active grant for \"%s\".", name))
+		return evaluation{}, s.noGrant(ctx, p.agent, name)
 	}
 	holds, err := s.ownerHolds(ctx, p.agent, capability.Permission)
 	if err != nil {
@@ -84,6 +85,25 @@ func (s *service) evaluate(ctx context.Context, p principal, name string, raw an
 		return evaluation{}, err
 	}
 	return evaluation{principal: p, capability: capability, grant: *g, arguments: args, inputHash: inputHash(args), cost: c}, nil
+}
+
+// noGrant is the refusal for a capability without a live grant: budget_exhausted when the
+// agent's latest grant for it ended by spending its budget, capability_not_granted otherwise.
+func (s *service) noGrant(ctx context.Context, a Agent, capability string) error {
+	all, err := s.grantsOf(ctx, a, "")
+	if err != nil {
+		return err
+	}
+	for _, g := range slices.Backward(all) { // ordered by id: the latest first
+		if g.Capability != capability {
+			continue
+		}
+		if g.Status == GrantExhausted {
+			return refuse(ErrBudgetExhausted, "The grant's budget cannot cover this execution (0 left).")
+		}
+		break
+	}
+	return refuse(ErrCapabilityNotGranted, fmt.Sprintf("The agent holds no active grant for \"%s\".", capability))
 }
 
 // run spends the budget, runs the handler and appends the receipt in one transaction, holding the

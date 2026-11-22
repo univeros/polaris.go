@@ -99,6 +99,14 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
   `g.Plugin("admin")` to an interface with `AuthorizeOperator` / `OperatorID`.
 - An operator's access token is checked against the denylist when enabled;
   a drain's `filter` must be a JSON list; dates are ISO 8601 only.
+- One grant per user is enforced by the database (`polaris_admin_grant_user_unique` on `user_id`):
+  a grant replaces the user's previous one, and of two concurrent first grants the second is
+  applied as that replacement. A database from v0.4.1 or earlier may already hold two grants for one
+  user (only that race made them); `Migrate` then stops with an error naming `polaris_admin_grant`
+  and `user_id`. List them with
+  `SELECT user_id, id, role, scope FROM polaris_admin_grant WHERE user_id IN (SELECT user_id FROM polaris_admin_grant GROUP BY user_id HAVING COUNT(*) > 1)`,
+  revoke the grants you do not want (`DELETE /admin/grants/{id}` or `Grants().Revoke(ctx, id)`)
+  and run `Migrate` again.
 
 ## Example
 

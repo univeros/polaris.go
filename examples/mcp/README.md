@@ -190,12 +190,12 @@ To serve Polaris's MCP to a local coding agent over stdio instead, use
 `mcp.ServeStdio(ctx, p, mcp.StdioOptions{Credential: os.Getenv(mcp.StdioEnv)})` or
 `polaris mcp --token=…`.
 
-## Friction
+## The host's permission
 
-An organization's system roles hold only Polaris's own permissions. An owner cannot put
-`deploy.run` into a role over HTTP: `POST /orgs/{id}/roles` refuses permissions the caller does not
-hold. Without `deploy.run` in her authority, Ada could not delegate that scope to the client. So
-`seed` grants it to Acme's owner role through `p.Graph().Repos()` (see `grantToRole`).
+`deploy.run` is the host's own permission (`cfg.Permissions`), and
+`cfg.RolePermissions = map[string][]string{"owner": {"deploy.run"}}` puts it in every
+organization's owner role. Without it in her authority, Ada could not delegate that scope to the
+client, nor put it into a custom role: Polaris refuses to grant permissions the caller does not hold.
 
 ## Test
 

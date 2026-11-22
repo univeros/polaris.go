@@ -88,7 +88,7 @@ func (s *Service) cloneRoleTemplates(ctx context.Context, organizationID string,
 		return "", err
 	}
 	var ownerRoleID string
-	for _, tpl := range (authz.Catalog{}).RoleTemplates() {
+	for _, tpl := range s.catalog.RoleTemplates() {
 		if tpl.Slug == authz.RoleSuperadmin {
 			continue
 		}

@@ -39,8 +39,16 @@ func Seed(ctx context.Context, db store.Adapter, catalog Catalog, clk clock.Cloc
 				return err
 			}
 			for _, key := range t.PermissionKeys {
-				if pid, ok := ids[key]; ok {
-					if err := ensureGrant(ctx, r, roleID, pid); err != nil {
+				pid, ok := ids[key]
+				if !ok {
+					continue
+				}
+				added, err := ensureGrant(ctx, r, roleID, pid)
+				if err != nil {
+					return err
+				}
+				if added {
+					if err := grantToCopies(ctx, r, t.Slug, pid); err != nil {
 						return err
 					}
 				}
@@ -81,16 +89,37 @@ func ensureSystemRole(ctx context.Context, r *repository.Repos, t RoleTemplate, 
 	return role.ID, nil
 }
 
-func ensureGrant(ctx context.Context, r *repository.Repos, roleID, permissionID string) error {
+// ensureGrant grants permissionID to roleID unless it already holds it, and reports whether it
+// added the grant.
+func ensureGrant(ctx context.Context, r *repository.Repos, roleID, permissionID string) (bool, error) {
 	_, err := r.RolePermissions.Get(ctx, roleID, permissionID)
 	if err == nil {
-		return nil
+		return false, nil
 	}
 	if !errors.Is(err, repository.ErrNotFound) {
-		return fmt.Errorf("authz: seed grant: %w", err)
+		return false, fmt.Errorf("authz: seed grant: %w", err)
 	}
 	if err := r.RolePermissions.Insert(ctx, model.RolePermission{RoleID: roleID, PermissionID: permissionID}); err != nil {
-		return fmt.Errorf("authz: seed grant: %w", err)
+		return false, fmt.Errorf("authz: seed grant: %w", err)
+	}
+	return true, nil
+}
+
+// grantToCopies gives a grant new to the system template slug to every organization's copy of
+// it. The template's grants record what was given: a later Seed finds the grant on the template
+// and leaves the copies alone, so a tenant's removal from an editable role is kept.
+func grantToCopies(ctx context.Context, r *repository.Repos, slug, permissionID string) error {
+	roles, err := r.Roles.ListBySlug(ctx, slug)
+	if err != nil {
+		return fmt.Errorf("authz: seed %s grants: %w", slug, err)
+	}
+	for _, role := range roles {
+		if role.OrganizationID == nil {
+			continue
+		}
+		if _, err := ensureGrant(ctx, r, role.ID, permissionID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

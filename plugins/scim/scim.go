@@ -100,9 +100,11 @@ func Of(g *wiring.Graph) *Plugin {
 	return p
 }
 
-// Listeners delete an erased user's directory provenance and user mappings (event.UserDeleted).
+// Listeners delete an erased user's directory provenance, stored name parts and user mappings
+// (event.UserDeleted).
 func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
 	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
 		maintenance.UserRows{Table: TableProvenance, Column: "user_id"},
+		maintenance.UserRows{Table: TableUserNames, Column: "user_id"},
 		maintenance.UserRows{Table: TableResources, Column: "local_id", Where: store.Criteria{"kind": KindUser}})}
 }

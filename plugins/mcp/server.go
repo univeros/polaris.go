@@ -21,6 +21,10 @@ const (
 	instructions      = "Tools are named polaris.<route> and answer {status, body}: what the HTTP route answers for the same request. A 4xx or 5xx status is an error result."
 )
 
+// ToolsPageSize is the most tools one tools/list result carries; a longer list continues at its
+// nextCursor.
+const ToolsPageSize = 100
+
 // JSON-RPC and MCP error codes.
 const (
 	codeParse              = -32700
@@ -245,11 +249,7 @@ func (s *session) handle(ctx context.Context, method string, params map[string]a
 		if err != nil {
 			return nil, s.internal(ctx, method, err)
 		}
-		list := make([]any, len(tools))
-		for i, t := range tools {
-			list[i] = definition(t)
-		}
-		return map[string]any{"tools": list}, nil
+		return toolsPage(tools, params)
 	case "tools/call":
 		return s.callTool(ctx, params)
 	case "resources/list":
@@ -261,6 +261,33 @@ func (s *session) handle(ctx context.Context, method string, params map[string]a
 		return s.p.readResource(ctx, uri)
 	}
 	return nil, newError(codeMethodNotFound, http.StatusNotFound, "No handler found for method \"%s\".", method)
+}
+
+// toolsPage is one tools/list result: at most ToolsPageSize tools, starting after the tool the
+// cursor names, and the nextCursor naming the last one when more follow. The cursor is opaque to
+// the client (base64url of a tool name) and grants nothing: it must name one of the caller's own
+// tools, listed again under the caller's permissions, or the request is invalid params.
+func toolsPage(tools []wiring.Tool, params map[string]any) (map[string]any, *rpcError) {
+	start := 0
+	if raw, has := params["cursor"]; has {
+		cursor, _ := raw.(string)
+		name, err := base64.RawURLEncoding.DecodeString(cursor)
+		i := slices.IndexFunc(tools, func(t wiring.Tool) bool { return t.Name == string(name) })
+		if cursor == "" || err != nil || i < 0 {
+			return nil, newError(codeInvalidParams, http.StatusBadRequest, "Invalid cursor.")
+		}
+		start = i + 1
+	}
+	end := min(start+ToolsPageSize, len(tools))
+	list := make([]any, 0, end-start)
+	for _, t := range tools[start:end] {
+		list = append(list, definition(t))
+	}
+	result := map[string]any{"tools": list}
+	if end < len(tools) {
+		result["nextCursor"] = base64.RawURLEncoding.EncodeToString([]byte(tools[end-1].Name))
+	}
+	return result, nil
 }
 
 func (s *session) tools(ctx context.Context) ([]wiring.Tool, error) {

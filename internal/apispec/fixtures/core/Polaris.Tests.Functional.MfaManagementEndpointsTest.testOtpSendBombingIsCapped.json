@@ -332,6 +332,9 @@
         "response": {
             "status": 429,
             "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
                 "Retry-After": [
                     "348"
                 ],
@@ -345,7 +348,10 @@
                     "1788987000"
                 ]
             },
-            "body": ""
+            "body": {
+                "error": "too_many_requests",
+                "message": "Too many requests. Try again after the Retry-After delay."
+            }
         }
     }
 ]
