@@ -19,7 +19,7 @@ import (
 // Under an https BaseURL it is __Host- prefixed (a sibling subdomain cannot plant it) and
 // SameSite=None, so form_post callbacks (Apple) carry it: the nonce is only compared with the state,
 // sending it cross-site gives an attacker nothing. Under a plain http BaseURL (local development) it
-// is SameSite=Lax. The scheme is BaseURL's, as upstream's, never the connection's: behind a
+// is SameSite=Lax. The scheme is BaseURL's, never the connection's: behind a
 // TLS-terminating proxy the request arrives without TLS.
 
 const bindingPrefix = "polaris_social_"

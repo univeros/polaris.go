@@ -56,7 +56,7 @@ const (
 )
 
 // Config configures the plugin. BaseURL, at least one provider and, for a sign-in to end
-// anywhere, RedirectURIs are required; every other field's zero value is upstream's default.
+// anywhere, RedirectURIs are required; every other field's zero value is its default.
 type Config struct {
 	// BaseURL is where Polaris is mounted, prefix included ("https://app.example.com/auth"); the
 	// callback registered at each provider is BaseURL + "/social/<provider>/callback".
@@ -155,7 +155,8 @@ func (s settings) callbackURL(provider string) string {
 // proxied reports whether this deployment starts its flows through the proxy.
 func (s settings) proxied() bool { return s.proxy != "" && origin(s.baseURL) != s.proxy }
 
-// origin is scheme://host[:port] of u, as PHP's parse_url assembles it.
+// origin is scheme://host[:port] of u, written as given (no case folding, no default port
+// dropped); "" when u does not parse.
 func origin(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -182,7 +183,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_social_account.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/social).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/social).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/social")
 	if err != nil {

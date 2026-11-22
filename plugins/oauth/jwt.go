@@ -61,7 +61,8 @@ func decodeSegment(seg string) map[string]any {
 }
 
 // Thumbprint is the RFC 7638 SHA-256 thumbprint (base64url) of a public JWK: the cnf.jkt a
-// DPoP-bound token carries. It hashes the required members as given, as upstream does.
+// DPoP-bound token carries. It hashes the required members as given (each string as the key
+// holds it, not decoded and normalized).
 func Thumbprint(jwk map[string]any) (string, error) {
 	var members []string
 	switch jwk["kty"] {
@@ -115,8 +116,8 @@ func parseJWK(m map[string]any) (*jose.JSONWebKey, error) {
 }
 
 // verifySigned checks a compact JWS signed with alg by key and returns its claims (numbers as
-// json.Number), applying firebase/php-jwt's time checks with leeway: nbf and iat not after now,
-// exp after now.
+// json.Number), applying the time checks with leeway: nbf and iat not after now, exp after now.
+// The error texts are what the token endpoint has always answered.
 func verifySigned(raw, alg string, key *jose.JSONWebKey, now time.Time, leeway time.Duration) (map[string]any, error) {
 	if !slices.Contains(asymmetricAlgorithms, alg) {
 		return nil, errors.New("algorithm not supported")
@@ -148,7 +149,8 @@ func verifySigned(raw, alg string, key *jose.JSONWebKey, now time.Time, leeway t
 	return claims, nil
 }
 
-// number reads a JSON number claim as a float (PHP compares numbers loosely here).
+// number reads a JSON number claim as a float, so a fractional or exponent time claim is compared
+// by its value.
 func number(v any) (float64, bool) {
 	n, ok := v.(json.Number)
 	if !ok {
@@ -158,7 +160,7 @@ func number(v any) (float64, bool) {
 	return f, err == nil
 }
 
-// integer reads a JSON number that PHP would decode as an int (no fraction, no exponent).
+// integer reads a JSON number written as a whole number (no fraction, no exponent).
 func integer(v any) (int64, bool) {
 	n, ok := v.(json.Number)
 	if !ok || strings.ContainsAny(n.String(), ".eE") {

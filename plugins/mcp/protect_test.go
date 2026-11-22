@@ -22,7 +22,7 @@ import (
 	"github.com/univeros/polaris.go/clock"
 )
 
-// Port of upstream's ProtectedResourceTest (WP4 acceptance 1).
+// The protected resource: RFC 9728 metadata, bearer and DPoP access tokens, and their refusals.
 
 const (
 	testResource = "https://mcp.polaris.test/mcp"
@@ -66,7 +66,7 @@ func sign(t testing.TB, header, payload map[string]any, key crypto.Signer) strin
 	return input + "." + b64(sig)
 }
 
-// issue mints an access token like upstream's test Issuer: claims override the defaults, a nil
+// issue mints an access token for the tests: claims override the defaults, a nil
 // value removes the claim.
 func issue(t testing.TB, now time.Time, claims map[string]any, kid string, key *rsa.PrivateKey) string {
 	t.Helper()

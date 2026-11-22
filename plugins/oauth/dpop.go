@@ -25,7 +25,8 @@ const (
 var compactJWT = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`)
 
 // onceGuard records single-use values (DPoP jti, assertion jti) in the cache with its atomic
-// Add, so a value is accepted once even by replicas sharing the cache (upstream: a get then a set).
+// Add, so a value is accepted once even by replicas sharing the cache (a get then a set would let
+// two replicas both accept it).
 type onceGuard struct {
 	cache cache.Cache
 }

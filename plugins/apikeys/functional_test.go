@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	flowClass = `Polaris\ApiKeys\Tests\Functional\ApiKeysFlowTest`
-	password  = "correct horse battery staple"
+	// flowFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/api-keys.
+	flowFixtures = "Polaris.ApiKeys.Tests.Functional.ApiKeysFlowTest"
+	password     = "correct horse battery staple"
 )
 
 type flow struct {
@@ -32,7 +33,7 @@ func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, trail: audit.New(audit.Config{}), keys: apikeys.New(apikeys.Config{RotationGrace: time.Hour})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.keys))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "api-keys"), flowClass, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "api-keys"), flowFixtures, method))
 	return f
 }
 
@@ -271,7 +272,7 @@ func TestApiKeysFlow(t *testing.T) {
 func TestEveryFixtureIsCovered(t *testing.T) {
 	var covered []string
 	for _, m := range []string{"testAKeyActsAsItsOwnerWithTheDelegatedPermissionsOnEveryRoute", "testAnOrganizationsKeyIsManagedByItsAdminsAndActsAsItsCreator", "testAnExpiredKeyAndATooLargeBudgetAreRefused"} {
-		covered = append(covered, flowClass+"::"+m)
+		covered = append(covered, flowFixtures+"::"+m)
 	}
 	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "api-keys"), covered)
 	if err != nil || len(left) > 0 {

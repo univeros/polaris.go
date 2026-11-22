@@ -12,10 +12,10 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Port of AgentsLifecycleTest: register and enrol, approve grants by each method or by policy,
+// The recorded lifecycle flows: register and enrol, approve grants by each method or by policy,
 // execute with budgets and receipts, and the kill switch.
 func TestAgentsLifecycle(t *testing.T) {
-	run(t, phpLifecycle, map[string]func(*agentsCase){
+	run(t, lifecycleFixtures, map[string]func(*agentsCase){
 		"testRegisterAndEnrollAgentsAndHosts":          registerAndEnroll,
 		"testGrantsAreApprovedByEachMethodOrByPolicy":  grantsByEachMethod,
 		"testExecutionBudgetsReceiptsAndTheKillSwitch": executionBudgetsReceiptsKillSwitch,

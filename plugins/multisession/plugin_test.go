@@ -20,7 +20,8 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Port of packages/multi-session/tests/PluginTest.php.
+// The unit tests: the plugin wired through the graph, device sessions added, switched and
+// signed out through its service and routes.
 
 const pw = "correct horse battery staple"
 

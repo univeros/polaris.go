@@ -33,7 +33,8 @@ const (
 	MaxLimit     = 200
 )
 
-// pepperContext keys the token hash (upstream's "scim_token").
+// pepperContext keys the token hash; tokens issued by earlier releases are stored hashed under
+// it, so it never changes.
 const pepperContext = "scim_token"
 
 // Connection is a directory's link to one organization (polaris_scim_connection).
@@ -228,7 +229,8 @@ func hydrate(r store.Row) Connection {
 	return conn
 }
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 func atom(t time.Time) string { return t.UTC().Format(dateAtom) }

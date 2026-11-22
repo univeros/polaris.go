@@ -100,7 +100,7 @@ type Store struct {
 	db        store.Adapter
 	hashChain bool
 	// ponytail: one writer per process keeps the chain linear here; writers in other processes can
-	// still fork it (as upstream). A database advisory lock would close that.
+	// still fork it. A database advisory lock would close that.
 	mu sync.Mutex
 }
 
@@ -110,7 +110,7 @@ func NewStore(db store.Adapter, hashChain bool) *Store { return &Store{db: db, h
 // Write appends e (an id is minted when empty) and returns the row as stored.
 func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 	e = e.normalized()
-	data, err := phpJSON(e.Data)
+	data, err := canonicalJSON(e.Data)
 	if err != nil {
 		return Event{}, err
 	}
@@ -147,7 +147,8 @@ func (s *Store) lastHash(ctx context.Context) (string, error) {
 }
 
 // hashOf is SHA-256 over the row's canonical JSON: the wire keys plus prev_hash, sorted, data as
-// its stored JSON text, encoded as PHP's json_encode with JSON_UNESCAPED_SLASHES.
+// its stored JSON text, each value encoded by canonicalJSON. Rows hashed by earlier releases
+// keep verifying only while these bytes stay the same.
 func hashOf(e Event, data string) string {
 	m := e.Map()
 	m["prev_hash"] = null(e.PrevHash)
@@ -158,14 +159,14 @@ func hashOf(e Event, data string) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		key, _ := phpJSON(k)
+		key, _ := canonicalJSON(k)
 		b.WriteString(key)
 		b.WriteByte(':')
 		if k == "data" {
 			b.WriteString(data)
 			continue
 		}
-		v, _ := phpJSON(m[k])
+		v, _ := canonicalJSON(m[k])
 		b.WriteString(v)
 	}
 	b.WriteByte('}')
@@ -174,9 +175,10 @@ func hashOf(e Event, data string) string {
 }
 
 // verifies reports whether e's hash is its recomputed hash: over its data re-encoded (keys sorted,
-// what Go writes, robust to JSONB reordering), or over the stored text (rows PHP wrote).
+// what Write stores, robust to JSONB reordering), or over the stored text (rows whose data keys
+// were written in insertion order by earlier releases).
 func verifies(e Event) bool {
-	data, err := phpJSON(e.Data)
+	data, err := canonicalJSON(e.Data)
 	if err == nil && hashOf(e, data) == e.Hash {
 		return true
 	}

@@ -36,7 +36,8 @@ const (
 	idTokenLeeway   = 60 // seconds
 )
 
-// idTokenAlgorithms are the signatures an id_token may carry (upstream's list).
+// idTokenAlgorithms are the signatures an id_token may carry: RSA PKCS#1 v1.5 and ECDSA, no
+// HMAC and no "none".
 var idTokenAlgorithms = []jose.SignatureAlgorithm{jose.RS256, jose.RS384, jose.RS512, jose.ES256, jose.ES384, jose.ES512}
 
 // postForm POSTs a form to a token endpoint and decodes the answer.
@@ -297,7 +298,7 @@ func (o *outbound) keySet(ctx context.Context, jwksURL string, fresh bool) ([]jo
 	return keys, nil
 }
 
-// verifyJWT is firebase/php-jwt's decode against a key set: a compact JWS whose kid names a key
+// verifyJWT verifies a JWT against a key set: a compact JWS whose kid names a key
 // of the set of the header's algorithm (a key without alg is RS256), a valid signature, a JSON
 // object payload, and nbf / iat / exp within a minute of leeway.
 func verifyJWT(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {

@@ -26,8 +26,9 @@ const (
 	TablePhones  = "polaris_passwordless_phone"
 )
 
-// Models returns the plugin's tables as upstream declares them: the secrets of the four methods
-// (keyed hashes only, single use) and the verified phones (one per user, each number once).
+// Models returns the plugin's tables (the columns existing databases hold): the secrets of the
+// four methods (keyed hashes only, single use) and the verified phones (one per user, each
+// number once).
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableSecrets,
@@ -168,7 +169,7 @@ func (s *secrets) spend(ctx context.Context, row store.Row) (secret, bool, error
 }
 
 func (s *secrets) insert(ctx context.Context, kind, identifier, userID, hash string, ttl time.Duration, data any, attempts int) error {
-	encoded, err := phpJSON(data)
+	encoded, err := escapedJSON(data)
 	if err != nil {
 		return err
 	}
@@ -184,9 +185,10 @@ func (s *secrets) insert(ctx context.Context, kind, identifier, userID, hash str
 	})
 }
 
-// phpJSON encodes v as PHP's json_encode with default flags writes it (slashes escaped, non-ASCII
-// as \u escapes), so the data column is byte-identical to upstream's; nil is PHP's empty array "[]".
-func phpJSON(v any) (string, error) {
+// escapedJSON encodes v with slashes escaped ("\/") and every non-ASCII character as a \uXXXX
+// escape (surrogate pairs above the BMP); nil is "[]". It is the form the data column has always
+// held, so rows written by earlier releases and new ones read the same.
+func escapedJSON(v any) (string, error) {
 	if v == nil {
 		return "[]", nil
 	}

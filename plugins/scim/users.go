@@ -61,7 +61,8 @@ func paginate(matches []map[string]any, startIndex, count int) page {
 
 // listUsers pages the organization's members matching f, by id.
 func (d *directory) listUsers(ctx context.Context, conn Connection, f filter, startIndex, count int, location string) (page, error) {
-	// ponytail: every member is loaded and filtered in memory, as upstream; a store-side filter comes with the first organization above a few thousand members.
+	// ponytail: every member is loaded and filtered in memory; a store-side filter comes with the
+	// first organization above a few thousand members.
 	memberships, err := d.repos.Memberships.ListByOrganization(ctx, conn.OrganizationID)
 	if err != nil {
 		return page{}, err
@@ -185,7 +186,7 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 	var c userChange
 	for _, op := range ops {
 		if v := op.scalar("active"); v != nil {
-			c.active, c.setActive = phpBool(v), true
+			c.active, c.setActive = truthy(v), true
 		}
 		if v, ok := op.scalar("userName").(string); ok {
 			email, err := validEmail(v)
@@ -203,7 +204,7 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 		given, okG := op.scalar("name.givenName").(string)
 		family, okF := op.scalar("name.familyName").(string)
 		if okG || okF {
-			name := phpTrim(given + " " + family)
+			name := trimBlank(given + " " + family)
 			c.displayName, c.setName = &name, true
 		}
 		v := op.scalar("externalId")
@@ -423,7 +424,7 @@ func (d *directory) join(ctx context.Context, conn Connection, userID string, no
 // emailOf is the member's email: userName, else the primary (or last) of emails.
 func emailOf(body map[string]any) (string, error) {
 	userName, _ := body["userName"].(string)
-	if phpTrim(userName) == "" {
+	if trimBlank(userName) == "" {
 		entries, _ := body["emails"].([]any)
 		for _, entry := range entries {
 			e, _ := entry.(map[string]any)
@@ -450,13 +451,13 @@ func validEmail(value string) (string, error) {
 // blank; at most 120 bytes (cut on a character boundary).
 func displayNameOf(body map[string]any) *string {
 	name, _ := body["displayName"].(string)
-	if phpTrim(name) == "" {
+	if trimBlank(name) == "" {
 		parts, _ := body["name"].(map[string]any)
 		formatted, _ := parts["formatted"].(string)
 		given, _ := parts["givenName"].(string)
 		family, _ := parts["familyName"].(string)
 		name = formatted
-		if phpTrim(formatted) == "" {
+		if trimBlank(formatted) == "" {
 			name = given + " " + family
 		}
 	}
@@ -474,27 +475,27 @@ func displayNameOf(body map[string]any) *string {
 
 func externalIDOf(body map[string]any) string {
 	v, _ := body["externalId"].(string)
-	return phpTrim(v)
+	return trimBlank(v)
 }
 
 func nonBlank(s string) *string {
-	s = phpTrim(s)
+	s = trimBlank(s)
 	if s == "" {
 		return nil
 	}
 	return &s
 }
 
-// phpBool is filter_var($v, FILTER_VALIDATE_BOOLEAN): true for true, 1 and "1", "true", "on",
-// "yes" in any case; false otherwise.
-func phpBool(v any) bool {
+// truthy reads a directory's boolean leniently: true for true, 1 and "1", "true", "on", "yes"
+// in any case (surrounding blanks ignored); false otherwise.
+func truthy(v any) bool {
 	switch v := v.(type) {
 	case bool:
 		return v
 	case json.Number:
 		return v.String() == "1"
 	case string:
-		switch strings.ToLower(phpTrim(v)) {
+		switch strings.ToLower(trimBlank(v)) {
 		case "1", "true", "on", "yes":
 			return true
 		}

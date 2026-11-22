@@ -185,7 +185,8 @@ func (o Operator) actor() string {
 var errImpersonation = errors.New("oauth: an impersonation token cannot call the admin routes")
 
 // superadmins is the default Config.Operators: a Polaris session whose user holds the superadmin
-// role is an instance-wide owner. The admin plugin's grants and API keys arrive with its port.
+// role is an instance-wide owner. It applies when the admin plugin (grants and API keys) is not
+// installed.
 func (p *Plugin) superadmins(r *http.Request) (*Operator, error) {
 	bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !ok || bearer == "" {
@@ -212,15 +213,15 @@ func (p *Plugin) superadmins(r *http.Request) (*Operator, error) {
 	return &Operator{ID: user.ID, Role: "owner", Scope: ScopeInstance}, nil
 }
 
-// adminAuthorizer is the admin plugin's operator check (upstream AdminRoute::authorize) and the
-// id of the operator it resolved.
+// adminAuthorizer is the admin plugin's operator check (the one its own routes apply) and the id
+// of the operator it resolved.
 type adminAuthorizer interface {
 	AuthorizeOperator(ctx context.Context, capability, organizationID string) (userID string, refusal endpoint.Result, ok bool)
 	OperatorID(ctx context.Context) (id, kind string, ok bool)
 }
 
 // acting is the operator of an admin route: actor is the user its events name ("" for an API
-// key), id the user or API key id a created client records in created_by (as upstream).
+// key), id the user or API key id a created client records in created_by.
 type acting struct{ actor, id string }
 
 // operator is the caller of an admin route when it may act (own: owner only; otherwise read) on
@@ -267,7 +268,7 @@ func (p *Plugin) operator(ctx context.Context, r *http.Request, own bool, organi
 }
 
 func (p *Plugin) serveAdminClientsList(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	// Reading every client takes an instance-wide operator (upstream: covers(null)).
+	// Reading every client takes an instance-wide operator (organization "": the instance).
 	if _, refused := p.operator(ctx, in.Request, false, ""); refused != nil {
 		return *refused
 	}

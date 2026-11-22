@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// A client an operator API key creates records the key's id in created_by (as upstream); its
+// A client an operator API key creates records the key's id in created_by; its
 // event names no actor.
 func TestAnOperatorKeysClientRecordsTheKeyAsCreator(t *testing.T) {
 	ctx := context.Background()

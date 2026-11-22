@@ -200,7 +200,8 @@ func jwksValue(j map[string]any) any {
 	return j
 }
 
-// atom formats t as PHP's DATE_ATOM in UTC.
+// atom formats t in UTC as RFC 3339 to the second with the offset written "+00:00" (not "Z"), the
+// timestamp format the API emits and stored rows keep.
 func atom(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05-07:00") }
 
 func atomPtr(t *time.Time) any {

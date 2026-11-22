@@ -43,7 +43,7 @@ func asRefusal(err error) (*refusal, bool) {
 	return r, errors.As(err, &r)
 }
 
-// problem is the wire form of each kind: status, title and, where upstream fixes it, the detail.
+// problem is the wire form of each kind: status, title and, where the kind fixes it, the detail.
 var problems = map[kind]struct {
 	status int
 	title  string

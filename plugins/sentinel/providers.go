@@ -140,7 +140,7 @@ func ParseDomains(r io.Reader, extra ...string) (Domains, error) {
 	return d, sc.Err()
 }
 
-// bundledList is resources/disposable-domains.txt of upstream (disposable-email-domains, CC0),
+// bundledList is the disposable-email-domains list (CC0) shipped with the plugin,
 // refreshed per release.
 //
 //go:embed disposable-domains.txt

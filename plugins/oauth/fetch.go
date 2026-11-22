@@ -53,7 +53,7 @@ func assertPublicHTTPSURL(raw, what string) error {
 }
 
 // fetchJSON GETs url and decodes a JSON object of at most 64 KiB; failures carry code (400). A
-// JSON list decodes to an empty object, as PHP's array would read. The reason a fetch failed is
+// JSON list is read as an empty object (no member is taken from it). The reason a fetch failed is
 // logged, never answered: it would tell a caller which internal hosts this server reaches.
 func fetchJSON(ctx context.Context, client *http.Client, log *slog.Logger, rawURL, code string) (map[string]any, error) {
 	failed := refusal(code, "The document at "+rawURL+" could not be fetched, or is too large.")

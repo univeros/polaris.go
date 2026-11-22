@@ -186,7 +186,7 @@ var orgRoutes = []string{RouteProvidersList, RouteProvidersCreate, RouteProvider
 
 type outsideKey struct{}
 
-// activeOrganization orders the organization routes' checks as upstream: a caller outside the
+// activeOrganization orders the organization routes' checks: a caller outside the
 // path's organization reads sso/forbidden (not core's org.update 403). Such a request goes on
 // without the route's permission requirement, marked so that the endpoint refuses it whatever it
 // reads; a caller in the organization goes on unchanged and core enforces org.update.

@@ -21,8 +21,8 @@ import (
 const tagAdmin = "admin"
 
 // dispatcher builds, once, the pipeline tool calls run through: every endpoint (core's and the
-// plugins') behind the whole middleware stack, in body token delivery whatever the host's (a tool
-// call has no cookie jar, upstream docs/cookie-mode/spec.md §2.11). It also returns the plugins'
+// plugins') behind the whole middleware stack, in body token delivery whatever the host's: a tool
+// call has no cookie jar, so its tokens travel in the response body. It also returns the plugins'
 // bearer resolvers, which resolve the MCP caller as the pipeline would.
 func (p *Plugin) dispatcher() (http.Handler, []pipeline.BearerResolver, error) {
 	p.once.Do(func() {
@@ -67,7 +67,7 @@ func (p *Plugin) call(ctx context.Context, rt *manifest.Route, args map[string]a
 		name := m[1 : len(m)-1]
 		v := scalar(rest[name])
 		delete(rest, name)
-		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20") // PHP's rawurlencode
+		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20") // RFC 3986 percent-encoding: a space is %20
 	})
 	u, _ := url.Parse(strings.TrimRight(p.cfg.BaseURL, "/"))
 	u.Path = strings.TrimRight(p.g.Config().PathPrefix, "/") + path
@@ -125,7 +125,8 @@ func decoded(raw []byte) any {
 	return v
 }
 
-// scalar is PHP's (string) cast of a JSON scalar; "" for anything else.
+// scalar reads a JSON scalar as text: a string as is, a number in its JSON form, true as "1";
+// false and anything else are "".
 func scalar(v any) string {
 	switch s := v.(type) {
 	case string:

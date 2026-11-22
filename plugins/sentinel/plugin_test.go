@@ -43,7 +43,7 @@ type env struct {
 	mail     *messaging.Memory
 }
 
-// boot is upstream's PluginTest::polaris(): core, audit, admin, messaging and the sentinel in
+// boot is core, audit, admin, messaging and the sentinel in
 // memory, a frozen clock.
 func boot(t *testing.T, cfg sentinel.Config) env {
 	t.Helper()

@@ -62,7 +62,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares the plugin's five tables.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest is the plugin's 23 route specs, mirrored from upstream.
+// Manifest is the plugin's 23 route specs (declared in internal/apispec/api/agents).
 func (*Plugin) Manifest() fs.FS {
 	dir, err := fs.Sub(apispec.API, "api/agents")
 	if err != nil {

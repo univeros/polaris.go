@@ -53,7 +53,7 @@ var (
 	ErrTokenInvalid = errors.New("anonymous: the access token is not a live session of another account")
 )
 
-// Config configures the plugin; the zero value is upstream's defaults.
+// Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// OnConvert moves the host's data from the guest to the account it became. It runs before
 	// anything is recorded: an error converts nothing and the guest can retry. nil: nothing to move.
@@ -84,7 +84,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_anonymous.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Models returns polaris_anonymous as upstream declares it.
+// Models returns polaris_anonymous; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableGuests,
@@ -96,7 +96,7 @@ func Models() []schema.Model {
 	}
 }
 
-// Manifest returns the plugin's routes (upstream api/anonymous).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/anonymous).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/anonymous")
 	if err != nil {
@@ -122,7 +122,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 func (p *Plugin) Guests() *Guests { return p.guests }
 
 // Prune deletes the unconverted guests older than Config.PruneAfter; see Guests.Prune. Run it from
-// cron (upstream's `polaris anonymous:prune`).
+// cron (the CLI's `polaris anonymous:prune` calls it).
 func (p *Plugin) Prune(ctx context.Context) (int, error) { return p.guests.Prune(ctx) }
 
 // Endpoints serves the /anonymous routes.

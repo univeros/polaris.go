@@ -101,13 +101,13 @@ func TestHelpers(t *testing.T) {
 	if !audienceHas([]any{"x", "c"}, "c") || audienceHas(5, "c") || !audienceHas("c", "c") {
 		t.Fatal("audienceHas")
 	}
-	if s, _ := phpJSON(object{{"name", "\u00dcn\u00ef/\U0001F600"}}); s != `{"name":"\u00dcn\u00ef\/\ud83d\ude00"}` {
-		t.Fatalf("phpJSON %s", s)
+	if s, _ := escapedJSON(object{{"name", "\u00dcn\u00ef/\U0001F600"}}); s != `{"name":"\u00dcn\u00ef\/\ud83d\ude00"}` {
+		t.Fatalf("escapedJSON %s", s)
 	}
-	if s, _ := phpJSON(object{}); s != "[]" {
-		t.Fatalf("an empty object is PHP's [] %s", s)
+	if s, _ := escapedJSON(object{}); s != "[]" {
+		t.Fatalf("an empty object is written [] %s", s)
 	}
-	if _, err := phpJSON(object{{"x", make(chan int)}}); err == nil {
+	if _, err := escapedJSON(object{{"x", make(chan int)}}); err == nil {
 		t.Fatal("an unencodable value")
 	}
 	if nonNil(nil) == nil || optional("") != nil || *optional("x") != "x" || nullable("") != nil {

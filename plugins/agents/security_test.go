@@ -11,9 +11,9 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Port of AgentsSecurityTest: the WP4 security review's attacks, each refused.
+// The recorded security flows: the attacks of the plugin's security review, each refused.
 func TestAgentsSecurity(t *testing.T) {
-	run(t, phpSecurity, map[string]func(*agentsCase){
+	run(t, securityFixtures, map[string]func(*agentsCase){
 		"testAnotherUsersTokenNamingAnAgentIsRefusedEverywhere":                  confusedDeputy,
 		"testAnAgentsClientIsNotManageableThroughTheOrganizationRoutes":          clientNotManageable,
 		"testEverySpellingOfALocationIsGuardedAndABoundMiddlewareGuardsItsRoute": everySpelling,

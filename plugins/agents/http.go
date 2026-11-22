@@ -167,7 +167,9 @@ func (p *Plugin) configuration(context.Context, *endpoint.Input) endpoint.Result
 	return endpoint.JSON(http.StatusOK, p.discovery()).WithHeader("Cache-Control", "public, max-age=3600")
 }
 
-// discovery is the agent configuration document (docs/better/agent-auth-compat.md).
+// discovery is the agent configuration document served at /.well-known/agent-configuration: the
+// provider, its issuer, every agents endpoint, the signing algorithms, modes and approval
+// methods a client reads before it registers.
 func (p *Plugin) discovery() map[string]any {
 	base := p.s.settings.baseURL
 	tokenURL := p.s.oauth.BaseURL() + "/oauth2/token"
@@ -736,7 +738,8 @@ func (p *Plugin) listReceipts(ctx context.Context, in *endpoint.Input) endpoint.
 	return endpoint.JSON(http.StatusOK, map[string]any{"data": views(list, receiptView), "next_cursor": cursor, "has_more": more})
 }
 
-// intField reads a numeric query or body field as PHP's (int) cast of an is_numeric value.
+// intField reads a numeric query or body field (a number or a numeric string) truncated toward
+// zero; def when the field is absent or not numeric.
 func intField(in *endpoint.Input, field string, def int) int {
 	if f, ok := numeric(in.Value(field)); ok {
 		return int(f)
