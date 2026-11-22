@@ -718,11 +718,11 @@
                                                 },
                                                 "orgs": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "roles": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 }
                                             },
                                             "required": [
@@ -2766,8 +2766,8 @@
                                                 "current": true,
                                                 "ip": "203.0.113.7",
                                                 "user_agent": "Mozilla/5.0 ...",
-                                                "created_at": "2026-06-10T09:00:00+00:00",
-                                                "last_used_at": "2026-06-11T08:30:00+00:00"
+                                                "created_at": "2026-06-10T09:00:00Z",
+                                                "last_used_at": "2026-06-11T08:30:00Z"
                                             }
                                         ]
                                     }
@@ -3750,7 +3750,7 @@
                                         "role_slugs": [
                                             "member"
                                         ],
-                                        "expires_at": "2026-06-18T12:00:00+00:00"
+                                        "expires_at": "2026-06-18T12:00:00Z"
                                     }
                                 }
                             }
@@ -3884,8 +3884,8 @@
                                                 "member"
                                             ],
                                             "invited_by": "018f6f2a-1111-7222-8333-0123456789ab",
-                                            "expires_at": "2026-06-18T12:00:00+00:00",
-                                            "created_at": "2026-06-11T12:00:00+00:00"
+                                            "expires_at": "2026-06-18T12:00:00Z",
+                                            "created_at": "2026-06-11T12:00:00Z"
                                         }
                                     ]
                                 }

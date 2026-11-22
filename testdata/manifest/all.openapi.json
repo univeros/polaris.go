@@ -718,11 +718,11 @@
                                                 },
                                                 "orgs": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "roles": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 }
                                             },
                                             "required": [
@@ -2766,8 +2766,8 @@
                                                 "current": true,
                                                 "ip": "203.0.113.7",
                                                 "user_agent": "Mozilla/5.0 ...",
-                                                "created_at": "2026-06-10T09:00:00+00:00",
-                                                "last_used_at": "2026-06-11T08:30:00+00:00"
+                                                "created_at": "2026-06-10T09:00:00Z",
+                                                "last_used_at": "2026-06-11T08:30:00Z"
                                             }
                                         ]
                                     }
@@ -3750,7 +3750,7 @@
                                         "role_slugs": [
                                             "member"
                                         ],
-                                        "expires_at": "2026-06-18T12:00:00+00:00"
+                                        "expires_at": "2026-06-18T12:00:00Z"
                                     }
                                 }
                             }
@@ -3884,8 +3884,8 @@
                                                 "member"
                                             ],
                                             "invited_by": "018f6f2a-1111-7222-8333-0123456789ab",
-                                            "expires_at": "2026-06-18T12:00:00+00:00",
-                                            "created_at": "2026-06-11T12:00:00+00:00"
+                                            "expires_at": "2026-06-18T12:00:00Z",
+                                            "created_at": "2026-06-11T12:00:00Z"
                                         }
                                     ]
                                 }
@@ -7320,7 +7320,7 @@
                                                 },
                                                 "ip_allowlist": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "expires_at": {
                                                     "type": [
@@ -7448,7 +7448,7 @@
                                                     },
                                                     "ip_allowlist": {
                                                         "type": "array",
-                                                        "items": []
+                                                        "items": {}
                                                     },
                                                     "expires_at": {
                                                         "type": [
@@ -10606,10 +10606,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -10678,10 +10677,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -11500,10 +11498,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -11666,7 +11663,7 @@
                                                         },
                                                         "roles": {
                                                             "type": "array",
-                                                            "items": []
+                                                            "items": {}
                                                         }
                                                     },
                                                     "required": [
@@ -12653,10 +12650,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -12757,10 +12753,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -13728,10 +13723,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -13826,10 +13820,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -13900,10 +13893,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -13997,10 +13989,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14079,10 +14070,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14165,10 +14155,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14241,10 +14230,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14297,10 +14285,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14353,10 +14340,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14443,10 +14429,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14541,10 +14526,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14615,10 +14599,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14702,10 +14685,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14784,10 +14766,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -14880,10 +14861,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -15346,10 +15326,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -15403,10 +15382,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -17255,10 +17233,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -17356,10 +17333,9 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": []
+                                    "type": "object"
                                 },
-                                "example": []
+                                "example": {}
                             }
                         }
                     },
@@ -18111,7 +18087,7 @@
                                                 },
                                                 "allowCredentials": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "userVerification": {
                                                     "type": "string"
@@ -18724,7 +18700,7 @@
                                                 },
                                                 "excludeCredentials": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "timeout": {
                                                     "type": "integer"
@@ -19081,8 +19057,7 @@
                                                     ]
                                                 },
                                                 "metadata": {
-                                                    "type": "array",
-                                                    "items": []
+                                                    "type": "object"
                                                 },
                                                 "status": {
                                                     "type": "string"
@@ -19166,7 +19141,7 @@
                                             "window": 60,
                                             "max": 100
                                         },
-                                        "metadata": [],
+                                        "metadata": {},
                                         "status": "active",
                                         "rotated_from": null,
                                         "grace_until": null,
@@ -19305,8 +19280,7 @@
                                                         ]
                                                     },
                                                     "metadata": {
-                                                        "type": "array",
-                                                        "items": []
+                                                        "type": "object"
                                                     },
                                                     "status": {
                                                         "type": "string"
@@ -19385,7 +19359,7 @@
                                                 "window": 60,
                                                 "max": 100
                                             },
-                                            "metadata": [],
+                                            "metadata": {},
                                             "status": "active",
                                             "rotated_from": null,
                                             "grace_until": null,
@@ -19573,8 +19547,7 @@
                                                     ]
                                                 },
                                                 "metadata": {
-                                                    "type": "array",
-                                                    "items": []
+                                                    "type": "object"
                                                 },
                                                 "status": {
                                                     "type": "string"
@@ -19650,7 +19623,7 @@
                                             "org.read"
                                         ],
                                         "rate_limit": null,
-                                        "metadata": [],
+                                        "metadata": {},
                                         "status": "active",
                                         "rotated_from": null,
                                         "grace_until": null,
@@ -19790,8 +19763,7 @@
                                                     ]
                                                 },
                                                 "metadata": {
-                                                    "type": "array",
-                                                    "items": []
+                                                    "type": "object"
                                                 },
                                                 "status": {
                                                     "type": "string"
@@ -19867,7 +19839,7 @@
                                             "org.read"
                                         ],
                                         "rate_limit": null,
-                                        "metadata": [],
+                                        "metadata": {},
                                         "status": "active",
                                         "rotated_from": null,
                                         "grace_until": null,
@@ -19996,8 +19968,7 @@
                                                     ]
                                                 },
                                                 "metadata": {
-                                                    "type": "array",
-                                                    "items": []
+                                                    "type": "object"
                                                 },
                                                 "status": {
                                                     "type": "string"
@@ -20074,7 +20045,7 @@
                                             "org.read"
                                         ],
                                         "rate_limit": null,
-                                        "metadata": [],
+                                        "metadata": {},
                                         "status": "active",
                                         "rotated_from": "018f...",
                                         "grace_until": null,
@@ -20201,8 +20172,7 @@
                                                             ]
                                                         },
                                                         "metadata": {
-                                                            "type": "array",
-                                                            "items": []
+                                                            "type": "object"
                                                         },
                                                         "status": {
                                                             "type": "string"
@@ -20270,7 +20240,7 @@
                                                     "org.read"
                                                 ],
                                                 "rate_limit": null,
-                                                "metadata": [],
+                                                "metadata": {},
                                                 "status": "active",
                                                 "expires_at": null
                                             }
@@ -20439,7 +20409,7 @@
                                                 },
                                                 "scopes": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "token_endpoint_auth_method": {
                                                     "type": "string"
@@ -20659,7 +20629,7 @@
                                                     },
                                                     "scopes": {
                                                         "type": "array",
-                                                        "items": []
+                                                        "items": {}
                                                     },
                                                     "token_endpoint_auth_method": {
                                                         "type": "string"
@@ -22762,7 +22732,7 @@
                                                 },
                                                 "scopes": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "token_endpoint_auth_method": {
                                                     "type": "string"
@@ -22994,7 +22964,7 @@
                                                     },
                                                     "scopes": {
                                                         "type": "array",
-                                                        "items": []
+                                                        "items": {}
                                                     },
                                                     "token_endpoint_auth_method": {
                                                         "type": "string"
@@ -23322,7 +23292,7 @@
                                                 },
                                                 "scopes": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "token_endpoint_auth_method": {
                                                     "type": "string"
@@ -23617,7 +23587,7 @@
                                                 },
                                                 "scopes": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "token_endpoint_auth_method": {
                                                     "type": "string"
@@ -23888,7 +23858,7 @@
                                         },
                                         "scopes": {
                                             "type": "array",
-                                            "items": []
+                                            "items": {}
                                         },
                                         "token_endpoint_auth_method": {
                                             "type": "string"
@@ -24436,7 +24406,7 @@
                                             "properties": {
                                                 "tools": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 }
                                             },
                                             "required": [
@@ -25122,8 +25092,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -25241,7 +25210,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
@@ -25516,8 +25485,7 @@
                                                                     "type": "string"
                                                                 },
                                                                 "constraints": {
-                                                                    "type": "array",
-                                                                    "items": []
+                                                                    "type": "object"
                                                                 },
                                                                 "budget": {
                                                                     "type": "object",
@@ -25670,7 +25638,7 @@
                                                     "id": "018f...",
                                                     "agent_id": "018f...",
                                                     "capability": "deploy.staging",
-                                                    "constraints": [],
+                                                    "constraints": {},
                                                     "budget": {
                                                         "kind": "count",
                                                         "total": 100,
@@ -25914,8 +25882,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -26066,7 +26033,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
@@ -26616,8 +26583,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -26792,7 +26758,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
@@ -27030,8 +26996,7 @@
                                                     "type": "string"
                                                 },
                                                 "constraints": {
-                                                    "type": "array",
-                                                    "items": []
+                                                    "type": "object"
                                                 },
                                                 "budget": {
                                                     "type": "object",
@@ -27115,7 +27080,7 @@
                                         "id": "018f...",
                                         "agent_id": "018f...",
                                         "capability": "deploy.staging",
-                                        "constraints": [],
+                                        "constraints": {},
                                         "budget": {
                                             "kind": "count",
                                             "total": 100,
@@ -27241,8 +27206,7 @@
                                                         "type": "string"
                                                     },
                                                     "constraints": {
-                                                        "type": "array",
-                                                        "items": []
+                                                        "type": "object"
                                                     },
                                                     "budget": {
                                                         "type": "object",
@@ -27377,7 +27341,7 @@
                                             "id": "018f...",
                                             "agent_id": "018f...",
                                             "capability": "deploy.staging",
-                                            "constraints": [],
+                                            "constraints": {},
                                             "budget": {
                                                 "kind": "count",
                                                 "total": 100,
@@ -28499,8 +28463,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -28629,7 +28592,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
@@ -29274,8 +29237,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -29405,7 +29367,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
@@ -29541,8 +29503,7 @@
                                                                 "type": "string"
                                                             },
                                                             "constraints": {
-                                                                "type": "array",
-                                                                "items": []
+                                                                "type": "object"
                                                             },
                                                             "budget": {
                                                                 "type": "object",
@@ -29662,7 +29623,7 @@
                                                 "id": "018f...",
                                                 "agent_id": "018f...",
                                                 "capability": "deploy.staging",
-                                                "constraints": [],
+                                                "constraints": {},
                                                 "budget": {
                                                     "kind": "count",
                                                     "total": 100,
