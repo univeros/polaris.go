@@ -16,7 +16,6 @@ input:
     roleId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Orgs\DeleteRoleEndpoint
   description: >
     Deletes a custom role; the database cascade detaches it from all
     memberships. The cloned owner/admin/member templates and system roles

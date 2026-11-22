@@ -16,7 +16,6 @@ input:
     clientId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\Organization\DeleteClientEndpoint
   description: >
     The client and every token it holds go. Recorded as oauth.client_deleted.
 

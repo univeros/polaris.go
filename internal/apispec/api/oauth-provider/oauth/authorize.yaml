@@ -26,7 +26,6 @@ input:
     request: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\AuthorizeEndpoint
   description: >
     Validates the request (a known client, one of its redirect URIs, response_type=code, PKCE S256,
     known scopes) and parks it for ten minutes. A browser is sent to the host's consent page

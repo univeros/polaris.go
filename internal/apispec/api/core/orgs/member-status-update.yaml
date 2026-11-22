@@ -15,7 +15,6 @@ input:
     status: { type: string, rules: [required, "in:active,suspended"] }
 
 domain:
-  class: Polaris\Http\Orgs\ChangeMemberStatusEndpoint
   description: >
     Suspends or reactivates a membership. Suspending immediately revokes the
     member's sessions scoped to this org; a still-invited member cannot be

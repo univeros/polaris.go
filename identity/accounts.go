@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
@@ -107,7 +107,7 @@ func newAccount(email, displayName string, now time.Time) (model.User, error) {
 	if !manifest.IsEmail(email) {
 		return model.User{}, refuse(ErrInvalidProfile, msgInvalidEmail)
 	}
-	name := strings.Trim(displayName, trimSet)
+	name := strutil.Trim(displayName)
 	if utf8.RuneCountInString(name) > displayNameMax {
 		return model.User{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
 	}

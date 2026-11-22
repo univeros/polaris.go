@@ -16,7 +16,6 @@ input:
     count: { type: "?integer", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\ListUsersEndpoint
   description: >
     The organization's members as SCIM Users: userName and the primary email are the email, active the account status, groups the roles. filter takes attr eq|co|sw "value" joined by and (userName, emails, externalId, displayName); startIndex is 1-based, count at most 200.
 

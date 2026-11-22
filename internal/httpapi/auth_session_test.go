@@ -41,6 +41,13 @@ func TestSessionEndpoints(t *testing.T) {
 		if len(sessions) != 2 {
 			t.Fatalf("sessions: %d", len(sessions))
 		}
+		for _, s := range sessions {
+			for _, key := range []string{"created_at", "last_used_at"} {
+				if v, _ := s.(map[string]any)[key].(string); !utcSecond.MatchString(v) {
+					t.Errorf("%s = %q, want RFC 3339 UTC with Z", key, v)
+				}
+			}
+		}
 		var current []string
 		for _, s := range sessions {
 			if m := s.(map[string]any); m["current"] == true {

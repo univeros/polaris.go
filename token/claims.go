@@ -8,7 +8,6 @@ import (
 	"math"
 	"slices"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -51,7 +50,7 @@ func (c Claims) Names() []string { return slices.Clone(c.names) }
 func (c Claims) Len() int { return len(c.names) }
 
 // MarshalJSON encodes c as a JSON object in claim order, with "/" and non-ASCII characters
-// left unescaped (see encodeString); an empty set encodes as [].
+// left unescaped (see encodeString) and floats in encoding/json's form; an empty set encodes as {}.
 func (c Claims) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	if err := encodeOrderedObject(&buf, c.names, c.values); err != nil {
@@ -62,13 +61,10 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 
 var errUnencodable = errors.New("token: claim value cannot be encoded")
 
-// encodeOrderedObject writes names (in order) and their values as a JSON object, or [] when
-// there are none.
+// encodeOrderedObject writes names (in order) and their values as a JSON object. Tokens issued
+// before decision 64 wrote an empty object as []; they verify over their own bytes, so the
+// encoding of new tokens is free to differ.
 func encodeOrderedObject(buf *bytes.Buffer, names []string, values map[string]any) error {
-	if len(names) == 0 {
-		buf.WriteString("[]") // the wire form of an empty claim set, kept for issued tokens
-		return nil
-	}
 	buf.WriteByte('{')
 	for i, name := range names {
 		if i > 0 {
@@ -106,11 +102,11 @@ func encodeValue(buf *bytes.Buffer, v any) error {
 		}
 		buf.WriteString(strconv.FormatUint(n, 10))
 	case float64:
-		s, err := formatFloat(v)
-		if err != nil {
-			return err
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return fmt.Errorf("%w: Inf and NaN cannot be JSON encoded", errUnencodable)
 		}
-		buf.WriteString(s)
+		s, _ := json.Marshal(v) // finite floats always encode
+		buf.Write(s)
 	case []string:
 		buf.WriteByte('[')
 		for i, s := range v {
@@ -177,27 +173,4 @@ func encodeString(buf *bytes.Buffer, s string) error {
 	// lower-case,    ); drop the trailing newline Encode adds.
 	buf.Write(bytes.TrimSuffix(tmp.Bytes(), []byte("\n")))
 	return nil
-}
-
-// formatFloat renders f with the shortest round-tripping digits, in exponent form (at least
-// one fractional digit, an explicit exponent sign: 1.0e+17, 1.0e-5) when the decimal exponent
-// is below -4 or at least 17.
-func formatFloat(f float64) (string, error) {
-	if math.IsInf(f, 0) || math.IsNaN(f) {
-		return "", fmt.Errorf("%w: Inf and NaN cannot be JSON encoded", errUnencodable)
-	}
-	e := strconv.FormatFloat(f, 'e', -1, 64)
-	mantissa, expPart, _ := strings.Cut(e, "e")
-	exp, _ := strconv.Atoi(expPart)
-	if exp >= -4 && exp < 17 {
-		return strconv.FormatFloat(f, 'f', -1, 64), nil
-	}
-	if !strings.Contains(mantissa, ".") {
-		mantissa += ".0"
-	}
-	sign := "+"
-	if exp < 0 {
-		sign, exp = "-", -exp
-	}
-	return mantissa + "e" + sign + strconv.Itoa(exp), nil
 }

@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\ApiKeys\Http\DeleteEndpoint
   description: >
     The key stops authenticating at once and leaves the list. Recorded as api_keys.revoked.
 

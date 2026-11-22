@@ -16,7 +16,6 @@ input:
     redirect_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Flow\SignInEndpoint
   description: >
     The provider of provider_id, or the one a verified domain routes the email to. The application
     sends the browser to url; the sign-in ends on redirect_uri (one of the provider's, the first by

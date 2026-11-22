@@ -15,7 +15,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Orgs\ReadOrganizationEndpoint
   description: >
     Returns the organization's id, name, slug, and status. The cross-tenant
     active-org guard applies: the path org must equal the caller's active org

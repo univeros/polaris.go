@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Agents\Http\VerifyReceiptEndpoint
   description: >
     Recomputes the hash over the canonical JSON of the receipt's fields, verifies the signature (a
     receipt+jwt JWS) with core's public key, and checks prev_hash against the previous receipt of the

@@ -2,11 +2,11 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
-	"strings"
+
+	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/internal/strutil"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/manifest"
@@ -166,10 +166,10 @@ func (m *mfaAPI) updateFactor(ctx context.Context, in *endpoint.Input) endpoint.
 	}
 	var label *string // omitted leaves the label alone; present (even null or "") replaces it
 	if in.Has("label") {
-		l := mfaString(in.Value("label"))
+		l := in.String("label")
 		label = &l
 	}
-	f, err := m.g.MFA().UpdateFactor(ctx, userID, factorID, label, mfaTruthy(in.Value("default")))
+	f, err := m.g.MFA().UpdateFactor(ctx, userID, factorID, label, in.Bool("default"))
 	var policy *mfa.PolicyError
 	switch {
 	case errors.Is(err, mfa.ErrFactorNotFound):
@@ -247,44 +247,5 @@ func mfaSubject(ctx context.Context) string {
 	return ""
 }
 
-// mfaField is key read by mfaString, then trimmed of " \t\n\r\0\x0B".
-func mfaField(in *endpoint.Input, key string) string {
-	return strings.Trim(mfaString(in.Value(key)), " \t\n\r\x00\x0B")
-}
-
-// mfaString reads the scalars a JSON or form body carries as a string (numbers in their JSON form,
-// true as "1"); anything else is "".
-func mfaString(v any) string {
-	switch v := v.(type) {
-	case string:
-		return v
-	case json.Number:
-		return v.String()
-	case bool:
-		if v {
-			return "1"
-		}
-	}
-	return ""
-}
-
-// mfaTruthy is a lenient boolean: false, 0, "", "0", null and empty collections are false, all
-// else true.
-func mfaTruthy(v any) bool {
-	switch v := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return v
-	case string:
-		return v != "" && v != "0"
-	case json.Number:
-		f, err := v.Float64()
-		return err != nil || f != 0
-	case []any:
-		return len(v) > 0
-	case map[string]any:
-		return len(v) > 0
-	}
-	return true
-}
+// mfaField is the string field key, edge-trimmed (strutil.Trim).
+func mfaField(in *endpoint.Input, key string) string { return strutil.Trim(in.String(key)) }

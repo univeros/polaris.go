@@ -74,8 +74,9 @@ func TestClaimsWithIsCopyOnWrite(t *testing.T) {
 	}
 }
 
-// The expected bytes are the wire form issued tokens already carry.
-func TestClaimsEncodeInClaimOrderWithMinimalEscaping(t *testing.T) {
+// The expected bytes are encoding/json's (without HTML escaping), in claim order: an empty
+// object is {}, floats take encoding/json's form.
+func TestClaimsEncodeInClaimOrderAsEncodingJSON(t *testing.T) {
 	point1, point2 := 0.1, 0.2
 	c := Claims{}.
 		With("s", "a/b\u2028é<>&\x01\x1f\x7f\"\\\b\f").
@@ -85,8 +86,11 @@ func TestClaimsEncodeInClaimOrderWithMinimalEscaping(t *testing.T) {
 		With("empty", map[string]any{}).
 		With("raw", json.RawMessage(`{"k":[1]}`))
 	want := `{"s":"a/b\u2028é<>&\u0001\u001f` + "\x7f" + `\"\\\b\f",` +
-		`"floats":[1,1.5,1000000000000000,10000000000000000,1.0e+17,1.2345678901234568e+17,1.0e+20,1.5e-7,0.0001,1.0e-5,-0,0.30000000000000004],` +
-		`"ints":[-1,2,3,-4],"map":{"a":{"z":true,"y":null},"b":1},"empty":[],"raw":{"k":[1]}}`
+		`"floats":[1,1.5,1000000000000000,10000000000000000,100000000000000000,123456789012345680,100000000000000000000,1.5e-7,0.0001,0.00001,-0,0.30000000000000004],` +
+		`"ints":[-1,2,3,-4],"map":{"a":{"z":true,"y":null},"b":1},"empty":{},"raw":{"k":[1]}}`
+	if got, err := (Claims{}).MarshalJSON(); err != nil || string(got) != `{}` {
+		t.Errorf("an empty claim set encodes as %s, %v; want {}", got, err)
+	}
 	got, err := c.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)

@@ -18,7 +18,6 @@ input:
     display_name: { type: "?string", rules: ["max:120"] }
 
 domain:
-  class: Polaris\Http\Auth\RegisterEndpoint
   description: >
     Registers the user and triggers email verification. Always returns a generic
     202 message regardless of whether the address already exists

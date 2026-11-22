@@ -18,7 +18,9 @@ with its endpoint in `internal/httpapi`; the recorded contract fixtures in
 
 ## Spec schema
 
-`schema.json` lists the required keys and accepted values; `manifest.Load` enforces them.
+`schema.json` lists the required keys and accepted values; `manifest.Load` enforces them. A spec's
+route name comes from its path (`auth/login.yaml` is `polaris.auth.login`): endpoints register under
+it, and it is the OpenAPI `operationId` and the `name` of the JSON manifest's entries.
 
 ```yaml
 # <METHOD> <path>: one-line summary.
@@ -41,8 +43,6 @@ input:
     email: { type: string, rules: [required, email, "max:320"] }
 
 domain:
-  class: Polaris\Http\Auth\LoginEndpoint         # endpoint identifier published in the exported manifest and as the
-                                                 # OpenAPI operationId; existing values stay as released
   description: >
     What the endpoint does, as implemented.
 
@@ -62,6 +62,7 @@ events: [user.logged_in]       # events dispatched (package event)
 `polaris manifest --format=openapi` types each success response from the spec's `example` (JSON Schema
 by example, `manifest`'s schema inference): every key shown is required, scalars take their JSON type,
 array items are merged (a key missing from some items is optional, one null in some is nullable), a
-value null everywhere is a nullable string, an empty array has untyped items, and `example_<variant>`
+value null everywhere is a nullable string, an empty array has untyped items, an empty mapping is an
+object, and `example_<variant>`
 keys become a `oneOf`. Clients generated from the OpenAPI document are typed from that, so keep the
 examples the shape the endpoint really answers.

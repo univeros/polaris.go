@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Sso\Http\Flow\MetadataEndpoint
   description: >
     The SP metadata XML (application/samlmetadata+xml) the organization's IdP is configured with:
     entity id, assertion consumer and single-logout URLs, the SP certificate when one is configured.

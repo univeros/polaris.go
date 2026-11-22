@@ -15,7 +15,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Users\DeleteUserEndpoint
   description: >
     The right-to-erasure flow: anonymizes the account rather than dropping
     the row. The email becomes a hash at deleted.invalid, the profile is

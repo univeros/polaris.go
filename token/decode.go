@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -186,11 +185,15 @@ func parseNumber(s string) any {
 	return f
 }
 
-// normalizeRegistered converts the registered claims: aud becomes a list (asList) and
-// iat/nbf/exp become instants.
+// normalizeRegistered converts the registered claims: aud becomes a list of strings (audiences)
+// and iat/nbf/exp become instants (toInstant). Either in another form fails the token.
 func normalizeRegistered(claims map[string]any) error {
 	if aud, ok := claims["aud"]; ok {
-		claims["aud"] = asList(aud)
+		list, ok := audiences(aud)
+		if !ok {
+			return invalid("the \"aud\" claim is not a string or a list of strings")
+		}
+		claims["aud"] = list
 	}
 	for _, name := range dateClaims {
 		v, ok := claims[name]
@@ -206,62 +209,47 @@ func normalizeRegistered(claims map[string]any) error {
 	return nil
 }
 
-// asList reads a claim as a list for membership checks: null is empty, a scalar is a
-// one-element list, an array is itself, an object contributes its values.
-func asList(v any) []any {
+// audiences reads aud as RFC 7519 section 4.1.3 writes it: one string, or a list of strings.
+func audiences(v any) ([]any, bool) {
 	switch v := v.(type) {
-	case nil:
-		return []any{}
+	case string:
+		return []any{v}, true
 	case []any:
-		return v
-	case map[string]any:
-		out := make([]any, 0, len(v))
 		for _, e := range v {
-			out = append(out, e)
+			if _, ok := e.(string); !ok {
+				return nil, false
+			}
 		}
-		return out
-	default:
-		return []any{v}
+		return v, true
 	}
+	return nil, false
 }
-
-// numericString matches a numeric string: optional surrounding ASCII whitespace, an optional
-// sign, digits with an optional fraction (or a bare fraction) and an optional exponent.
-var numericString = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
 
 // maxUnixSeconds bounds date claims well inside time.Time's range (year ~292 billion), so
 // comparisons never wrap; a far-future iat or nbf is then refused as it would be anyway (it is
 // in the future), and a far-future exp is refused rather than trusted.
 const maxUnixSeconds = 1 << 62
 
-// toInstant reads a date claim: an int, float or numeric string, formatted with six decimals
-// and read back as seconds.microseconds.
+// toInstant reads a date claim: a JSON number of seconds since the epoch, not negative, read to
+// the microsecond (the fraction rounded to six decimals, as tokens with fractional dates were
+// issued). A string, a negative number and anything else fail.
 func toInstant(v any) (time.Time, error) {
 	var f float64
 	switch v := v.(type) {
 	case int64:
-		if v >= maxUnixSeconds || v <= -maxUnixSeconds {
+		if v < 0 || v >= maxUnixSeconds {
 			return time.Time{}, fmt.Errorf("out of range")
 		}
 		return time.Unix(v, 0).UTC(), nil
 	case float64:
 		f = v
-	case string:
-		if !numericString.MatchString(v) {
-			return time.Time{}, fmt.Errorf("not numeric")
-		}
-		parsed, err := strconv.ParseFloat(strings.Trim(v, " \t\n\r\v\f"), 64)
-		if err != nil {
-			return time.Time{}, err
-		}
-		f = parsed
 	default:
-		return time.Time{}, fmt.Errorf("unsupported type %T", v)
+		return time.Time{}, fmt.Errorf("not a number (%T)", v)
 	}
 	if math.IsInf(f, 0) || math.IsNaN(f) {
 		return time.Time{}, fmt.Errorf("not finite")
 	}
-	if f >= maxUnixSeconds || f <= -maxUnixSeconds {
+	if f < 0 || f >= maxUnixSeconds {
 		return time.Time{}, fmt.Errorf("out of range")
 	}
 	whole, frac, _ := strings.Cut(strconv.FormatFloat(f, 'f', 6, 64), ".")
@@ -270,7 +258,6 @@ func toInstant(v any) (time.Time, error) {
 	if err1 != nil || err2 != nil {
 		return time.Time{}, fmt.Errorf("out of range")
 	}
-	// The microseconds are added to the (signed) whole seconds, so -1.5 reads as -1 s + 500000 µs = -0.5 s.
 	return time.Unix(sec, usec*int64(time.Microsecond)).UTC(), nil
 }
 

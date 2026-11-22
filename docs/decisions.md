@@ -1765,3 +1765,131 @@ audit:** stricter input only; the audit chain's hashed bytes are identical.
 
 Left open: the route specs' `output.example` timestamps still read `+00:00` (they belong with the
 core change, #64), as do `examples/b2b/README.md` and `examples/agents/README.md`.
+
+## 64. 2026-11-22 — Core behaves as Go, not as the port it started from
+
+Decision 58 renamed what read as a port; several behaviours of core still reproduced the PHP
+runtime (its date format, its JSON encoder, its loose parsing). After v1.0.0 changing any of them
+needs v2, so core drops them now, each deliberately. Scope: core packages (`token`, `manifest`,
+`internal/httpapi`, `internal/observe`, `identity`, `orgs`, `mfa`, `notify`, `store`, `pipeline`,
+`config`) and the route specs of every plugin under `internal/apispec/api`. The plugins' own code is
+decision 65.
+
+- **Timestamps on the wire are RFC 3339 with `Z`.** Core wrote UTC as `+00:00`
+  (`2026-06-10T09:00:00+00:00`); it now writes Go's `time.RFC3339` in UTC
+  (`2026-06-10T09:00:00Z`): `GET /auth/sessions` (`created_at`, `last_used_at`), `POST` and `GET
+  /orgs/{id}/invites` (`expires_at`, `created_at`), `GET` and `PATCH /users/{id}` (`created_at`,
+  `last_login_at`, also `identity.UserView`), and the `until` of a `user.locked` audit row. The same
+  instant, to the second; every RFC 3339 parser reads both forms, and every timestamp core reads
+  (`store.ParseTime`, the CLI's `--expires`) still accepts both. The core specs' examples and the
+  OpenAPI goldens follow. **Client-visible** for a client comparing the strings byte for byte.
+- **Empty objects are `{}`; JSON a client reads is standard Go JSON.** `manifest.Object` encoded an
+  empty object as `[]`, so the exported manifest and OpenAPI documents held `"items": []` for an
+  untyped schema (invalid JSON Schema), `"metadata": []` in examples, and an example written `{}`
+  typed as an array; MCP tool schemas built from them held `"properties": []`, which a strict MCP
+  client refuses. Now `{}` everywhere; an untyped schema is `{}` (any value), an empty mapping in an
+  example is `{"type": "object"}`. Token claims: an empty object claim (and an empty claim set)
+  encodes as `{}` instead of `[]`, and floats take `encoding/json`'s form (`100000000000000000`,
+  not `1.0e+17`; whole-second dates and the six-decimal dates are unchanged). Tokens are verified
+  over their own bytes, so tokens issued before keep verifying and the known-answer vectors are
+  unchanged. "/" was already unescaped in everything a client reads (`token` and the CLI's
+  output); the one `\/` writer was the audit metadata below.
+  - **Kept, hashed or signed:** the agents plugin's receipt canonical JSON (`[]` for an empty
+    object, `\uXXXX` for non-ASCII; receipt hashes are recomputed from it, decision 65's to keep)
+    and the audit plugin's hash-chain canonical form are untouched; neither is core's encoder.
+  - **Changed, stored:** core's `auth_audit_log.metadata` (`internal/observe`) is not hashed or
+    signed and nothing in Polaris decodes it, so its writer now writes it as every other JSON
+    column (`store.JSONValue`: `/` and non-ASCII as they are, `{}` for no fields, `Z`
+    timestamps). Rows written before keep their bytes (nothing rewrites them) and decode to the
+    same values: `TestAuditRowsOfEarlierReleasesStillRead` reads `[]`, `\/`, `é` and
+    `+00:00` rows back through the repository on every backend. PostgreSQL and MySQL already
+    stored the parsed form. A host decoding the column into a map now gets `{}` instead of `[]`
+    for new rows with no fields.
+- **Lenient parsing is gone where the client can fix it; stored data and issued tokens keep
+  reading.** Per case:
+  - Core routes check each field's JSON type against its spec before the endpoint runs
+    (`internal/httpapi.typed`): a `string` field takes a string, a `boolean` field `true` or
+    `false`, a `list<string>` field a list of strings; otherwise 422 `{"errors": ["<field> must
+    be a string."]}` (or "true or false", "a list of strings"), one message per field. Before, a
+    number was read as its JSON text, `true` as `"1"` and `false` as `""` (`authString`,
+    `mfaString`), `"0"`, `0`, `""` and empty collections as false and anything else as true for
+    `default` (`mfaTruthy`), and orgs routes read a non-string as absent. A null or absent field is
+    left to the endpoint as before. **Client-visible:** a client sending `"code": 123456` or
+    `"default": "1"` gets 422 and must send `"123456"` / `true`.
+  - `manifest`: a `max:` rule's argument must be a whole number of characters (`max:10abc`
+    read as 10, `max:abc` as 0; now the spec fails to load, naming the rule). `$` in the `regex`
+    and `e164` rules is Go's end of text (it also matched before a final newline); the `D`
+    modifier is accepted and changes nothing, `m` still makes `$` an end of line. New org slugs
+    lose the trailing newline the slug check let through; stored slugs are never re-checked.
+    Only specs and new input are affected. **Client-visible:** `"+15551234567\n"` and a slug
+    `"acme\n"` are 422.
+  - `store.Row.Bool` reads text with `strconv.ParseBool` (`1`, `t`, `T`, `TRUE`, `true`, `True`
+    are true). It no longer reads `y`, `yes` or other casings of `true` as true. Kept lenient on
+    purpose for what drivers hand back: Polaris writes booleans as booleans, which the drivers
+    return as `bool`, an integer, or the text `1` / `t`, all still read. No stored value Polaris
+    or the drivers produce reads differently.
+  - `token`: a date claim (`iat`, `nbf`, `exp`) must be a JSON number and not negative; numeric
+    strings (`" 1780833601.5 "`) and negative dates fail the token. `aud` must be a string or a
+    list of strings (RFC 7519 §4.1.3); `null`, a number, an object or a list holding a
+    non-string fail the token (before, an object contributed its values and a scalar became a
+    one-element list). Polaris has always written dates as non-negative numbers and `aud` as a
+    string or a list of strings, and the codec only accepts tokens signed with Polaris's own keys,
+    so no issued token stops verifying; fractional dates still read to the microsecond.
+  - Kept lenient, with the reason: `security.leadingInt` reads the counts of the breached-password
+    range API (an external service's response, read defensively); `manifest`'s spec loader still
+    reads YAML scalars loosely (`truthy`, `scalarString`) since specs are code reviewed with the
+    package, not client input; the contract-test normalizer keeps its `\n?$` masks, which must
+    match what the fixtures were normalized with.
+- **The email rule is Polaris's own, unchanged.** `manifest.IsEmail` is documented as the rule
+  itself (ASCII local part of atoms or quoted strings up to 64 units, a host name of two or more
+  labels or a bracketed IPv4 / tagged IPv6 literal, 254 units in all) instead of as a translated
+  PHP filter. The accepted set does not change: narrowing it would lock out accounts whose
+  addresses passed it, widening it would admit addresses that never did. `testdata/manifest/email.tsv`
+  and the new `TestEmailRuleEdgeCases` (case, whitespace, CR/LF, NUL, leading zeros, IDNs, label and
+  local-part lengths) pin it. Normalization of stored addresses is unchanged byte for byte:
+  `TestNormalizeEmailTrimsAndLowersASCIIOnly` gains form feed, `İ`, NUL/VT and inner-space cases, and
+  `TestNormalizeEmailIsIdentitysRule` checks `orgs` normalizes invitation addresses exactly as
+  `identity` does.
+- **Route names are the operationIds; `domain.class` is gone.** Every spec named a PHP class
+  (`Polaris\Http\Auth\LoginEndpoint`): the JSON manifest exported it as `class`, and the OpenAPI
+  `operationId` was the method plus its short name (`post_LoginEndpoint`; the three OTP confirm
+  routes of email and SMS shared `post_OtpFactorConfirmEndpoint`, an invalid duplicate). The 228 `class:` lines are
+  removed from every spec under `internal/apispec/api` (core and the 15 plugins); the operationId is
+  the route name (`polaris.auth.login`, `polaris.oauth.token`), unique by construction, and each
+  JSON manifest entry carries `"name"` in place of `"class"`. A third-party spec that still has
+  `domain.class` loads; the key is ignored. **Breaking:** `manifest.Route.Class` is removed (the
+  plugin SDK; no Polaris code read it). **Client-visible** for OpenAPI code generators: generated
+  method names change; regenerate clients.
+- **Notify renders Go values.** `notify.Text` rendered `true` as `1` and `false` as an empty
+  string; it now writes `true` / `false` (numbers were already decimal). None of the built-in
+  templates' data carries a boolean, so no built-in mail changes.
+- **TOTP secrets are 20 bytes.** New factors get 20 random bytes (160 bits, the length RFC 4226 §4
+  recommends; 32 base32 characters) instead of 64 (103 characters, longer than some authenticator
+  apps accept). Existing factors keep their secrets and keep verifying (`Match` takes any length;
+  `TestAnEarlierReleasesLongSecretKeepsVerifying`). **Client-visible:** the enrollment `secret` and
+  `otpauth_uri` are shorter.
+- **One trim and one percent-encoder.** `internal/strutil` holds `Trim` (space, tab, LF, CR, NUL,
+  vertical tab; not `strings.TrimSpace`, which would also strip form feed and Unicode spaces and so
+  change stored emails and names) and `PercentEncode` (RFC 3986 unreserved kept, `%20` for space).
+  They replace the copies in `identity`, `orgs`, `config`, `pipeline`, `mfa`, `manifest` and
+  `internal/httpapi`, with the same results, pinned by tests.
+- **The 501 fallback is gone.** Core routes without an endpoint answered 501 "This endpoint is not
+  ported yet."; none can: `TestNoPendingRoutes` covers every core route, and `pipeline.New` refuses
+  at startup to serve a route without an endpoint, naming it. No route answered it.
+- **Kept:** `cache.ErrInvalidKey`'s reserved characters and its error text.
+
+Contract fixtures: none is edited. The normalizer the fixtures were recorded with masks timestamps
+as `<datetime>`, compares `{}` and `[]` as the same empty collection and masks TOTP secrets, and no
+recorded request sends a value of the wrong type; every fixture replays unchanged. The exported
+manifest and OpenAPI goldens are regenerated. Security review: the token change only refuses
+claims no Polaris token carries and leaves every check and leeway in place; the type check runs
+before any endpoint and only refuses input; the TOTP change keeps 160 bits of entropy (RFC 4226's
+recommendation) and verification is unchanged. Tests: `TestAFieldOfTheWrongTypeIsA422NamingIt`,
+`TestVerifyChecksAlgorithmIssuerAndDates` (new date and aud cases),
+`TestClaimsEncodeInClaimOrderAsEncodingJSON`, `TestObjectEncoding`,
+`TestExampleSchemaEmptyCollectionsAndDisagreeingShapes`, `TestOperationIDsAreRouteNames`,
+`TestValidateValueKinds`, `TestParseRuleRegexDelimiters`, `TestRowAccessors`,
+`TestMetadataJSONIsStandardJSONInFieldOrder`, `TestAuditRowsOfEarlierReleasesStillRead`,
+`TestGeneratesABase32SecretOf20Bytes`, the sessions and invitations replays (`Z` timestamps),
+`TestEmailRuleEdgeCases`, `TestTrimStripsOnlyItsSixEdgeBytes`,
+`TestPercentEncodeKeepsOnlyUnreservedCharacters`.

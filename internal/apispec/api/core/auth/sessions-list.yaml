@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\SessionsEndpoint
   description: >
     Lists the authenticated user's active sessions (refresh-token families),
     with the calling session flagged current (matched by sid). Each entry
@@ -27,8 +26,8 @@ output:
           current: true
           ip: "203.0.113.7"
           user_agent: "Mozilla/5.0 ..."
-          created_at: "2026-06-10T09:00:00+00:00"
-          last_used_at: "2026-06-11T08:30:00+00:00"
+          created_at: "2026-06-10T09:00:00Z"
+          last_used_at: "2026-06-11T08:30:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

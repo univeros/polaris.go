@@ -16,7 +16,6 @@ input:
     domainId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\DeleteDomainEndpoint
   description: >
     Sign-ins with the domain's emails stop routing to the provider. Recorded as sso.domain_deleted.
 

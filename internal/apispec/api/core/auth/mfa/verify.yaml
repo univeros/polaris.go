@@ -18,7 +18,6 @@ input:
     type: { type: string, rules: [optional, "in:recovery"] }  # "recovery" forces the recovery-code path
 
 domain:
-  class: Polaris\Http\Auth\MfaVerifyEndpoint
   description: >
     Authenticated by the login_mfa ticket. A ticket that lists its factors (a sign-in that ruled
     some out) takes only those and recovery codes. Checks the code against the named

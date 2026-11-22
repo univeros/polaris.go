@@ -16,7 +16,6 @@ input:
     redirect_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Passwordless\Http\MagicLinkSendEndpoint
   description: >
     Emails a link to GET /magic-link/verify, valid once for 15 minutes, when the address belongs to an
     active user or to nobody and sign-up is on. redirect_uri must be one of the plugin's (the first by

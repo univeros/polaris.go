@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/token"
 )
@@ -73,7 +74,7 @@ func bearerToken(r *http.Request) string {
 	if m == nil {
 		return ""
 	}
-	return strings.Trim(m[1], " \t\n\r\x00\x0b")
+	return strutil.Trim(m[1])
 }
 
 // unauthorized answers the 401 every authentication step answers, with its Bearer challenge.

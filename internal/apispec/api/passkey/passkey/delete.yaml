@@ -15,7 +15,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Passkey\Http\DeleteEndpoint
   description: >
     Removes the passkey and the core factor it backs, with core's rule: the last confirmed factor of a
     user whose MFA is enforced stays (passkey_last_factor). Step-up gated like core's factor removal.

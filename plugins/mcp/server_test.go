@@ -127,13 +127,13 @@ func TestSchemasFoldTheQueryAndPathParameters(t *testing.T) {
 		t.Errorf("audit.organization input: %s", got)
 	}
 	me, _ := json.Marshal(p.schemas()["polaris.auth.me"].input)
-	if string(me) != `{"type":"object","properties":[]}` {
+	if string(me) != `{"type":"object","properties":{}}` {
 		t.Errorf("auth.me input: %s", me)
 	}
 	// The output is validated against its schema by MCP clients, and an example cannot show which
 	// fields may be null: every scalar also admits null.
 	out, _ := json.Marshal(p.schemas()["polaris.auth.me"].output)
-	for _, want := range []string{`"email":{"type":["string","null"]}`, `"display_name":{"type":["string","null"]}`, `"email_verified":{"type":["boolean","null"]}`, `"orgs":{"type":"array","items":[]}`} {
+	for _, want := range []string{`"email":{"type":["string","null"]}`, `"display_name":{"type":["string","null"]}`, `"email_verified":{"type":["boolean","null"]}`, `"orgs":{"type":"array","items":{}}`} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("auth.me output lacks %s: %s", want, out)
 		}
@@ -143,7 +143,7 @@ func TestSchemasFoldTheQueryAndPathParameters(t *testing.T) {
 		in   any
 		want string
 	}{
-		{O{{Key: "type", Value: "null"}}, `[]`},
+		{O{{Key: "type", Value: "null"}}, `{}`},
 		{O{{Key: "type", Value: []string{"integer", "string"}}}, `{"type":["integer","string","null"]}`},
 		{O{{Key: "type", Value: []string{"string", "null"}}}, `{"type":["string","null"]}`},
 		{O{{Key: "oneOf", Value: []any{O{{Key: "type", Value: "object"}, {Key: "properties", Value: O{{Key: "n", Value: O{{Key: "type", Value: "integer"}}}}}}}}},

@@ -14,9 +14,6 @@ type Member struct {
 // Object is a JSON object that keeps its key order: the YAML mappings of a spec's output examples
 // and the documents [Manifest.OpenAPI] and [Manifest.Export] build. Order matters where the
 // manifest derives lists from keys (an inferred schema's "required").
-//
-// An empty Object encodes as [], not {}: the exported documents have always written an empty map
-// as an empty list, and clients of them keep reading that form (an untyped schema is "items": []).
 type Object []Member
 
 // Get returns the value under key.
@@ -44,9 +41,6 @@ func (o Object) With(key string, value any) Object {
 
 // MarshalJSON encodes o with its keys in order.
 func (o Object) MarshalJSON() ([]byte, error) {
-	if len(o) == 0 {
-		return []byte("[]"), nil
-	}
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	for i, m := range o {

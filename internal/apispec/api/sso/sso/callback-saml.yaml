@@ -15,7 +15,6 @@ input:
     RelayState: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Flow\SamlCallbackEndpoint
   description: >
     Validates the response (signature, audience, destination, InResponseTo unless the provider allows
     IdP-initiated sign-in, conditions, replay), resolves or provisions the user (an existing account

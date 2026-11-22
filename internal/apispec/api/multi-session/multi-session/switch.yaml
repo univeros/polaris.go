@@ -15,7 +15,6 @@ input:
     session_id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\MultiSession\Http\SwitchEndpoint
   description: >
     session_id is one of the device's live sessions (GET /multi-session/list); the bearer's session
     must be on the device too. Opens a new session for that account with the authentication facts of

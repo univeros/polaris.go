@@ -14,7 +14,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Anonymous\Http\SignInEndpoint
   description: >
     Creates a guest: a user without a password whose email is the placeholder <id>@anonymous.invalid,
     and opens its session (amr ["anonymous"], no organization). The answer is core's login envelope.

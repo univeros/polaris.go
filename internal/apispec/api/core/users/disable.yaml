@@ -16,7 +16,6 @@ input:
     id: { type: string, rules: [required] }   # empty body
 
 domain:
-  class: Polaris\Http\Users\DisableUserEndpoint
   description: >
     Admin tooling: disables the account, revokes every session, and blocks
     login. Gated on the admin-scoped users.manage key (held only by

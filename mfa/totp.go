@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"encoding/base32"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/strutil"
 )
 
 // TOTPProvider generates and checks RFC 6238 authenticator-app codes. Secrets are base32.
@@ -29,8 +29,10 @@ type TOTPProvider interface {
 	Match(secret, code string) (step int64, ok bool, err error)
 }
 
-// secretBytes is the generated secret size: 64 random bytes, 103 base32 characters.
-const secretBytes = 64
+// secretBytes is the generated secret size: 20 random bytes (160 bits, the length RFC 4226
+// section 4 recommends and every authenticator app accepts), 32 base32 characters. Factors
+// enrolled before hold longer secrets; Match takes a secret of any length.
+const secretBytes = 20
 
 var base32NoPad = base32.StdEncoding.WithPadding(base32.NoPadding)
 
@@ -91,13 +93,13 @@ func (p *TOTP) ProvisioningURI(secret, account string) (string, error) {
 	if p.cfg.Digits != 6 {
 		q = append(q, fmt.Sprintf("digits=%d", p.cfg.Digits))
 	}
-	q = append(q, "issuer="+rawURLEncode(p.cfg.Issuer))
+	q = append(q, "issuer="+strutil.PercentEncode(p.cfg.Issuer))
 	if p.period != 30 {
 		q = append(q, fmt.Sprintf("period=%d", p.period))
 	}
-	q = append(q, "secret="+rawURLEncode(normalizeSecret(secret)))
+	q = append(q, "secret="+strutil.PercentEncode(normalizeSecret(secret)))
 
-	return "otpauth://totp/" + rawURLEncode(p.cfg.Issuer+":"+account) + "?" + strings.Join(q, "&"), nil
+	return "otpauth://totp/" + strutil.PercentEncode(p.cfg.Issuer+":"+account) + "?" + strings.Join(q, "&"), nil
 }
 
 // Match implements TOTPProvider. Each candidate is compared in constant time.
@@ -134,11 +136,4 @@ func normalizeSecret(secret string) string { return strings.ToUpper(strings.Trim
 
 func hasColon(s string) bool {
 	return strings.Contains(s, ":") || strings.Contains(s, "%3A") || strings.Contains(s, "%3a")
-}
-
-// rawURLEncode percent-encodes everything but RFC 3986 unreserved characters, upper-case hex (a
-// space is %20).
-func rawURLEncode(s string) string {
-	// url.PathEscape leaves sub-delims and ':' '@' alone; QueryEscape differs only in '+' for ' '.
-	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }

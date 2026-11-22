@@ -26,6 +26,7 @@ import (
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
@@ -136,9 +137,5 @@ func asciiLower(s string) string {
 	return string(b)
 }
 
-// trimEdges strips space, tab, LF, CR, NUL and vertical tab from both ends (not form feed or
-// Unicode spaces, as strings.TrimSpace would).
-func trimEdges(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
-
 // normalizeEmail trims the edges, then lowercases ASCII letters (identity.NormalizeEmail's rule).
-func normalizeEmail(email string) string { return asciiLower(trimEdges(email)) }
+func normalizeEmail(email string) string { return asciiLower(strutil.Trim(email)) }

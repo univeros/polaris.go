@@ -14,7 +14,6 @@ input:
     sessionId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\MultiSession\Http\RevokeEndpoint
   description: >
     sessionId is one of the device's live sessions, the caller's own included; the bearer's session
     must be on the device. The session ends and the device forgets it; the other accounts stay signed in.

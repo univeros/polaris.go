@@ -18,7 +18,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Sentinel\Http\Admin\ListDecisionsEndpoint
   description: >
     The decisions where a signal spoke, newest first, with the signals that fired and their reasons;
     filtered by exact email, address or action (allow, challenge, block). Needs read on the instance.
@@ -36,7 +35,7 @@ output:
         enforced: false
         signals: ["velocity"]
         reasons: ["email: 11 attempts in 600 s (limit 10)"]
-        created_at: "2026-09-11T10:00:00+00:00"
+        created_at: "2026-09-11T10:00:00Z"
     next_cursor: null
 
 errors:

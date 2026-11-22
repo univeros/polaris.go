@@ -16,7 +16,6 @@ input:
     email: { type: string, rules: [required, email, "max:320"] }
 
 domain:
-  class: Polaris\Http\Auth\ForgotPasswordEndpoint
   description: >
     Requests a password reset. Always returns a generic 202; internally a
     single-use reset challenge is created (and the notification dispatched)

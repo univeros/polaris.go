@@ -200,7 +200,7 @@ func TestEnrollTOTPStoresAnEncryptedSecretAndReturnsTheProvisioning(t *testing.T
 		res, err := s.EnrollTOTP(ctx, model.User{ID: "user-1", Email: "ada@example.com"})
 		must(t, err)
 		if !strings.HasPrefix(res.OTPAuthURI, "otpauth://totp/Univeros%3Aada%40example.com?issuer=Univeros&secret="+res.Secret) ||
-			!strings.Contains(res.QRSVG, "<svg") || len(res.Secret) != 103 {
+			!strings.Contains(res.QRSVG, "<svg") || len(res.Secret) != 32 {
 			t.Fatalf("%+v", res)
 		}
 		got := h.factor(t, res.FactorID)

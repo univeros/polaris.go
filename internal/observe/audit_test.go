@@ -125,7 +125,7 @@ func TestRecordsIdentityAndMFAContext(t *testing.T) {
 		}
 		for i, want := range []string{
 			`{"reason":"invalid_credentials"}`,
-			`{"until":"2026-06-10T12:15:00+00:00"}`,
+			`{"until":"2026-06-10T12:15:00Z"}`,
 			`{"count":3,"reason":"logout"}`,
 			`{"factor_id":"factor-1","type":"totp"}`,
 			`{"factor_id":"factor-1","type":"sms"}`,
@@ -159,11 +159,11 @@ func TestRecordsOrganizationContextAndActors(t *testing.T) {
 		type row struct{ event, actor, org, meta string }
 		want := []row{
 			{"auth.org_switched", "user-1", "org-2", `{"from_organization_id":"org-1"}`},
-			{"org.updated", "admin-1", "org-2", `[]`},
+			{"org.updated", "admin-1", "org-2", `{}`},
 			{"role.created", "admin-1", "org-2", `{"role_id":"role-1"}`},
 			{"role.updated", "admin-1", "org-2", `{"role_id":"role-1"}`},
 			{"role.deleted", "admin-1", "org-2", `{"role_id":"role-1"}`},
-			{"org.deleted", "admin-1", "org-1", `[]`},
+			{"org.deleted", "admin-1", "org-1", `{}`},
 			{"user.disabled", "admin-1", "<nil>", `{"user_id":"target-1"}`},
 			{"auth.refresh_reuse_detected", "user-1", "<nil>", `{"family_id":"family-3"}`},
 			{"member.roles_changed", "owner-1", "org-1", `{"user_id":"member-1","role_slugs":["admin","support"]}`},
@@ -234,10 +234,10 @@ func TestEveryCoreEventIsRecordedAndOthersIgnored(t *testing.T) {
 				t.Errorf("row %d = %s; want %s", i, got[i].Event, e.EventName())
 			}
 		}
-		wantMeta(t, got[0], `{"email":"a\/b@example.com"}`)
-		wantMeta(t, got[7], `[]`)
+		wantMeta(t, got[0], `{"email":"a/b@example.com"}`)
+		wantMeta(t, got[7], `{}`)
 		wantMeta(t, got[8], `{"remaining":7}`)
-		wantMeta(t, got[11], `{"email":"\u00fc@example.com"}`)
+		wantMeta(t, got[11], `{"email":"ü@example.com"}`)
 		if str(got[10].OrganizationID) != "o" || str(got[10].ActorUserID) != "u" {
 			t.Errorf("org.created row = %+v", got[10])
 		}

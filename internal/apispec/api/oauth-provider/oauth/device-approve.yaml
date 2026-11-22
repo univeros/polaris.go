@@ -15,7 +15,6 @@ input:
     approve: { type: boolean, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\DeviceApproveEndpoint
   description: >
     The signed-in user approves (the device gets tokens as them at its next poll) or refuses. Recorded
     as oauth.device_decided.

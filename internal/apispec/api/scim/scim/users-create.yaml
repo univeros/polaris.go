@@ -19,7 +19,6 @@ input:
     active: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\CreateUserEndpoint
   description: >
     A member: the user is created with userName as the email, verified, without a password (or found by email when the account exists), and joins the organization with the member role; active false deactivates the account. Recorded as scim.user_created.
 

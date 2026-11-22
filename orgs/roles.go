@@ -9,6 +9,7 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -82,7 +83,7 @@ func (s *Service) ListRoles(ctx context.Context, organizationID string) ([]Role,
 // organization), ErrInvalid (a key missing from the catalog), forbidden (a key the actor does not
 // hold: editing a role you hold must not be a self-escalation path).
 func (s *Service) CreateRole(ctx context.Context, actorUserID, organizationID string, in NewRole) (Role, error) {
-	name := trimEdges(in.Name)
+	name := strutil.Trim(in.Name)
 	if name == "" {
 		return Role{}, refuse(ErrInvalid, MsgRoleName)
 	}
@@ -142,7 +143,7 @@ func (s *Service) UpdateRole(ctx context.Context, actorUserID, organizationID, r
 		}
 		updated := role
 		if ch.Name != nil {
-			if updated.Name = trimEdges(*ch.Name); updated.Name == "" {
+			if updated.Name = strutil.Trim(*ch.Name); updated.Name == "" {
 				return refuse(ErrInvalid, MsgRoleName)
 			}
 		}

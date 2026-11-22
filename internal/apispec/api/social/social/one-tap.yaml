@@ -16,7 +16,6 @@ input:
     credential: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Social\Http\OneTapEndpoint
   description: >
     The id_token the One Tap prompt handed the page, verified offline against Google's keys (issuer,
     audience, signature), then the same linking policy as a callback; core's login envelope.

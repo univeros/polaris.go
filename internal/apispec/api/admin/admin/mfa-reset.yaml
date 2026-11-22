@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Mfa\ResetMfaEndpoint
   description: >
     Removes every factor and recovery code, enforced MFA or not, so the user enrols again at
     their next sign-in. Needs manage; recorded as admin.mfa_reset.

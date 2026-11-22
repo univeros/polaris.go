@@ -98,23 +98,19 @@ func TestEverySpecShowsItsSuccessBody(t *testing.T) {
 	}
 }
 
-// TestEverySpecNamesOneClass checks domain.class: endpoints are keyed on route names, so the class
-// only has to be present, well formed and not shared.
-func TestEverySpecNamesOneClass(t *testing.T) {
-	m := loadCore(t)
-	if n := len(m.Routes()); n != 52 {
+// TestOperationIDsAreRouteNames: an OpenAPI operation is identified by its route name
+// ("polaris.auth.login"), unique across core and the plugins.
+func TestOperationIDsAreRouteNames(t *testing.T) {
+	if n := len(loadCore(t).Routes()); n != 52 {
 		t.Fatalf("%d core routes, want 52", n)
 	}
-	count := map[string]int{}
+	m := loadAll(t)
+	paths, _ := m.OpenAPI("test").Get("paths")
 	for _, r := range m.Routes() {
-		if !strings.HasPrefix(r.Class, `Polaris\Http\`) || !strings.HasSuffix(r.Class, "Endpoint") {
-			t.Errorf("%s: class %s", r.File, r.Class)
-		}
-		count[r.Class]++
-	}
-	for class, n := range count {
-		if n > 1 && class != `Polaris\Http\Auth\OtpFactorConfirmEndpoint` {
-			t.Errorf("%s is referenced by %d specs", class, n)
+		item, _ := paths.(Object).Get(r.Path)
+		op, _ := item.(Object).Get(strings.ToLower(r.Method))
+		if id, _ := op.(Object).Get("operationId"); id != r.Name {
+			t.Errorf("%s: operationId %v, want %s", r.Pattern(), id, r.Name)
 		}
 	}
 }
@@ -134,7 +130,7 @@ func TestRoutesAreUniqueAndFindable(t *testing.T) {
 		}
 	}
 	login, ok := m.Find("post", "/auth/login")
-	if !ok || login.Class != `Polaris\Http\Auth\LoginEndpoint` || login.Name != "polaris.auth.login" || login.Plugin != "" || login.File != "auth/login.yaml" {
+	if !ok || login.Name != "polaris.auth.login" || login.Plugin != "" || login.File != "auth/login.yaml" {
 		t.Errorf("login = %+v", login)
 	}
 	if _, ok := m.Find("GET", "/nope"); ok {
@@ -212,7 +208,7 @@ func TestSchemaJSONAgreesWithTheLoader(t *testing.T) {
 		!reflect.DeepEqual(p.Endpoint.Properties.Auth.Enum, Auths) ||
 		!reflect.DeepEqual(p.Endpoint.Properties.Effect.Enum, Effects) ||
 		!reflect.DeepEqual(p.Input.Properties.Source.Enum, Sources) ||
-		!reflect.DeepEqual(p.Domain.Required, []string{"class"}) {
+		p.Domain.Required != nil {
 		t.Errorf("schema.json disagrees: %+v", schema)
 	}
 }
@@ -324,7 +320,7 @@ func TestLoaderRejectsInvalidSpecs(t *testing.T) {
 		"endpoint: { method: POST, path: '', auth: public, effect: write }\ndomain: { class: X }\n":  `x.yaml: "path" is required.`,
 		"endpoint: { method: POST, path: /x, auth: basic, effect: write }\ndomain: { class: X }\n":   `x.yaml: unknown auth "basic".`,
 		"endpoint: { method: POST, path: /x, auth: public, effect: delete }\ndomain: { class: X }\n": `x.yaml: unknown effect "delete".`,
-		"endpoint: { method: POST, path: /x, auth: public, effect: write }\ndomain: { class: 1 }\n":  `x.yaml: "class" is required.`,
+		"endpoint: { method: POST, path: /x, auth: public, effect: write }\ndomain: { class: 1 }\n":  "", // a leftover domain.class is ignored
 		ok + "input: { source: header }\n":                                                           `x.yaml: unknown input source "header".`,
 		ok + "input: { source: body, fields: { a: string } }\n":                                      `x.yaml: field "a" must be a map.`,
 		ok + "input: { source: body, fields: { a: { rules: [between] } } }\n":                        `x.yaml: field "a": Unknown validation rule "between".`,
@@ -431,7 +427,7 @@ events: [thing.done]
 			{Name: "name", Type: "?string", Rules: []Rule{name, maxRule}, Sensitive: true},
 			{Name: "other", Type: "string"},
 		}},
-		Class: `Things\DoEndpoint`, Description: "Does the thing.",
+		Description: "Does the thing.",
 		Output: Output{Status: 201, Examples: []Example{
 			{"example", Object{{"data", Object{{"id", "x"}}}}},
 			{"example_other", []any{1, 2}},

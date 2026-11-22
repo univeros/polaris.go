@@ -18,7 +18,6 @@ input:
     permission_keys: { type: "list<string>", rules: [required] }
 
 domain:
-  class: Polaris\Http\Orgs\CreateRoleEndpoint
   description: >
     Creates a custom (non-system) role. Every permission key must exist in
     the catalog (422 otherwise) and be held by the actor: the escalation

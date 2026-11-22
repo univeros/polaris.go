@@ -16,7 +16,6 @@ input:
     providerId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\DeleteProviderEndpoint
   description: >
     Sign-ins through the provider stop at once; its domains are removed with it. Recorded as
     sso.provider_deleted.

@@ -16,7 +16,6 @@ input:
     count: { type: "?integer", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\ListGroupsEndpoint
   description: >
     The organization's roles as SCIM Groups: displayName the role name, members the memberships holding it. filter as for Users (displayName, externalId).
 

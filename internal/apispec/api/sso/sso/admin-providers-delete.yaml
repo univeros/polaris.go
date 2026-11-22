@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Admin\AdminDeleteProviderEndpoint
   description: >
     The provider and its domains. Needs own on the instance or on the provider's organization;
     recorded as sso.provider_deleted.

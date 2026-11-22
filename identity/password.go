@@ -3,9 +3,9 @@ package identity
 import (
 	"context"
 	"fmt"
-	"strings"
 	"unicode/utf8"
 
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/security"
 )
 
@@ -41,7 +41,7 @@ func (p PasswordPolicy) enforce(ctx context.Context, password string) error {
 // is. The result is stored, so it must stay byte for byte what earlier releases stored for the
 // same input.
 func NormalizeEmail(email string) string {
-	b := []byte(strings.Trim(email, trimSet)) // bytes, not runes: invalid UTF-8 survives
+	b := []byte(strutil.Trim(email)) // bytes, not runes: invalid UTF-8 survives
 	for i, c := range b {
 		if 'A' <= c && c <= 'Z' {
 			b[i] = c + ('a' - 'A')
@@ -49,8 +49,3 @@ func NormalizeEmail(email string) string {
 	}
 	return string(b)
 }
-
-// trimSet is the edge characters stripped from emails and names: space, tab, LF, CR, NUL and
-// vertical tab. Not strings.TrimSpace: it would also strip form feed and Unicode spaces, changing
-// stored values.
-const trimSet = " \t\n\r\x00\x0B"

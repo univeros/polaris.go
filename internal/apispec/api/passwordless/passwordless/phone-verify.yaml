@@ -17,7 +17,6 @@ input:
     code: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Passwordless\Http\PhoneVerifyEndpoint
   description: >
     Spends a sign-in code and answers core's login envelope (amr ["phone"]), or its mfa_required
     ticket when the user has a confirmed factor (offering only factors that do not text this number;

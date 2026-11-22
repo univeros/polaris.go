@@ -17,7 +17,6 @@ input:
     new_password: { type: string, rules: [required, password_policy], sensitive: true }
 
 domain:
-  class: Polaris\Http\Auth\ResetPasswordEndpoint
   description: >
     Sets a new password from a single-use reset token, then revokes every
     session (logout everywhere) as account-takeover containment. The token

@@ -3,8 +3,11 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
+	"time"
+
+	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/internal/strutil"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/identity"
@@ -17,8 +20,8 @@ import (
 )
 
 func (a *authAPI) login(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := authTrim(authString(in, "email"))
-	password := authString(in, "password")
+	email := strutil.Trim(in.String("email"))
+	password := in.String("password")
 	if email == "" || password == "" {
 		return endpoint.Unprocessable([]string{"An email and password are required."})
 	}
@@ -70,7 +73,7 @@ func authTokenPair(t token.IssuedTokens) map[string]any {
 }
 
 func (a *authAPI) refresh(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	presented := authTrim(authString(in, "refresh_token"))
+	presented := strutil.Trim(in.String("refresh_token"))
 	if presented == "" {
 		return endpoint.Unprocessable([]string{"A refresh token is required."})
 	}
@@ -151,8 +154,8 @@ func (a *authAPI) sessions(ctx context.Context, _ *endpoint.Input) endpoint.Resu
 			"current":      s.Current,
 			"ip":           s.IP,
 			"user_agent":   s.UserAgent,
-			"created_at":   s.CreatedAt.UTC().Format(authDateAtom),
-			"last_used_at": s.LastUsedAt.UTC().Format(authDateAtom),
+			"created_at":   s.CreatedAt.UTC().Format(time.RFC3339),
+			"last_used_at": s.LastUsedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	return endpoint.Data(http.StatusOK, map[string]any{"sessions": out})
@@ -163,7 +166,7 @@ func (a *authAPI) revokeSession(ctx context.Context, in *endpoint.Input) endpoin
 	if !ok {
 		return endpoint.Unauthorized()
 	}
-	sessionID := authTrim(authString(in, "id"))
+	sessionID := strutil.Trim(in.String("id"))
 	if sessionID == "" {
 		return endpoint.Unprocessable([]string{"A session id is required."})
 	}

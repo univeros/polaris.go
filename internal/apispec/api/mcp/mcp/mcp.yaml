@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Mcp\Http\McpEndpoint
   description: >
     One JSON-RPC request per HTTP request (tools/list, tools/call, resources/list, resources/read,
     resources/templates/list, server/discover), with the MCP-Protocol-Version, Mcp-Method and Mcp-Name

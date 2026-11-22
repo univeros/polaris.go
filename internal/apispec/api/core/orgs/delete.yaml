@@ -16,7 +16,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Orgs\DeleteOrganizationEndpoint
   description: >
     Soft delete: the organization's status becomes suspended, every member's
     org authority disappears on their next resolution, org-scoped sessions

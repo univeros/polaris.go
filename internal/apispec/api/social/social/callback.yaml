@@ -17,7 +17,6 @@ input:
     error: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Social\Http\CallbackEndpoint
   description: >
     Exchanges the code for the provider's tokens, reads the profile (the id_token verified for an
     OpenID Connect provider), applies the linking policy (a known account signs in; a trusted provider's

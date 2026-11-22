@@ -17,7 +17,6 @@ input:
     scopes: { type: "?list", rules: [optional] }
 
 domain:
-  class: Polaris\Social\Http\LinkEndpoint
   description: >
     As POST /social/{provider}/start, for the caller's account: the callback links the provider account
     instead of signing in, and POST /social/exchange answers the linked account. Step-up gated. A

@@ -43,7 +43,7 @@ func (m *Manifest) Named(name string) (*Route, bool) {
 // its first path segment ("audit/me.yaml" is plugin "audit").
 //
 // Load fails on the first invalid spec: a missing or unknown endpoint.method, path, auth or effect,
-// an unknown input source or session, a missing domain.class, an unparsable rule, an error without
+// an unknown input source or session, an unparsable rule, an error without
 // a status, or a route (method and path) or route name declared twice.
 func Load(dirs ...fs.FS) (*Manifest, error) {
 	if len(dirs) == 0 {
@@ -201,9 +201,6 @@ func parse(document any, file string) (*Route, error) {
 			return nil, fmt.Errorf("%s: unknown session %q.", file, debugString(session))
 		}
 		r.Session = Session(s)
-	}
-	if r.Class, err = required(domain, "class", file); err != nil {
-		return nil, err
 	}
 	if r.Path, err = required(endpoint, "path", file); err != nil {
 		return nil, err

@@ -18,7 +18,6 @@ input:
     user: { type: "?string", rules: [optional] }   # Apple: the name, on the first sign-in only
 
 domain:
-  class: Polaris\Social\Http\CallbackPostEndpoint
   description: >
     The same as the GET callback, for a provider that answers with response_mode=form_post (Apple).
     Exchanges the code for the provider's tokens, reads the profile (the id_token verified for an

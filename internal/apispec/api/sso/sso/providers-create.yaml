@@ -22,7 +22,6 @@ input:
     enabled: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\CreateProviderEndpoint
   description: >
     type is saml (config: sso_url, certificate, optional slo_url, slo_response_url, idp_initiated) or
     oidc (config: client_id, optional client_secret, scopes, issuer; the secret is encrypted at rest and
@@ -45,8 +44,8 @@ output:
       redirect_uris: ["https://app.example.com/sso/done"]
       enabled: true
       created_by: "018f..."
-      created_at: "2026-09-11T10:00:00+00:00"
-      updated_at: "2026-09-11T10:00:00+00:00"
+      created_at: "2026-09-11T10:00:00Z"
+      updated_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

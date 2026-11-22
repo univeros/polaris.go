@@ -70,16 +70,16 @@ func TestExampleSchemaArrayItemsAreMergedWithOptionalAndNullableKeys(t *testing.
 	}
 }
 
-func TestExampleSchemaEmptyArraysAndDisagreeingShapesAreUntyped(t *testing.T) {
-	assertJSON(t, exampleSchema([]any{}), `{"type": "array", "items": []}`)
-	assertJSON(t, exampleSchema(Object{}), `{"type": "array", "items": []}`)
-	assertJSON(t, exampleSchema([]any{Object{{"a", 1}}, "b"}), `{"type": "array", "items": []}`)
+func TestExampleSchemaEmptyCollectionsAndDisagreeingShapes(t *testing.T) {
+	assertJSON(t, exampleSchema([]any{}), `{"type": "array", "items": {}}`)
+	assertJSON(t, exampleSchema(Object{}), `{"type": "object"}`)
+	assertJSON(t, exampleSchema([]any{Object{{"a", 1}}, "b"}), `{"type": "array", "items": {}}`)
 	assertJSON(t, exampleSchema([]any{1, "b"}), `{"type": "array", "items": {"type": ["integer", "string"]}}`)
 	assertJSON(t, exampleSchema([]any{[]any{1}, []any{"b"}}), `{"type": "array", "items": {"type": "array", "items": {"type": ["integer", "string"]}}}`)
-	assertJSON(t, exampleSchema([]any{[]any{1}, 2}), `{"type": "array", "items": []}`)
+	assertJSON(t, exampleSchema([]any{[]any{1}, 2}), `{"type": "array", "items": {}}`)
 	assertJSON(t, exampleSchema([]any{1, 2.5, nil, 3}), `{"type": "array", "items": {"type": ["integer", "null", "number"]}}`)
 	assertJSON(t, exampleSchema([]any{nil, nil}), `{"type": "array", "items": {"type": ["string", "null"]}}`)
-	assertJSON(t, exampleSchema([]any{Object{}, Object{{"a", 1}}}), `{"type": "array", "items": []}`)
+	assertJSON(t, exampleSchema([]any{Object{}, Object{{"a", 1}}}), `{"type": "array", "items": {"type": "object", "properties": {"a": {"type": "integer"}}}}`)
 }
 
 func TestExampleSchemaSeveralExamplesBecomeAOneOf(t *testing.T) {

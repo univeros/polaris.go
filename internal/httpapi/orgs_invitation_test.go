@@ -47,6 +47,11 @@ func TestInvitationEndpoints(t *testing.T) {
 			o.equal(len(list), 1, "pending invitations")
 			o.equal(list[0]["email"], "new@example.com", "email")
 			o.equal(list[0]["role_slugs"], []string{"member"}, "role_slugs")
+			for _, key := range []string{"expires_at", "created_at"} {
+				if s, _ := list[0][key].(string); !utcSecond.MatchString(s) {
+					o.t.Errorf("%s = %q, want RFC 3339 UTC with Z", key, s)
+				}
+			}
 		},
 		"testAcceptCreatesAnActiveMembershipWithTheInvitedRoles": func(o *orgCase) {
 			org, owner, _ := o.orgOwnedBy(founder)

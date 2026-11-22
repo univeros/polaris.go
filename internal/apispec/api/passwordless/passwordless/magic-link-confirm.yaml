@@ -15,7 +15,6 @@ input:
     token: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Passwordless\Http\MagicLinkConfirmEndpoint
   description: >
     The button of the page GET /magic-link/verify answers posts here, with the link's token still in
     the query (a token field in the body works too). Spends the token, signs the user in (signing up

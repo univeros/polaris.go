@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\TotpEnrollEndpoint
   description: >
     Creates an unconfirmed TOTP factor for the authenticated user and returns
     the factor id, the base32 secret, the otpauth:// provisioning URI for

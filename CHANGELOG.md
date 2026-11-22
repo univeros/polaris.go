@@ -62,6 +62,38 @@ marked **Breaking**.
   type implies (RSA RS256, EC P-256 ES256, Ed25519 EdDSA) and any other key without `alg` is
   refused; it used to be taken as RS256. An expired IdP certificate in SAML still verifies, by
   design (decision 65).
+- **Client-visible:** core routes write timestamps as RFC 3339 in UTC with `Z`
+  (`2026-06-10T09:00:00Z`, was `2026-06-10T09:00:00+00:00`): `GET /auth/sessions`, `POST`/`GET
+  /orgs/{id}/invites`, `GET`/`PATCH /users/{id}`. Same instant; any RFC 3339 parser reads both. A
+  client comparing timestamp strings byte for byte must compare parsed times (decision 64).
+- **Client-visible:** a core route answers 422 when a field holds another JSON type than its spec
+  declares, e.g. `{"errors": ["code must be a string."]}`. Send strings as strings (`"code":
+  "123456"`, not `123456`) and booleans as `true`/`false` (`"default": true`, not `"1"` or `1`).
+  Before, numbers and booleans were turned into text and `default` read `"0"`, `0` and `""` as
+  false (decision 64).
+- **Client-visible:** the `e164` and `regex` input rules no longer accept a value with a trailing
+  newline (`"+15551234567\n"`), and neither does a new organization slug (decision 64).
+- **Client-visible, Breaking for OpenAPI code generators:** each OpenAPI `operationId` is the
+  route's name (`polaris.auth.login`, was `post_LoginEndpoint`), unique across core and the
+  plugins; the JSON manifest (`polaris manifest`) carries `"name"` where it carried `"class"`.
+  Regenerate generated clients; their method names change (decision 64).
+- **Client-visible:** the exported manifest, the OpenAPI document and MCP tool schemas write an
+  empty object as `{}` (was `[]`): an untyped schema is `{}`, `"properties": {}`, and examples
+  documented as `{}` are typed as objects. Token claims encode an empty object as `{}` and large or
+  tiny floats as `encoding/json` does; tokens issued before keep verifying (decision 64).
+- **Client-visible:** new TOTP factors get a 20-byte secret (32 base32 characters, was 103), which
+  every authenticator app accepts. Factors enrolled before keep their secrets and keep working
+  (decision 64).
+- **Breaking:** `manifest.Route.Class` and the `domain.class` key of route specs are gone; a spec
+  that still has the key loads and the key is ignored. A `max:` rule argument must be a whole
+  number (`max:10abc` no longer loads) (decision 64).
+- Tokens whose `iat`, `nbf` or `exp` is a string or negative, or whose `aud` is not a string or a
+  list of strings, are refused. Polaris never issued such a token (decision 64).
+- `notify.Text` renders booleans as `true`/`false` (was `1` and empty); the built-in templates
+  carry none. `store.Row.Bool` reads text as `strconv.ParseBool` does (`y`/`yes` are no longer
+  true; no value Polaris or the drivers write changes). New `auth_audit_log.metadata` rows are
+  standard JSON (`{}` for no fields, `/` and non-ASCII unescaped, `Z` timestamps); earlier rows are
+  untouched and decode to the same values (decision 64).
 
 ### Fixed
 

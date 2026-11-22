@@ -15,7 +15,6 @@ input:
     Operations: { type: array, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\PatchGroupEndpoint
   description: >
     PatchOp operations on displayName, externalId and members (add, replace, remove with a value list, or remove with members[value eq "id"]). Recorded as scim.group_updated.
 

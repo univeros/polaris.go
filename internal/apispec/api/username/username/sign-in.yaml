@@ -17,7 +17,6 @@ input:
     password: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Username\Http\SignInEndpoint
   description: >
     username is a username (compared without regard to case) or an email. The password goes through
     core's login: timing parity for unknown accounts, lockout, the email-verification rule and the MFA

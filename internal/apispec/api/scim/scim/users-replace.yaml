@@ -19,7 +19,6 @@ input:
     active: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\ReplaceUserEndpoint
   description: >
     The mapped attributes replaced: the email, the display name, the external id, active (a deactivation ends every session; a reactivation enables the account). Recorded as scim.user_updated, scim.user_deactivated or scim.user_reactivated.
 

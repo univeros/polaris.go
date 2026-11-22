@@ -78,9 +78,6 @@ type Route struct {
 
 	Input Input
 
-	// Class is domain.class, the endpoint identifier the exports publish (OpenAPI operationId, the
-	// JSON manifest); its values are kept as released. Go does not dispatch on it.
-	Class       string
 	Description string // domain.description
 
 	Output Output

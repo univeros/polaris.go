@@ -16,7 +16,6 @@ input:
     limit: { type: "?integer", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\ListReceiptsEndpoint
   description: >
     The chain oldest first, after a sequence number, at most limit (100, up to 200) receipts; next_cursor
     is the last sequence number of the page. Exportable as a chain: each receipt carries its hash, the

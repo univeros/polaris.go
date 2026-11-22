@@ -15,7 +15,6 @@ input:
     Operations: { type: array, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\PatchUserEndpoint
   description: >
     PatchOp operations (add, replace, remove) on active, userName, displayName, name.formatted, name.givenName, name.familyName and externalId, with a path or as keys of a path-less value. Recorded as the replace.
 

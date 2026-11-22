@@ -15,7 +15,6 @@ input:
     token: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Passwordless\Http\MagicLinkVerifyEndpoint
   description: >
     Answers, for a live link, an HTML page (no JavaScript, Cache-Control no-store, Referrer-Policy
     no-referrer) with one "Sign in" button that posts back to this URL, where POST /magic-link/verify

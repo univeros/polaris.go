@@ -40,9 +40,9 @@ func TestUserReadsAndUpdatesTheirOwnProfile(t *testing.T) {
 
 		v, err := h.svc.ReadUser(ctx, id, "", id)
 		must(t, err)
-		last := start.Format("2006-01-02T15:04:05") + "+00:00"
+		last := start.Format("2006-01-02T15:04:05") + "Z"
 		if v.Email != email || v.Status != "active" || !v.EmailVerified || v.MFAEnforced || v.DisplayName != nil ||
-			v.CreatedAt != "2026-06-07T10:00:00+00:00" || v.LastLoginAt == nil || *v.LastLoginAt != last {
+			v.CreatedAt != "2026-06-07T10:00:00Z" || v.LastLoginAt == nil || *v.LastLoginAt != last {
 			t.Fatalf("view %+v", v)
 		}
 

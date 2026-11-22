@@ -16,7 +16,6 @@ input:
     connectionId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Organization\ReadConnectionEndpoint
   description: >
     The connection, how many users and groups the directory manages, the members it provisioned, the
     last sync, and the base URL the directory is configured with.

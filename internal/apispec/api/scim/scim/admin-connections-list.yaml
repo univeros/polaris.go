@@ -16,7 +16,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Admin\AdminListConnectionsEndpoint
   description: >
     Oldest first, cursor-paginated, never the tokens; an organization-scoped operator sees their
     organization's. Needs read.

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/manifest"
 )
 
@@ -68,7 +69,7 @@ func (p *Pipeline) refreshCookie(next http.Handler) http.Handler {
 		switch status := buf.code(); {
 		case status == http.StatusOK || status == http.StatusCreated:
 			if secret, ok := buf.takeRefreshToken(); ok {
-				buf.header.Add("Set-Cookie", cookieHeader(path, rawURLEncode(secret), maxAge))
+				buf.header.Add("Set-Cookie", cookieHeader(path, strutil.PercentEncode(secret), maxAge))
 			}
 		case status == http.StatusUnauthorized && fromCookie:
 			buf.header.Add("Set-Cookie", cleared)
@@ -79,12 +80,6 @@ func (p *Pipeline) refreshCookie(next http.Handler) http.Handler {
 
 func cookieHeader(path, value string, maxAge int) string {
 	return fmt.Sprintf("%s=%s; Path=%s; Max-Age=%d; HttpOnly; Secure; SameSite=Strict", RefreshCookie, value, path, maxAge)
-}
-
-// rawURLEncode percent-encodes every byte but the RFC 3986 unreserved A-Z a-z 0-9 - _ . ~ (a
-// space is %20, not +).
-func rawURLEncode(s string) string {
-	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }
 
 // scheme is https exactly when the connection is TLS. r.URL.Scheme is not trusted: a plaintext
