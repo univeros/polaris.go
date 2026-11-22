@@ -93,8 +93,11 @@ route's own refusal comes back as a tool error result carrying its problem.
   so it works behind a proxy.
 - `StdioOptions.Credential` may be a session token, an API key, an OAuth access token or an operator
   key; empty serves the public tools only. `StdioOptions.Tools` adds stdio-only tools.
-- `serverInfo` names `ServerName` (default "Polaris") and the running Polaris release; `tools/list` is
-  not paginated.
+- `serverInfo` names `ServerName` (default "Polaris") and the running Polaris release.
+- `tools/list` is paginated, on both transports: a result carries at most `mcp.ToolsPageSize` (100)
+  tools and, when more follow, a `nextCursor` the client sends back as `params.cursor`. The cursor is
+  opaque; one that does not name a tool of the caller's own list is `-32602` (invalid params). A
+  list of 100 tools or fewer is one page with no `nextCursor`, as before.
 
 ## Example
 
