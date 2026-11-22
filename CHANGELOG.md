@@ -127,6 +127,11 @@ marked **Breaking**.
 
 ### Fixed
 
+- `plugins/audit` with `HashChain`: two requests could hang each other when a host transaction
+  recorded two events while another request recorded one, and the first chained writes on a new
+  database could fail or deadlock. `Migrate` now creates the chain's lock row (run it after
+  upgrading, as always) and writers no longer share a process-wide lock (decision 72). New for
+  plugin authors: the optional `wiring.Seeder`, called by `Migrate`.
 - `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
   `%2520`); each path segment is now escaped once (decision 65).
 

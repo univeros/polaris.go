@@ -11,6 +11,7 @@ import (
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // FromEnv builds a Config from the process environment (APP_KEY, AUTH_JWT_PRIVATE_KEY,
@@ -41,6 +42,13 @@ func (p *Polaris) Migrate(ctx context.Context) ([]string, error) {
 	}
 	if err := authz.Seed(ctx, g.DB(), services.Of(g).Catalog, g.Clock()); err != nil {
 		return changes, fmt.Errorf("polaris: migrate: seed permissions: %w", err)
+	}
+	for _, plugin := range g.Plugins() {
+		if s, ok := plugin.(wiring.Seeder); ok {
+			if err := s.Seed(ctx); err != nil {
+				return changes, fmt.Errorf("polaris: migrate: seed plugin %q: %w", plugin.ID(), err)
+			}
+		}
 	}
 	return changes, nil
 }
