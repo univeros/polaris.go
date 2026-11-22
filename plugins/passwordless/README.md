@@ -96,7 +96,8 @@ second factor delivers where the sign-in did), `…/phone_taken` (409). Go error
   to `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 - A front end that opened the magic link with a GET and expected the 302 (v0.4 and earlier) now gets
   the page: let the browser show it, or POST to the link yourself.
-- Erasing a user deletes its pending links and codes and its verified phone (`event.UserDeleted`).
+- Erasing a user deletes its pending links and codes and its verified phone inside the erasure's
+  transaction (`wiring.AccessEraser`).
 - The secrets' `data` column is written as standard JSON (`{}` when empty); rows written by earlier
   releases (`\/`, `\uXXXX`, `[]`) still read, so links and tokens issued before an upgrade keep
   working.
