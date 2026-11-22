@@ -61,7 +61,7 @@ func keysGenerate(_ *app, fs *flag.FlagSet) runFunc {
 		case "RS256":
 			pair, err = rsaPair()
 		case "EdDSA":
-			// Upstream reads the raw libsodium keys (64-byte secret, 32-byte public), which an
+			// The EdDSA keys are the raw Ed25519 pair (64-byte private, 32-byte public), which an
 			// environment variable often cannot hold; config.FromEnv also takes them base64-encoded.
 			var pub ed25519.PublicKey
 			var priv ed25519.PrivateKey

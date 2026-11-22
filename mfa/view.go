@@ -3,7 +3,7 @@ package mfa
 import "github.com/univeros/polaris.go/model"
 
 // FactorView is a factor as the client sees it at the login challenge: enough to choose and
-// label it, never a secret or a full destination. Its JSON is upstream's wire shape: id, type
+// label it, never a secret or a full destination. Its JSON is the wire shape: id, type
 // and default always, label and destination only when present.
 type FactorView struct {
 	ID          string `json:"id"`

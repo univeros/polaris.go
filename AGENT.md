@@ -31,8 +31,8 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
 1. **Public.** `univeros/polaris.go` is public (MIT). `main` takes changes through pull requests with
    CI green (`scripts/protect-main.sh`). A security issue is fixed first and published after.
 2. **Go first.** Design every change the way the best Go library would: stdlib idioms, small
-   interfaces, explicit errors, `context.Context`, `net/http`. The PHP version is not a reference and
-   not a constraint; nothing here is kept only because PHP does it.
+   interfaces, explicit errors, `context.Context`, `net/http`. Earlier implementations are not a
+   reference and not a constraint; nothing is kept only because another implementation does it.
 3. **The routes are specs.** `internal/apispec/api/<package>/**.yaml` declares every route (method,
    path, auth, input rules, output, errors, events); it is the router and the OpenAPI source. Change
    a route's spec together with its endpoint.

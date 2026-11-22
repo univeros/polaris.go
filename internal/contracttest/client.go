@@ -20,7 +20,7 @@ import (
 //	access := contracttest.JSON(t, resp)["data"].(map[string]any)["access_token"].(string)
 //	c.Get("/auth/me", contracttest.Bearer(access))
 //
-// Requests are built as the PHP harness builds them: no remote address (the client IP is
+// Requests are built as the recorded ones were: no remote address (the client IP is
 // "unknown") and no Host for a relative path; a full URL (`https://localhost/…`) sets the host and,
 // for https, req.TLS.
 type Client struct {
@@ -69,8 +69,8 @@ func Cookie(name, value string) Option {
 	return func(r *http.Request) { r.AddCookie(&http.Cookie{Name: name, Value: value}) }
 }
 
-// RemoteAddr sets the request's remote address (`203.0.113.7:1234`), which PHP's tests set as
-// REMOTE_ADDR when the client IP matters.
+// RemoteAddr sets the request's remote address (`203.0.113.7:1234`), for the tests where the
+// client IP matters.
 func RemoteAddr(addr string) Option {
 	return func(r *http.Request) { r.RemoteAddr = addr }
 }
@@ -162,7 +162,7 @@ func (c *Client) Do(req *http.Request) *http.Response {
 	return resp
 }
 
-// JSON decodes resp's body as a JSON object, like PHP's FunctionalTestCase::json: an empty map
+// JSON decodes resp's body as a JSON object: an empty map
 // when the body is not an object. The body stays readable.
 func JSON(t testing.TB, resp *http.Response) map[string]any {
 	t.Helper()

@@ -14,7 +14,7 @@ const (
 
 var pathParam = regexp.MustCompile(`\{(\w+)\}`)
 
-// Export returns the manifest as upstream's "polaris manifest --format=json" prints it:
+// Export returns the manifest as the JSON manifest document (testdata/manifest/core.json):
 // {"endpoints": [...]}, one entry per route with its policy, input, class, errors and events.
 func (m *Manifest) Export() Object {
 	endpoints := make([]any, 0, len(m.routes))
@@ -55,8 +55,8 @@ func (r *Route) export() Object {
 	}
 }
 
-// OpenAPI returns the OpenAPI 3.1 document of the manifest, as upstream's
-// "polaris manifest --format=openapi" prints it: one operation per route, request bodies and
+// OpenAPI returns the OpenAPI 3.1 document of the manifest (testdata/manifest/core.openapi.json):
+// one operation per route, request bodies and
 // parameters from the input, security from the auth, responses from the output (the success body
 // typed from its examples) and errors, and the policy as x-polaris-* extensions. version is
 // info.version (internal/version.Module() for the running release).
@@ -247,7 +247,7 @@ func (f Field) schema() Object {
 		case "email":
 			s = s.With("format", "email")
 		case "max":
-			s = s.With("maxLength", phpInt(rule.arg))
+			s = s.With("maxLength", leadingInt(rule.arg))
 		case "in":
 			values := strings.Split(rule.arg, ",")
 			for i, v := range values {

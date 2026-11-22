@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 )
 
-// recordedStep is one step in the shape PHP writes: the request's method, URI, headers and parsed
-// body; the response's status, headers and decoded body. Field order follows PHP's.
+// recordedStep is one step in the fixture file shape: the request's method, URI, headers and
+// parsed body; the response's status, headers and decoded body, in that field order.
 type recordedStep struct {
 	Request struct {
 		Method  string `json:"method"`
@@ -29,24 +29,24 @@ func (f *Fixture) record(req *http.Request, resp *http.Response, body []byte) {
 	var s recordedStep
 	s.Request.Method = req.Method
 	s.Request.URI = req.URL.String()
-	s.Request.Headers = phpHeaders(req.Header)
+	s.Request.Headers = recordedHeaders(req.Header)
 	s.Request.Body = requestBody(req)
 	s.Response.Status = resp.StatusCode
-	s.Response.Headers = phpHeaders(resp.Header)
+	s.Response.Headers = recordedHeaders(resp.Header)
 	s.Response.Body = plainBody(body)
 	f.recorded = append(f.recorded, s)
 }
 
-// phpHeaders writes an empty header map as `[]`, as PHP encodes an empty array.
-func phpHeaders(h http.Header) any {
+// recordedHeaders writes an empty header map as `[]`, as the fixture files hold it.
+func recordedHeaders(h http.Header) any {
 	if len(h) == 0 {
 		return []any{}
 	}
 	return h
 }
 
-// requestBody is PHP's `$parsed === null || $parsed === [] ? (string) $body : $parsed`: a JSON
-// object or list with members, else the raw body. It reads the body through req.GetBody, which
+// requestBody is the parsed body when it is a JSON object or list with members, else the raw
+// body. It reads the body through req.GetBody, which
 // Client sets, because the handler has consumed req.Body.
 func requestBody(req *http.Request) any {
 	if req.GetBody == nil {
@@ -91,8 +91,8 @@ func (f *Fixture) write() error {
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)  // JSON_UNESCAPED_SLASHES; PHP escapes no HTML either
-	enc.SetIndent("", "    ") // JSON_PRETTY_PRINT
+	enc.SetEscapeHTML(false)  // the fixture files escape neither slashes nor HTML
+	enc.SetIndent("", "    ") // four-space indent, as the fixture files are written
 	if err := enc.Encode(f.recorded); err != nil {
 		return err
 	}

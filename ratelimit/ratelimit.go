@@ -81,7 +81,7 @@ func NewCacheStore(c cache.Cache, clk clock.Clock) *CacheStore {
 // Hit implements Store.
 //
 // The read-then-write is serialised per key inside this process, so concurrent requests cannot
-// overspend a budget here. Across processes sharing one cache it is not atomic, as upstream.
+// overspend a budget here. Across processes sharing one cache it is not atomic.
 func (s *CacheStore) Hit(ctx context.Context, key string, limit int, window time.Duration) (Result, error) {
 	seconds := int64(window / time.Second)
 	if seconds < 1 {

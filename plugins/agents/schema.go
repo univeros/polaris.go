@@ -11,7 +11,8 @@ const (
 	TableReceipts  = "polaris_agent_receipt"
 )
 
-// Models returns the plugin's five tables as upstream declares them: the agents (each an OAuth
+// Models returns the plugin's five tables (their columns are the schema existing databases hold):
+// the agents (each an OAuth
 // client by the same id), the hosts that enrol them, the grants with their budgets, the approvals
 // a person decides and the receipt chain of every execution.
 func Models() []schema.Model {

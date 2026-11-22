@@ -8,8 +8,8 @@ const (
 	TableKeys   = "polaris_admin_key"
 )
 
-// Models returns polaris_admin_grant and polaris_admin_key, as upstream's Polaris\Admin\Schema
-// declares them.
+// Models returns polaris_admin_grant and polaris_admin_key, the columns existing databases hold
+// (a change is a migration).
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableGrants,

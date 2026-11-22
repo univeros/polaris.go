@@ -13,8 +13,8 @@ import (
 // Caller is who asks the Gate: an authenticated user and the active organization of the request.
 //
 // Delegated marks a principal a plugin's bearer resolver built for a delegate (an API key, an
-// OAuth client, an agent), with DelegatedPermissions the permissions its owner handed it (upstream
-// Gate::DELEGATED, decision #3). It is set in-process by the resolver, never read from a token on
+// OAuth client, an agent), with DelegatedPermissions the permissions its owner handed it (decision
+// #3). It is set in-process by the resolver, never read from a token on
 // the wire; core sessions leave it false. A delegated caller with no permissions holds nothing.
 type Caller struct {
 	UserID               string
@@ -23,7 +23,7 @@ type Caller struct {
 	DelegatedPermissions []string
 }
 
-// Gate is the programmatic authorization check (upstream Gate, docs/auth/rbac.md §5b): does the
+// Gate is the programmatic authorization check: does the
 // caller hold the required permissions in their active organization? Authority is re-resolved
 // from the database on every call, so the superadmin override, disabling a user and suspending a
 // membership or an organization apply at once. Safe for concurrent use.
@@ -76,7 +76,7 @@ func (g *Gate) Authorize(ctx context.Context, c Caller, permissions ...string) e
 	return nil
 }
 
-// EscalationGuard enforces no privilege escalation (docs/auth/rbac.md §7), shared by role changes
+// EscalationGuard enforces no privilege escalation, shared by role changes
 // and invitations: an actor may only grant what they hold themselves. A superadmin is exempt.
 // Safe for concurrent use.
 type EscalationGuard struct{ r *repository.Repos }
@@ -118,8 +118,7 @@ func (g *EscalationGuard) CheckPermissions(actor Authority, permissionKeys []str
 	return Forbidden(MsgEscalation)
 }
 
-// Principals resolves the session principal minted into access tokens (upstream
-// RbacSessionPrincipalResolver): the user's email_verified flag and their role slugs in the
+// Principals resolves the session principal minted into access tokens: the user's email_verified flag and their role slugs in the
 // active organization, plus the flattened permission keys when EmbedScope is on
 // (config.AccessToken.EmbedScope). MFA, AMR and auth time are left at their zero values: the
 // session service owns them. It satisfies session.PrincipalResolver. Safe for concurrent use.

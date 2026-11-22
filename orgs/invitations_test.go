@@ -22,7 +22,7 @@ func lastInviteToken(t *testing.T, f *fixture) string {
 	return invited[len(invited)-1].InviteToken
 }
 
-// Port of InvitationEndpointsTest::testInviteEmitsTokenAndShowsUpAsPending.
+// Service side of InvitationEndpointsTest::testInviteEmitsTokenAndShowsUpAsPending.
 func TestInviteEmitsTheTokenAndStoresOnlyItsHash(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -58,7 +58,7 @@ func TestInviteEmitsTheTokenAndStoresOnlyItsHash(t *testing.T) {
 	})
 }
 
-// Port of testAcceptCreatesAnActiveMembershipWithTheInvitedRoles.
+// Service side of testAcceptCreatesAnActiveMembershipWithTheInvitedRoles.
 func TestAcceptCreatesAnActiveMembershipWithTheInvitedRoles(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -119,7 +119,7 @@ func TestAcceptActivatesAnInvitedMembershipAndAddsRoles(t *testing.T) {
 	})
 }
 
-// Port of testAcceptRequiresAMatchingEmail, testAcceptRejectsUnknownAndConsumedTokens,
+// Service side of testAcceptRequiresAMatchingEmail, testAcceptRejectsUnknownAndConsumedTokens,
 // testASuspensionCannotBeSidesteppedByInvitations and the org-deleted case.
 func TestAcceptRefusals(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -161,7 +161,7 @@ func TestAcceptRefusals(t *testing.T) {
 	})
 }
 
-// Port of testReInviteIsIdempotentAndRotatesTheToken.
+// Service side of testReInviteIsIdempotentAndRotatesTheToken.
 func TestReInviteRotatesTheTokenOfTheOnePendingInvitation(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -191,7 +191,7 @@ func TestReInviteRotatesTheTokenOfTheOnePendingInvitation(t *testing.T) {
 	})
 }
 
-// Port of testCannotInviteAnActiveMember, testInviterCannotGrantRolesAboveTheirOwn and
+// Service side of testCannotInviteAnActiveMember, testInviterCannotGrantRolesAboveTheirOwn and
 // testRejectsUnknownRolesAndBadEmails.
 func TestInviteRefusals(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -216,7 +216,7 @@ func TestInviteRefusals(t *testing.T) {
 	})
 }
 
-// Port of testAnExpiredInvitationIsHiddenAndUnacceptableButRecyclable.
+// Service side of testAnExpiredInvitationIsHiddenAndUnacceptableButRecyclable.
 func TestAnExpiredInvitationIsHiddenUnacceptableAndRecycled(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -244,7 +244,7 @@ func TestAnExpiredInvitationIsHiddenUnacceptableAndRecycled(t *testing.T) {
 	})
 }
 
-// Port of testCannotRevokeAnotherOrgsInviteThroughYourOwnOrgPath, testRevokedInviteCannotBeAccepted
+// Service side of testCannotRevokeAnotherOrgsInviteThroughYourOwnOrgPath, testRevokedInviteCannotBeAccepted
 // and testRevokingAnUnknownInviteIsNotFound.
 func TestRevokeInvitation(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {

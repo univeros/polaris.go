@@ -5,7 +5,7 @@ import "github.com/univeros/polaris.go/schema"
 // TableTemplates is the table the plugin owns: organizations' template overrides.
 const TableTemplates = "polaris_messaging_template"
 
-// Models returns polaris_messaging_template as upstream declares it.
+// Models returns polaris_messaging_template; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableTemplates,

@@ -39,7 +39,7 @@ type Sessions interface {
 }
 
 // MFAGate lists the confirmed second factors of a user: one or more turns a correct password into
-// an MFA challenge instead of a session (upstream MfaLoginService::confirmedFactors).
+// an MFA challenge instead of a session.
 type MFAGate interface {
 	ConfirmedFactors(ctx context.Context, userID string) ([]model.MFAFactor, error)
 }
@@ -151,7 +151,7 @@ func newSecret() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// optional maps "" (no value) to nil, as upstream's nullable strings.
+// optional maps "" (no value) to nil, for nullable string fields.
 func optional(v string) *string {
 	if v == "" {
 		return nil

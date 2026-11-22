@@ -9,7 +9,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of MemberSuspensionEndpointsTest: PATCH /orgs/{id}/members/{userId} suspends or
+// Replays the MemberSuspensionEndpointsTest fixtures: PATCH /orgs/{id}/members/{userId} suspends or
 // reactivates a member; suspension revokes the member's org-scoped sessions at once and leaves
 // their other sessions alone, under the owner-protection and last-active-owner invariants.
 func TestMemberSuspensionEndpoints(t *testing.T) {

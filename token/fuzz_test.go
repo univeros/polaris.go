@@ -12,7 +12,7 @@ import (
 	"github.com/univeros/polaris.go/clock"
 )
 
-// fuzzSeeds are the PHP-minted vector tokens plus hand-made edge cases.
+// fuzzSeeds are the recorded known-answer vector tokens plus hand-made edge cases.
 func fuzzSeeds(f *testing.F) []string {
 	f.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "testdata", "vectors", "jwt.json"))

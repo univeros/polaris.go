@@ -1,9 +1,8 @@
 package repository
 
-// Ports of PHP tests/Persistence/{AuthEntities,MfaEntities,OrgMembership,Invitation,
-// RolesPermissions,TransientTokenEntities}PersistenceTest. The schema assertions of those tests
-// (tables, columns, indexes, keys) are covered by sqlstore's Diff tests; here are the round trips,
-// unique indexes and cascades.
+// Persistence of the auth, MFA, membership, invitation, role and transient-token rows. The schema
+// itself (tables, columns, indexes, keys) is covered by sqlstore's Diff tests; here are the round
+// trips, unique indexes and cascades.
 
 import (
 	"context"

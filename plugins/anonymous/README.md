@@ -4,8 +4,7 @@ Guest sessions: a visitor gets a session before having an account (`POST /anonym
 creates a core user with the placeholder email `<id>@anonymous.invalid`, no password, no
 organization, amr `["anonymous"]`). Once they sign up or in by any method, `POST /anonymous/convert`
 runs your `OnConvert` hook to move what you kept under the guest's id, records the conversion, ends
-the guest's sessions and disables it; its id stays. Guests nobody converted are pruned. Port of
-`polaris/anonymous`.
+the guest's sessions and disables it; its id stays. Guests nobody converted are pruned.
 
 ## Install
 

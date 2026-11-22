@@ -9,7 +9,7 @@ import (
 )
 
 // ipRateLimit spends the per-IP budget of the route's rate_limit group. A group the config does
-// not know is not limited, as upstream.
+// not know is not limited.
 func (p *Pipeline) ipRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rt := endpoint.Route(r.Context())
@@ -68,7 +68,7 @@ func group(l config.RateLimits, name string) (config.RateLimit, bool) {
 
 // limit spends one hit of policy under key: 429 with Retry-After when the budget is spent, else
 // next, its response carrying the X-RateLimit-* headers. An outer limiter's headers win over an
-// inner one's, as upstream's response decoration does.
+// inner one's: they are set last, over whatever the inner response wrote.
 func (p *Pipeline) limit(w http.ResponseWriter, r *http.Request, policy config.RateLimit, key string, next http.Handler) {
 	res, err := ratelimit.Check(r.Context(), p.rates, policy, key)
 	if err != nil {

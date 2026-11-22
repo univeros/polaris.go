@@ -55,7 +55,8 @@ func (r Row) Int(col string) int64 {
 	}
 }
 
-// Bool reads a boolean column the way PHP's RowMapper does ("1", "t", "true", "y", "yes" are true).
+// Bool reads a boolean column: true, a non-zero number, or (case-insensitively) "1", "t", "true",
+// "y", "yes"; anything else is false.
 func (r Row) Bool(col string) bool {
 	switch v := r[col].(type) {
 	case bool:
@@ -125,8 +126,8 @@ func ParseTime(s string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// JSONValue encodes v for a JSON column (PHP json_encode compatible for maps, lists and scalars,
-// slashes and unicode unescaped).
+// JSONValue encodes v for a JSON column: compact, map keys sorted, slashes, <, >, & and non-ASCII
+// written as is, no trailing newline.
 func JSONValue(v any) (string, error) {
 	var b strings.Builder
 	enc := json.NewEncoder(&b)

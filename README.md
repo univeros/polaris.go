@@ -78,6 +78,13 @@ func invoices(w http.ResponseWriter, r *http.Request) {
 user, an API key, an OAuth client or an agent; the same check covers all of them. A complete program is
 in [`examples/minimal`](examples/minimal/main.go).
 
+More complete programs, each one `go run` away with no setup and a curl walkthrough:
+[`agents`](examples/agents) (an AI agent end to end), [`mcp`](examples/mcp) (your MCP server
+behind Polaris tokens), [`b2b`](examples/b2b) (organizations, roles, invitations, API keys, SSO,
+SCIM), [`signin-methods`](examples/signin-methods) (passwordless, passkeys, social, guests, MFA),
+[`hooks`](examples/hooks) (your own tables, claims and transactions) and
+[`api-keys`](examples/api-keys).
+
 ## What you get
 
 | Area | Included |
@@ -87,6 +94,7 @@ in [`examples/minimal`](examples/minimal/main.go).
 | **Sessions** | Short-lived JWTs (RS256 or EdDSA, JWKS published), rotating refresh tokens with reuse detection, cookie or body delivery, sign out everywhere |
 | **Organizations** | Multi-tenant organizations, members, invitations, roles and permissions resolved per request, your own permissions in the catalog |
 | **Your data** | Hooks in the account's transaction, your own JWT claims, a Go API (`p.Users()`, `p.Orgs()`, `p.Sessions()`, `p.Can()`) with the same rules as the routes |
+| **Migration** | `p.Users().Import` brings existing accounts with their password hashes (bcrypt, PBKDF2, scrypt; from your own table, Auth0, Firebase, Django, Devise, Laravel): no forced reset, upgraded to Argon2id on first sign-in ([Migrating your users](llms.txt)) |
 | **Operations** | OpenTelemetry traces and metrics, a CLI (`init`, `migrate`, `doctor`, `schema:*`, `keys:generate`), PostgreSQL, MySQL, SQLite |
 
 ## Plugins

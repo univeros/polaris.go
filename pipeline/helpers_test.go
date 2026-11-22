@@ -30,7 +30,7 @@ var (
 	manifestErr             error
 )
 
-// manifests loads core's manifest and core plus every plugin's (as upstream's cookie test does).
+// manifests loads core's manifest and core plus every plugin's.
 func manifests(t testing.TB) (core, all *manifest.Manifest) {
 	t.Helper()
 	manifestsOnce.Do(func() {

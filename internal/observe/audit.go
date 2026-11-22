@@ -19,14 +19,13 @@ type AuditWriter interface {
 	Insert(ctx context.Context, entry model.AuditLogEntry) error
 }
 
-// dateAtom is PHP's DATE_ATOM.
+// dateAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
-// AuditLog returns the listener that persists every core event to the append-only audit log
-// (upstream AuditLogListener). Each event maps to a whitelist: the actor, the organization, the
-// client IP and user agent when the event carries them, and a small metadata blob of
-// event-specific ids encoded byte for byte as PHP does. Secrets (verification, reset and invite
-// tokens) are in no mapping, so a new event field cannot leak without a change here. Other events
+// AuditLog returns the listener that persists every core event to the append-only audit log.
+// Each event maps to a whitelist: the actor, the organization, the client IP and user agent when
+// the event carries them, and a small metadata blob of event-specific ids (see metadataJSON for
+// the exact bytes). Secrets (verification, reset and invite tokens) are in no mapping, so a new event field cannot leak without a change here. Other events
 // are ignored.
 //
 // A failed write is logged on logger (nil: slog.Default()) and swallowed: the domain write
@@ -53,7 +52,7 @@ func AuditLog(w AuditWriter, clk clock.Clock, logger *slog.Logger) event.Listene
 	}
 }
 
-// auditRecord maps a core event to its row (without id, name and time), as upstream's match arms.
+// auditRecord maps a core event to its row (without id, name and time).
 func auditRecord(e event.Event) (model.AuditLogEntry, bool) {
 	var (
 		actor, org, ip, ua *string
@@ -136,5 +135,5 @@ func auditRecord(e event.Event) (model.AuditLogEntry, bool) {
 	default:
 		return model.AuditLogEntry{}, false
 	}
-	return model.AuditLogEntry{ActorUserID: actor, OrganizationID: org, IP: ip, UserAgent: ua, Metadata: phpJSON(meta)}, true
+	return model.AuditLogEntry{ActorUserID: actor, OrganizationID: org, IP: ip, UserAgent: ua, Metadata: metadataJSON(meta)}, true
 }

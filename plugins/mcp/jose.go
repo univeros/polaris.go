@@ -54,7 +54,7 @@ func thumbprint(jwk map[string]any) (string, bool) {
 	return b64(sum[:]), true
 }
 
-// integer reads a JSON number PHP decodes as an int (no fraction, no exponent).
+// integer reads a JSON number written as an integer (no fraction, no exponent).
 func integer(v any) (int64, bool) {
 	n, ok := v.(json.Number)
 	if !ok || strings.ContainsAny(n.String(), ".eE") {

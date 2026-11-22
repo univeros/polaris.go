@@ -1,7 +1,7 @@
 package identity
 
-// Service-level port of tests/Functional/RegistrationEndpointTest (the HTTP-only cases, input
-// validation, belong to the endpoints) plus the stored-row contract of EmailVerificationService.
+// Registration, service side (the HTTP-only cases, input
+// validation, belong to the endpoints), plus the stored-row contract of email verification.
 
 import (
 	"context"

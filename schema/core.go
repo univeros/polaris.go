@@ -8,7 +8,7 @@ import (
 // ErrRedefined is returned by Merge when a plugin declares a table that is already defined.
 var ErrRedefined = errors.New("schema: table already defined")
 
-// Core returns core's tables in registry order (PHP Polaris\Schema\Schema). Each call builds fresh
+// Core returns core's tables in registry order. Each call builds fresh
 // models, so callers may change the result freely.
 func Core() []Model {
 	return []Model{

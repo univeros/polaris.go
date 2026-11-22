@@ -5,15 +5,14 @@ import (
 	"strings"
 )
 
-// IsEmail reports whether s is an email address by the rules of PHP's
-// filter_var($s, FILTER_VALIDATE_EMAIL), which upstream validates addresses with: at most 320
-// bytes, ASCII only, an RFC 5321 local part (dot-atoms or quoted strings) of at most 64 units, a
+// IsEmail reports whether s is an email address by the rules the "email" input rule has always
+// applied (clients and stored addresses depend on the exact set): at most 320 bytes, ASCII only, an RFC 5321 local part (dot-atoms or quoted strings) of at most 64 units, a
 // whole address of at most 254 units, and a domain that is a dotted host name (labels of at most
 // 63 characters, a top-level label starting with a letter, or an xn-- label) or a bracketed IPv4,
 // IPv6 or IPv6-mapped IPv4 literal.
 //
-// PHP expresses this as one PCRE with lookaheads; RE2 has none, so the lookaheads are checked by
-// hand around the same alternatives, case-insensitively like the original /i pattern.
+// The rules are one PCRE pattern with lookaheads; RE2 has none, so the lookaheads are checked by
+// hand around the same alternatives, case-insensitively like the pattern's /i.
 func IsEmail(s string) bool {
 	if len(s) > 320 {
 		return false
@@ -62,7 +61,7 @@ var (
 	hexThenColn = regexp.MustCompile(`(?i)[a-f0-9]:`)
 )
 
-// isAddressLiteral matches the bracketed domain forms; the compressed IPv6 forms carry PHP's
+// isAddressLiteral matches the bracketed domain forms; the compressed IPv6 forms carry the
 // lookaheads (?!(?:.*[a-f0-9][:\]]){7,}) and (?!(?:.*[a-f0-9]:){5,}), applied after "IPv6:".
 func isAddressLiteral(literal string) bool {
 	switch {
@@ -76,7 +75,7 @@ func isAddressLiteral(literal string) bool {
 	return false
 }
 
-// hasLongLabel is PHP's (?!.*[^.]{64,}) at the start of a host name: no run of 64 non-dots.
+// hasLongLabel is the lookahead (?!.*[^.]{64,}) at the start of a host name: no run of 64 non-dots.
 func hasLongLabel(host string) bool {
 	for _, label := range strings.Split(host, ".") {
 		if len(label) >= 64 {
@@ -86,7 +85,7 @@ func hasLongLabel(host string) bool {
 	return false
 }
 
-// unitBounds checks PHP's two leading lookaheads,
+// unitBounds checks the pattern's two leading lookaheads,
 //
 //	(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){255,})
 //	(?!(?:(?:\x22?\x5C[\x00-\x7E]\x22?)|(?:\x22?[^\x5C\x22]\x22?)){65,}@)

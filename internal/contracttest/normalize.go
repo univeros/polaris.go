@@ -12,10 +12,10 @@ import (
 )
 
 // The normalizer makes two responses comparable across runs: every value minted per run (ids,
-// tokens, secrets, codes, timestamps, rate-limit clocks) collapses to a placeholder. It reproduces
-// PHP's tests/Contract/Normalizer.php exactly, including the PHP array semantics the fixtures were
-// recorded with (an empty object is an empty list, integer-like keys make a list, lists of records
-// are compared as sets). Comments name the PHP rule each step mirrors.
+// tokens, secrets, codes, timestamps, rate-limit clocks) collapses to a placeholder. It applies
+// exactly the rules the fixtures were normalized with when recorded, including their value model:
+// objects and lists are one kind of collection, so an empty object is an empty list and an object
+// whose keys are 0, 1, 2, … in order is a list; lists of records are compared as sets.
 
 // normalized is a response reduced to its contractual parts.
 type normalized struct {
@@ -27,8 +27,8 @@ type normalized struct {
 // volatileHeaders are dropped from both sides: their values depend on the wall clock.
 var volatileHeaders = []string{"date", "x-ratelimit-reset", "retry-after", "x-ratelimit-remaining"}
 
-// Every pattern ending in `$` in PHP is written `\n?$` here: without the D modifier, PCRE's `$` also
-// matches before a final newline.
+// Every pattern that anchors at the end is written `\n?$`: the recording's patterns also matched
+// a value with one trailing newline, and the masks must match the same values.
 var (
 	queryCodeRe = regexp.MustCompile(`([?&])(sso_code|code|state|nonce|code_challenge|request|user_code)=[A-Za-z0-9_.~%-]+`)
 	uuidRe      = regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
@@ -36,7 +36,7 @@ var (
 	jwtRe       = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\n?$`)
 	datetimeRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`)
 	opaqueRe    = regexp.MustCompile(`^[A-Za-z0-9_\-+/=]{32,}\n?$`)
-	phpIntKeyRe = regexp.MustCompile(`^(0|-?[1-9][0-9]*)$`)
+	intKeyRe    = regexp.MustCompile(`^(0|-?[1-9][0-9]*)$`)
 	// socialBindingRe is the social plugin's browser-binding cookie (decision #39): its name and
 	// value are per flow.
 	socialBindingRe = regexp.MustCompile(`^(__Host-)?polaris_social_[0-9a-f]{16}=[0-9a-f]{32};`)
@@ -52,8 +52,8 @@ var maskedKeys = []string{
 	"client_secret", "user_code", "device_code", "request", "id_token", "auth_req_id",
 }
 
-// normalizeResponse is PHP's Normalizer::response: header names lower-cased, volatile headers
-// dropped, the multi-session device id and URL hand-off codes masked; the body through value().
+// normalizeResponse reduces a response: header names lower-cased, volatile headers
+// dropped, the multi-session device id and URL hand-off codes masked; the body through normalizeValue.
 func normalizeResponse(status int, headers map[string][]string, body any) normalized {
 	out := map[string][]string{}
 	for name, values := range headers {
@@ -90,7 +90,7 @@ func maskQuery(value string) string {
 	})
 }
 
-// normalizeValue is PHP's Normalizer::value over a value decoded by decodeJSON. Objects come out
+// normalizeValue normalizes a value decoded by decodeJSON. Objects come out
 // as map[string]any, lists as []any.
 func normalizeValue(value any, key string) any {
 	switch v := value.(type) {
@@ -114,7 +114,7 @@ func normalizeValue(value any, key string) any {
 	}
 }
 
-// normalizeArray handles a PHP array: a JSON list or object.
+// normalizeArray handles a collection: a JSON list or object.
 func normalizeArray(members object, key string) any {
 	if key == "recovery_codes" || key == "codes" {
 		return []any{fmt.Sprintf("<%d codes>", len(members))}
@@ -131,7 +131,7 @@ func normalizeArray(members object, key string) any {
 		for _, m := range members {
 			childKey := m.key
 			if m.intKey {
-				childKey = key // PHP passes the parent key down for integer keys
+				childKey = key // an integer key passes the parent key down
 			}
 			out[m.key] = normalizeValue(m.value, childKey)
 		}
@@ -147,7 +147,7 @@ func normalizeArray(members object, key string) any {
 	}
 	if allArrays {
 		// 1.0 never ordered its record lists, so the contract holds the set of records, not
-		// their order: sort by encoding, as PHP's usort over json_encode does.
+		// their order: sort by encoding.
 		slices.SortStableFunc(out, func(a, b any) int { return strings.Compare(sortKey(a), sortKey(b)) })
 	}
 	return out
@@ -169,7 +169,7 @@ func sortKey(v any) string {
 	return string(b)
 }
 
-// normalizeString applies PHP's string rules in their order; the first that matches wins.
+// normalizeString applies the string rules in their order; the first that matches wins.
 func normalizeString(value, key string) any {
 	// JSON embedded in a string (an MCP tool result's text) is compared decoded: key order is not
 	// contractual (decision #4) and Go encodes maps in sorted order.
@@ -208,8 +208,8 @@ func maskPath(path string) string {
 	return uuidRe.ReplaceAllString(path, "<uuid>")
 }
 
-// object is a decoded JSON object with its member order kept: PHP's json_decode turns integer-like
-// keys into integers, and whether an array is a list depends on their order.
+// object is a decoded JSON object with its member order kept: an integer-like key is marked, and
+// whether the collection is a list depends on those keys and their order.
 type object []member
 
 type member struct {
@@ -218,8 +218,8 @@ type member struct {
 	value  any
 }
 
-// decodeJSON decodes like PHP's json_decode($s, true): objects keep their order, integer literals
-// become int64 and other numbers float64. ok is false when data is not exactly one JSON value.
+// decodeJSON decodes data keeping object member order: integer literals become int64 and other
+// numbers float64. ok is false when data is not exactly one JSON value.
 func decodeJSON(data []byte) (v any, ok bool) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
@@ -245,7 +245,7 @@ func decodeValue(dec *json.Decoder) (any, error) {
 		}
 		return decodeList(dec)
 	case json.Number:
-		return phpNumber(t), nil
+		return decodeNumber(t), nil
 	default:
 		return t, nil // string, bool or nil
 	}
@@ -263,7 +263,7 @@ func decodeObject(dec *json.Decoder) (object, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj = append(obj, member{key: key, intKey: isPHPIntKey(key), value: value})
+		obj = append(obj, member{key: key, intKey: isIntKey(key), value: value})
 	}
 	_, err := dec.Token() // '}'
 	return obj, err
@@ -282,27 +282,28 @@ func decodeList(dec *json.Decoder) ([]any, error) {
 	return list, err
 }
 
-// isPHPIntKey reports whether PHP stores the key as an integer: a canonical decimal in int64 range.
-func isPHPIntKey(key string) bool {
-	if !phpIntKeyRe.MatchString(key) {
+// isIntKey reports whether key is an integer key: a canonical decimal in int64 range.
+func isIntKey(key string) bool {
+	if !intKeyRe.MatchString(key) {
 		return false
 	}
 	_, err := strconv.ParseInt(key, 10, 64)
 	return err == nil
 }
 
-func phpNumber(n json.Number) any {
+// decodeNumber is n as an int64 when it is an integer literal in range, else a float64.
+func decodeNumber(n json.Number) any {
 	s := n.String()
 	if !strings.ContainsAny(s, ".eE") {
 		if i, err := strconv.ParseInt(s, 10, 64); err == nil {
 			return i
 		}
 	}
-	f, _ := strconv.ParseFloat(s, 64) // overflow gives ±Inf, as PHP's float does
+	f, _ := strconv.ParseFloat(s, 64) // overflow gives ±Inf
 	return f
 }
 
-// decodeBody is PHP's `json_decode($body, true) ?? $body`.
+// decodeBody is body decoded as JSON, or the raw body when it is not JSON or is null.
 func decodeBody(body []byte) any {
 	if v, ok := decodeJSON(body); ok && v != nil {
 		return v
@@ -310,7 +311,7 @@ func decodeBody(body []byte) any {
 	return string(body)
 }
 
-// headerValues reads a recorded header map: `[]` when PHP had none, else name => list or scalar.
+// headerValues reads a recorded header map: `[]` when there were none, else name => list or scalar.
 func headerValues(v any) map[string][]string {
 	out := map[string][]string{}
 	obj, ok := v.(object)

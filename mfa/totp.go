@@ -29,7 +29,7 @@ type TOTPProvider interface {
 	Match(secret, code string) (step int64, ok bool, err error)
 }
 
-// secretBytes is otphp's default secret size: 64 random bytes, 103 base32 characters.
+// secretBytes is the generated secret size: 64 random bytes, 103 base32 characters.
 const secretBytes = 64
 
 var base32NoPad = base32.StdEncoding.WithPadding(base32.NoPadding)
@@ -73,7 +73,7 @@ func (p *TOTP) GenerateSecret() string {
 	return base32NoPad.EncodeToString(b)
 }
 
-// ProvisioningURI implements TOTPProvider. The URI is byte-identical to otphp's: label
+// ProvisioningURI implements TOTPProvider. The URI stays byte-identical across releases: label
 // "issuer:account" and parameters sorted, both RFC 3986-encoded, defaults (sha1, 6 digits, 30 s)
 // left out.
 func (p *TOTP) ProvisioningURI(secret, account string) (string, error) {
@@ -129,15 +129,15 @@ func (p *TOTP) Match(secret, code string) (int64, bool, error) {
 	return 0, false, nil
 }
 
-// normalizeSecret is otphp's: upper case, '=' padding trimmed.
+// normalizeSecret upper-cases a secret and trims its '=' padding.
 func normalizeSecret(secret string) string { return strings.ToUpper(strings.Trim(secret, "=")) }
 
 func hasColon(s string) bool {
 	return strings.Contains(s, ":") || strings.Contains(s, "%3A") || strings.Contains(s, "%3a")
 }
 
-// rawURLEncode is PHP's rawurlencode: everything but RFC 3986 unreserved characters is
-// percent-encoded, upper-case hex.
+// rawURLEncode percent-encodes everything but RFC 3986 unreserved characters, upper-case hex (a
+// space is %20).
 func rawURLEncode(s string) string {
 	// url.PathEscape leaves sub-delims and ':' '@' alone; QueryEscape differs only in '+' for ' '.
 	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")

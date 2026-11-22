@@ -74,7 +74,7 @@ func TestEncrypterRequiresAKey(t *testing.T) {
 	}
 }
 
-func TestEncrypterAcceptsWhatPHPBase64DecodeStrictAccepts(t *testing.T) {
+func TestEncrypterAcceptsWhitespaceAndOptionalPadding(t *testing.T) {
 	e := testEncrypter(t, encrypterTestKey)
 	payload, _ := e.Encrypt("seed")
 	unpadded := strings.TrimRight(payload, "=")
@@ -86,19 +86,20 @@ func TestEncrypterAcceptsWhatPHPBase64DecodeStrictAccepts(t *testing.T) {
 	}
 }
 
-// Expectations probed from PHP 8.5's base64_decode($s, true).
-func TestPHPBase64DecodeStrict(t *testing.T) {
+// What stored payloads may hold: whitespace anywhere, padding optional but exact, non-zero
+// trailing bits.
+func TestDecodeBase64Lenient(t *testing.T) {
 	for in, want := range map[string]string{
 		"YQ": "a", "YQ==": "a", "Y Q==": "a", "YQ==\n": "a", "Y\tQ": "a", "YR==": "a",
 		"YWI": "ab", "YWI=": "ab", "": "",
 	} {
-		got, ok := phpBase64DecodeStrict(in)
+		got, ok := decodeBase64Lenient(in)
 		if !ok || string(got) != want {
 			t.Errorf("%q = %q, %v; want %q", in, got, ok, want)
 		}
 	}
 	for _, in := range []string{"Y", "YQ=", "YQ===", "YWJj=", "Y\vQ", "Y\fQ", "Y\x00Q", "YW=J", "Y-Q", "Y_Q", "YQ==YQ==", "Y=Q="} {
-		if _, ok := phpBase64DecodeStrict(in); ok {
+		if _, ok := decodeBase64Lenient(in); ok {
 			t.Errorf("%q accepted", in)
 		}
 	}

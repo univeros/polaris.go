@@ -20,8 +20,7 @@ type Users interface {
 	Get(ctx context.Context, id string) (model.User, error)
 }
 
-// Listener returns the listener that turns user-facing core events into emails on m (upstream
-// NotificationListener, the "notify user" column of docs/auth/events.md):
+// Listener returns the listener that turns user-facing core events into emails on m:
 //
 //	user.registered                → verify_email               {token}           to the event's email
 //	user.password_reset_requested  → password_reset             {token}           to the event's email

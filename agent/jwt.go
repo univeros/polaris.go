@@ -30,14 +30,14 @@ const (
 	AssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
-// jwsHeader is the JOSE header, in firebase/php-jwt's member order.
+// jwsHeader is the JOSE header, members in the order typ, alg, kid.
 type jwsHeader struct {
 	Typ string `json:"typ"`
 	Alg string `json:"alg"`
 	Kid string `json:"kid,omitempty"`
 }
 
-// requestClaims are the request JWT's claims, in the PHP SDK's order.
+// requestClaims are the request JWT's claims, in a fixed member order.
 type requestClaims struct {
 	Sub          string   `json:"sub"`
 	Aud          string   `json:"aud"`
@@ -108,7 +108,7 @@ func signJWS(k *Key, typ string, claims any) (string, error) {
 	return input + "." + b64(sig), nil
 }
 
-// marshalJSON encodes as firebase/php-jwt does: no HTML escaping, no trailing newline.
+// marshalJSON encodes compact JSON with no HTML escaping and no trailing newline.
 func marshalJSON(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -139,7 +139,7 @@ func canonicalURL(url string) string {
 // errBadJWS is every reason a JWS does not verify; callers only need the verdict.
 var errBadJWS = errors.New("agent: the JWS does not verify")
 
-// verifyJWS checks a compact JWS against a key set as firebase/php-jwt does with a JWK Set: the
+// verifyJWS checks a compact JWS against a JWK Set: the
 // header's typ must be typ, its kid must name a key (whose alg, when set, must equal the header's),
 // and the signature (RS256, ES256 or EdDSA) must verify. It answers the claims, numbers as
 // json.Number.

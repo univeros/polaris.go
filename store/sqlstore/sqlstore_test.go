@@ -17,7 +17,7 @@ import (
 	"github.com/univeros/polaris.go/store/storetest"
 )
 
-// openSQLite opens a fresh SQLite database file, foreign keys on, as PHP's test suite does.
+// openSQLite opens a fresh SQLite database file, foreign keys on.
 func openSQLite(t *testing.T) *sqlstore.Store {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "polaris.db") + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)&_txlock=immediate"

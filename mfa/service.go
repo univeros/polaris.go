@@ -42,8 +42,8 @@ var (
 	ErrInvalidConfig = errors.New("mfa: invalid configuration")
 )
 
-// PolicyError is a refused factor-management change. Message is the explanation upstream sends
-// to the client verbatim; Err is ErrInvalidFactorState or ErrLastFactorProtected.
+// PolicyError is a refused factor-management change. Message is the explanation sent to the
+// client verbatim; Err is ErrInvalidFactorState or ErrLastFactorProtected.
 type PolicyError struct {
 	Err     error
 	Message string

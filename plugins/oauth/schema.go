@@ -12,7 +12,8 @@ const (
 	TableCIBARequests = "polaris_oauth_ciba_request"
 )
 
-// models are upstream's Polaris\OAuth\Schema definitions, column for column.
+// models are the provider's tables, column for column the schema existing databases hold
+// (a change is a migration).
 func models() []schema.Model {
 	str := schema.StringField
 	nullable := func(f schema.Field) schema.Field { return f.AsNullable() }

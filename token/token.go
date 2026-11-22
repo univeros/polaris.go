@@ -31,9 +31,8 @@ func invalid(format string, args ...any) error {
 
 // Token is a parsed, verified JWT: its raw form and its claims.
 //
-// Claim values are as upstream's TokenInterface::getMetadata returns them: iat, nbf and exp
-// are time.Time (microsecond precision), aud is a []any list, integers are int64, other
-// numbers float64, objects map[string]any, arrays []any.
+// Claim values: iat, nbf and exp are time.Time (microsecond precision), aud is a []any list,
+// integers are int64, other numbers float64, objects map[string]any, arrays []any.
 type Token struct {
 	raw        string
 	header     map[string]any

@@ -44,7 +44,7 @@ type echoed struct {
 	TLS                                                                  bool
 }
 
-func TestClientBuildsRequestsLikeThePHPHarness(t *testing.T) {
+func TestClientBuildsRequestsLikeTheRecordedOnes(t *testing.T) {
 	c := NewClient(t, echo, nil)
 
 	got := Decode[echoed](t, c.Get("/auth/me?x=1", Bearer("tok")))
@@ -130,7 +130,7 @@ func TestRecordThenReplay(t *testing.T) {
 		t.Fatalf("%d steps, %v\n%s", len(steps), err, raw)
 	}
 	if !strings.Contains(string(raw), "\n    {\n        \"request\": {\n            \"method\": \"POST\",\n            \"uri\": \"/created\",") {
-		t.Errorf("not PHP's pretty-printed shape:\n%s", raw[:200])
+		t.Errorf("not the fixture files' pretty-printed shape:\n%s", raw[:200])
 	}
 	first := steps[0]
 	if !reflect.DeepEqual(first["request"]["body"], map[string]any{"email": "ada@example.com", "n": 1.5}) ||

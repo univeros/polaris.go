@@ -72,9 +72,35 @@ ok := p.Can(ctx, polaris.Principal{UserID: ada.ID, OrganizationID: org.ID}, "org
 // errors: errors.Is(err, polaris.ErrNotFound), polaris.ErrConflict, polaris.ErrForbidden, polaris.ErrInvalidInput, polaris.ErrInvalidCredentials
 ```
 
-`p.Users()`: Get, ByEmail, Create, SetPassword, Disable, Enable, Delete. `p.Orgs()`: Create, Get,
+`p.Users()`: Get, ByEmail, Create, Import, SetPassword, Disable, Enable, Delete. `p.Orgs()`: Create, Get,
 ListFor, AddMember, SetRoles, RemoveMember. `p.Sessions()`: Issue, Refresh, Revoke, RevokeAll. Same
 rules, events and audit as the HTTP routes; the caller is trusted (no permission check).
+
+## Migrating your users
+
+Bring existing accounts with the password hash they have; nobody resets a password. The first
+successful sign-in of each user replaces the imported hash with Argon2id.
+
+```go
+tx, err := db.DB().BeginTx(ctx, nil)
+for _, row := range legacyRows { // your users table, or an Auth0 / Firebase / Django export
+	_, err = p.Users().Import(sqlstore.WithTx(ctx, tx), polaris.ImportedUser{
+		Email: row.Email, PasswordHash: row.PasswordHash, DisplayName: row.Name,
+		EmailVerified: row.Verified, Disabled: row.Banned, CreatedAt: row.CreatedAt,
+	}) // ErrInvalidInput (and security.ErrUnsupportedHash): a hash Polaris cannot verify; ErrConflict: email taken
+}
+err = tx.Commit() // all or nothing; OnUserCreated ran for each account, no email was sent
+```
+
+Hashes verified as they are (`security.SupportedHashFormats`): bcrypt `$2a$`/`$2b$`/`$2y$` (Auth0,
+Devise, Laravel, most Go and Node apps), Argon2id/Argon2i, Django `pbkdf2_sha256$…` and `scrypt$…`,
+passlib `$pbkdf2-sha256$`, `$pbkdf2-sha512$`, `$scrypt$ln=…`. Firebase: build
+`fmt.Sprintf("$firebase-scrypt$ln=%d,r=%d,sep=%s,key=%s$%s$%s", memCost, rounds, saltSeparator, signerKey, salt, passwordHash)`
+from the project's hash parameters and each exported user (base64 values as exported). A cost
+outside sane bounds is refused. Cognito exports no hashes: import without `PasswordHash` and let
+users reset, or verify them your way and call `p.Sessions().Issue`. Another scheme of your own: wrap
+`security.Argon2id` as `Config.Hasher`, handling your prefix in `Verify` and `CheckHash` (`go doc
+security.HashChecker`); it upgrades on sign-in the same way.
 
 ## Plugins (pass to polaris.FromEnv / Config.Plugins)
 
@@ -210,7 +236,15 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 
 ## Where to look
 
-- `examples/minimal`, `examples/api-keys` — complete programs.
+- `examples/` — complete programs (each runs with zero setup: `go run ./examples/<name>`, SQLite and
+  keys generated at start; the README has the curl walkthrough with real output; `main_test.go` keeps it working):
+  `minimal` (core, one protected route), `api-keys`, `agents` (capabilities in process and behind
+  `ag.Protect`, an agent built with package `agent`: enrol, grants, approval, budget and constraint
+  refusals, receipts, kill switch), `mcp` (your MCP server behind `mcp.Protect`, Polaris's `/mcp`,
+  token exchange per resource), `b2b` (organizations, your permissions, roles, invitations, org API
+  keys, audit, admin, SSO and SCIM setup), `signin-methods` (magic link, email code, username,
+  guest conversion, multisession, passkey, social OIDC, messaging, sentinel, MFA), `hooks` (your own
+  table kept in step by `Hooks`, `Claims`, listeners, middleware, `sqlstore.WithTx`, `Prune`).
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.

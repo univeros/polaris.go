@@ -13,7 +13,8 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // Page sizes of the decision list.

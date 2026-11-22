@@ -90,7 +90,7 @@ func TestSecretsPreviousKey(t *testing.T) {
 		t.Fatalf("previous kid = %q", s.PreviousKeyID())
 	}
 
-	// A previous kid without a previous key is ignored, as upstream.
+	// A previous kid without a previous key is ignored.
 	s, _ = SecretsFromLookup(lookupMap(with(validEnv(), "AUTH_JWT_PREVIOUS_KID", "old")))
 	if s.PreviousKeyID() != "" {
 		t.Fatalf("previous kid = %q, want empty", s.PreviousKeyID())
@@ -153,7 +153,7 @@ func TestSecretsNeverPrintOrLogTheirValues(t *testing.T) {
 }
 
 func TestSecretsDecodeBase64EdDSAKeys(t *testing.T) {
-	priv := ed25519.NewKeyFromSeed([]byte("seed-0123456789abcdef0123456789a")) // no byte PHP's trim() cuts at the edges
+	priv := ed25519.NewKeyFromSeed([]byte("seed-0123456789abcdef0123456789a")) // no byte the secret trimming cuts at the edges
 	pub := string(priv.Public().(ed25519.PublicKey))
 	b64 := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 	for name, env := range map[string]map[string]string{
@@ -168,7 +168,7 @@ func TestSecretsDecodeBase64EdDSAKeys(t *testing.T) {
 		if s.JWTPrivateKey != string(priv) || s.JWTPublicKey != pub || s.JWTPreviousPublicKey != pub {
 			t.Errorf("%s: keys are not the raw libsodium bytes", name)
 		}
-		if s.KeyID() != fingerprint(pub) { // upstream: hash('sha256', raw public key)
+		if s.KeyID() != fingerprint(pub) { // SHA-256 hex of the raw public key
 			t.Errorf("%s: kid %s", name, s.KeyID())
 		}
 	}

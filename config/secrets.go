@@ -25,7 +25,7 @@ const (
 type Secrets struct {
 	AppKey string // APP_KEY, at least MinAppKeyBytes bytes
 	// JWTPrivateKey is AUTH_JWT_PRIVATE_KEY: a PEM for RS256; for EdDSA the 64-byte libsodium
-	// secret key, raw (as upstream reads it) or base64 (as "polaris keys:generate --alg=EdDSA"
+	// secret key, raw or base64 (as "polaris keys:generate --alg=EdDSA"
 	// prints it; SecretsFromLookup decodes it).
 	JWTPrivateKey string
 	// JWTPublicKey is AUTH_JWT_PUBLIC_KEY: a PEM for RS256; for EdDSA the 32-byte public key, raw
@@ -49,7 +49,7 @@ func SecretsFromLookup(lookup LookupFunc) (Secrets, error) {
 	v := make(map[string]string, len(secretEnv))
 	for _, key := range secretEnv {
 		raw, _ := lookup(key)
-		v[key] = strings.Trim(raw, " \t\n\r\x00\x0B") // PHP trim()'s set
+		v[key] = strings.Trim(raw, " \t\n\r\x00\x0B") // space, tab, LF, CR, NUL, vertical tab
 	}
 	s := Secrets{
 		AppKey:               v["APP_KEY"],
@@ -65,8 +65,8 @@ func SecretsFromLookup(lookup LookupFunc) (Secrets, error) {
 	return s, nil
 }
 
-// rawEd25519 decodes v when it is the standard base64 of exactly size bytes. Upstream reads EdDSA
-// keys as raw bytes, which an environment variable often cannot hold (a NUL byte, edge whitespace
+// rawEd25519 decodes v when it is the standard base64 of exactly size bytes. A raw EdDSA key is
+// accepted too, but an environment variable often cannot hold (a NUL byte, edge whitespace
 // lost to trimming). No PEM is 44 or 88 characters long and no raw key is the length of its base64
 // form, so nothing else changes.
 func rawEd25519(v string, size int) string {

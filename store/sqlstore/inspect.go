@@ -201,7 +201,7 @@ func liveColumn(name, raw string, length int, nullable bool) LiveColumn {
 	return c
 }
 
-// liveType maps a database type name to a schema type, as PHP SchemaInspector::type does.
+// liveType maps a database type name to a schema type.
 func liveType(raw string, length int) (schema.FieldType, int) {
 	lower := strings.ToLower(strings.TrimSpace(raw))
 	if m := varcharLength.FindStringSubmatch(lower); m != nil {

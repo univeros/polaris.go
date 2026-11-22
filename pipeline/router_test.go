@@ -11,7 +11,6 @@ import (
 	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
-// RouterTest::testMatchesParametersAndReportsAllowedMethods
 func TestRouterMatchesParametersAndReportsAllowedMethods(t *testing.T) {
 	core, _ := manifests(t)
 	rt := newRouter(core, "/api")
@@ -71,7 +70,7 @@ func TestEndpointsRoutesWithoutTheRouteMiddleware(t *testing.T) {
 	}
 }
 
-// RouterTest::testEmptyResultBodyStaysEmpty, through the dispatcher.
+// An empty result body stays empty, through the dispatcher.
 func TestEmptyResultBodyStaysEmpty(t *testing.T) {
 	core, _ := manifests(t)
 	o := options(t, core)
@@ -94,8 +93,7 @@ func TestEmptyResultBodyStaysEmpty(t *testing.T) {
 	}
 }
 
-// Port of ContractCoverageTest::testEveryManifestRouteIsCoveredByARecordedFixture: the recorded
-// fixtures reach every core route, so their replay freezes the whole contract.
+// The recorded fixtures reach every core route, so their replay freezes the whole contract.
 func TestEveryManifestRouteIsCoveredByARecordedFixture(t *testing.T) {
 	core, _ := manifests(t)
 	requests, err := contracttest.Requests(contracttest.Fixtures(t, "core"))

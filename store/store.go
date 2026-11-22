@@ -27,7 +27,8 @@ const (
 	Memory   Dialect = "memory"
 )
 
-// TimeLayout is how a time.Time is written to and parsed from the database (UTC, PHP 'Y-m-d H:i:s').
+// TimeLayout is how a time.Time is written to and parsed from the database (UTC, to the second, no
+// offset).
 const TimeLayout = "2006-01-02 15:04:05"
 
 // Row is one table row keyed by column name.

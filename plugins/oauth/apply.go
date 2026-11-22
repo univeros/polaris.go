@@ -23,10 +23,10 @@ func invalidMetadata(format string, args ...any) *Error {
 	return refusal(CodeInvalidClientMetadata, fmt.Sprintf(format, args...))
 }
 
-// set reports whether key is present and not null (PHP isset).
+// set reports whether key is present and not null.
 func (f ClientFields) set(key string) bool { v, ok := f[key]; return ok && v != nil }
 
-// has reports whether key is present, null included (PHP array_key_exists).
+// has reports whether key is present, null included.
 func (f ClientFields) has(key string) bool { _, ok := f[key]; return ok }
 
 // apply validates fields onto a copy of c: what is given is checked and replaces what c holds;

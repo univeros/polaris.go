@@ -47,7 +47,7 @@ linters:
         - G101
     revive:
       # The basic set: correctness and naming rules, not style preferences. error-strings is left
-      # out: error texts are upstream's wire messages (frozen, spec §3) and often start with a
+      # out: error texts are wire messages clients match on (frozen) and often start with a
       # proper noun ("Polaris", "JWT").
       rules:
         - name: blank-imports
@@ -78,7 +78,7 @@ linters:
         - -ST1020
         - -ST1021
         - -ST1022
-        # Error texts are upstream's wire messages (see revive above).
+        # Error texts are wire messages (see revive above).
         - -ST1005
         # Style-only quick fixes (De Morgan rewrites, embedded-field selectors).
         - -QF1001

@@ -20,7 +20,7 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Port of upstream's PluginTest: the ceremonies through the graph with the software authenticator.
+// The ceremonies through the graph with the software authenticator.
 
 const (
 	unitOrigin = "https://app.example"

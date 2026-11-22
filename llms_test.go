@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/agent"
@@ -34,6 +35,7 @@ import (
 	"github.com/univeros/polaris.go/plugins/social"
 	"github.com/univeros/polaris.go/plugins/username"
 	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
 	"github.com/univeros/polaris.go/verify"
@@ -76,10 +78,15 @@ var (
 	createProfile   func(context.Context, string) error
 	deleteProfile   func(context.Context, string) error
 	planOf          func(string) string
-	otherUserID     string
-	home, list      http.Handler
-	billing, team   http.Handler
-	rawToken        string
+	legacyRows      []struct {
+		Email, PasswordHash, Name string
+		Verified, Banned          bool
+		CreatedAt                 time.Time
+	}
+	otherUserID   string
+	home, list    http.Handler
+	billing, team http.Handler
+	rawToken      string
 )
 
 func llmsQuickstart() {
@@ -122,10 +129,27 @@ func llmsHooks(cfg polaris.Config, db *sqlstore.Store) {
 	_ = errors.Is(err, polaris.ErrNotFound) || errors.Is(err, polaris.ErrConflict) || errors.Is(err, polaris.ErrForbidden) ||
 		errors.Is(err, polaris.ErrInvalidInput) || errors.Is(err, polaris.ErrInvalidCredentials)
 	u, o, sess := p.Users(), p.Orgs(), p.Sessions()
-	_, _, _, _, _, _, _ = u.Get, u.ByEmail, u.Create, u.SetPassword, u.Disable, u.Enable, u.Delete
+	_, _, _, _, _, _, _, _ = u.Get, u.ByEmail, u.Create, u.Import, u.SetPassword, u.Disable, u.Enable, u.Delete
 	_, _, _, _, _, _ = o.Create, o.Get, o.ListFor, o.AddMember, o.SetRoles, o.RemoveMember
 	_, _, _, _ = sess.Issue, sess.Refresh, sess.Revoke, sess.RevokeAll
 	_, _ = cfg.Listeners, cfg.Middleware
+}
+
+func llmsMigrate(p *polaris.Polaris, db *sqlstore.Store) {
+	tx, err := db.DB().BeginTx(ctx, nil)
+	for _, row := range legacyRows { // your users table, or an Auth0 / Firebase / Django export
+		_, err = p.Users().Import(sqlstore.WithTx(ctx, tx), polaris.ImportedUser{
+			Email: row.Email, PasswordHash: row.PasswordHash, DisplayName: row.Name,
+			EmailVerified: row.Verified, Disabled: row.Banned, CreatedAt: row.CreatedAt,
+		}) // ErrInvalidInput (and security.ErrUnsupportedHash): a hash Polaris cannot verify; ErrConflict: email taken
+	}
+	err = tx.Commit() // all or nothing; OnUserCreated ran for each account, no email was sent
+	_ = errors.Is(err, security.ErrUnsupportedHash)
+	_ = security.SupportedHashFormats
+	var _ security.HashChecker = security.Argon2id{}
+	var memCost, rounds int
+	var saltSeparator, signerKey, salt, passwordHash string
+	_ = fmt.Sprintf("$firebase-scrypt$ln=%d,r=%d,sep=%s,key=%s$%s$%s", memCost, rounds, saltSeparator, signerKey, salt, passwordHash)
 }
 
 func llmsAgents(db store.Adapter, mux *http.ServeMux) {

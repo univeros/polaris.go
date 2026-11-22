@@ -1,5 +1,6 @@
 // Package pipeline is the HTTP face of Polaris: it routes requests by the endpoint manifest and runs
-// them through the contractual middleware order (docs/history/port-spec.md §4.3) to the registered
+// them through a fixed middleware order (part of the contract: each step sees what the earlier
+// ones set, and refuses before the later ones run) to the registered
 // endpoint:
 //
 //  1. route match (404 / 405 in core's envelope); the body is read, at most Options.MaxBodyBytes (413)

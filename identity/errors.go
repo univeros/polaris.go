@@ -2,8 +2,8 @@ package identity
 
 import "errors"
 
-// Sentinels matched (errors.Is) by the refusals of this package. Endpoints map them to the wire
-// exactly as upstream does; the message to send is the error's Error().
+// Sentinels matched (errors.Is) by the refusals of this package. Endpoints map each to a fixed status
+// and error code; the message to send is the error's Error().
 var (
 	// ErrInvalidCredentials: unknown email, wrong password or locked account at login (401, never
 	// distinguished), or a wrong current password on change (403).
@@ -31,7 +31,7 @@ var (
 	ErrInvalidConfig = errors.New("identity: invalid configuration")
 )
 
-// Error is a refusal carrying the client-facing message (upstream's exception message). It
+// Error is a refusal carrying the client-facing message. It
 // matches its Kind, one of the sentinels above.
 type Error struct {
 	Kind    error
@@ -54,7 +54,7 @@ func (e *PasswordError) Error() string { return "The password does not meet the 
 // Is reports whether target is ErrInvalidPassword.
 func (e *PasswordError) Is(target error) bool { return target == ErrInvalidPassword }
 
-// Client-facing messages, as upstream.
+// Client-facing messages: clients may match on them, so they do not change.
 const (
 	msgInvalidCredentials = "Invalid email or password."
 	msgWrongPassword      = "The current password is incorrect."

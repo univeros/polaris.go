@@ -95,8 +95,8 @@ func (s *Service) RevokeAll(ctx context.Context, userID, reason string) (int, er
 }
 
 // RevokeAllExcept revokes every session of the user except exceptSessionID ("" keeps none) and
-// returns how many sessions it touched (every family of the user, revoked ones included, as
-// upstream counts). It does not watermark the denylist: that would kill the kept session's own
+// returns how many sessions it touched (every family of the user, revoked ones
+// included). It does not watermark the denylist: that would kill the kept session's own
 // access token.
 func (s *Service) RevokeAllExcept(ctx context.Context, userID, exceptSessionID, reason string) (int, error) {
 	rows, err := s.tokens.ListByUser(ctx, userID)

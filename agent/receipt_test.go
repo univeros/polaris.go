@@ -14,8 +14,6 @@ import (
 	"testing"
 )
 
-// Port of ReceiptsTest (and agent-ts receipts.test.ts).
-
 // serverKey is a server key pair (RS256, core's default, or EdDSA/ES256) with its public JWK as the
 // JWKS lists it.
 type serverKey struct {
@@ -75,10 +73,10 @@ func TestReceipts(t *testing.T) {
 		r := receiptFixture()
 		r.Capability = ptr("café/échec")
 		if got := ReceiptHash(r); got != "9b5f1f690cca6b3b9dd055a71d13ebd6f8a0a7efcd529befc560383e477f836d" {
-			t.Fatalf("hash %s: not the vector PHP and TypeScript compute", got)
+			t.Fatalf("hash %s: not the vector every SDK computes", got)
 		}
 		if got, want := string(asciiJSON([]byte("{\"a\":\"\u00e9\U0001F600/<\"}"))), `{"a":"`+"\\"+`u00e9`+"\\"+`ud83d`+"\\"+`ude00/<"}`; got != want {
-			t.Fatalf("PHP escaping: %s", got)
+			t.Fatalf("ASCII escaping: %s", got)
 		}
 	})
 
@@ -156,9 +154,9 @@ func TestASignatureMustNameItsTypeAndAKeyOfItsAlgorithm(t *testing.T) {
 	}
 }
 
-// phpReceipts is testdata/php-receipts.json: chains signed by the server's own Receipts code
-// (lcobucci/jwt, RS256 and EdDSA), written by testdata/interop.php receipts.
-type phpReceipts struct {
+// receiptChains is testdata/receipt-chains.json: known-answer receipt chains, RS256 and EdDSA,
+// signed by an earlier server release. Receipts already issued must keep verifying.
+type receiptChains struct {
 	Chains []struct {
 		Alg      string    `json:"alg"`
 		JWKS     []JWK     `json:"jwks"`
@@ -166,12 +164,12 @@ type phpReceipts struct {
 	} `json:"chains"`
 }
 
-func TestReceiptsSignedByThePHPServerVerify(t *testing.T) {
-	data, err := os.ReadFile("testdata/php-receipts.json")
+func TestReceiptsSignedByAnEarlierServerVerify(t *testing.T) {
+	data, err := os.ReadFile("testdata/receipt-chains.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var vectors phpReceipts
+	var vectors receiptChains
 	if err := json.Unmarshal(data, &vectors); err != nil {
 		t.Fatal(err)
 	}

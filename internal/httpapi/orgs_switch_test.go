@@ -8,7 +8,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of OrgSwitchEndpointTest: POST /auth/switch-org re-scopes the session's access token to the
+// Replays the OrgSwitchEndpointTest fixtures: POST /auth/switch-org re-scopes the session's access token to the
 // chosen organization (its org and roles claims), the re-scoping survives a refresh, and only an
 // active member may switch in.
 func TestOrgSwitchEndpoint(t *testing.T) {

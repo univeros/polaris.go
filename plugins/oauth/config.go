@@ -20,7 +20,7 @@ const (
 	DPoPRequired DPoPMode = "required"
 )
 
-// Config configures the provider. Every field is optional; the zero value is upstream's default
+// Config configures the provider. Every field is optional; the zero value is the default
 // configuration (DPoP optional, metadata documents accepted, registration off, no device flow).
 type Config struct {
 	// BaseURL is where Polaris is mounted, prefix included ("https://app.example/auth"): the
@@ -61,11 +61,12 @@ type Config struct {
 	// instance-wide owner.
 	Operators func(r *http.Request) (*Operator, error)
 	// Audiences are further aud values that name this server (the "<BaseURL>/mcp" resource of
-	// polaris/mcp), accepted by the bearer resolver as the issuer is.
+	// the mcp plugin), accepted by the bearer resolver as the issuer is.
 	Audiences []string
 }
 
-// settings is the validated configuration, lifetimes in whole seconds as upstream stores them.
+// settings is the validated configuration, lifetimes in whole seconds (the unit the stored
+// rows and the token responses use).
 type settings struct {
 	baseURL, consentURL, deviceURL                     string
 	accessTTL, refreshTTL, codeTTL, deviceTTL, cibaTTL int

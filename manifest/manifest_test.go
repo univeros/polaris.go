@@ -14,8 +14,8 @@ import (
 	"github.com/univeros/polaris.go/internal/apispec"
 )
 
-// pluginDirs is every plugin manifest in apispec.API, in the order packages/client-ts/polaris.php
-// registers the plugins (the order of the all.*.json goldens).
+// pluginDirs is every plugin manifest in apispec.API, in plugin registration order (the order of
+// the all.*.json goldens).
 var pluginDirs = []string{"audit", "admin", "sentinel", "sso", "scim", "passwordless", "username", "anonymous", "multi-session", "social", "passkey", "api-keys", "oauth-provider", "mcp", "agents"}
 
 func sub(t testing.TB, dir string) fs.FS {
@@ -49,7 +49,7 @@ func loadAll(t testing.TB) *Manifest {
 	return m
 }
 
-func TestEveryUpstreamDirectoryIsAPluginOrCore(t *testing.T) {
+func TestEverySpecDirectoryIsAPluginOrCore(t *testing.T) {
 	entries, err := fs.ReadDir(apispec.API, "api")
 	if err != nil {
 		t.Fatal(err)
@@ -63,14 +63,13 @@ func TestEveryUpstreamDirectoryIsAPluginOrCore(t *testing.T) {
 	want := slices.Clone(pluginDirs)
 	sort.Strings(want)
 	if !reflect.DeepEqual(dirs, want) {
-		t.Fatalf("internal/upstream/api has %v, the tests load %v", dirs, want)
+		t.Fatalf("internal/apispec/api has %v, the tests load %v", dirs, want)
 	}
 	if n := len(loadAll(t).Routes()); n != 226 {
-		t.Errorf("%d routes, want 226 (spec §2)", n)
+		t.Errorf("%d routes, want 226", n)
 	}
 }
 
-// Port of ManifestTest::testEverySpecShowsItsSuccessBody.
 func TestEverySpecShowsItsSuccessBody(t *testing.T) {
 	m := loadCore(t)
 	for _, r := range m.Routes() {
@@ -99,8 +98,8 @@ func TestEverySpecShowsItsSuccessBody(t *testing.T) {
 	}
 }
 
-// Port of ManifestTest::testEverySpecRoutesToAnEndpointAndEveryEndpointIsSpecified (the part Go can
-// check: Go keys endpoints on route names, so the PHP class only has to be named and not shared).
+// TestEverySpecNamesOneClass checks domain.class: endpoints are keyed on route names, so the class
+// only has to be present, well formed and not shared.
 func TestEverySpecNamesOneClass(t *testing.T) {
 	m := loadCore(t)
 	if n := len(m.Routes()); n != 52 {
@@ -120,7 +119,7 @@ func TestEverySpecNamesOneClass(t *testing.T) {
 	}
 }
 
-// Port of ManifestTest::testRoutesAreUniqueAndFindable, plus lookup by route name.
+// TestRoutesAreUniqueAndFindable also covers lookup by route name.
 func TestRoutesAreUniqueAndFindable(t *testing.T) {
 	m := loadAll(t)
 	patterns := map[string]bool{}
@@ -157,8 +156,7 @@ func TestRoutesAreUniqueAndFindable(t *testing.T) {
 	}
 }
 
-// Port of ManifestTest::testPolicyValuesAreKnown (rate-limit groups are checked where the rate
-// limiter lives).
+// TestPolicyValuesAreKnown leaves rate-limit groups to the rate limiter's own tests.
 func TestPolicyValuesAreKnown(t *testing.T) {
 	for _, r := range loadCore(t).Routes() {
 		if !slices.Contains(Auths, r.Auth) || !slices.Contains(Effects, r.Effect) || !slices.Contains(Sources, r.Input.Source) {
@@ -179,7 +177,6 @@ func TestPolicyValuesAreKnown(t *testing.T) {
 	}
 }
 
-// Port of ManifestTest::testSchemaJsonAgreesWithTheLoader.
 func TestSchemaJSONAgreesWithTheLoader(t *testing.T) {
 	raw, err := fs.ReadFile(apispec.API, "api/core/schema.json")
 	if err != nil {
@@ -220,7 +217,6 @@ func TestSchemaJSONAgreesWithTheLoader(t *testing.T) {
 	}
 }
 
-// Port of ManifestTest::testSpecFilesAreTheOnlyYamlUnderApi.
 func TestSpecFilesAreTheOnlyYamlUnderCore(t *testing.T) {
 	n := 0
 	_ = fs.WalkDir(sub(t, "core"), ".", func(path string, d fs.DirEntry, err error) error {
@@ -384,7 +380,7 @@ func TestLoaderRejectsDuplicateRoutesAndNames(t *testing.T) {
 		t.Errorf("file order %v", files)
 	}
 	if top, _ := m.Named("polaris.top"); top.Plugin != "top.yaml" {
-		t.Errorf("a plugin file at the root is its own plugin id, as upstream: %q", top.Plugin)
+		t.Errorf("a plugin file at the root is its own plugin id: %q", top.Plugin)
 	}
 }
 
@@ -407,7 +403,7 @@ input:
     name: { type: "?string", rules: [required, "max:3"], sensitive: 1 }
     other: {}
 domain:
-  class: 'Polaris\Things\DoEndpoint'
+  class: 'Things\DoEndpoint'
   description: Does the thing.
 output:
   status: 201
@@ -435,7 +431,7 @@ events: [thing.done]
 			{Name: "name", Type: "?string", Rules: []Rule{name, maxRule}, Sensitive: true},
 			{Name: "other", Type: "string"},
 		}},
-		Class: `Polaris\Things\DoEndpoint`, Description: "Does the thing.",
+		Class: `Things\DoEndpoint`, Description: "Does the thing.",
 		Output: Output{Status: 201, Examples: []Example{
 			{"example", Object{{"data", Object{{"id", "x"}}}}},
 			{"example_other", []any{1, 2}},

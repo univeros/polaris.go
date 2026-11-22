@@ -12,11 +12,12 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// The environment of upstream's PasskeyTestCase.
+// The environment of the recorded passkey flow.
 const (
-	flowClass = `Polaris\Passkey\Tests\Functional\PasskeyFlowTest`
-	password  = "correct horse battery staple"
-	origin    = "https://auth.polaris.test"
+	// flowFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/passkey.
+	flowFixtures = "Polaris.Passkey.Tests.Functional.PasskeyFlowTest"
+	password     = "correct horse battery staple"
+	origin       = "https://auth.polaris.test"
 )
 
 func data(t testing.TB, resp *http.Response) map[string]any {
@@ -77,7 +78,7 @@ func claims(t testing.TB, srv *polaristest.Server, access string) (amr []any, mf
 func TestPasskeyFlow(t *testing.T) {
 	t.Run("testAPasskeyRegistersSignsInAndIsASecondFactor", func(t *testing.T) {
 		srv := polaristest.New(t, polaristest.WithPlugins(passkey.New(passkey.Config{Origins: []string{origin}, RPName: "Polaris tests"})))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passkey"), flowClass, "testAPasskeyRegistersSignsInAndIsASecondFactor"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passkey"), flowFixtures, "testAPasskeyRegistersSignsInAndIsASecondFactor"))
 		access := login(t, srv, c, "ada@example.com")
 		as := contracttest.Bearer(access)
 		authenticator := passkey.NewAuthenticator(t)
@@ -157,9 +158,9 @@ func TestPasskeyFlow(t *testing.T) {
 	})
 }
 
-// Every passkey fixture has a Go test (port of ContractCoverageTest).
+// Every passkey fixture has a Go test.
 func TestEveryFixtureIsReplayed(t *testing.T) {
-	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "passkey"), []string{flowClass + "::testAPasskeyRegistersSignsInAndIsASecondFactor"})
+	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "passkey"), []string{flowFixtures + "::testAPasskeyRegistersSignsInAndIsASecondFactor"})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

@@ -8,7 +8,8 @@ const (
 	TableDomains   = "polaris_sso_domain"
 )
 
-// Models returns the two tables as upstream declares them.
+// Models returns the two tables, providers and domains; their columns are the schema existing
+// databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableProviders,

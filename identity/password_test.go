@@ -1,6 +1,6 @@
 package identity
 
-// Port of tests/Identity/PasswordPolicyTest plus the EmailNormalizer contract.
+// The password policy, plus the email normalization contract.
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func TestPasswordPolicy(t *testing.T) {
 	})
 }
 
-func TestNormalizeEmailMatchesPHPStrtolowerTrim(t *testing.T) {
+func TestNormalizeEmailTrimsAndLowersASCIIOnly(t *testing.T) {
 	for in, want := range map[string]string{
 		"  ADA@Example.com ":    "ada@example.com",
 		"\t\n\r\x00\x0Ba@B.c\n": "a@b.c",

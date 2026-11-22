@@ -80,7 +80,7 @@ func (s *Service) ListRoles(ctx context.Context, organizationID string) ([]Role,
 // organization), ErrInvalid (a key missing from the catalog), forbidden (a key the actor does not
 // hold: editing a role you hold must not be a self-escalation path).
 func (s *Service) CreateRole(ctx context.Context, actorUserID, organizationID string, in NewRole) (Role, error) {
-	name := phpTrim(in.Name)
+	name := trimEdges(in.Name)
 	if name == "" {
 		return Role{}, refuse(ErrInvalid, MsgRoleName)
 	}
@@ -137,7 +137,7 @@ func (s *Service) UpdateRole(ctx context.Context, actorUserID, organizationID, r
 		}
 		updated := role
 		if ch.Name != nil {
-			if updated.Name = phpTrim(*ch.Name); updated.Name == "" {
+			if updated.Name = trimEdges(*ch.Name); updated.Name == "" {
 				return refuse(ErrInvalid, MsgRoleName)
 			}
 		}

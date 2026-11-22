@@ -15,7 +15,7 @@ import (
 
 var ctx = context.Background()
 
-// 2026-06-09 12:00:00 UTC, as the upstream middleware test.
+// 2026-06-09 12:00:00 UTC.
 var instant = time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 
 func newStore() (*CacheStore, *clock.Frozen) {
@@ -83,7 +83,7 @@ func TestRetryAfterNeverGoesNegative(t *testing.T) {
 	if got := r.RetryAfter(instant.Add(time.Hour)); got != 0 {
 		t.Fatalf("retry after = %v", got)
 	}
-	// Sub-second precision of now is floored, as PHP's integer timestamps.
+	// Sub-second precision of now is floored: the store counts in whole seconds.
 	if got := r.RetryAfter(instant.Add(-1500 * time.Millisecond)); got != 2*time.Second {
 		t.Fatalf("retry after = %v", got)
 	}

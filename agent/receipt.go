@@ -60,7 +60,7 @@ type hashedReceipt struct {
 }
 
 // ReceiptHash is the SHA-256 (hex) of the receipt's canonical JSON, as the server computes it:
-// keys sorted, slashes unescaped, non-ASCII as \uXXXX (PHP's json_encode).
+// keys sorted, slashes and <, >, & unescaped, non-ASCII as \uXXXX.
 func ReceiptHash(r Receipt) string {
 	data, err := marshalJSON(hashedReceipt{r.AgentID, r.BudgetAfter, r.BudgetBefore, r.Capability, r.CreatedAt, r.GrantID, r.ID, r.InputHash, r.Outcome, r.PrevHash, r.Seq})
 	if err != nil {
@@ -70,7 +70,8 @@ func ReceiptHash(r Receipt) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// asciiJSON escapes every non-ASCII character of encoded JSON as \uXXXX (UTF-16), as PHP does.
+// asciiJSON escapes every non-ASCII character of encoded JSON as \uXXXX (UTF-16 surrogate pairs
+// above the BMP), lowercase hex.
 func asciiJSON(data []byte) []byte {
 	out := make([]byte, 0, len(data))
 	for i := 0; i < len(data); {

@@ -42,7 +42,6 @@ func seedUser(t *testing.T, users repository.Users, email string) string {
 	return u.ID
 }
 
-// Port of NotificationListenerTest::testTokenCarryingEventsMailTheTokenDirectly.
 func TestTokenCarryingEventsMailTheTokenDirectly(t *testing.T) {
 	usersOn(t, func(t *testing.T, users repository.Users) {
 		m := &notifytest.Mailer{}
@@ -62,7 +61,6 @@ func TestTokenCarryingEventsMailTheTokenDirectly(t *testing.T) {
 	})
 }
 
-// Port of testIdOnlyEventsResolveTheRecipient.
 func TestIDOnlyEventsResolveTheRecipient(t *testing.T) {
 	usersOn(t, func(t *testing.T, users repository.Users) {
 		id := seedUser(t, users, "locked@example.com")
@@ -91,7 +89,6 @@ func TestIDOnlyEventsResolveTheRecipient(t *testing.T) {
 	})
 }
 
-// Port of testUnknownUsersAndTombstonesAreSkipped and testIgnoresUnrelatedEvents.
 func TestUnknownUsersTombstonesAndUnrelatedEventsAreSkipped(t *testing.T) {
 	usersOn(t, func(t *testing.T, users repository.Users) {
 		tombstone := seedUser(t, users, strings.Repeat("a", 64)+"@deleted.invalid")
@@ -120,7 +117,7 @@ func (brokenUsers) Get(context.Context, string) (model.User, error) {
 	return model.User{}, errors.New("db is down")
 }
 
-// Port of testAFailingMailerIsSwallowedNotPropagated; a failed lookup is logged the same way.
+// A failing mailer is swallowed, not propagated; a failed lookup is logged the same way.
 func TestFailuresAreLoggedAndSwallowed(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))

@@ -23,8 +23,10 @@ const (
 )
 
 var (
-	fieldName  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]{0,79}$`)
-	phpNumeric = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\n\r\v\f]*$`)
+	fieldName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]{0,79}$`)
+	// numericString is a decimal number, optionally signed, with an optional exponent, between
+	// optional whitespace.
+	numericString = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\n\r\v\f]*$`)
 )
 
 // Budget is what a grant may spend: Count executions, or an Amount summed from one argument
@@ -69,7 +71,7 @@ type constraints struct {
 }
 
 // parseConstraints validates constraints written by an agent or an owner: argument → operators,
-// plus "budget". An empty list is no constraint, as PHP reads [].
+// plus "budget". An empty list [] is no constraint, as an empty object is.
 func parseConstraints(raw any) (constraints, error) {
 	out := constraints{fields: map[string]map[string]any{}}
 	var m map[string]any
@@ -146,9 +148,9 @@ func parseBudget(spec map[string]any) (*budget, error) {
 	if (count == nil) == (amount == nil) {
 		return nil, refuse(ErrInvalidInput, "A budget is {count: N} or {amount: N, field: argument}.")
 	}
-	total, ok := phpInt(count)
+	total, ok := wholeNumber(count)
 	if count == nil {
-		total, ok = phpInt(amount)
+		total, ok = wholeNumber(amount)
 	}
 	if !ok || total < 1 || total > maxBudget {
 		return nil, refuse(ErrInvalidInput, "A budget total is a positive integer.")
@@ -162,7 +164,7 @@ func parseBudget(spec map[string]any) (*budget, error) {
 		b.kind, b.field = BudgetAmount, field
 	}
 	if w := spec["window"]; w != nil {
-		n, ok := phpInt(w)
+		n, ok := wholeNumber(w)
 		if !ok || n < 1 {
 			return nil, refuse(ErrInvalidInput, "A budget window is a positive number of seconds.")
 		}
@@ -203,7 +205,7 @@ func operand(field, op string, v any) (any, error) {
 	return s, nil
 }
 
-// compilePattern anchors a pattern operand as upstream does: /^(?:pattern)$/u. RE2 syntax: a
+// compilePattern anchors a pattern operand to the whole value: ^(?:pattern)$. RE2 syntax: a
 // PCRE-only construct (lookaround, backreferences) is refused when the constraint is written.
 func compilePattern(p string) (*regexp.Regexp, error) { return regexp.Compile(`^(?:` + p + `)$`) }
 
@@ -275,7 +277,7 @@ func cost(g Grant, args map[string]any) (int64, error) {
 	return int64(math.Ceil(v)), nil
 }
 
-// number reads a JSON number (PHP is_int || is_float).
+// number reads a JSON number, integer or not.
 func number(v any) (float64, bool) {
 	switch v := v.(type) {
 	case json.Number:
@@ -295,10 +297,10 @@ func number(v any) (float64, bool) {
 	return 0, false
 }
 
-// numeric is PHP's is_numeric plus its value: a number, or a numeric string.
+// numeric reads a number, or a numeric string (numericString), and its value.
 func numeric(v any) (float64, bool) {
 	if s, ok := v.(string); ok {
-		if !phpNumeric.MatchString(s) {
+		if !numericString.MatchString(s) {
 			return 0, false
 		}
 		f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
@@ -307,8 +309,8 @@ func numeric(v any) (float64, bool) {
 	return number(v)
 }
 
-// phpInt reads what PHP would decode as an int: a JSON number without fraction or exponent.
-func phpInt(v any) (int64, bool) {
+// wholeNumber reads an integer: a JSON number written without fraction or exponent.
+func wholeNumber(v any) (int64, bool) {
 	switch v := v.(type) {
 	case json.Number:
 		if strings.ContainsAny(v.String(), ".eE") {
@@ -324,7 +326,7 @@ func phpInt(v any) (int64, bool) {
 	return 0, false
 }
 
-// scalar is PHP's is_scalar: a string, a number or a bool.
+// scalar reports a string, a number or a bool.
 func scalar(v any) bool {
 	switch v.(type) {
 	case string, bool, json.Number, float64, float32, int, int64, int32:
@@ -333,7 +335,8 @@ func scalar(v any) bool {
 	return false
 }
 
-// identical is PHP's === over decoded JSON scalars: an int never equals a float or a string.
+// identical is strict equality over decoded JSON scalars: same kind and same value, so an integer
+// never equals a float or a string.
 func identical(a, b any) bool {
 	ka, kb := kind(a), kind(b)
 	if ka != kb {
@@ -341,8 +344,8 @@ func identical(a, b any) bool {
 	}
 	switch ka {
 	case "int":
-		x, _ := phpInt(a)
-		y, _ := phpInt(b)
+		x, _ := wholeNumber(a)
+		y, _ := wholeNumber(b)
 		return x == y
 	case "float":
 		x, _ := number(a)

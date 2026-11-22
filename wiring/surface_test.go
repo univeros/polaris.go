@@ -18,7 +18,7 @@ func TestGraphAccessorsReturnOnlyStableTypes(t *testing.T) {
 		"security.PasswordHasher": true, "security.BreachedPasswordCheck": true, "notify.Mailer": true,
 		"notify.SMSSender": true, "clock.Clock": true, "cache.Cache": true, "ratelimit.Store": true,
 		"metrics.Metrics": true,
-		// Already a narrow interface; its payload format is frozen with upstream's.
+		// Already a narrow interface; its payload format is frozen (stored data must decrypt).
 		"security.Encrypter": true,
 		// Declared exceptions (API.md §2): the table builder plugins declare their schema with, the
 		// core repositories, the pipeline a plugin mounts.

@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-// Port of PolarisAgentTest.
-
 func registered() map[string]any {
 	return map[string]any{"id": "agent-1", "owner_type": "user", "owner_id": "u1", "name": "Bot", "mode": "delegated", "host_id": "h1", "auth": "private_key_jwt",
 		"status": "active", "created_at": "2026-10-10T10:00:00+00:00", "updated_at": "2026-10-10T10:00:00+00:00", "grants": []any{grant(nil)}, "approval": nil}
