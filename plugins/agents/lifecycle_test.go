@@ -208,7 +208,7 @@ func executionBudgetsReceiptsKillSwitch(a *agentsCase) {
 			a.equal([]any{obj(g)["status"], obj(obj(g)["budget"])["remaining"]}, []any{"exhausted", 0}, "exhausted")
 		}
 	}
-	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("credits.spend", map[string]any{"amount": 1}, nil), nil), 403, "capability_not_granted", "", "an exhausted grant is no grant")
+	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("credits.spend", map[string]any{"amount": 1}, nil), nil), 403, "budget_exhausted", "", "an exhausted grant reports its budget")
 
 	chain := a.list(a.c.Get("/agents/"+id+"/receipts", contracttest.Bearer(session)))
 	a.equal(column(chain, "seq"), []any{1, 2, 3, 4, 5}, "chain")
