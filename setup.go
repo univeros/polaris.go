@@ -26,26 +26,59 @@ func FromEnv(db store.Adapter, plugins ...Plugin) (Config, error) {
 	return Config{Secrets: secrets, Auth: auth, DB: db, Plugins: plugins}, nil
 }
 
-// Migrate creates every table core and the plugins need that the database lacks (never altering or
-// dropping an existing one) and seeds the permission catalog and system roles. Idempotent: run it at
-// every boot. It returns the tables it created.
+// Migrate brings the database up to what core and the plugins declare and seeds the permission
+// catalog and system roles. On a SQL database it creates the missing tables, adds the columns and
+// indexes an existing table lacks and drops the indexes a plugin retired (sqlstore.Store.Migrate);
+// it never drops a table or a column and never changes a column's type. Idempotent and safe on
+// replicas booting together: run it at every boot. It returns what it changed: the name of each
+// table it created, then one "<table>: added column <c>" (or "created index", "dropped index")
+// line per change to an existing table.
 func (p *Polaris) Migrate(ctx context.Context) ([]string, error) {
 	g := p.graph
-	var created []string
-	if m, ok := g.DB().(interface {
-		CreateMissing(context.Context, []schema.Model) ([]string, error)
-	}); ok {
-		var err error
-		if created, err = m.CreateMissing(ctx, g.Schema()); err != nil {
-			return nil, fmt.Errorf("polaris: migrate: %w", err)
-		}
-	} else if g.DB().Dialect() != store.Memory {
-		return nil, errors.New("polaris: migrate: the database adapter cannot create tables; export the DDL with `polaris schema:export` and apply it")
+	changes, err := migrateSchema(ctx, g.DB(), g.Schema())
+	if err != nil {
+		return nil, err
 	}
 	if err := authz.Seed(ctx, g.DB(), services.Of(g).Catalog, g.Clock()); err != nil {
-		return created, fmt.Errorf("polaris: migrate: seed permissions: %w", err)
+		return changes, fmt.Errorf("polaris: migrate: seed permissions: %w", err)
 	}
-	return created, nil
+	return changes, nil
+}
+
+type schemaMigrator interface {
+	Migrate(context.Context, []schema.Model) ([]string, error)
+}
+
+// migrateSchema runs the Migrate of db or of an adapter it wraps (Unwrap, as telemetry/otel.Store
+// does); an adapter without one may still create its missing tables (CreateMissing).
+func migrateSchema(ctx context.Context, db store.Adapter, models []schema.Model) ([]string, error) {
+	for a := db; a != nil; {
+		if m, ok := a.(schemaMigrator); ok {
+			changes, err := m.Migrate(ctx, models)
+			if err != nil {
+				return nil, fmt.Errorf("polaris: migrate: %w", err)
+			}
+			return changes, nil
+		}
+		u, ok := a.(interface{ Unwrap() store.Adapter })
+		if !ok {
+			break
+		}
+		a = u.Unwrap()
+	}
+	if m, ok := db.(interface {
+		CreateMissing(context.Context, []schema.Model) ([]string, error)
+	}); ok {
+		created, err := m.CreateMissing(ctx, models)
+		if err != nil {
+			return nil, fmt.Errorf("polaris: migrate: %w", err)
+		}
+		return created, nil
+	}
+	if db.Dialect() != store.Memory {
+		return nil, errors.New("polaris: migrate: the database adapter cannot create tables; export the DDL with `polaris schema:export` and apply it")
+	}
+	return nil, nil
 }
 
 // Prune deletes the expired transient rows Polaris accumulates (refresh tokens past their grace,
