@@ -2,13 +2,14 @@ package httpapi_test
 
 import (
 	"net/http"
-	"slices"
 	"testing"
+	"time"
 
 	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/token"
 )
 
 const authJWKSPath = "/auth/.well-known/jwks.json"
@@ -21,7 +22,8 @@ func TestJwksEndpoint(t *testing.T) {
 		resp := a.c.Get(authJWKSPath)
 		authStatusIs(t, resp, http.StatusOK)
 		keys, _ := contracttest.JSON(t, resp)["keys"].([]any)
-		if len(keys) == 0 || keys[0].(map[string]any)["kty"] != "RSA" {
+		// The key under its kid and under its legacy kid (decision 73).
+		if len(keys) != 2 || keys[0].(map[string]any)["kty"] != "RSA" {
 			t.Fatalf("keys: %v", keys)
 		}
 	})
@@ -50,7 +52,9 @@ func TestJwksEndpoint(t *testing.T) {
 		for _, k := range keys {
 			kids = append(kids, k.(map[string]any)["kid"].(string))
 		}
-		if len(kids) != 2 || !slices.Contains(kids, contracttest.PreviousKID) {
+		// The current key, the retiring one, then the current key under its legacy kid (decision
+		// 73); the retiring key's explicit kid has no alias.
+		if len(kids) != 3 || kids[1] != contracttest.PreviousKID {
 			t.Fatalf("kids: %v", kids)
 		}
 	})
@@ -59,6 +63,61 @@ func TestJwksEndpoint(t *testing.T) {
 		a := authNew(t, class, "testUnknownRouteIsNotFound")
 		authStatusIs(t, a.c.Get("/auth/does-not-exist"), http.StatusNotFound)
 	})
+}
+
+// Decision 73: the default kid is the RFC 7638 thumbprint of the key. A release before it named
+// the key by the SHA-256 of its PEM text; the JWKS publishes the key under both kids (same key
+// material) and the server accepts tokens naming the old one, so nothing issued or cached before
+// the upgrade stops verifying. New tokens carry the thumbprint. An explicit kid has no alias.
+func TestTheLegacyDefaultKidKeepsVerifying(t *testing.T) {
+	private, public := contracttest.TestRSAKeyPEM()
+	auth := config.Defaults()
+	auth.Issuer = contracttest.Issuer
+	boot := func(kid string) (*polaris.Polaris, config.Secrets) {
+		secrets := config.Secrets{AppKey: contracttest.AppKey, JWTPrivateKey: private, JWTPublicKey: public, JWTKeyID: kid}
+		p, err := polaris.New(polaris.Config{Secrets: secrets, Auth: auth, DB: polaristest.New(t).DB})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p, secrets
+	}
+
+	p, secrets := boot("")
+	want, _ := token.Thumbprint(token.RS256, public)
+	if secrets.KeyID() != want || secrets.LegacyKeyID() == "" {
+		t.Fatalf("kid %q, legacy %q", secrets.KeyID(), secrets.LegacyKeyID())
+	}
+	keys := p.Graph().JWKS().Keys
+	if len(keys) != 2 || keys[0].Kid != want || keys[1].Kid != secrets.LegacyKeyID() || keys[0].N != keys[1].N || keys[0].E != keys[1].E {
+		t.Fatalf("JWKS %+v", keys)
+	}
+
+	earlier, err := token.New(token.Config{PrivateKey: private, PublicKey: public, KeyID: secrets.LegacyKeyID(), Issuer: contracttest.Issuer, TTL: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := earlier.Mint("at+jwt", token.Claims{}, time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Graph().Tokens().VerifyJWT(old, 0); err != nil {
+		t.Fatalf("a token naming the legacy kid: %v", err)
+	}
+	minted, err := p.Graph().Tokens().Mint("at+jwt", token.Claims{}, time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tok, err := p.Graph().Tokens().VerifyJWT(minted, 0); err != nil || tok.Header("kid") != want {
+		t.Fatalf("a new token names %v (%v), want the thumbprint", tok, err)
+	}
+
+	p, _ = boot("key-2026")
+	if keys := p.Graph().JWKS().Keys; len(keys) != 1 || keys[0].Kid != "key-2026" {
+		t.Fatalf("explicit kid JWKS %+v", keys)
+	}
+	if _, err := p.Graph().Tokens().VerifyJWT(old, 0); err == nil {
+		t.Fatal("an explicit kid accepted the legacy default kid")
+	}
 }
 
 func TestAuthMiddleware(t *testing.T) {

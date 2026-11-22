@@ -53,8 +53,8 @@ func TestSecretsBuildsFromCompleteEnvironment(t *testing.T) {
 	if s.AppKey != testAppKey || s.JWTPrivateKey != "private-key-pem" || s.JWTPublicKey != "public-key-pem" {
 		t.Fatalf("unexpected secrets: %#v", []string{s.AppKey, s.JWTPrivateKey, s.JWTPublicKey})
 	}
-	if s.KeyID() == "" {
-		t.Fatal("a kid is derived from the public key when not supplied")
+	if s.LegacyKeyID() != sha("public-key-pem") {
+		t.Fatal("the legacy kid is derived from the public key when no kid is supplied")
 	}
 }
 
@@ -68,11 +68,14 @@ func TestSecretsUsesExplicitKidWhenProvided(t *testing.T) {
 	}
 }
 
-func TestSecretsDerivedKidIsTheFullSha256Fingerprint(t *testing.T) {
+func TestSecretsLegacyKidIsTheFullSha256Fingerprint(t *testing.T) {
 	a, _ := SecretsFromLookup(lookupMap(validEnv()))
 	b, _ := SecretsFromLookup(lookupMap(validEnv()))
-	if a.KeyID() != b.KeyID() || a.KeyID() != sha("public-key-pem") {
-		t.Fatalf("kid = %q, want %q", a.KeyID(), sha("public-key-pem"))
+	if a.LegacyKeyID() != b.LegacyKeyID() || a.LegacyKeyID() != sha("public-key-pem") {
+		t.Fatalf("legacy kid = %q, want %q", a.LegacyKeyID(), sha("public-key-pem"))
+	}
+	if a.KeyID() != "" {
+		t.Fatalf("an unparseable key has no thumbprint (building the codec reports it), got kid %q", a.KeyID())
 	}
 }
 
@@ -81,8 +84,8 @@ func TestSecretsPreviousKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.PreviousKeyID() != sha("previous-key-pem") {
-		t.Fatalf("previous kid = %q", s.PreviousKeyID())
+	if s.PreviousLegacyKeyID() != sha("previous-key-pem") {
+		t.Fatalf("previous legacy kid = %q", s.PreviousLegacyKeyID())
 	}
 
 	s, _ = SecretsFromLookup(lookupMap(with(validEnv(), "AUTH_JWT_PREVIOUS_PUBLIC_KEY", "previous-key-pem", "AUTH_JWT_PREVIOUS_KID", "old")))
@@ -131,17 +134,18 @@ func TestSecretsAreTrimmed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.JWTPublicKey != "public-key-pem" || s.KeyID() != sha("public-key-pem") {
+	if s.JWTPublicKey != "public-key-pem" || s.LegacyKeyID() != sha("public-key-pem") {
 		t.Fatalf("public key not trimmed: %q", s.JWTPublicKey)
 	}
 }
 
 func TestSecretsNeverPrintOrLogTheirValues(t *testing.T) {
-	s, _ := SecretsFromLookup(lookupMap(validEnv()))
+	rsa, _ := recordedKeys(t)
+	s := recordedSecrets(t, rsa)
 	var buf strings.Builder
 	slog.New(slog.NewTextHandler(&buf, nil)).Info("boot", "secrets", s)
 	for _, out := range []string{fmt.Sprint(s), fmt.Sprintf("%+v", s), fmt.Sprintf("%#v", s), buf.String()} {
-		for _, secret := range []string{testAppKey, "private-key-pem"} {
+		for _, secret := range []string{testAppKey, strings.TrimSpace(rsa[0])} {
 			if strings.Contains(out, secret) {
 				t.Errorf("secret %q leaked in %q", secret, out)
 			}
@@ -168,8 +172,11 @@ func TestSecretsDecodeBase64EdDSAKeys(t *testing.T) {
 		if s.JWTPrivateKey != string(priv) || s.JWTPublicKey != pub || s.JWTPreviousPublicKey != pub {
 			t.Errorf("%s: keys are not the raw libsodium bytes", name)
 		}
-		if s.KeyID() != fingerprint(pub) { // SHA-256 hex of the raw public key
-			t.Errorf("%s: kid %s", name, s.KeyID())
+		if s.LegacyKeyID() != fingerprint(pub) { // SHA-256 hex of the raw public key
+			t.Errorf("%s: legacy kid %s", name, s.LegacyKeyID())
+		}
+		if s.KeyID() == "" || s.KeyID() != s.PreviousKeyID() {
+			t.Errorf("%s: kid %q, previous %q", name, s.KeyID(), s.PreviousKeyID())
 		}
 	}
 }

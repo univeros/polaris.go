@@ -26,8 +26,22 @@ marked **Breaking**.
   minor gets Critical and High fixes for 3 months after a new minor, and each fix is a GitHub
   security advisory with a CVE. [docs/stored-formats.md](docs/stored-formats.md) lists the stored
   data and tokens every 1.x release keeps reading (decision 71).
+- `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
+  `PreviousLegacyKeyID`, a second kid `VerifyJWT` accepts for each key; `config.Secrets.LegacyKeyID`
+  and `PreviousLegacyKeyID` (decision 73).
+- `APP_KEY` is fixed for the life of a deployment in 1.x: `config.Secrets`, SECURITY.md
+  ("Operating Polaris") and docs/stored-formats.md say what depends on it and what changing it
+  invalidates (decision 73).
 
 ### Changed
+
+- **Client-visible:** without `AUTH_JWT_KID` the `kid` of new tokens and of the JWKS is the RFC 7638
+  thumbprint of the public key (base64url, 43 characters), not the SHA-256 hex of the PEM text, so
+  re-encoding the same key no longer changes it. Nothing issued before stops verifying: the server
+  still accepts tokens naming the old `kid`, and `/auth/.well-known/jwks.json` publishes each key a
+  second time under its old `kid` (same key material), after the keys under their new kids, for
+  verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
+  `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
 
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
   (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook

@@ -118,7 +118,8 @@ func mintAudience(v any) (any, error) {
 // purpose rule: callers check Header("typ") and the claims they need.
 //
 // The key is chosen by kid: the previous kid (during a rotation) verifies with the previous
-// public key; an absent or null kid, or the current kid, with the current key; any other kid
+// public key; an absent or null kid, or the current kid, with the current key; a configured
+// legacy kid (Config.LegacyKeyID, PreviousLegacyKeyID) with the key it belongs to; any other kid
 // is refused. Failures wrap ErrInvalidToken; a negative leeway is ErrInvalidConfig.
 func (c *Codec) VerifyJWT(raw string, leeway time.Duration) (*Token, error) {
 	if leeway < 0 {
@@ -132,9 +133,11 @@ func (c *Codec) VerifyJWT(raw string, leeway time.Duration) (*Token, error) {
 	switch kid := seg.header["kid"].(type) {
 	case nil:
 	case string:
-		if c.prevVer != nil && kid == c.prevKID {
+		switch {
+		case c.prevVer != nil && (kid == c.prevKID || (c.prevLegacyKID != "" && kid == c.prevLegacyKID)):
 			verify = c.prevVer
-		} else if kid != c.kid {
+		case kid == c.kid || (c.legacyKID != "" && kid == c.legacyKID):
+		default:
 			return nil, invalid("the token names an unknown signing key")
 		}
 	default:

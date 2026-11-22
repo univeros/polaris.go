@@ -26,6 +26,7 @@ import (
 	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
+	"github.com/univeros/polaris.go/token"
 )
 
 // TestQuickstart is the integration a coding agent copies from llms.txt: env config, Migrate,
@@ -183,9 +184,10 @@ func TestEdDSAFromEnv(t *testing.T) {
 	header, _ := base64.RawURLEncoding.DecodeString(parts[0])
 	sig, _ := base64.RawURLEncoding.DecodeString(parts[2])
 	pub, _ := base64.StdEncoding.DecodeString(generated.Env["AUTH_JWT_PUBLIC_KEY"])
-	kid := sha256.Sum256(pub) // the default kid: SHA-256 hex of the raw public key
+	kid, _ := token.Thumbprint(token.EdDSA, string(pub)) // the default kid: the RFC 7638 thumbprint
+	legacy := sha256.Sum256(pub)                         // the default kid before decision 73
 	var h struct{ Alg, Kid string }
-	if err := json.Unmarshal(header, &h); err != nil || h.Alg != "EdDSA" || h.Kid != hex.EncodeToString(kid[:]) {
+	if err := json.Unmarshal(header, &h); err != nil || h.Alg != "EdDSA" || kid == "" || h.Kid != kid {
 		t.Fatalf("header %s", header)
 	}
 	if !ed25519.Verify(pub, []byte(parts[0]+"."+parts[1]), sig) {
@@ -196,7 +198,9 @@ func TestEdDSAFromEnv(t *testing.T) {
 	}
 	jwks := contracttest.JSON(t, c.Get("/auth/.well-known/jwks.json"))
 	want := map[string]any{"kty": "OKP", "crv": "Ed25519", "use": "sig", "alg": "EdDSA", "kid": h.Kid, "x": base64.RawURLEncoding.EncodeToString(pub)}
-	if keys := jwks["keys"].([]any); len(keys) != 1 || !maps.Equal(keys[0].(map[string]any), want) {
+	alias := maps.Clone(want)
+	alias["kid"] = hex.EncodeToString(legacy[:])
+	if keys := jwks["keys"].([]any); len(keys) != 2 || !maps.Equal(keys[0].(map[string]any), want) || !maps.Equal(keys[1].(map[string]any), alias) {
 		t.Fatalf("jwks %v", jwks)
 	}
 

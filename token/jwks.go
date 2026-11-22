@@ -2,6 +2,7 @@ package token
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -81,4 +82,31 @@ func okpJWK(k PublicKey, alg Algorithm) (JWK, error) {
 		return JWK{}, fmt.Errorf("%w: the EdDSA public key %q must be 32 raw bytes of a valid Ed25519 point", ErrInvalidConfig, k.KeyID)
 	}
 	return JWK{Kty: "OKP", Crv: "Ed25519", Use: "sig", Alg: string(alg), Kid: k.KeyID, X: base64.RawURLEncoding.EncodeToString(pub)}, nil
+}
+
+// Thumbprint is the RFC 7638 JWK thumbprint of a public key: the unpadded base64url SHA-256 of
+// the key's required members in lexical order, {"e","kty","n"} for RS256 and {"crv","kty","x"} for
+// EdDSA. publicKey is what Config.PublicKey takes for alg. It depends on the key only, not on how
+// a PEM is encoded, and is the default kid (config.Secrets.KeyID, decision 73). An unparseable
+// key or another algorithm fails with ErrInvalidConfig.
+func Thumbprint(alg Algorithm, publicKey string) (string, error) {
+	var members string
+	switch alg {
+	case RS256:
+		k, err := rsaJWK(PublicKey{PEM: publicKey}, alg)
+		if err != nil {
+			return "", err
+		}
+		members = `{"e":"` + k.E + `","kty":"RSA","n":"` + k.N + `"}`
+	case EdDSA:
+		k, err := okpJWK(PublicKey{PEM: publicKey}, alg)
+		if err != nil {
+			return "", err
+		}
+		members = `{"crv":"Ed25519","kty":"OKP","x":"` + k.X + `"}`
+	default:
+		return "", unsupportedAlgorithm(alg)
+	}
+	sum := sha256.Sum256([]byte(members)) // the members are base64url and fixed names: no escaping
+	return base64.RawURLEncoding.EncodeToString(sum[:]), nil
 }

@@ -323,7 +323,7 @@ func discoveryTrustedMetadataAdmin(o *oauthCase) {
 	}
 	o.problem(o.c.Post("/oauth2/register", map[string]any{"client_name": "Rogue", "redirect_uris": []string{"https://rogue.example/cb"}}), 403, "registration_disabled", "off by default")
 	jwks, _ := o.json(o.c.Get("/auth/.well-known/jwks.json"))["keys"].([]any)
-	o.equal(len(jwks), 1, "core's JWKS, reused unchanged")
+	o.equal(len(jwks), 2, "core's JWKS, reused unchanged: the key under its kid and its legacy kid (decision 73)")
 
 	trustedResp := o.c.Post("/admin/oauth/clients", map[string]any{"name": "First party", "type": "public", "token_endpoint_auth_method": "none", "redirect_uris": []string{redirectURI}, "trusted": true}, contracttest.Bearer(session))
 	o.status(trustedResp, 201, "an operator registers a trusted client")
