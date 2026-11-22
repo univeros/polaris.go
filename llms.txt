@@ -177,7 +177,15 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 
 ## Where to look
 
-- `examples/minimal`, `examples/api-keys` — complete programs.
+- `examples/` — complete programs (each runs with zero setup: `go run ./examples/<name>`, SQLite and
+  keys generated at start; the README has the curl walkthrough with real output; `main_test.go` keeps it working):
+  `minimal` (core, one protected route), `api-keys`, `agents` (capabilities in process and behind
+  `ag.Protect`, an agent built with package `agent`: enrol, grants, approval, budget and constraint
+  refusals, receipts, kill switch), `mcp` (your MCP server behind `mcp.Protect`, Polaris's `/mcp`,
+  token exchange per resource), `b2b` (organizations, your permissions, roles, invitations, org API
+  keys, audit, admin, SSO and SCIM setup), `signin-methods` (magic link, email code, username,
+  guest conversion, multisession, passkey, social OIDC, messaging, sentinel, MFA), `hooks` (your own
+  table kept in step by `Hooks`, `Claims`, listeners, middleware, `sqlstore.WithTx`, `Prune`).
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.
