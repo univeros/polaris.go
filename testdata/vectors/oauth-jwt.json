@@ -1,5 +1,5 @@
 {
-    "generator": "php",
+    "generator": "recorded",
     "cases": [
         {
             "issuer": "https://auth.polaris.test",

@@ -11,7 +11,7 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Port of MembershipEndpointsTest::testListsMembersWithTheirRoles and
+// Service side of MembershipEndpointsTest::testListsMembersWithTheirRoles and
 // testInvitedAndSuspendedEmailsAreGatedOnMembersInvite.
 func TestListMembersWithRolesAndGatedEmails(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -59,7 +59,7 @@ func deref(s *string) string {
 	return *s
 }
 
-// Port of testOwnerCanChangeAMembersRoles and testAdminCanGrantNonEscalatingRoles.
+// Service side of testOwnerCanChangeAMembersRoles and testAdminCanGrantNonEscalatingRoles.
 func TestChangeRolesReplacesTheSetAndAnnouncesIt(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -90,7 +90,7 @@ func TestChangeRolesReplacesTheSetAndAnnouncesIt(t *testing.T) {
 	})
 }
 
-// Port of testAdminCannotEscalateAMemberToOwner, testAdminCannotModifyAnOwner,
+// Service side of testAdminCannotEscalateAMemberToOwner, testAdminCannotModifyAnOwner,
 // testCannotDemoteTheLastOwner and testCanDemoteAnOwnerWhenAnotherOwnerRemains.
 func TestChangeRolesInvariants(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -135,7 +135,7 @@ func TestASuperadminMayModifyOwnersButNotOrphanTheOrganization(t *testing.T) {
 	})
 }
 
-// Port of MemberSuspensionEndpointsTest.
+// Service side of MemberSuspensionEndpointsTest.
 func TestChangeStatusSuspendsAndReactivates(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -208,7 +208,7 @@ func TestChangeStatusReportsAFailedRevocation(t *testing.T) {
 	})
 }
 
-// Port of testCannotRemoveTheLastOwner and testOwnerCanRemoveANonOwnerMember.
+// Service side of testCannotRemoveTheLastOwner and testOwnerCanRemoveANonOwnerMember.
 func TestRemoveMember(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")

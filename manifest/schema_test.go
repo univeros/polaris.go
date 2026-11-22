@@ -17,7 +17,7 @@ func assertJSON(t *testing.T, v any, want string) {
 	}
 }
 
-// Ports of ExampleSchemaTest. Object keeps the key order of the PHP arrays, which decides "required".
+// Object keeps the key order of the examples, which decides "required".
 
 func TestExampleSchemaScalarsAndNestedObjects(t *testing.T) {
 	value := Object{{"data", Object{{"id", "018f"}, {"expires_in", 900}, {"ratio", 0.5}, {"verified", true}, {"label", nil}}}}

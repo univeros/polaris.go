@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Polaris endpoint spec",
-    "description": "One api/**/*.yaml file. Loaded at runtime by Polaris\\Http\\Manifest\\Loader, which enforces the required keys and value sets listed here.",
+    "description": "One api/**/*.yaml file. Loaded at runtime by manifest.Load, which enforces the required keys and value sets listed here.",
     "type": "object",
     "required": ["endpoint", "domain"],
     "properties": {

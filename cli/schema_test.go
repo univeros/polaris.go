@@ -11,8 +11,8 @@ func golden(t *testing.T, dir, name string) string {
 	return readFile(t, filepath.Join("..", "testdata", dir, name))
 }
 
-// The goldens are upstream's `php bin/polaris schema:export` and `manifest` output, byte for byte.
-func TestExportsAreByteIdenticalToUpstream(t *testing.T) {
+// The goldens are the `schema:export` and `manifest` output, byte for byte.
+func TestExportsAreByteIdenticalToTheGoldens(t *testing.T) {
 	cleanEnv(t)
 	cases := []struct {
 		args   []string

@@ -11,7 +11,7 @@ import (
 	"github.com/univeros/polaris.go/manifest"
 )
 
-// fuzzRoutes is every upstream route, core and plugins.
+// fuzzRoutes is every route spec, core and plugins.
 func fuzzRoutes(f *testing.F) []*manifest.Route {
 	f.Helper()
 	dirs, err := fs.ReadDir(apispec.API, "api")

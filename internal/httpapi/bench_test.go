@@ -36,8 +36,8 @@ func benchServer(b *testing.B, opts ...polaristest.Option) (*polaristest.Server,
 }
 
 // BenchmarkLogin is POST /auth/login end to end: rate limit, user lookup, Argon2id verify,
-// session row, refresh secret, RS256 access token. "production" is security.Argon2id{} (PHP's
-// password_hash defaults: 64 MiB, 4 passes, 1 lane); "cheap" is the test suite's 1 MiB, 1 pass.
+// session row, refresh secret, RS256 access token. "production" is security.Argon2id{} (64 MiB,
+// 4 passes, 1 lane); "cheap" is the test suite's 1 MiB, 1 pass.
 func BenchmarkLogin(b *testing.B) {
 	for _, h := range []struct {
 		name   string

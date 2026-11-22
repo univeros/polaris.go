@@ -1,7 +1,7 @@
 package identity
 
-// Service-level port of tests/Functional/LoginEndpointTest plus the lockout, rehash and MFA
-// hand-off rules of LoginService.
+// Login, service side, plus the lockout, rehash and MFA
+// hand-off rules.
 
 import (
 	"errors"

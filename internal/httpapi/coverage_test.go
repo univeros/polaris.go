@@ -9,8 +9,8 @@ import (
 	"github.com/univeros/polaris.go/internal/contracttest"
 )
 
-// TestEveryCoreFixtureHasAGoTest fails while an upstream core fixture has no Go test: a test claims
-// a fixture when a _test.go file in this package names both its PHP class ("LoginEndpointTest") and
+// TestEveryCoreFixtureHasAGoTest fails while a core fixture has no Go test: a test claims a
+// fixture when a _test.go file in this package names both its recorded class ("LoginEndpointTest") and
 // its method ("testValidLogin…") as string literals.
 func TestEveryCoreFixtureHasAGoTest(t *testing.T) {
 	files, err := filepath.Glob("*_test.go")

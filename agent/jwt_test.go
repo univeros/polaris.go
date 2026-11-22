@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-// Port of RequestJwtTest.
-
 var frozen = time.Unix(1760090400, 0)
 
 func TestRequestJwt(t *testing.T) {

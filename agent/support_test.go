@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// The shapes the unit tests share, as upstream's tests/Support/Fixtures.
+// The shapes the unit tests share.
 
 const mountPath = "/api"
 
@@ -64,7 +64,7 @@ type recorded struct {
 }
 
 // fakeServer answers queued responses in turn (the last one again when the queue runs out) and
-// keeps every request, as upstream's FakeClient. The discovery document is served out of turn.
+// keeps every request. The discovery document is served out of turn.
 type fakeServer struct {
 	*httptest.Server
 	mu       sync.Mutex

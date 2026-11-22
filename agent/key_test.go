@@ -14,8 +14,6 @@ import (
 	"testing"
 )
 
-// Port of AgentKeyTest.
-
 func TestAgentKey(t *testing.T) {
 	t.Run("testAnEs256KeyHasItsThumbprintAsKidAndNoPrivatePartInItsPublicJwk", func(t *testing.T) {
 		key, err := GenerateKey(ES256)
@@ -99,7 +97,7 @@ func TestAgentKey(t *testing.T) {
 	})
 }
 
-func TestKeyImportsPHPStoredFormsAndRefusesOtherKeys(t *testing.T) {
+func TestKeyImportsSEC1PEMAndRefusesOtherKeys(t *testing.T) {
 	ec, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	sec1, _ := x509.MarshalECPrivateKey(ec)
 	stored, _ := json.Marshal(map[string]string{"alg": "ES256", "secret": string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: sec1}))})

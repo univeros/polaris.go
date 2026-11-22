@@ -8,8 +8,8 @@ import (
 
 // Input is a request's data: the parsed body (JSON or form), then query parameters, a later
 // source overriding an earlier one, and route parameters last: a body or query "id" can never
-// replace the path's {id}. JSON numbers are json.Number. Cookies are not input (upstream merged
-// them in, so a cookie tossed from a sibling subdomain could override a body field): an endpoint
+// replace the path's {id}. JSON numbers are json.Number. Cookies are not input (merged in, a cookie
+// tossed from a sibling subdomain could override a body field): an endpoint
 // that needs a cookie reads it from Request.
 type Input struct {
 	Request *http.Request
@@ -17,7 +17,7 @@ type Input struct {
 }
 
 // NewInput builds the Input of r for the given route parameters. A body that is not valid JSON
-// (or form data) contributes nothing, as upstream's parsed body would be empty.
+// (or form data) contributes nothing: the parsed body is empty.
 func NewInput(r *http.Request, params map[string]string) *Input {
 	data := map[string]any{}
 	for k, v := range parseBody(r) {

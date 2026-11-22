@@ -229,7 +229,8 @@ func newInvitations(db store.Adapter) Invitations {
 	}}
 }
 
-// roleIDs encodes the role list as PHP's json_encode does for a list of UUID strings.
+// roleIDs encodes the role list for its JSON column: a compact array of the UUID strings, [] for
+// none.
 func roleIDs(ids []string) string {
 	if ids == nil {
 		ids = []string{}

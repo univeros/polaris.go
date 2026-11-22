@@ -21,7 +21,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// grantedBy is what the CLI records as the author of a grant or key, as upstream.
+// grantedBy is what the CLI records as the author of a grant or key.
 const grantedBy = "cli"
 
 // pluginOf builds the instance and finds the plugin id on it.
@@ -210,7 +210,7 @@ func mcpCommand(a *app, fs *flag.FlagSet) runFunc {
 	}
 }
 
-// cliTools are the read-only commands as MCP tools (stdio only, as upstream): their flags are the
+// cliTools are the read-only commands as MCP tools (stdio only): their flags are the
 // arguments, their text output the result, a non-zero exit an error.
 func (a *app) cliTools() []wiring.Tool {
 	var tools []wiring.Tool

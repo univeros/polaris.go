@@ -107,7 +107,7 @@ func newAccount(email, displayName string, now time.Time) (model.User, error) {
 	if !manifest.IsEmail(email) {
 		return model.User{}, refuse(ErrInvalidProfile, msgInvalidEmail)
 	}
-	name := strings.Trim(displayName, phpTrimSet)
+	name := strings.Trim(displayName, trimSet)
 	if utf8.RuneCountInString(name) > displayNameMax {
 		return model.User{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
 	}

@@ -20,7 +20,7 @@ type waiter struct {
 // is active (they are returned), one is denied or revoked (ErrApprovalDenied), the next poll would
 // land after expires_in or maxAttempts polls are spent (ErrApprovalExpired), or ctx ends. A 429 or
 // slow_down refusal adds SlowDown to the interval. A zero interval or expires_in reads as
-// upstream's defaults, 5 and 600 seconds.
+// the defaults, 5 and 600 seconds.
 func (w waiter) wait(ctx context.Context, approval Approval, poll func(context.Context) ([]Grant, error), maxAttempts int) ([]Grant, error) {
 	interval := seconds(approval.Interval, 5)
 	expiresIn := seconds(approval.ExpiresIn, 600)

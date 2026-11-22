@@ -796,3 +796,24 @@ Security review (rule 6):
   guesses against those rows offline, as with any stored hash; without the key the rows could not
   be verified at all. The rows disappear as their users sign in; a host that does not accept this
   imports Firebase users without a hash and has them reset.
+
+## 58. 2026-11-22 — The code reads as Go, not as a port
+
+Outside `plugins/`, comments, private identifiers, test names and test-data file names no longer
+describe the code by reference to the PHP project (#53). Each comment now states the format or rule
+in its own terms and, where a format is unusual, why: stored data, issued tokens and recorded
+vectors from earlier releases must keep reading (rule 5). References to documents that do not exist
+here (`docs/auth/*`, `docs/cookie-mode`, "spec §N") are removed or described inline.
+
+- Renamed (all unexported or test names; no stable API changed): `internal/observe/phpjson.go` is
+  `metadatajson.go` (`phpJSON` is `metadataJSON`), `agent/testdata/php-receipts.json` is
+  `receipt-chains.json`, and the `php*`/`*PHP*`/`*Upstream*`/`*Otphp*`/`*Lcobucci*` helpers and tests
+  in `token`, `security`, `identity`, `orgs`, `manifest`, `cli`, `internal/contracttest` and
+  `internal/httpapi` take names that describe the behaviour (`encodeOrderedObject`, `asList`,
+  `decodeBase64Lenient`, `leadingInt`, `trimSet`, …).
+- No behaviour changed: no byte the server emits, stores or accepts, no fixture, no golden, no vector.
+- Kept on purpose: the `domain.class` values (`Polaris\Http\…`) in the route specs and the exported
+  manifest goldens, which clients read; the recorded test names (`Polaris\Tests\Functional\…`) that
+  key the contract fixtures; the `"generator": "php"` field of the known-answer vectors, which the
+  vector tests check; the `cache.ErrInvalidKey` error text naming PSR-16, which hosts may match; the
+  501 text "This endpoint is not ported yet."; and the history sentence in `AGENT.md`.

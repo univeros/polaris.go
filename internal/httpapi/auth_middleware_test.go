@@ -27,7 +27,7 @@ func TestJwksEndpoint(t *testing.T) {
 	})
 
 	t.Run("testRotationOverlapPublishesBothKeys", func(t *testing.T) {
-		// Upstream reboots with AUTH_JWT_PREVIOUS_PUBLIC_KEY (the same test key) and
+		// The recorded test reboots with AUTH_JWT_PREVIOUS_PUBLIC_KEY (the same test key) and
 		// AUTH_JWT_PREVIOUS_KID; polaristest has no secrets option, so the server is built here.
 		db := polaristest.New(t).DB
 		private, public := contracttest.TestRSAKeyPEM()
@@ -44,7 +44,7 @@ func TestJwksEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fx := contracttest.For(t, contracttest.Fixtures(t, "core"), authPHPNS+class, "testRotationOverlapPublishesBothKeys")
+		fx := contracttest.For(t, contracttest.Fixtures(t, "core"), coreSuite+class, "testRotationOverlapPublishesBothKeys")
 		keys, _ := contracttest.JSON(t, contracttest.NewClient(t, p.Handler(), fx).Get(authJWKSPath))["keys"].([]any)
 		var kids []string
 		for _, k := range keys {

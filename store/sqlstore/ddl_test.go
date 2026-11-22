@@ -14,8 +14,9 @@ import (
 
 var dialects = []store.Dialect{store.Postgres, store.MySQL, store.SQLite}
 
-// The goldens are `php bin/polaris schema:export --target=sql:<dialect> [--drop]` from polaris-core.
-func TestDDLIsByteIdenticalToPHP(t *testing.T) {
+// The goldens are the DDL of earlier releases: existing databases were created with it, so it
+// must not drift.
+func TestDDLIsByteIdenticalToTheGoldens(t *testing.T) {
 	for _, d := range dialects {
 		t.Run(string(d), func(t *testing.T) {
 			got, err := sqlstore.DDL(schema.Core(), d)

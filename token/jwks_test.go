@@ -57,7 +57,7 @@ func TestJWKSetPublishesBothKeysDuringRotation(t *testing.T) {
 	if err != nil || len(set.Keys) != 2 || set.Keys[0].Kid != "new" || set.Keys[1].Kid != "old" {
 		t.Fatalf("set = %+v, %v", set, err)
 	}
-	// A kid repeated keeps its first slot and takes the last key (PHP array semantics).
+	// A kid repeated keeps its first slot and takes the last key.
 	dup, _ := NewJWKSet(RS256, PublicKey{KeyID: "a", PEM: k.RSA.Public}, PublicKey{KeyID: "b", PEM: k.RSA.Public}, PublicKey{KeyID: "a", PEM: k.RSAAlternate.Public})
 	if len(dup.Keys) != 2 || dup.Keys[0].Kid != "a" || dup.Keys[0].N != set.Keys[1].N {
 		t.Fatalf("dup = %+v", dup)

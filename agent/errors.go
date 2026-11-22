@@ -78,7 +78,7 @@ var ErrNoCredential = errors.New("agent: the agent has no key and no access toke
 // enrolled: use the Agent Register or Enroll returns, or agent.WithID.
 var ErrNotRegistered = errors.New("agent: the agent is not registered yet: use the Agent that Register or Enroll returns, or agent.WithID")
 
-// refusal builds the Error for a non-2xx answer as the PHP and TypeScript SDKs do: the problem
+// refusal builds the Error for a non-2xx answer, the same way in every Polaris SDK: the problem
 // when the body has string type and error members, the detail (else message, else the first 200
 // bytes) in the message.
 func refusal(method, url string, status int, body []byte) *Error {

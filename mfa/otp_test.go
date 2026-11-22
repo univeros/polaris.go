@@ -1,7 +1,7 @@
 package mfa
 
-// Ports of PHP tests/Mfa/OtpServiceTest and tests/Persistence/OtpServicePersistenceTest, run on
-// memstore and SQLite, plus the concurrent-verify race.
+// The OTP service and its persistence, run on memstore and SQLite, plus the concurrent-verify
+// race.
 
 import (
 	"context"

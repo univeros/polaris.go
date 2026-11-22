@@ -7,7 +7,7 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// TestMfaEndpointErrors covers the documented error answers no upstream fixture records.
+// TestMfaEndpointErrors covers the documented error answers no fixture records.
 func TestMfaEndpointErrors(t *testing.T) {
 	t.Parallel()
 	srv := polaristest.New(t)

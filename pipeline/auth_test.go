@@ -82,7 +82,7 @@ func TestClientContext(t *testing.T) {
 	})
 }
 
-// UnauthorizedResponderTest::testAnswersThe401JsonEnvelopeWithAChallenge
+// The 401 JSON envelope carries a challenge.
 func TestUnauthorized(t *testing.T) {
 	w := httptest.NewRecorder()
 	unauthorized(w)

@@ -13,7 +13,7 @@ func MaskDestination(channel, destination string) string {
 	if destination == "" {
 		return ""
 	}
-	if channel == "email" { // model.OtpChallenge CHANNEL_EMAIL upstream
+	if channel == "email" { // the email OTP channel
 		at := strings.LastIndexByte(destination, '@')
 		if at <= 0 {
 			return "***"

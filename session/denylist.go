@@ -12,7 +12,7 @@ import (
 
 const denylistKeyPrefix = "polaris.denylist.user."
 
-// Denylist is the instant access-token revocation of docs/auth/security.md §3: logging out
+// Denylist is the instant access-token revocation: logging out
 // everywhere, disabling or erasing a user records a per-user watermark (Unix seconds) in the
 // cache, and the denylist middleware rejects any access token of that user issued at or before
 // it. One cache read per request, no per-token bookkeeping. Entries live one access-token TTL,

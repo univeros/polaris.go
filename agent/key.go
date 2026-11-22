@@ -102,8 +102,8 @@ func NewKey(private crypto.PrivateKey, kid string) (*Key, error) {
 	return &k, nil
 }
 
-// storedKey is the stored form, the same as the PHP SDK's AgentKey::toArray(): a key exported by
-// one SDK imports in the other.
+// storedKey is the stored form, shared by every Polaris SDK: a key exported by one imports in
+// another.
 type storedKey struct {
 	Alg    Algorithm `json:"alg"`
 	Kid    string    `json:"kid,omitempty"`
@@ -128,7 +128,8 @@ func (k *Key) Export() ([]byte, error) {
 	return json.Marshal(s) //nolint:gosec // G117: exporting the key is this method's purpose (the caller stores it as a secret)
 }
 
-// ImportKey loads a key from Export's output (or the PHP SDK's AgentKey::toArray() as JSON).
+// ImportKey loads a key from Export's output, or from the same JSON exported by another Polaris
+// SDK.
 func ImportKey(stored []byte) (*Key, error) {
 	var s storedKey
 	if err := json.Unmarshal(stored, &s); err != nil || s.Secret == "" {

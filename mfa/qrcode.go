@@ -15,7 +15,7 @@ type QRRenderer interface {
 }
 
 // SVGQRCode is the default QRRenderer: medium error correction, 4-module quiet zone, scalable
-// SVG markup. The image differs from upstream's byte for byte; the shape (an SVG document) does not.
+// SVG markup. Clients get an SVG document; its exact bytes are not part of the contract.
 type SVGQRCode struct{}
 
 // SVG implements QRRenderer.

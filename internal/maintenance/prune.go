@@ -14,7 +14,7 @@ import (
 // needs the rotated ancestors of a live session for a while.
 const DefaultRefreshGrace = 7 * 24 * time.Hour
 
-// PruneExpired deletes rows that can no longer be used (upstream PruneExpiredService): consumed or
+// PruneExpired deletes rows that can no longer be used: consumed or
 // expired (expires_at < now) OTP challenges, email verifications and password resets, and refresh
 // tokens that expired, or were revoked, more than refreshGrace before now (≤ 0 means
 // DefaultRefreshGrace). Audit rows are never pruned. It returns the rows deleted per table

@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of RoleEndpointsTest: GET/POST /orgs/{id}/roles, PATCH/DELETE /orgs/{id}/roles/{roleId}
+// Replays the RoleEndpointsTest fixtures: GET/POST /orgs/{id}/roles, PATCH/DELETE /orgs/{id}/roles/{roleId}
 // and the GET /permissions catalog. Custom roles carry only keys the actor holds, the cloned owner
 // role and global system roles are immutable, and deleting a role detaches it from every member.
 func TestRoleEndpoints(t *testing.T) {

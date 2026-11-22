@@ -78,8 +78,8 @@ type Route struct {
 
 	Input Input
 
-	// Class is domain.class, the PHP endpoint class. Go does not dispatch on it; it only feeds the
-	// exports (OpenAPI operationId, the JSON manifest).
+	// Class is domain.class, the endpoint identifier the exports publish (OpenAPI operationId, the
+	// JSON manifest); its values are kept as released. Go does not dispatch on it.
 	Class       string
 	Description string // domain.description
 

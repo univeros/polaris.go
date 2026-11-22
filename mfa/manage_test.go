@@ -1,6 +1,6 @@
 package mfa
 
-// Port of PHP tests/Mfa/MfaManagementServiceTest (and MfaEnforcement), run on memstore and SQLite.
+// Factor management and MFA enforcement, run on memstore and SQLite.
 
 import (
 	"errors"

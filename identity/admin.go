@@ -17,11 +17,11 @@ const (
 	erasurePepperContext = "user_erasure"
 	tombstoneEmailSuffix = "@deleted.invalid"
 	displayNameMax       = 120
-	// atom is PHP's DATE_ATOM: a UTC offset is written "+00:00", never "Z".
+	// atom is RFC 3339 to the second with a numeric offset: UTC is written "+00:00", never "Z".
 	atom = "2006-01-02T15:04:05-07:00"
 )
 
-// UserView is a user as the users endpoints answer it (docs/auth/api-reference.md §5): profile
+// UserView is a user as the users endpoints answer it: profile
 // and account state, never credentials.
 type UserView struct {
 	ID            string  `json:"id"`
@@ -74,7 +74,7 @@ func (s *Service) UpdateProfile(ctx context.Context, actorUserID, actorOrganizat
 	}
 	next := user
 	if displayName != nil {
-		name := strings.Trim(*displayName, phpTrimSet)
+		name := strings.Trim(*displayName, trimSet)
 		if utf8.RuneCountInString(name) > displayNameMax {
 			return UserView{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
 		}
@@ -149,7 +149,7 @@ func (s *Service) EraseUser(ctx context.Context, actorUserID, actorOrganizationI
 // email replaced by its keyed hash at @deleted.invalid, profile and credentials nulled and status
 // disabled. The rows carrying plaintext personal data (MFA factors, OTP challenges, email
 // verifications, password resets) are deleted, every session is revoked (reason admin) and
-// event.UserDeleted is dispatched (docs/auth/security.md §9, right to erasure).
+// event.UserDeleted is dispatched (the right to erasure).
 func (s *Service) AnonymizeUser(ctx context.Context, actorUserID, userID string) error {
 	user, err := s.user(ctx, userID)
 	if err != nil {

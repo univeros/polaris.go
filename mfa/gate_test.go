@@ -1,7 +1,6 @@
 package mfa
 
-// Ports of PHP tests/Identity/MfaLoginServiceTest, tests/Identity/StepUpServiceTest and
-// tests/Mfa/MfaFactorTypeTest (the plugin factor-type seam), plus the shared verifier.
+// The MFA login gate, step-up and the plugin factor-type seam, plus the shared verifier.
 
 import (
 	"context"
@@ -29,7 +28,7 @@ var (
 
 const gateAt = "2026-06-09 12:00:00"
 
-// stampType verifies "stamp:<factor id>" (tests/Support/Plugin/StampFactorType).
+// stampType verifies "stamp:<factor id>": a plugin factor type for the tests.
 type stampType struct {
 	name     string
 	mu       sync.Mutex

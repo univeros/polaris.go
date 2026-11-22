@@ -8,7 +8,7 @@ import (
 )
 
 // JWK is one signing key of a JWK Set (RFC 7517): RSA (n, e) or, for EdDSA, an RFC 8037 OKP key
-// (crv Ed25519, x). Field order is the wire order; an RSA key is byte-identical to upstream's.
+// (crv Ed25519, x). Field order is the wire order; an RSA key is byte-identical to earlier releases'.
 type JWK struct {
 	Kty string `json:"kty"`
 	Crv string `json:"crv,omitempty"`
@@ -33,11 +33,10 @@ type PublicKey struct {
 }
 
 // NewJWKSet renders public keys as a JWK Set, in order: during a rotation the active key and
-// the retiring one are published side by side (docs/auth/key-rotation.md). A kid given twice
-// keeps its first position and its last key, as upstream's kid-keyed array does.
+// the retiring one are published side by side. A kid given twice keeps its first position and
+// its last key.
 //
-// RS256 renders RSA keys as upstream; EdDSA renders RFC 8037 OKP keys (upstream cannot render
-// them and fails the request). An unparseable key, or another algorithm, fails with
+// RS256 renders RSA keys (any size); EdDSA renders RFC 8037 OKP keys. An unparseable key, or another algorithm, fails with
 // ErrInvalidConfig rather than serving a malformed set.
 func NewJWKSet(alg Algorithm, keys ...PublicKey) (JWKSet, error) {
 	set := JWKSet{Keys: make([]JWK, 0, len(keys))}

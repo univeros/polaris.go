@@ -85,9 +85,9 @@ func TestRoundTripNullableOrgIsCarriedExplicitly(t *testing.T) {
 	}
 }
 
-func TestIssueEncodesMicrosecondsAsLcobucciDoes(t *testing.T) {
+func TestIssueEncodesDatesWithMicrosecondPrecision(t *testing.T) {
 	clk := at(t, "2026-06-07 12:00:00")
-	clk.Set(clk.Now().Add(123456789 * time.Nanosecond)) // ns beyond µs are dropped, as PHP's clock has none
+	clk.Set(clk.Now().Add(123456789 * time.Nanosecond)) // ns beyond µs are dropped: dates have microsecond precision
 	c := newCodec(t, testConfig(t, clk, func(c *Config) { c.Audience = "" }))
 	jwt := mustIssue(t, c, Claims{}.With("sub", "u").With("iss", "ignored").With("", "dropped").With("ratio", 0.5))
 	want := `{"iss":"https://auth.polaris.test","iat":1780833600.123456,"nbf":1780833600.123456,"exp":1780834500.123456,"sub":"u","ratio":0.5}`
@@ -172,7 +172,7 @@ func TestRejectsAWrongAudience(t *testing.T) {
 func TestRejectsAnExpiredToken(t *testing.T) {
 	jwt := validJWT(t, 60*time.Second)
 	assertRejected(t, newCodec(t, testConfig(t, at(t, "2026-06-07 12:10:00"))), jwt)
-	// lcobucci: expired once now >= exp, so the exact expiry instant is already too late.
+	// Expired once now >= exp, so the exact expiry instant is already too late.
 	assertRejected(t, newCodec(t, testConfig(t, at(t, "2026-06-07 12:01:00"))), jwt)
 	if _, err := newCodec(t, testConfig(t, at(t, "2026-06-07 12:00:59"))).Parse(jwt); err != nil {
 		t.Fatalf("one second before expiry: %v", err)
@@ -293,8 +293,8 @@ func TestVerifyChecksAlgorithmIssuerAndDates(t *testing.T) {
 }
 
 func TestVerifyRefusesSmallOrderEd25519Signatures(t *testing.T) {
-	// Go's ed25519.Verify accepts the identity point as key and R with S = 0; libsodium
-	// (upstream) refuses small-order keys and R.
+	// Go's ed25519.Verify accepts the identity point as key and R with S = 0; libsodium's
+	// crypto_sign_verify_detached, which verifyEd25519 follows, refuses small-order keys and R.
 	identity := make([]byte, 32)
 	identity[0] = 1
 	sig := append(append([]byte{}, identity...), make([]byte, 32)...)
@@ -362,7 +362,7 @@ func TestRSAKeysBelow2048BitsAreRefused(t *testing.T) {
 	}
 	set, err := NewJWKSet(RS256, PublicKey{KeyID: "small", PEM: pub1024})
 	if err != nil || len(set.Keys) != 1 {
-		t.Fatalf("JWKS renders any RSA key, as upstream: %v", err)
+		t.Fatalf("JWKS renders any RSA key: %v", err)
 	}
 }
 

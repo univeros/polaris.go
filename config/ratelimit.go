@@ -33,7 +33,7 @@ func keyHint(group, leaf string) string {
 	return fmt.Sprintf(" (auth.rate_limits.%s.%s)", group, leaf)
 }
 
-// RateLimits are the per-group budgets of the auth endpoints (docs/auth/security.md §5). All are
+// RateLimits are the per-group budgets of the auth endpoints. All are
 // per client IP except Authenticated, the global per-user budget across authenticated endpoints.
 type RateLimits struct {
 	Login          RateLimit
@@ -47,7 +47,7 @@ type RateLimits struct {
 	Authenticated  RateLimit
 }
 
-// DefaultRateLimits returns the budgets of docs/auth/security.md §5.
+// DefaultRateLimits returns the default budget of each group.
 func DefaultRateLimits() RateLimits {
 	policy := func(limit, windowSeconds int, group string) RateLimit {
 		return RateLimit{Limit: limit, Window: time.Duration(windowSeconds) * time.Second, KeyPrefix: "auth." + group}

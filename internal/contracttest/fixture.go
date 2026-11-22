@@ -19,14 +19,14 @@ import (
 
 // RecordEnv is the environment variable that turns recording on: when it is set (to any value)
 // and a test's fixture file does not exist, For records the test's steps and writes the file
-// when the test ends, as PHP's Fixture does.
+// when the test ends.
 const RecordEnv = "POLARIS_RECORD_FIXTURES"
 
-// Fixture is the recorded request/response steps of one upstream functional test. Each response
+// Fixture is the recorded request/response steps of one functional test. Each response
 // the Go test produces is compared, normalized, with the step at the cursor. A Fixture is not safe
 // for concurrent use: the recorded steps are a sequence.
 type Fixture struct {
-	test      string // the PHP test name, `Class::method`
+	test      string // the recorded test name, `Class::method`
 	file      string
 	steps     []step
 	cursor    int
@@ -34,7 +34,7 @@ type Fixture struct {
 	recorded  []recordedStep
 }
 
-// step is one recorded step, decoded the way PHP's json_decode reads it.
+// step is one recorded step, decoded by decodeJSON.
 type step struct {
 	method   string
 	uri      string
@@ -44,19 +44,19 @@ type step struct {
 	bareBody bool // a 404 recorded with an empty body: only the status is contractual
 }
 
-// FileName maps a PHP test name (`Polaris\Tests\Functional\LoginEndpointTest::testFoo`) to its
+// FileName maps a recorded test name (`Polaris\Tests\Functional\LoginEndpointTest::testFoo`) to its
 // fixture file name (`Polaris.Tests.Functional.LoginEndpointTest.testFoo.json`). A name already in
 // dotted form is returned with the extension.
 func FileName(test string) string {
 	return strings.NewReplacer(`\`, ".", "::", ".").Replace(test) + ".json"
 }
 
-// For returns the fixture of the PHP test phpClass::phpMethod in dir, and checks at the end of t
+// For returns the fixture of the recorded test class::method in dir, and checks at the end of t
 // that every recorded step was replayed. It fails t when the file is missing, unless RecordEnv is
 // set, in which case the steps t issues are recorded into that file when t ends (only if t passed).
-func For(t testing.TB, dir, phpClass, phpMethod string) *Fixture {
+func For(t testing.TB, dir, class, method string) *Fixture {
 	t.Helper()
-	f, err := load(dir, phpClass+"::"+phpMethod, os.Getenv(RecordEnv) != "")
+	f, err := load(dir, class+"::"+method, os.Getenv(RecordEnv) != "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func (f *Fixture) check(req *http.Request, status int, header http.Header, body 
 	return nil
 }
 
-// uriPath is PHP's parse_url($uri, PHP_URL_PATH) for the URIs the fixtures hold.
+// uriPath is the escaped path of a recorded URI (the URI itself when it does not parse).
 func uriPath(uri string) string {
 	if u, err := url.Parse(uri); err == nil {
 		return u.EscapedPath()
@@ -288,7 +288,7 @@ func firstDiff(a, b any, path string) string {
 }
 
 // Uncovered lists the fixtures in dir that no Go test claims: the names (dotted, without the
-// extension) of the *.json files whose test is not in covered. covered holds PHP test names in
+// extension) of the *.json files whose test is not in covered. covered holds recorded test names in
 // either form (`Polaris\Tests\Functional\LoginEndpointTest::testFoo` or the dotted one). A
 // package's coverage test asserts it returns nothing.
 func Uncovered(dir string, covered []string) ([]string, error) {
@@ -315,8 +315,8 @@ type RecordedRequest struct {
 	Path   string
 }
 
-// Requests lists the requests of every fixture in dir, for the port of ContractCoverageTest's
-// route check: the package owning the router asserts every manifest route is matched by one.
+// Requests lists the requests of every fixture in dir, for the route coverage
+// check: the package owning the router asserts every manifest route is matched by one.
 func Requests(dir string) ([]RecordedRequest, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
@@ -339,9 +339,9 @@ func Requests(dir string) ([]RecordedRequest, error) {
 	return out, nil
 }
 
-// UpstreamFixtures returns the directory of a package's mirrored fixtures,
-// `<module root>/internal/upstream/fixtures/<pkg>` (pkg as upstream names it: "core", "api-keys", …),
-// found from the test's working directory.
+// Fixtures returns the directory of a package's recorded fixtures,
+// `<module root>/internal/apispec/fixtures/<pkg>` (pkg as the fixture directories name it: "core",
+// "api-keys", …), found from the test's working directory.
 func Fixtures(t testing.TB, pkg string) string {
 	t.Helper()
 	dir, err := os.Getwd()

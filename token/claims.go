@@ -12,14 +12,14 @@ import (
 	"unicode/utf8"
 )
 
-// Claims is an ordered set of JWT claims. Names keep the position they were first set at, as
-// PHP arrays do, so a payload Go mints is byte-identical to upstream's for the same claims.
+// Claims is an ordered set of JWT claims. Names keep the position they were first set at, so
+// a payload is byte-identical to one minted by an earlier release for the same claims.
 // The zero value is empty and ready to use; With returns a new set and never changes the
 // receiver.
 //
 // Values may be nil, string, bool, any integer type, float64, []string, []any,
 // map[string]any (encoded with sorted keys), Claims (encoded in order) or json.RawMessage.
-// Call MarshalJSON directly for upstream's exact bytes: json.Marshal re-escapes <, > and &.
+// Call MarshalJSON directly for the exact wire bytes: json.Marshal re-escapes <, > and &.
 type Claims struct {
 	names  []string
 	values map[string]any
@@ -50,11 +50,11 @@ func (c Claims) Names() []string { return slices.Clone(c.names) }
 // Len returns the number of claims.
 func (c Claims) Len() int { return len(c.names) }
 
-// MarshalJSON encodes c as a JSON object in claim order, the way PHP's json_encode does with
-// JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE (an empty set encodes as []).
+// MarshalJSON encodes c as a JSON object in claim order, with "/" and non-ASCII characters
+// left unescaped (see encodeString); an empty set encodes as [].
 func (c Claims) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
-	if err := encodePHPObject(&buf, c.names, c.values); err != nil {
+	if err := encodeOrderedObject(&buf, c.names, c.values); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -62,9 +62,11 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 
 var errUnencodable = errors.New("token: claim value cannot be encoded")
 
-func encodePHPObject(buf *bytes.Buffer, names []string, values map[string]any) error {
+// encodeOrderedObject writes names (in order) and their values as a JSON object, or [] when
+// there are none.
+func encodeOrderedObject(buf *bytes.Buffer, names []string, values map[string]any) error {
 	if len(names) == 0 {
-		buf.WriteString("[]") // PHP: an empty array is a list
+		buf.WriteString("[]") // the wire form of an empty claim set, kept for issued tokens
 		return nil
 	}
 	buf.WriteByte('{')
@@ -72,11 +74,11 @@ func encodePHPObject(buf *bytes.Buffer, names []string, values map[string]any) e
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		if err := encodePHPString(buf, name); err != nil {
+		if err := encodeString(buf, name); err != nil {
 			return err
 		}
 		buf.WriteByte(':')
-		if err := encodePHP(buf, values[name]); err != nil {
+		if err := encodeValue(buf, values[name]); err != nil {
 			return fmt.Errorf("claim %q: %w", name, err)
 		}
 	}
@@ -84,12 +86,13 @@ func encodePHPObject(buf *bytes.Buffer, names []string, values map[string]any) e
 	return nil
 }
 
-func encodePHP(buf *bytes.Buffer, v any) error {
+// encodeValue writes one claim value; the Claims doc lists the types it takes.
+func encodeValue(buf *bytes.Buffer, v any) error {
 	switch v := v.(type) {
 	case nil:
 		buf.WriteString("null")
 	case string:
-		return encodePHPString(buf, v)
+		return encodeString(buf, v)
 	case bool:
 		buf.WriteString(strconv.FormatBool(v))
 	case int:
@@ -103,7 +106,7 @@ func encodePHP(buf *bytes.Buffer, v any) error {
 		}
 		buf.WriteString(strconv.FormatUint(n, 10))
 	case float64:
-		s, err := phpFloat(v)
+		s, err := formatFloat(v)
 		if err != nil {
 			return err
 		}
@@ -114,7 +117,7 @@ func encodePHP(buf *bytes.Buffer, v any) error {
 			if i > 0 {
 				buf.WriteByte(',')
 			}
-			if err := encodePHPString(buf, s); err != nil {
+			if err := encodeString(buf, s); err != nil {
 				return err
 			}
 		}
@@ -125,7 +128,7 @@ func encodePHP(buf *bytes.Buffer, v any) error {
 			if i > 0 {
 				buf.WriteByte(',')
 			}
-			if err := encodePHP(buf, e); err != nil {
+			if err := encodeValue(buf, e); err != nil {
 				return err
 			}
 		}
@@ -136,9 +139,9 @@ func encodePHP(buf *bytes.Buffer, v any) error {
 			names = append(names, k)
 		}
 		slices.Sort(names)
-		return encodePHPObject(buf, names, v)
+		return encodeOrderedObject(buf, names, v)
 	case Claims:
-		return encodePHPObject(buf, v.names, v.values)
+		return encodeOrderedObject(buf, v.names, v.values)
 	case json.RawMessage:
 		if !json.Valid(v) {
 			return fmt.Errorf("%w: invalid raw JSON", errUnencodable)
@@ -157,9 +160,10 @@ func toUint64(v any) uint64 {
 	return v.(uint64)
 }
 
-// encodePHPString escapes like json_encode with JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE:
-// only ", \, control characters and U+2028/U+2029 are escaped; invalid UTF-8 is an error.
-func encodePHPString(buf *bytes.Buffer, s string) error {
+// encodeString writes s as a JSON string with minimal escaping: only ", \, control characters
+// and U+2028/U+2029 are escaped ("/" and other non-ASCII stay as they are); invalid UTF-8 is
+// an error.
+func encodeString(buf *bytes.Buffer, s string) error {
 	if !utf8.ValidString(s) {
 		return fmt.Errorf("%w: malformed UTF-8", errUnencodable)
 	}
@@ -175,10 +179,10 @@ func encodePHPString(buf *bytes.Buffer, s string) error {
 	return nil
 }
 
-// phpFloat renders f as json_encode does with serialize_precision=-1: the shortest
-// round-tripping digits, in exponent form (at least one fractional digit) when the decimal
-// exponent is below -4 or at least 17.
-func phpFloat(f float64) (string, error) {
+// formatFloat renders f with the shortest round-tripping digits, in exponent form (at least
+// one fractional digit, an explicit exponent sign: 1.0e+17, 1.0e-5) when the decimal exponent
+// is below -4 or at least 17.
+func formatFloat(f float64) (string, error) {
 	if math.IsInf(f, 0) || math.IsNaN(f) {
 		return "", fmt.Errorf("%w: Inf and NaN cannot be JSON encoded", errUnencodable)
 	}

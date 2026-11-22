@@ -11,7 +11,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// authEndpoints serves the account and session routes of upstream/api/core/auth (registration,
+// authEndpoints serves the account and session routes of api/core/auth (registration,
 // verification, login, sessions, passwords, JWKS). The MFA routes, switch-org and invites-accept
 // live with their areas.
 func authEndpoints(g *wiring.Graph) map[string]endpoint.Endpoint {
@@ -37,7 +37,7 @@ func authEndpoints(g *wiring.Graph) map[string]endpoint.Endpoint {
 // authAPI holds the graph the auth endpoints read their services from.
 type authAPI struct{ g *wiring.Graph }
 
-// authDateAtom is PHP's DATE_ATOM: a UTC offset is written "+00:00", never "Z".
+// authDateAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
 const authDateAtom = "2006-01-02T15:04:05-07:00"
 
 // fail answers 500 for an error of a consumed service, logging it (decision 14).
@@ -46,8 +46,8 @@ func (a *authAPI) fail(ctx context.Context, op string, err error) endpoint.Resul
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
 }
 
-// authString reads key as upstream's (string) cast of a scalar does: strings as they are,
-// numbers in their JSON form, true as "1"; anything else is "".
+// authString reads key as a string: strings as they are, numbers in their JSON form, true as "1";
+// anything else (false, null, collections) is "". Clients rely on this lenient reading.
 func authString(in *endpoint.Input, key string) string {
 	switch v := in.Value(key).(type) {
 	case string:
@@ -62,7 +62,8 @@ func authString(in *endpoint.Input, key string) string {
 	return ""
 }
 
-// authTrim is PHP's trim(): only " \t\n\r\0\x0B" are stripped.
+// authTrim strips only " \t\n\r\0\x0B" from both ends (not Unicode spaces, as strings.TrimSpace
+// does).
 func authTrim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
 
 // authSubject is the caller's user id and the token's session id; ok is false without a

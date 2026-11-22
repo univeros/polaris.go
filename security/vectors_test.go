@@ -8,7 +8,7 @@ import (
 )
 
 // Known-answer vectors: testdata/vectors/{argon2id,pepper,encrypter}.json hold hashes, digests and
-// payloads recorded once (from the PHP implementation the formats started from) that every
+// payloads recorded once (the generator field names the implementation that made them) that every
 // version of Polaris must keep verifying, so stored passwords, secrets and ciphertexts stay
 // readable across releases.
 

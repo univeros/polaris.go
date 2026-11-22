@@ -6,8 +6,8 @@ import (
 	"unicode/utf8"
 )
 
-// field is one key of an audit row's metadata. A metadata blob is a []field in the order of the
-// upstream PHP array literal, which json_encode preserves.
+// field is one key of an audit row's metadata. A metadata blob is a []field; the keys are written
+// in slice order.
 type field struct {
 	key   string
 	value any // string, *string, int, *int, []string or nil
@@ -15,11 +15,11 @@ type field struct {
 
 const hexDigits = "0123456789abcdef"
 
-// phpJSON encodes fields exactly as PHP's json_encode with default flags: keys in order, "/"
-// escaped as "\/", every non-ASCII character as a lowercase \uXXXX escape (surrogate pairs above
-// the BMP), "[]" for no fields. Like PHP with JSON_THROW_ON_ERROR caught upstream, a string that is
-// not valid UTF-8 makes the whole blob "{}".
-func phpJSON(fields []field) json.RawMessage {
+// metadataJSON encodes fields as the stored audit metadata format: keys in order, "/" escaped as
+// "\/", every non-ASCII character as a lowercase \uXXXX escape (surrogate pairs above the BMP),
+// "[]" for no fields. A string that is not valid UTF-8 makes the whole blob "{}". Rows written by
+// earlier releases are in this exact form, so it stays byte for byte.
+func metadataJSON(fields []field) json.RawMessage {
 	if len(fields) == 0 {
 		return json.RawMessage("[]")
 	}

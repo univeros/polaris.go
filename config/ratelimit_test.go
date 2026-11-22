@@ -18,7 +18,7 @@ func TestRateLimitDefaultsMatchTheSecuritySpec(t *testing.T) {
 		"mfa_confirm":     {10, 300},
 		"mfa_send":        {5, 600},
 		"token_consume":   {10, 300},
-		"authenticated":   {600, 60}, // the global per-user budget (docs/auth/security.md §5)
+		"authenticated":   {600, 60}, // the global per-user budget
 	}
 	got := r.groups()
 	if len(got) != len(want) {

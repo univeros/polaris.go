@@ -65,7 +65,7 @@ func (*Pepper) String() string { return redacted.String() }
 // GoString keeps the application key out of %#v output.
 func (*Pepper) GoString() string { return redacted.String() }
 
-// isHex is PHP's ctype_xdigit: every byte is 0-9, a-f or A-F.
+// isHex reports whether every byte is 0-9, a-f or A-F.
 func isHex(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]

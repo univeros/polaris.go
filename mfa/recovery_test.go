@@ -1,7 +1,6 @@
 package mfa
 
-// Ports of PHP tests/Mfa/RecoveryCodeServiceTest and
-// tests/Persistence/RecoveryCodeServicePersistenceTest, run on memstore and SQLite.
+// Recovery codes and their persistence, run on memstore and SQLite.
 
 import (
 	"regexp"

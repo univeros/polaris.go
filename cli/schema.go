@@ -127,7 +127,7 @@ func manifestCommand(a *app, fs *flag.FlagSet) runFunc {
 		if *format == "openapi" {
 			doc = m.OpenAPI(version.Module())
 		}
-		text, err := phpJSON(doc)
+		text, err := prettyJSON(doc)
 		if err != nil {
 			return report{}, fail(err.Error(), "a route spec holds a value JSON cannot encode: fix it")
 		}
@@ -135,9 +135,9 @@ func manifestCommand(a *app, fs *flag.FlagSet) runFunc {
 	}
 }
 
-// phpJSON encodes v as PHP's json_encode(JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) does, so the
-// output is byte-identical to upstream's CLI.
-func phpJSON(v any) (string, error) {
+// prettyJSON encodes v indented by four spaces with neither slashes nor <, > and & escaped: the
+// exact bytes of the testdata goldens, which scripts and diffs of the CLI's output rely on.
+func prettyJSON(v any) (string, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)

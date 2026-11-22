@@ -48,7 +48,7 @@ type Config struct {
 	Mailer   notify.Mailer                  // default: notify.NewLogMailer(Logger)
 	SMS      notify.SMSSender               // default: notify.NewLogSMS(Logger)
 	Breaches security.BreachedPasswordCheck // default: security.HIBP when Auth.Password.BreachCheck, else none
-	// Hasher hashes passwords; default: security.Argon2id{} (PHP's password_hash defaults). Tests may
+	// Hasher hashes passwords; default: security.Argon2id{} (64 MiB, 4 passes, 1 lane). Tests may
 	// pass cheaper Argon2id parameters; hashes stay verifiable by any parameters.
 	Hasher security.PasswordHasher
 	Cache  cache.Cache // default: in-memory (not shared across replicas)

@@ -1,4 +1,4 @@
-// Package httpapi holds core's endpoints: one endpoint.Endpoint per route in upstream/api/core,
+// Package httpapi holds core's endpoints: one endpoint.Endpoint per route in internal/apispec/api/core,
 // registered by route name. Each area lives in its own files (auth, mfa, orgs).
 package httpapi
 
