@@ -36,9 +36,6 @@ func authEndpoints(g *wiring.Graph) map[string]endpoint.Endpoint {
 // authAPI holds the graph the auth endpoints read their services from.
 type authAPI struct{ g *wiring.Graph }
 
-// authDateAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
-const authDateAtom = "2006-01-02T15:04:05-07:00"
-
 // fail answers 500 for an error of a consumed service, logging it (decision 14).
 func (a *authAPI) fail(ctx context.Context, op string, err error) endpoint.Result {
 	a.g.Logger().ErrorContext(ctx, "polaris auth: "+op+" failed", "error", err)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/authz"
@@ -18,8 +19,6 @@ const (
 	erasurePepperContext = "user_erasure"
 	tombstoneEmailSuffix = "@deleted.invalid"
 	displayNameMax       = 120
-	// atom is RFC 3339 to the second with a numeric offset: UTC is written "+00:00", never "Z".
-	atom = "2006-01-02T15:04:05-07:00"
 )
 
 // UserView is a user as the users endpoints answer it: profile
@@ -31,18 +30,18 @@ type UserView struct {
 	Status        string  `json:"status"`
 	EmailVerified bool    `json:"email_verified"`
 	MFAEnforced   bool    `json:"mfa_enforced"`
-	CreatedAt     string  `json:"created_at"`    // DATE_ATOM
-	LastLoginAt   *string `json:"last_login_at"` // DATE_ATOM
+	CreatedAt     string  `json:"created_at"`    // RFC 3339, UTC ("Z")
+	LastLoginAt   *string `json:"last_login_at"` // RFC 3339, UTC ("Z")
 }
 
 func viewOf(u model.User) UserView {
 	v := UserView{
 		ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status,
 		EmailVerified: u.EmailVerifiedAt != nil, MFAEnforced: u.MFAEnforced,
-		CreatedAt: u.CreatedAt.UTC().Format(atom),
+		CreatedAt: u.CreatedAt.UTC().Format(time.RFC3339),
 	}
 	if u.LastLoginAt != nil {
-		last := u.LastLoginAt.UTC().Format(atom)
+		last := u.LastLoginAt.UTC().Format(time.RFC3339)
 		v.LastLoginAt = &last
 	}
 	return v

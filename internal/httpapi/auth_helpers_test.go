@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"testing"
 
 	"github.com/univeros/polaris.go/event"
@@ -18,6 +19,9 @@ const (
 	// coreSuite is the namespace of the recorded core test names the fixture files are keyed by.
 	coreSuite = `Polaris\Tests\Functional\`
 )
+
+// utcSecond is how core writes a timestamp to a client: RFC 3339, UTC, whole seconds, "Z".
+var utcSecond = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)
 
 // authCase boots a server and a client replaying the fixture of the recorded test class::method.
 type authCase struct {

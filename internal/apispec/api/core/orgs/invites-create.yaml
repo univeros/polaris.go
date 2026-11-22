@@ -37,7 +37,7 @@ output:
       id: "018f6f2a-7777-7888-8999-0123456789ef"
       email: newhire@example.test
       role_slugs: [member]
-      expires_at: "2026-06-18T12:00:00+00:00"
+      expires_at: "2026-06-18T12:00:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

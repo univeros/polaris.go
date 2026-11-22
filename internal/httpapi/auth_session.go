@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/internal/strutil"
@@ -153,8 +154,8 @@ func (a *authAPI) sessions(ctx context.Context, _ *endpoint.Input) endpoint.Resu
 			"current":      s.Current,
 			"ip":           s.IP,
 			"user_agent":   s.UserAgent,
-			"created_at":   s.CreatedAt.UTC().Format(authDateAtom),
-			"last_used_at": s.LastUsedAt.UTC().Format(authDateAtom),
+			"created_at":   s.CreatedAt.UTC().Format(time.RFC3339),
+			"last_used_at": s.LastUsedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	return endpoint.Data(http.StatusOK, map[string]any{"sessions": out})
