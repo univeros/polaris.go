@@ -24,6 +24,20 @@ type PasswordHasher interface {
 	NeedsRehash(hash string) bool
 }
 
+// HashChecker is implemented by a PasswordHasher that can tell, without a password, whether its
+// Verify can verify a hash string. Users().Import requires it of the configured hasher, so a
+// migration cannot store a hash no sign-in would ever match. Argon2id implements it.
+//
+// A host with a legacy scheme of its own (salted MD5, a custom HMAC) keeps those users by
+// wrapping Argon2id as Config.Hasher: its Verify and CheckHash handle the legacy prefix and
+// delegate the rest, and Argon2id's NeedsRehash already answers true for the legacy strings, so
+// each one becomes Argon2id on its first sign-in.
+type HashChecker interface {
+	// CheckHash returns nil when Verify can verify hash, or an error matching
+	// ErrUnsupportedHash that says why not.
+	CheckHash(hash string) error
+}
+
 // Encrypter is authenticated encryption of secrets at rest (TOTP seeds).
 type Encrypter interface {
 	// Encrypt seals plaintext into an opaque, printable payload.

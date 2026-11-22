@@ -87,6 +87,7 @@ in [`examples/minimal`](examples/minimal/main.go).
 | **Sessions** | Short-lived JWTs (RS256 or EdDSA, JWKS published), rotating refresh tokens with reuse detection, cookie or body delivery, sign out everywhere |
 | **Organizations** | Multi-tenant organizations, members, invitations, roles and permissions resolved per request, your own permissions in the catalog |
 | **Your data** | Hooks in the account's transaction, your own JWT claims, a Go API (`p.Users()`, `p.Orgs()`, `p.Sessions()`, `p.Can()`) with the same rules as the routes |
+| **Migration** | `p.Users().Import` brings existing accounts with their password hashes (bcrypt, PBKDF2, scrypt; from your own table, Auth0, Firebase, Django, Devise, Laravel): no forced reset, upgraded to Argon2id on first sign-in ([Migrating your users](llms.txt)) |
 | **Operations** | OpenTelemetry traces and metrics, a CLI (`init`, `migrate`, `doctor`, `schema:*`, `keys:generate`), PostgreSQL, MySQL, SQLite |
 
 ## Plugins

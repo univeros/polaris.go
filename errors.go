@@ -7,6 +7,7 @@ import (
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/orgs"
 	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/store"
 )
@@ -23,7 +24,8 @@ var (
 	// required, or an authorization rule refuses.
 	ErrForbidden = errors.New("polaris: forbidden")
 	// ErrInvalidInput: a malformed email or name, an unknown role, a password failing the policy
-	// (errors.As a *PasswordError for the rules it broke).
+	// (errors.As a *PasswordError for the rules it broke), an imported password hash the hasher
+	// cannot verify (also security.ErrUnsupportedHash).
 	ErrInvalidInput = errors.New("polaris: invalid input")
 	// ErrInvalidCredentials: an unknown, expired or revoked refresh token.
 	ErrInvalidCredentials = errors.New("polaris: invalid credentials")
@@ -41,7 +43,7 @@ var kinds = []struct{ from, to error }{
 	{authz.ErrForbidden, ErrForbidden}, {identity.ErrAccountDisabled, ErrForbidden},
 	{identity.ErrEmailNotVerified, ErrForbidden},
 	{identity.ErrInvalidPassword, ErrInvalidInput}, {identity.ErrInvalidProfile, ErrInvalidInput},
-	{orgs.ErrInvalid, ErrInvalidInput},
+	{orgs.ErrInvalid, ErrInvalidInput}, {security.ErrUnsupportedHash, ErrInvalidInput},
 	{session.ErrInvalidGrant, ErrInvalidCredentials}, {identity.ErrInvalidCredentials, ErrInvalidCredentials},
 }
 
