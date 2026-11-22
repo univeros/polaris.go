@@ -39,7 +39,7 @@ CREATE TABLE `polaris_oauth_consent` (
     PRIMARY KEY (`id`)
 );
 
-CREATE UNIQUE INDEX `polaris_oauth_consent_unique` ON `polaris_oauth_consent` (`user_id`, `client_id`);
+CREATE UNIQUE INDEX `polaris_oauth_consent_org_unique` ON `polaris_oauth_consent` (`user_id`, `client_id`, `organization_id`);
 
 CREATE TABLE `polaris_oauth_code` (
     `id` VARCHAR(36) NOT NULL,

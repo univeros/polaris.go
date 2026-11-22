@@ -701,3 +701,22 @@ func TestOnlyAnOperatorChangesATrustedClientsScopes(t *testing.T) {
 		t.Errorf("an operator: %v", err)
 	}
 }
+
+// A client the host lists in Config.TrustedClients skips consent as a client registered trusted
+// does (decision 75): its organization changes neither where its codes go nor how it authenticates.
+func TestOnlyAnOperatorRepointsAClientTheHostTrusts(t *testing.T) {
+	ctx := context.Background()
+	p, _ := boot(t, Config{})
+	issued, err := p.CreateClient(ctx, ClientFields{"name": "App", "redirect_uris": []any{"https://app.example/cb"}}, "org-1", "", false)
+	must(t, err)
+	repoint := ClientFields{"type": TypePublic, "token_endpoint_auth_method": AuthNone, "redirect_uris": []any{"https://evil.example/cb"}}
+	p.clients.settings.trustedClients = []string{issued.Client.ClientID}
+	_, _, err = p.UpdateClient(ctx, issued.Client, repoint, false)
+	wantCode(t, err, CodeInvalidClientMetadata, "an organization repointing a client the host trusts")
+	if _, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"name": "App 2", "disabled": true}, false); err != nil {
+		t.Errorf("its name, and stopping it: %v", err)
+	}
+	if _, _, err = p.UpdateClient(ctx, issued.Client, repoint, true); err != nil {
+		t.Errorf("an operator: %v", err)
+	}
+}

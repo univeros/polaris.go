@@ -68,6 +68,47 @@ marked **Breaking**.
   verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
   `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
 
+### Security
+
+Found by a security review with running tests; each is fixed with the regression test that failed
+before (decision 75). Run `Migrate` (one index of `polaris_oauth_consent` is replaced).
+
+- **oauth: an organization cannot repoint a trusted client.** On a client an operator registered
+  `trusted`, or listed in `oauth.Config.TrustedClients`, the organization's route changes only
+  `name`, `logo_uri`, `policy_uri`, `tos_uri` and `disabled`. **Client-visible:** `PATCH
+  /orgs/{id}/oauth/clients/{clientId}` answers 400 `invalid_client_metadata` for a different
+  `type`, `redirect_uris`, `grant_types`, `token_endpoint_auth_method`, `jwks`, `jwks_uri`,
+  `client_uri` or `dpop_bound_access_tokens` on such a client (`scopes` already did, decision 69).
+  `oauth.Plugin.UpdateClient` without `mayTrust` does the same.
+- **oauth: a token exchange stays within the subject's client and audience.** **Client-visible**
+  at `POST /oauth2/token` with the token-exchange grant: an access token issued to another client
+  is refused as `subject_token` or `actor_token` (400 `invalid_grant`) unless the exchanging client
+  is trusted; without `resource` the new token keeps the subject token's audience (it was the
+  issuer); a `resource` other than the subject's audience answers 400 `invalid_target` unless the
+  subject was for this server or the client is trusted. A session is a subject only while it is
+  the user's own live session: a logged-out session, an operator's impersonation token and a
+  session an organization's identity provider opened answer 400 `invalid_grant`.
+  `oauth.Plugin.Exchange` does the same.
+- **oauth: a DPoP proof is for this server's URL.** The `htu` of a proof is compared with the
+  origin of `oauth.Config.BaseURL` and the path requested, not with the request's `Host` header.
+  **Client-visible:** a deployment reached under a host name other than its `BaseURL` (default
+  `Auth.Issuer`) must set `BaseURL` to the URL clients call, as the discovery documents already
+  assume; proofs naming any other origin answer `invalid_dpop_proof` (401 on a resource route).
+- **oauth: introspection answers the token's own client.** **Client-visible:** `POST
+  /oauth2/introspect` answers `{"active": false}` for a token issued to another client, unless the
+  token's `aud` is the caller's client id or the caller is trusted. A resource server that
+  introspects other clients' tokens is registered `trusted`.
+- **oauth: a consent counts in the organization it was given in.** **Client-visible:** the same
+  client asking the same user in another organization (or outside any) gets 409
+  `consent_required` again; `GET /oauth2/consents` lists one consent per client and organization.
+  Existing consents keep counting for the organization they name.
+- **oauth, agents: a token ends with the grant behind its permission scopes.** A token of an
+  agent, its own or one a user delegated to it, carries a permission scope only while a live grant
+  covers it and expires no later than that grant. **Client-visible:** such a token response's
+  `expires_in` (and the token's `exp`) can be shorter than the access-token lifetime, and after a
+  windowed grant expired the scope is no longer issued. New for plugins:
+  `oauth.ClientGrantWindows`, implemented by `agents.Plugin.ClientPermissionsUntil`.
+
 
 ## [0.6.0] - 2026-11-22
 
