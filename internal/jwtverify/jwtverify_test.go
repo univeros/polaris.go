@@ -119,6 +119,7 @@ func TestJWKSFetchFailures(t *testing.T) {
 		if _, err := jj.keys(context.Background(), false); !errors.Is(err, ErrUnavailable) {
 			t.Errorf("%s: %v, want ErrUnavailable", name, err)
 		}
+		j.Clock.(*clock.Frozen).Advance(FailureBackoff) // each failure is fetched, not remembered
 	}
 	if len(logged) != 6 {
 		t.Fatalf("every failure is logged: %v", logged)
@@ -167,5 +168,35 @@ func TestHelpers(t *testing.T) {
 	}
 	if Invalid("x").Error() != "x" {
 		t.Error("Invalid.Error")
+	}
+}
+
+// A failed fetch is remembered for FailureBackoff (decision 69): while the issuer is down,
+// requests fail at once instead of queueing behind the HTTP client's timeout, one fetch at a time.
+func TestAFailedJWKSFetchIsRememberedBriefly(t *testing.T) {
+	fetches, healthy := 0, false
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fetches++
+		if !healthy {
+			http.Error(w, "down", http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write([]byte(`{"keys":[{"kid":"k"}]}`))
+	}))
+	defer srv.Close()
+	frozen := clock.NewFrozen(now)
+	j := &JWKS{URL: srv.URL, Client: srv.Client(), TTL: time.Hour, Clock: frozen, Log: func(string, ...any) {}}
+	for range 3 {
+		if _, err := j.keys(context.Background(), false); !errors.Is(err, ErrUnavailable) {
+			t.Fatalf("%v, want ErrUnavailable", err)
+		}
+	}
+	if fetches != 1 {
+		t.Fatalf("%d fetches while the failure is remembered, want 1", fetches)
+	}
+	healthy = true
+	frozen.Advance(FailureBackoff)
+	if set, err := j.keys(context.Background(), false); err != nil || len(set) != 1 || fetches != 2 {
+		t.Fatalf("after the backoff the set is fetched again: %v %v (%d fetches)", set, err, fetches)
 	}
 }

@@ -64,7 +64,7 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 			return
 		}
 		ctx := r.Context()
-		pr, err := p.s.authenticate(r, body)
+		pr, err := p.s.authenticate(r, body, requestURL(r))
 		if err != nil {
 			p.answer(w, r, err)
 			return

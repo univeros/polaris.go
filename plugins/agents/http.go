@@ -147,7 +147,7 @@ func (p *Plugin) managedAgents(ctx context.Context, tok *token.Token) ([]Agent, 
 
 // agentOf authenticates the agent calling an agent-facing route.
 func (p *Plugin) agentOf(ctx context.Context, in *endpoint.Input) (principal, error) {
-	return p.s.authenticate(in.Request, rawBody(ctx))
+	return p.s.authenticate(in.Request, rawBody(ctx), ownURL(p.s.settings.baseURL, in.Request))
 }
 
 func views[T any](list []T, view func(T) map[string]any) []any {

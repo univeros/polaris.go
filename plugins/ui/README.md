@@ -111,6 +111,13 @@ A sign-in opens core's session (the same refresh-token family, rotation and reus
 `RequireSignIn` turns the 401 of a GET or HEAD into a redirect to `/refresh`, which renews the
 session or asks for a sign-in, then returns to the same URL.
 
+`/refresh` rotates the refresh token on a GET, so it renews only when the browser says the
+navigation is its user's or this origin's (`Sec-Fetch-Site: same-origin` or `none`, or no such
+header). A navigation another site started (a link or redirect from elsewhere, `cross-site` or
+`same-site`) gets a page with one "Continue" link (messages `refresh_title`, `refresh_intro`);
+following it renews the session. Without this, another site could send the browser here twice with
+the same cookie, which reads as a reused refresh token and ends the session.
+
 ## Security notes
 
 - CSRF: every POST carries a signed double-submit token (the HMAC of the `__Host-` cookie's nonce,

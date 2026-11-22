@@ -9,6 +9,54 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Security
+
+- `plugins/oauth`: a scope that is a permission name (`org.read`, one of your
+  `Config.Permissions`) is put in an access token only if the token's subject holds that
+  permission when the token is minted: at issue, on every refresh and on a token exchange. A user
+  holds what their roles grant in the token's organization. A client acting as itself
+  (`client_credentials`) holds none, unless an operator registered it `trusted` with the
+  permission in its `scopes`, or it is an agent of `plugins/agents` (its live grants that its
+  owner holds). Before, any permission scope a client asked for was granted; the host's own routes
+  were not affected (they intersect with the user's permissions on every request), but a service
+  checking tokens with `verify.Require` or `mcp.Protect` read a permission the subject did not
+  hold. **Client-visible:** a token response's `scope` may list fewer scopes than requested
+  (RFC 6749 §3.3); clients should read it. `PATCH /orgs/{id}/oauth/clients/{clientId}` answers 400
+  `invalid_client_metadata` when it changes the `scopes` of a trusted client (an operator sets
+  them). If you run `verify` or `mcp.Protect` in other services, upgrade the Polaris host; their
+  documentation now says what a scope proves: only a permission scope is an authorization check,
+  a `Config.Scopes` scope says what the client asked for (decision 69).
+- `plugins/admin`: an operator below `owner` can no longer ban, unban, set the password of, remove
+  or reset the MFA of, or delete the account of a superadmin or of an operator whose grant is of
+  its own role or above. **Client-visible:** those requests answer 403 `admin/forbidden`; an
+  `owner` manages every account as before (decision 69).
+- MFA: second-factor attempts are limited per user, not only per IP. After
+  `auth.lockout.max_attempts` (5) codes that did not clear at the MFA login step or step-up,
+  recovery codes included, every code of that user is answered as a wrong one until
+  `auth.lockout.lock_duration` (15 minutes) has passed since the first; a code that clears resets
+  the count. **Client-visible:** during that window a right code answers the wrong-code 422
+  (decision 69).
+- MFA: an email or SMS code attempt is counted before the code is compared, so requests sent
+  together cannot get more compares than `auth.otp.max_attempts` (decision 69).
+- `plugins/ui`: `GET /auth/ui/refresh` renews the session only for a navigation the browser marks
+  `Sec-Fetch-Site: same-origin` or `none` (or without the header). **Client-visible:** arriving
+  from a link on another site with an expired access cookie shows a page with one "Continue" link
+  (messages `refresh_title`, `refresh_intro`) that renews the session, instead of renewing at
+  once (decision 69).
+- `plugins/agents`: on the plugin's routes a request JWT's `aud` is checked against
+  `Config.BaseURL`'s origin (default: the oauth plugin's base URL) instead of the request's `Host`
+  header; a TLS-terminating proxy no longer has to set `r.TLS` for them. **Client-visible:** an
+  agent calling Polaris under another host name gets `aud_mismatch`. An autonomous agent's own
+  token carries only the grant permissions its owner still holds (decision 69).
+- `verify`, `mcp.Protect`: a failed fetch of the issuer's JWK Set is remembered for 5 seconds, so
+  requests answer 503 at once while the issuer is down instead of waiting for one another's
+  timeout (decision 69).
+
+### Added
+
+- `oauth.ClientAuthority`: a plugin whose OAuth clients act as themselves says which permissions
+  such a client holds (`plugins/agents` implements it with `Plugin.ClientPermissions`).
+
 ## [0.5.0] - 2026-11-22
 
 Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
