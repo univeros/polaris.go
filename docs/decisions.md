@@ -1311,3 +1311,29 @@ Left open: `polaris_sentinel_decision` keeps the email address of past sign-in a
 erasure. It is keyed by address, not user id, and `event.UserDeleted` does not carry the address
 (the row is already a tombstone when it is dispatched); erasing it needs the address passed along
 or a retention prune, a separate change.
+
+## 67. 2026-11-22 — Only the system role is the superadmin
+
+The security review for v1 (docs/v1.md 4.2) found that the platform superadmin was recognised by
+slug: `authz.Authority.IsSuperadmin` is `Roles` containing "superadmin", and the resolver filled
+`Roles` with the slugs of the member's roles in the active organization. `orgs.CreateRole` accepted
+the slug "superadmin" in any organization (the system superadmin role is not copied into
+organizations, so the slug was free). An organization's owner could therefore create a role
+slugged "superadmin", take it, and be treated as the platform superadmin by every check that reads
+the authority or the token's `roles` claim: the cross-organization guard, the "you cannot grant
+what you do not hold" rule, and the plugins' organization routes (sso, scim, oauth clients, audit).
+
+- The resolver never puts "superadmin" into an organization's authority: only `isSuperadmin`
+  (membership in the system role, `organization_id IS NULL`) yields `RoleSuperadmin`. An existing
+  organization role with that slug becomes an ordinary role (its permissions, in its organization).
+- `orgs.CreateRole` refuses the slug ("This role slug is reserved.", 422).
+- `authz.Seed` never copies a superadmin template grant into organization roles of that slug.
+
+Security review: the fix removes the only path from an organization role to the override; every
+consumer reads the authority or the `roles` claim minted from it. An access token minted before the
+upgrade keeps its claim until it expires (`AUTH_ACCESS_TOKEN_TTL`, 15 minutes by default); turning
+on `AUTH_ACCESS_TOKEN_DENYLIST` and revoking sessions ends it sooner. Hosts should look for
+organization roles slugged "superadmin" (`SELECT * FROM auth_roles WHERE slug = 'superadmin' AND
+organization_id IS NOT NULL`) and review their audit log for what such members did. Tests:
+`TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin` (authz, every backend) and the
+reserved-slug refusal in `TestCreateRoleRefusals` (orgs).

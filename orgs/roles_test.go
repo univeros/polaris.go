@@ -101,6 +101,7 @@ func TestCreateRoleRefusals(t *testing.T) {
 		for _, slug := range []string{"", "-x", "Upper", "a b", "x\n", string(make([]byte, 81))} {
 			wantRefusal(t, create(owner, NewRole{Name: "X", Slug: slug}), ErrInvalid, MsgRoleSlug)
 		}
+		wantRefusal(t, create(owner, NewRole{Name: "X", Slug: authz.RoleSuperadmin}), ErrInvalid, MsgRoleSlugReserved)
 		wantRefusal(t, create(owner, NewRole{Name: "X", Slug: "x", PermissionKeys: []string{"made.up"}}), ErrInvalid, "Unknown permission key: made.up")
 		wantForbidden(t, create(admin, NewRole{Name: "X", Slug: "x", PermissionKeys: []string{authz.OrgDelete}}), authz.MsgEscalation)
 		if f.count(t, "auth_roles", store.Criteria{"organization_id": org}) != 3 || len(ofType[event.RoleCreated](f.events)) != 0 {
