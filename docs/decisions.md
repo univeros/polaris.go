@@ -984,3 +984,73 @@ Security review: both changes only refuse more. Tests: `TestEmailVerifiedIsTrueO
 (every provider mapping and `OIDCProfile`, "false" and container values),
 `TestAnIDTokenIsNotAnAccessToken`, and `TestOnlyAccessTokensAreAccepted` extended with the refused
 shapes. The `mcp` contract fixtures replay unchanged.
+
+## 60. 2026-11-22 — Audit chain across processes, one operator grant per user, paginated tools/list
+
+Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
+
+- **Audit: the hash chain no longer forks across processes (#21).** A chained write read the
+  newest row and inserted after it under a per-process mutex, with its id minted before the
+  transaction: two replicas (or two `Store`s on one database) could link two rows to one
+  predecessor, or commit a row whose id sorts before its predecessor's, and `Verify` then
+  reported breaks in an untampered table (a test with 2 handles x 8 writers x 15 writes forked it
+  on memstore, SQLite, PostgreSQL and MySQL; on SQLite writes also failed with SQLITE_BUSY: 96 of
+  240 in one run). Now every chained write runs in one transaction whose first statement updates the
+  single row of a new table, `polaris_audit_chain` (id, last_id). That row is the chain's lock on
+  every dialect: a row lock held to commit on PostgreSQL and MySQL; on SQLite the database write
+  lock, taken by the transaction's first statement, so the busy timeout waits for it instead of
+  failing a reader that tries to upgrade. After the lock the write reads the newest row (every
+  statement after the lock sees the previous holder's commit; on MySQL's REPEATABLE READ the
+  snapshot is taken at that first plain read, after the lock), links to its hash and, when its
+  freshly minted UUID v7 does not sort after the newest id (another replica's clock ahead, the same
+  millisecond), takes the next UUID after it (random tail + 1, version and variant kept), so id
+  order stays chain order. An id the caller set is kept as before. Alternatives rejected: a unique
+  index on `prev_hash` (the first row's prev_hash is NULL, so two first rows still fork; a chain
+  re-started after the chain was off would collide with the first one; it also needed the index
+  added to existing tables); advisory locks (different per dialect, none on SQLite).
+  **Upgrade:** `Migrate` creates the table (`CreateMissing` creates missing tables already); the
+  lock row is inserted by the first chained write (a concurrent insert by another replica is a
+  duplicate and ignored). Rows, hashes and `Verify` are unchanged: existing chains keep verifying
+  and the next write links to their newest row. A host that upgrades without running `Migrate`
+  gets chained writes failing with an error naming the table and `Migrate` (logged by the recorder,
+  the operation itself is not failed), not a silently forkable chain.
+  Security review: tamper evidence only gains; no hash input changed (`hashOf` untouched, the
+  canonical-form test still pins it). The lock serializes chained writes across the deployment:
+  throughput is one chained write at a time per database, as it was per process. Tests:
+  `TestTheChainStaysLinearWithWritersInSeparateProcesses` (memory, SQLite with two pools on one
+  file, PostgreSQL and MySQL with two stores), `TestAChainFromBeforeTheLockTableKeepsVerifyingAfterMigrate`,
+  `TestAChainedWriteWithoutTheLockTableNamesTheFix`, `TestAfterSortsRightAfterAUUID`.
+- **Admin: one grant per user under concurrent first grants (#25).** `polaris_admin_grant.user_id`
+  is unique (`polaris_admin_grant_user_unique`, replacing the plain `polaris_admin_grant_user_index`).
+  `Grants.Grant` is an upsert; when its insert loses to a concurrent first grant of the same user
+  (`store.ErrDuplicate`) it runs again, now as the update of the row there, which is what the same
+  two grants answer when they arrive one after the other (the route's 200 with the grant, its id
+  kept). Up to three attempts. On SQLite writers are serialized, so the duplicate could not happen.
+  **Upgrade:** the unique index is added to existing tables by `Migrate` (decision 63's mechanism;
+  the old index is dropped after it). A database that already holds two grants for one user
+  (only this race made them) is refused, not repaired: `Migrate` fails naming
+  `polaris_admin_grant` and the duplicate `user_id` values to remove, and changes nothing else in
+  that table. Keeping "the strongest" was rejected: grants carry a scope (the instance or one
+  organization), so there is no strongest across scopes, and choosing which operator power survives
+  is the operator's call. The remedy (query and revoke) is in the admin README and the changelog.
+  Security review: removes a way to hold two operator grants with `For` answering either one; no
+  check is weakened; the retry only re-runs the same authorized upsert. Tests:
+  `TestConcurrentFirstGrantsOfOneUserKeepOneRow` (memory, PostgreSQL, MySQL: 20 rounds of 8
+  concurrent first grants over two stores; before the fix PostgreSQL kept 2 rows and MySQL 5),
+  `TestAnUpgradeWithDuplicateGrantsIsRefusedWithTheRemedy`.
+- **MCP: `tools/list` is paginated (#27).** The 2026-07-28 profile and the 2025 stdio revisions
+  page list results with `params.cursor` / `nextCursor`. A result now carries at most
+  `mcp.ToolsPageSize` (100) tools; when more follow, `nextCursor` is the base64url of the last
+  listed tool's name, and the next request starts after that tool. The cursor is checked against
+  the caller's own list, recomputed under the caller's permissions on every request: one that does
+  not decode or does not name one of the caller's tools is `-32602` invalid params (the
+  specification's code for an invalid cursor). It is not signed because it grants nothing: it
+  only says where to resume in a list the caller may already see, so a forged one can only skip
+  ahead in that list. A name cursor rather than an offset keeps a page stable when tools are added
+  before it between requests. Client-visible: a caller with more than 100 tools (an instance
+  operator with every plugin: about 230 routes) gets several pages; a list of 100 or fewer is one
+  page with no `nextCursor`, byte-identical to before, so the `mcp` contract fixtures (34 tools)
+  replay unchanged. Security review: the list is filtered per caller exactly as before; the cursor
+  is input validated before use and leaks nothing about other callers' tools (any name outside the
+  caller's list, existing or not, is the same error). Test: `TestToolsListIsPaginated` (287 tools
+  in three pages, no tool twice, the short list unchanged, invalid cursors refused).
