@@ -9,6 +9,16 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-22
+
+Security fixes from the pre-1.0 security review (decisions 68 and 69). Upgrade now and **run
+`Migrate`** (one new table, `polaris_sso_account`). Some fixes change what clients see; read every
+entry if you use `plugins/sso`, `plugins/social`, `plugins/oauth` (with `verify` or `mcp.Protect`
+downstream), `plugins/admin` or `plugins/ui`. In particular: accounts an SSO provider created
+before this release sign in through SSO again once the organization verifies its email domain or
+you call `sso.Of(g).MarkProvisioned`; SSO sessions stay in their organization; OAuth tokens carry
+only the permission scopes their subject holds.
+
 ### Added
 
 - For plugin authors: `wiring.Identity.ProveEmail`, the optional `wiring.AccessEraser` (a plugin
@@ -391,7 +401,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
