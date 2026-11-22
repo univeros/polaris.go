@@ -56,6 +56,11 @@ http.Handle("/", h) // the MCP endpoint and /.well-known/oauth-protected-resourc
 (serve the 2025 session protocol too), `MetadataURL`, `ResourceName`, `HTTPClient`, `JWKSTTL`,
 `Cache` (DPoP replay; share one across replicas), `Clock`, `Logger`.
 
+Accepted tokens: an `at+jwt` (RFC 9068, the oauth plugin's access tokens), or a Polaris session
+access token (`typ` JWT or none, with its `roles` list). Everything else the issuer signs is
+refused, OpenID ID tokens included, even when their `aud` equals the resource. Tokens from another
+issuer must be `at+jwt`.
+
 ## Routes
 
 | Method | Path | Purpose |
