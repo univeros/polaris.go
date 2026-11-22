@@ -31,6 +31,7 @@ type LiveColumn struct {
 
 // LiveIndex is one index of a LiveTable.
 type LiveIndex struct {
+	Name    string
 	Columns []string
 	Unique  bool
 }
@@ -102,7 +103,7 @@ func (s *Store) inspectSQLite(ctx context.Context, table string) (*LiveTable, er
 		for _, c := range info {
 			byPos[c.Int("seqno")] = c.String("name")
 		}
-		t.Indexes = append(t.Indexes, LiveIndex{Columns: byPosition(byPos), Unique: idx.Int("unique") == 1})
+		t.Indexes = append(t.Indexes, LiveIndex{Name: idx.String("name"), Columns: byPosition(byPos), Unique: idx.Int("unique") == 1})
 	}
 	return t, nil
 }
@@ -125,7 +126,7 @@ func (s *Store) inspectPostgres(ctx context.Context, table string) (*LiveTable, 
 	for _, r := range pk {
 		t.Primary = append(t.Primary, r.String("name"))
 	}
-	defs, err := s.rows(ctx, `SELECT indexdef FROM pg_indexes WHERE tablename = $1 AND schemaname = current_schema()`, table)
+	defs, err := s.rows(ctx, `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = $1 AND schemaname = current_schema()`, table)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +143,7 @@ func (s *Store) inspectPostgres(ctx context.Context, table string) (*LiveTable, 
 		if slices.Equal(columns, t.Primary) {
 			continue
 		}
-		t.Indexes = append(t.Indexes, LiveIndex{Columns: columns, Unique: strings.HasPrefix(def, "CREATE UNIQUE")})
+		t.Indexes = append(t.Indexes, LiveIndex{Name: r.String("indexname"), Columns: columns, Unique: strings.HasPrefix(def, "CREATE UNIQUE")})
 	}
 	return t, nil
 }
@@ -179,7 +180,7 @@ func (s *Store) inspectMySQL(ctx context.Context, table string) (*LiveTable, err
 	}
 	t.Primary = byPosition(primary)
 	for _, name := range names {
-		t.Indexes = append(t.Indexes, LiveIndex{Columns: byPosition(byName[name]), Unique: unique[name]})
+		t.Indexes = append(t.Indexes, LiveIndex{Name: name, Columns: byPosition(byName[name]), Unique: unique[name]})
 	}
 	return t, nil
 }

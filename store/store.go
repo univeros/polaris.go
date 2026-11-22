@@ -20,6 +20,7 @@ import (
 // Dialect names the SQL flavour behind an adapter.
 type Dialect string
 
+// The dialects: the three SQL databases store/sqlstore speaks and store/memstore's in-memory store.
 const (
 	Postgres Dialect = "postgres"
 	MySQL    Dialect = "mysql"
@@ -74,6 +75,7 @@ var ErrDuplicate = errors.New("store: duplicate key")
 // Op is a comparison operator of a Cond.
 type Op string
 
+// The operators of a Cond: the comparisons with its Value, and OpNotNull (no Value).
 const (
 	OpLt      Op = "<"
 	OpLte     Op = "<="
@@ -89,12 +91,23 @@ type Cond struct {
 	Value any
 }
 
-func Lt(v any) Cond  { return Cond{OpLt, v} }
+// Lt matches a column below v: Criteria{"expires_at": Lt(now)}.
+func Lt(v any) Cond { return Cond{OpLt, v} }
+
+// Lte matches a column at or below v.
 func Lte(v any) Cond { return Cond{OpLte, v} }
-func Gt(v any) Cond  { return Cond{OpGt, v} }
+
+// Gt matches a column above v.
+func Gt(v any) Cond { return Cond{OpGt, v} }
+
+// Gte matches a column at or above v.
 func Gte(v any) Cond { return Cond{OpGte, v} }
-func Ne(v any) Cond  { return Cond{OpNe, v} }
-func NotNull() Cond  { return Cond{OpNotNull, nil} }
+
+// Ne matches a column different from v.
+func Ne(v any) Cond { return Cond{OpNe, v} }
+
+// NotNull matches a column that holds a value.
+func NotNull() Cond { return Cond{OpNotNull, nil} }
 
 // Increment adds By to a numeric column in an Update.
 type Increment struct{ By int64 }

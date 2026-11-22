@@ -80,16 +80,7 @@ missing something.
 `internal/…` (core's endpoints, the observers, maintenance jobs, the route specs and
 fixtures, the contract-test harness, the SSRF guard, the access-token verifier `verify` and `plugins/mcp` share, the concrete services for core) cannot be imported from outside the module.
 
-## 5. Changed in this release (from the first port)
+## 5. Changes
 
-- `polaris.Principal(ctx) *token.Token` and `polaris.Authority(ctx)` are replaced by
-  `polaris.PrincipalFrom(ctx) (polaris.Principal, bool)`; plugin code reads the raw token with
-  `endpoint.Token(ctx)`.
-- `wiring.Graph` fields became accessor methods (`g.Repos` is `g.Repos()`).
-- `session.Service.Mint` takes a `context.Context` first.
-- `contracttest`, `httpapi`, `observe` and `maintenance` moved under `internal/`; the route specs and
-  contract fixtures live in `internal/apispec/`.
-- `Protect` without permissions now resolves the caller's authority (one more query per request).
-- `wiring.Graph`'s service accessors return narrow interfaces (`wiring.Identity`, `wiring.Sessions`,
-  …) instead of the concrete services; `Graph.Escalation` and `Graph.Tickets` are gone (decision
-  #51).
+What changes in each release, breaking changes marked, is in [CHANGELOG.md](CHANGELOG.md); the
+reason for each is in [docs/decisions.md](docs/decisions.md).

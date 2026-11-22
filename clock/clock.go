@@ -12,6 +12,7 @@ type Clock interface{ Now() time.Time }
 // System is the wall clock, in UTC.
 type System struct{}
 
+// Now returns the current time in UTC.
 func (System) Now() time.Time { return time.Now().UTC() }
 
 // Frozen is a settable clock for tests.
@@ -23,6 +24,7 @@ type Frozen struct {
 // NewFrozen returns a clock stopped at t.
 func NewFrozen(t time.Time) *Frozen { return &Frozen{t: t.UTC()} }
 
+// Now returns the time the clock was last set to.
 func (f *Frozen) Now() time.Time { f.mu.Lock(); defer f.mu.Unlock(); return f.t }
 
 // Set moves the clock to t.

@@ -59,6 +59,11 @@ linters:
         - name: error-naming
         - name: error-return
         - name: errorf
+        # Every exported name has a doc comment (AGENT.md rule 8). Stuttering names (admin.AdminX)
+        # are part of the stable API and stay.
+        - name: exported
+          arguments:
+            - disableStutteringCheck
         - name: increment-decrement
         - name: indent-error-flow
         - name: range
@@ -98,3 +103,7 @@ linters:
       # show the calls, not the error handling.
       - path: ^llms_test\.go$
         linters: [unused, ineffassign, staticcheck]
+      # revive's exported rule enforces a doc comment on every exported name; the wording it also
+      # wants ("X ...") is not enforced: event types read "UserLoggedIn: a user signed in".
+      - linters: [revive]
+        text: "should be of the form"
