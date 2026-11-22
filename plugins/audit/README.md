@@ -38,7 +38,8 @@ Every field is optional; the zero value keeps 90 days, no chain, the database si
 | GET | `/audit/types` | the catalog of event names |
 
 Filters: `names` (comma-separated), `from`, `to` (ISO-8601), `cursor` (the previous page's
-`next_cursor`), `limit` (default `audit.DefaultLimit`, 200 at most). Newest first.
+`next_cursor`), `limit` (a positive integer in digits only, default `audit.DefaultLimit`, 200 at
+most). Newest first. Times are RFC 3339 in UTC (`2026-09-11T10:00:00Z`).
 
 ## Events and permissions
 
@@ -59,6 +60,10 @@ Uses core's `audit.read`.
   event that implements `audit.Auditable` does the same.
 - Values wrapped in `audit.Sensitive` and keys like `password|secret|token|code|otp` are redacted
   (`audit.Redact`) before any sink sees them. A failing sink is logged, never fails the operation.
+- `audit.FileSink` lines and `audit.WebhookSink` bodies are standard JSON (UTF-8, `/` unescaped,
+  an empty object as `{}`, times in `Z`). The hash chain keeps its own canonical form: the stored
+  `data` text and the hashed bytes (times as `+00:00`) are what earlier releases wrote, so chains
+  already written keep verifying.
 - `Plugin.Prune(ctx)` from a scheduled job (CLI `polaris audit:prune`); `Plugin.Verify(ctx)` walks
   the hash chain (`polaris audit:verify`).
 - With `HashChain` on, every replica appends to one chain: each write first takes the lock row in

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -96,7 +97,9 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 }
 
 // proxySignature signs random.payload under the pepper the deployments share: the base64url of
-// the hex digest, the form every deployment behind the proxy must produce alike.
+// the hex digest, the form every deployment behind the proxy must produce alike. It is verified
+// by another deployment (the stable origin), which may run an earlier release during a rollout,
+// so its form does not change.
 func (p *Plugin) proxySignature(signed string) string {
 	return b64([]byte(p.g.Pepper().Hash(proxyContext, signed)))
 }
@@ -165,7 +168,7 @@ func (p *Plugin) callback(ctx context.Context, providerID string, params map[str
 		return "", err
 	}
 	// The state goes back too, so the application can check it started this flow (login CSRF).
-	return appendQuery(entry.RedirectURI, "code="+handoff+"&state="+rawURLEncode(state)), nil
+	return appendQuery(entry.RedirectURI, "code="+handoff+"&state="+url.QueryEscape(state)), nil
 }
 
 // flatten is the callback's parameters for the preview: strings as they are, anything else JSON.
@@ -472,7 +475,7 @@ func (p *Plugin) providerToken(ctx context.Context, userID, providerID string) (
 	}
 	var expiresAt any
 	if a.ExpiresAt != nil {
-		expiresAt = a.ExpiresAt.Format(dateAtom)
+		expiresAt = timestamp(*a.ExpiresAt)
 	}
 	return map[string]any{"access_token": access, "expires_at": expiresAt, "scopes": a.Scopes}, nil
 }

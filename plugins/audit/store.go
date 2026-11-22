@@ -232,10 +232,11 @@ func after(id string) (string, error) {
 }
 
 // hashOf is SHA-256 over the row's canonical JSON: the wire keys plus prev_hash, sorted, data as
-// its stored JSON text, each value encoded by canonicalJSON. Rows hashed by earlier releases
-// keep verifying only while these bytes stay the same.
+// its stored JSON text, occurred_at in hashedTimeLayout, each value encoded by canonicalJSON. Rows
+// hashed by earlier releases keep verifying only while these bytes stay the same.
 func hashOf(e Event, data string) string {
 	m := e.Map()
+	m["occurred_at"] = e.OccurredAt.UTC().Format(hashedTimeLayout)
 	m["prev_hash"] = null(e.PrevHash)
 	keys := slices.Sorted(maps.Keys(m))
 	var b strings.Builder

@@ -120,25 +120,26 @@ func parseQuery(in *endpoint.Input) (Query, endpoint.Result, bool) {
 	return q, endpoint.Result{}, true
 }
 
-// positiveInt reads a number or numeric string (fraction truncated) that is at least 1.
+// positiveInt reads a limit of at least 1, clamped to MaxLimit: a JSON integer, or a query value of
+// decimal digits only (no sign, spaces, fraction or exponent).
 func positiveInt(v any) (int, bool) {
 	var s string
 	switch v := v.(type) {
 	case string:
-		s = strings.TrimSpace(v)
+		s = v
 	case json.Number:
 		s = v.String()
 	default:
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil || f < 1 {
+	if s == "" || strings.TrimLeft(s, "0123456789") != "" {
 		return 0, false
 	}
-	if f > MaxLimit {
-		return MaxLimit, true
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 1 {
+		return 0, false
 	}
-	return int(f), true
+	return min(n, MaxLimit), true
 }
 
 // timeLayouts are the ISO-8601 forms accepted for from, to and expiry dates.

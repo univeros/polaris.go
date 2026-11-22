@@ -2,12 +2,19 @@ package sso
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/univeros/polaris.go/internal/netguard"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -294,7 +301,7 @@ func TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken(t *testing.T) {
 		t.Fatalf("discovery and the JWKS come from the cache: %d %v", len(requests), err)
 	}
 	for code, reason := range map[string]string{"wrong-nonce": "nonce mismatch", "wrong-aud": "audience mismatch", "wrong-iss": "issuer mismatch",
-		"expired": "Expired token", "wrong-key": "Signature verification failed", "no-email": "no subject or email", "refused": "answered 400",
+		"expired": "id_token rejected: the token has expired", "wrong-key": "id_token rejected: the signature does not verify", "no-email": "no subject or email", "refused": "answered 400",
 		"no-token": "no id_token"} {
 		_, err := o.Exchange(ctx, prov, "", code, callback, "verifier", "nonce-1")
 		refusedAs(t, err, ReasonAssertionInvalid, reason, code)
@@ -320,6 +327,100 @@ func TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken(t *testing.T) {
 	if _, err := unreachable.AuthorizationURL(ctx, nowhere, callback, "s", "n", "c"); err == nil {
 		t.Fatal("no discovery, no authorization URL")
 	}
+}
+
+func TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies(t *testing.T) {
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	edPub, _, _ := ed25519.GenerateKey(rand.Reader)
+	for name, c := range map[string]struct {
+		key  any
+		want string
+	}{
+		"RSA": {&rsaKey.PublicKey, "RS256"}, "EC P-256": {&p256.PublicKey, "ES256"}, "OKP Ed25519": {edPub, "EdDSA"},
+		"EC P-384": {&p384.PublicKey, ""}, "symmetric": {[]byte("secret"), ""},
+	} {
+		got, err := algorithmOf(jose.JSONWebKey{Key: c.key})
+		if got != c.want || (c.want == "") != (err != nil) {
+			t.Fatalf("%s: %q %v", name, got, err)
+		}
+	}
+	if got, err := algorithmOf(jose.JSONWebKey{Key: &rsaKey.PublicKey, Algorithm: "RS512"}); got != "RS512" || err != nil {
+		t.Fatalf("a key's own alg: %q %v", got, err)
+	}
+
+	now := time.Now()
+	sign := func(alg jose.SignatureAlgorithm, key any, kid string) string {
+		opts := &jose.SignerOptions{}
+		if kid != "" {
+			opts = opts.WithHeader("kid", kid)
+		}
+		s, _ := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: key}, opts)
+		jws, _ := s.Sign([]byte(fmt.Sprintf(`{"sub":"u","exp":%d}`, now.Unix()+60)))
+		raw, _ := jws.CompactSerialize()
+		return raw
+	}
+	keys := []jose.JSONWebKey{{Key: &rsaKey.PublicKey, KeyID: "rsa"}, {Key: &p256.PublicKey, KeyID: "ec"}, {Key: &p384.PublicKey, KeyID: "p384"}}
+	for name, c := range map[string]struct {
+		token, err string
+	}{
+		"RS256 by an RSA key":          {sign(jose.RS256, rsaKey, "rsa"), ""},
+		"ES256 by a P-256 key":         {sign(jose.ES256, p256, "ec"), ""},
+		"RS384 by an RSA key":          {sign(jose.RS384, rsaKey, "rsa"), "the key's algorithm is not the token's (alg)"},
+		"ES384 by a key without alg":   {sign(jose.ES384, p384, "p384"), "the key names no alg and its type implies none"},
+		"no kid":                       {sign(jose.RS256, rsaKey, ""), "the token names no key (kid)"},
+		"a kid the set does not carry": {sign(jose.RS256, rsaKey, "other"), "no key in the key set has the token's kid"},
+	} {
+		_, err := verifyIDToken(c.token, keys, now)
+		if (c.err == "" && err != nil) || (c.err != "" && (err == nil || err.Error() != c.err)) {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestIDTokenTimeErrorsAreGoNative(t *testing.T) {
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	keys := []jose.JSONWebKey{{Key: &key.PublicKey, KeyID: "k", Algorithm: "RS256"}}
+	now := time.Now()
+	for claims, want := range map[string]string{
+		fmt.Sprintf(`{"nbf":%d}`, now.Unix()+600): "the token is not valid yet (nbf)",
+		fmt.Sprintf(`{"iat":%d}`, now.Unix()+600): "the token was issued in the future (iat)",
+		fmt.Sprintf(`{"exp":%d}`, now.Unix()-600): "the token has expired",
+		`[1]`: "the claims are not a JSON object",
+	} {
+		s, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "k"))
+		jws, _ := s.Sign([]byte(claims))
+		raw, _ := jws.CompactSerialize()
+		if _, err := verifyIDToken(raw, keys, now); err == nil || err.Error() != want {
+			t.Fatalf("%s: %v", claims, err)
+		}
+	}
+}
+
+// An IdP's certificate is the container of the key the organization configured; its validity
+// dates are not checked (the configuration is the trust anchor), so an expired one verifies.
+func TestAnExpiredIdPCertificateStillVerifies(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpl := &x509.Certificate{SerialNumber: big.NewInt(2), Subject: pkix.Name{CommonName: "expired.idp.example"},
+		NotBefore: time.Now().Add(-2 * 365 * 24 * time.Hour), NotAfter: time.Now().Add(-365 * 24 * time.Hour)}
+	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, _ := x509.ParseCertificate(der)
+	expired := &testIdP{key: key, cert: cert}
+	sp := SP{BaseURL: testBase}
+	prov := testProvider(TypeSAML, map[string]any{"sso_url": idpSSOURL, "certificate": expired.certificateBody()}, idpEntityID, nil)
+	id, err := DefaultSAML{}.Consume(prov, sp, expired.response(t, sp.EntityID(prov.ID), sp.ACSURL(prov.ID), "ada@example.com", responseOptions{}), "")
+	if err != nil || id.Email != "ada@example.com" {
+		t.Fatalf("an expired certificate: %+v %v", id, err)
+	}
+	_, err = DefaultSAML{}.Consume(prov, sp, expired.response(t, sp.EntityID(prov.ID), sp.ACSURL(prov.ID), "ada@example.com", responseOptions{key: anotherKey(t)}), "")
+	refusedAs(t, err, ReasonAssertionInvalid, "", "another key, the expired certificate configured")
 }
 
 type roundTripper func(*http.Request) (*http.Response, error)

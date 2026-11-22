@@ -70,6 +70,8 @@ None over HTTP. A send answers `messaging.ErrRefused` (cap or quiet mode),
   `Override`; a message with `OrganizationID` uses them.
 - Check a channel and a template: `Plugin.SendTemplate(ctx, to, template, varsJSON, locale)`.
 - Quiet mode matches recipients case-insensitively.
+- Variables render as text: strings as they are, numbers in plain form, booleans as `true` /
+  `false`; in the HTML part they are escaped with `html.EscapeString`.
 
 ## Example
 

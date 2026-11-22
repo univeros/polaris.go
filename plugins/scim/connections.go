@@ -60,8 +60,8 @@ func (c Connection) Map() map[string]any {
 	return map[string]any{
 		"id": c.ID, "organization_id": c.OrganizationID, "sso_provider_id": nullable(c.SSOProviderID),
 		"name": c.Name, "status": c.Status, "deprovision": c.Deprovision,
-		"last_sync_at": atomPtr(c.LastSyncAt), "decommissioned_at": atomPtr(c.DecommissionedAt),
-		"created_by": nullable(c.CreatedBy), "created_at": atom(c.CreatedAt),
+		"last_sync_at": timestampPtr(c.LastSyncAt), "decommissioned_at": timestampPtr(c.DecommissionedAt),
+		"created_by": nullable(c.CreatedBy), "created_at": timestamp(c.CreatedAt),
 	}
 }
 
@@ -229,17 +229,14 @@ func hydrate(r store.Row) Connection {
 	return conn
 }
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
+// timestamp is how the API writes a time: RFC 3339 to the second, in UTC ("Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-func atom(t time.Time) string { return t.UTC().Format(dateAtom) }
-
-func atomPtr(t *time.Time) any {
+func timestampPtr(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return atom(*t)
+	return timestamp(*t)
 }
 
 func nullable(s string) any {

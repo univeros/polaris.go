@@ -250,7 +250,7 @@ func TestApiKeysFlow(t *testing.T) {
 		problem(t, f.c.Post("/api-keys", map[string]any{"name": "old", "rate_limit": map[string]any{"window": 0, "max": 1}}, as), 422, "api_keys_invalid_input")
 		problem(t, f.c.Post("/api-keys", map[string]any{"name": "", "permissions": []string{}}, as), 422, "api_keys_invalid_input")
 		created := data(t, f.c.Post("/api-keys", map[string]any{"name": "short-lived", "expires_at": "2099-01-01T00:00:00+00:00"}, as))
-		if created["expires_at"] != "2099-01-01T00:00:00+00:00" {
+		if created["expires_at"] != "2099-01-01T00:00:00Z" {
 			t.Fatalf("created %v", created)
 		}
 		secret, id := created["key"].(string), created["id"].(string)

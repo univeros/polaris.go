@@ -65,17 +65,14 @@ var (
 	methods = []string{MethodDevice, MethodCIBA, MethodInApp}
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
+// timestamp is how the API writes a time: RFC 3339 in UTC, to the second ("Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-func atom(t time.Time) string { return t.UTC().Format(dateAtom) }
-
-func atomPtr(t *time.Time) any {
+func timestampPtr(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return atom(*t)
+	return timestamp(*t)
 }
 
 // null is nil for "", s otherwise: an optional column or JSON member.
@@ -108,7 +105,8 @@ func rowInt(r store.Row, col string) *int64 {
 	return &n
 }
 
-// rowJSON decodes a JSON column keeping numbers as json.Number, so 1 and 1.0 stay distinct.
+// rowJSON decodes a JSON column keeping numbers as json.Number: exact, as the request held them
+// (an operand of 2^60 does not round through float64).
 func rowJSON(r store.Row, col string) any {
 	s, ok := r.NullString(col)
 	if !ok || s == "" {
@@ -181,8 +179,8 @@ func (a Agent) view() map[string]any {
 	return map[string]any{
 		"id": a.ID, "owner_type": a.OwnerType, "owner_id": a.OwnerID, "organization_id": null(a.OrganizationID),
 		"name": a.Name, "mode": a.Mode, "host_id": null(a.HostID), "auth": a.Auth, "public_jwk": jwk,
-		"status": a.Status, "created_by": a.CreatedBy, "sealed_at": atomPtr(a.SealedAt),
-		"created_at": atom(a.CreatedAt), "updated_at": atom(a.UpdatedAt),
+		"status": a.Status, "created_by": a.CreatedBy, "sealed_at": timestampPtr(a.SealedAt),
+		"created_at": timestamp(a.CreatedAt), "updated_at": timestamp(a.UpdatedAt),
 	}
 }
 
@@ -232,7 +230,7 @@ func (h Host) view() map[string]any {
 	return map[string]any{
 		"id": h.ID, "owner_type": h.OwnerType, "owner_id": h.OwnerID, "organization_id": null(h.OrganizationID),
 		"name": h.Name, "default_capabilities": h.DefaultCapabilities, "created_by": h.CreatedBy,
-		"revoked_at": atomPtr(h.RevokedAt), "created_at": atom(h.CreatedAt),
+		"revoked_at": timestampPtr(h.RevokedAt), "created_at": timestamp(h.CreatedAt),
 	}
 }
 
@@ -287,8 +285,8 @@ func (g Grant) view() map[string]any {
 	return map[string]any{
 		"id": g.ID, "agent_id": g.AgentID, "capability": g.Capability, "constraints": constraintsValue(g.Constraints),
 		"budget": budget, "status": g.Status, "granted_by": null(g.GrantedBy), "approved_via": null(g.ApprovedVia),
-		"approval_id": null(g.ApprovalID), "expires_at": atomPtr(g.ExpiresAt),
-		"created_at": atom(g.CreatedAt), "updated_at": atom(g.UpdatedAt),
+		"approval_id": null(g.ApprovalID), "expires_at": timestampPtr(g.ExpiresAt),
+		"created_at": timestamp(g.CreatedAt), "updated_at": timestamp(g.UpdatedAt),
 	}
 }
 
@@ -321,8 +319,11 @@ func grantFromRow(r store.Row) Grant {
 	}
 	if c, ok := rowJSON(r, "constraints").(map[string]any); ok {
 		for field, ops := range c {
-			if m, ok := ops.(map[string]any); ok {
+			switch m := ops.(type) {
+			case map[string]any:
 				g.Constraints[field] = m
+			case []any: // rows written by earlier releases hold [] for no operators
+				g.Constraints[field] = map[string]any{}
 			}
 		}
 	}
@@ -354,8 +355,8 @@ func (a Approval) view() map[string]any {
 	return map[string]any{
 		"id": a.ID, "agent_id": a.AgentID, "grant_ids": a.GrantIDs, "method": a.Method, "strength": a.Strength,
 		"user_code": a.UserCode, "binding_message": null(a.BindingMessage), "status": a.Status,
-		"decided_by": null(a.DecidedBy), "expires_at": atom(a.ExpiresAt), "created_at": atom(a.CreatedAt),
-		"updated_at": atom(a.UpdatedAt),
+		"decided_by": null(a.DecidedBy), "expires_at": timestamp(a.ExpiresAt), "created_at": timestamp(a.CreatedAt),
+		"updated_at": timestamp(a.UpdatedAt),
 	}
 }
 
@@ -395,11 +396,16 @@ type Receipt struct {
 	CreatedAt    time.Time
 }
 
+// receiptTime is the layout of a receipt's created_at: the hash and signature cover that text, and
+// verifiers (this plugin, the agent SDK) hash it as sent, so it keeps the form every receipt issued
+// so far was hashed in, UTC written "+00:00". Unlike the other times the API writes, it is not "Z".
+const receiptTime = "2006-01-02T15:04:05-07:00"
+
 // hashed is what the hash covers.
 func (r Receipt) hashed() map[string]any {
 	return map[string]any{
 		"agent_id": r.AgentID, "budget_after": nullInt(r.BudgetAfter), "budget_before": nullInt(r.BudgetBefore),
-		"capability": null(r.Capability), "created_at": atom(r.CreatedAt), "grant_id": null(r.GrantID),
+		"capability": null(r.Capability), "created_at": r.CreatedAt.UTC().Format(receiptTime), "grant_id": null(r.GrantID),
 		"id": r.ID, "input_hash": r.InputHash, "outcome": r.Outcome, "prev_hash": null(r.PrevHash), "seq": r.Seq,
 	}
 }

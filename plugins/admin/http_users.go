@@ -100,7 +100,7 @@ func (p *Plugin) userView(ctx context.Context, u model.User) (map[string]any, er
 	return map[string]any{
 		"id": u.ID, "email": u.Email, "display_name": u.DisplayName, "status": cmp.Or(u.Status, model.UserStatusActive),
 		"email_verified": u.EmailVerifiedAt != nil, "mfa_enforced": u.MFAEnforced, "locked_until": atom(u.LockedUntil),
-		"created_at": u.CreatedAt.Format(dateAtom), "last_login_at": atom(u.LastLoginAt), "last_active_at": lastActive,
+		"created_at": timestamp(u.CreatedAt), "last_login_at": atom(u.LastLoginAt), "last_active_at": lastActive,
 	}, nil
 }
 
@@ -344,7 +344,7 @@ func (p *Plugin) listFactors(ctx context.Context, in *endpoint.Input) endpoint.R
 	for _, f := range factors {
 		out = append(out, map[string]any{
 			"id": f.ID, "type": f.Type, "label": f.Label, "is_default": f.IsDefault,
-			"confirmed_at": atom(f.ConfirmedAt), "last_used_at": atom(f.LastUsedAt), "created_at": f.CreatedAt.Format(dateAtom),
+			"confirmed_at": atom(f.ConfirmedAt), "last_used_at": atom(f.LastUsedAt), "created_at": timestamp(f.CreatedAt),
 		})
 	}
 	return success(out)

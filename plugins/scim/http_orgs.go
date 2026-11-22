@@ -315,12 +315,12 @@ func (p *Plugin) adminDelete(ctx context.Context, in *endpoint.Input) endpoint.R
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "deleted"})
 }
 
-// positiveInt reads a limit: a numeric value (truncated toward zero) of at least 1, def when
-// absent or "".
+// positiveInt reads a limit: an integer of at least 1 (decimal digits in a query, a JSON integer
+// in a body), def when absent or "".
 func positiveInt(v any, def int) (int, bool) {
 	if v == nil || v == "" {
 		return def, true
 	}
-	n, ok := numeric(v)
+	n, ok := integer(v)
 	return n, ok && n >= 1
 }

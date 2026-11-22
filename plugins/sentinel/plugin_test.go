@@ -146,6 +146,25 @@ func TestEverythingIsWiredThroughTheGraphAndMessagingTakesTheQuietMode(t *testin
 	want(t, send("ada@mailinator.com", "email.new_device", false) == nil, "quiet mode ends after the window")
 }
 
+// Times are RFC 3339 UTC and the decision list's limit is a positive integer in digits only.
+func TestDecisionTimesAreZAndTheLimitIsStrict(t *testing.T) {
+	ctx := context.Background()
+	e := boot(t, sentinel.Config{})
+	if _, err := e.sentinel.Engine().Evaluate(ctx, sentinel.Attempt{Kind: sentinel.SignUp, Email: "ada@mailinator.com", IP: ip}); err != nil {
+		t.Fatal(err)
+	}
+	decisions := e.decisions(t, sentinel.Filter{})
+	want(t, len(decisions) == 1 && decisions[0]["created_at"] == "2026-09-11T10:00:00Z", "%v", decisions)
+	_, owner, _ := admin.Of(e.p.Graph()).Keys().Create(ctx, admin.Key{Name: "ops", Role: admin.RoleOwner})
+	c := contracttest.NewClient(t, e.p.Handler(), nil)
+	for limit, status := range map[string]int{"1": 200, "500": 200, "0": 422, "1.5": 422, "1e1": 422, "%201": 422, "-1": 422} {
+		resp := c.Get("/admin/sentinel/decisions?limit="+limit, contracttest.Bearer(owner))
+		want(t, resp.StatusCode == status, "limit %q: %d", limit, resp.StatusCode)
+	}
+	rule, err := e.sentinel.IPRules().Add(ctx, "10.0.0.0/8", sentinel.Block, "", "")
+	want(t, err == nil && rule.Map()["created_at"] == "2026-09-11T10:00:00Z", "%v %v", rule.Map(), err)
+}
+
 func TestObserveModeRecordsWhatASignalSaidAndLetsEverythingThrough(t *testing.T) {
 	e := boot(t, sentinel.Config{})
 	clean := e.guarded(t, "/auth/register", `{"email":"ada@example.com","password":"x"}`, ip, "", nil)

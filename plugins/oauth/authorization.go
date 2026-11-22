@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -188,7 +189,7 @@ func redirectWith(uri string, pairs ...string) string {
 	var parts []string
 	for i := 0; i+1 < len(pairs); i += 2 {
 		if pairs[i+1] != "" {
-			parts = append(parts, formEncode(pairs[i])+"="+formEncode(pairs[i+1]))
+			parts = append(parts, url.QueryEscape(pairs[i])+"="+url.QueryEscape(pairs[i+1]))
 		}
 	}
 	sep := "?"
@@ -196,26 +197,4 @@ func redirectWith(uri string, pairs ...string) string {
 		sep = "&"
 	}
 	return uri + sep + strings.Join(parts, "&")
-}
-
-// formEncode percent-encodes every byte but ASCII letters, digits and -_. (upper-case hex), and
-// writes a space as +. Unlike url.QueryEscape it also escapes ~, so the redirect URIs keep the
-// bytes earlier releases sent.
-func formEncode(s string) string {
-	const hex = "0123456789ABCDEF"
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		switch {
-		case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z', ch >= '0' && ch <= '9', ch == '-', ch == '_', ch == '.':
-			b.WriteByte(ch)
-		case ch == ' ':
-			b.WriteByte('+')
-		default:
-			b.WriteByte('%')
-			b.WriteByte(hex[ch>>4])
-			b.WriteByte(hex[ch&15])
-		}
-	}
-	return b.String()
 }

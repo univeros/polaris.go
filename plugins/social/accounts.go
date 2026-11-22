@@ -38,9 +38,8 @@ func Models() []schema.Model {
 	}
 }
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
+// timestamp is how the API writes a time: RFC 3339 in UTC, to the second ("…Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
 // account is a row of polaris_social_account; the tokens stay sealed (core's encrypter).
 type account struct {
@@ -63,7 +62,7 @@ func (a account) wire() map[string]any {
 	return map[string]any{
 		"id": a.ID, "provider": a.Provider, "provider_account_id": a.ProviderAccountID, "email": email,
 		"email_verified": a.EmailVerified, "scopes": a.Scopes, "profile": a.Profile,
-		"created_at": a.CreatedAt.Format(dateAtom), "updated_at": a.UpdatedAt.Format(dateAtom),
+		"created_at": timestamp(a.CreatedAt), "updated_at": timestamp(a.UpdatedAt),
 	}
 }
 

@@ -65,7 +65,14 @@ Register `BaseURL + "/social/<provider>/callback"` at each provider.
 | DELETE | `/social/{provider}` | bearer, step-up gated: unlink (refused if it is your last credential) |
 | POST | `/social/{provider}/token` | bearer, step-up gated: the provider access token, refreshed first if expiring |
 
-Compare the returned `state` with the one `start` answered before exchanging the code.
+Compare the returned `state` with the one `start` answered before exchanging the code. The
+authorization `url` carries its parameters form-encoded (RFC 6749 §4.1.1: a space is `+`).
+Timestamps (`created_at`, `updated_at`, `expires_at`) are RFC 3339 in UTC (`2026-11-20T18:32:59Z`).
+
+An `id_token` must name its key (`kid`) in the provider's JWKS (`keys` an array, RFC 7517). The
+key's `alg` must be the token's; a key without `alg` verifies the algorithm its type implies (RSA
+RS256, EC P-256 ES256, OKP Ed25519 EdDSA) and any other key without `alg` verifies nothing. A
+provider's subject is its id as a string or a JSON number; a boolean or null names no account.
 
 ## Events and permissions
 

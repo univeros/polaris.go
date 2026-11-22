@@ -79,11 +79,13 @@ func TestOverridesWinInOrderAndTheHtmlIsEscaped(t *testing.T) {
 }
 
 func TestScalarVariablesRenderAsStrings(t *testing.T) {
-	cases := map[string]any{"1": true, "": false, "3": int64(3), "2.5": 2.5, "0.5": float32(0.5), "42": json.Number("42"), "x": "x"}
+	cases := map[string]any{"true": true, "false": false, "3": int64(3), "2.5": 2.5, "0.5": float32(0.5), "42": json.Number("42"), "x": "x"}
 	for want, v := range cases {
 		check(t, scalar(v) == want, "%v => %q", v, scalar(v))
 	}
 	check(t, scalar(nil) == "" && scalar([]any{1}) == "", "non-scalars are empty")
-	check(t, htmlEscaper.Replace(`<a href="x">'&'</a>`) == "&lt;a href=&quot;x&quot;&gt;&#039;&amp;&#039;&lt;/a&gt;", "escaping")
+	r, _ := newRenderer(map[string]map[string]Template{"en": {"email.otp": {Text: "{code}", HTML: "<b>{code}</b>"}}}, Strings{}, "en")
+	tpl, _ := r.render(context.Background(), "email.otp", "en", map[string]any{"code": `<a href="x">'&'</a>`}, "")
+	check(t, tpl.HTML == "<b>&lt;a href=&#34;x&#34;&gt;&#39;&amp;&#39;&lt;/a&gt;</b>", "escaping: %q", tpl.HTML)
 	check(t, sibling("sms.otp", KindEmail) == "email.otp" && sibling("otp", KindEmail) == "email.otp", "sibling")
 }

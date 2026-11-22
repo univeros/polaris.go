@@ -10,6 +10,15 @@ import (
 	"github.com/univeros/polaris.go/store/storetest"
 )
 
+// A passkey's times reach the client as RFC 3339 UTC.
+func TestThePasskeysTimesAreRFC3339UTC(t *testing.T) {
+	used := time.Date(2026, 6, 7, 12, 0, 0, 0, time.FixedZone("CEST", 2*3600))
+	w := record{CreatedAt: time.Date(2026, 6, 7, 10, 0, 0, 0, time.UTC), LastUsedAt: &used}.wire()
+	if w["created_at"] != "2026-06-07T10:00:00Z" || w["last_used_at"] != "2026-06-07T10:00:00Z" {
+		t.Fatalf("%v", w)
+	}
+}
+
 // The passkey table installs on every database (on MySQL a utf8mb4 VARCHAR(1024) unique index
 // exceeds the 3072-byte key limit), and credential ids that differ only in case are two credentials
 // (base64url is case-sensitive; MySQL's default collation is not).

@@ -9,6 +9,65 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Changed
+
+- **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
+  (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
+  sinks), multi-session, oauth, passkey, scim, sentinel, social, sso. admin echoed a key's or
+  grant's `expires_at` in the offset it was sent with; it now answers UTC. Agent receipts keep
+  `+00:00` in `created_at`, which their hash covers. Inputs accept both (decision 65).
+- **Client-visible:** `plugins/audit`: the file and webhook sinks write standard JSON (UTF-8, `/`
+  unescaped, `{}` for an empty object); the signature header still covers the bytes sent. The
+  stored trail and its hash chain are unchanged (decision 65).
+- **Client-visible:** `limit` on the admin, audit, sentinel, sso and scim listings, SCIM
+  `startIndex`/`count` and the agents receipts' `after`/`limit` must be integers (decimal digits
+  in a query, a JSON integer in a body); `1.5`, `1e1`, padded values are refused (422, SCIM 400
+  `invalidValue`) instead of truncated (decision 65).
+- **Client-visible:** `plugins/scim`: `active` must be a JSON boolean or the string
+  `"true"`/`"false"` in any case (what Microsoft Entra ID sends), in POST, PUT and PATCH; `"on"`,
+  `"yes"`, `"1"`, `1` answer 400 `invalidValue`, and a POST or PUT with `"false"` no longer
+  activates the account. `members` must be a list of
+  `{"value": id}`; a PATCH operation without `path` must carry an object; a filter value is a JSON
+  string (an unknown escape such as `\0`, a raw control character or a NUL is `invalidFilter`;
+  `\uXXXX` now decodes) (decision 65).
+- **Client-visible:** request bodies are read as their JSON types. agents: `arguments`/`input`
+  must be an object, constraints, operators and `budget` objects (a `[]` was read as `{}`; a list
+  of operators is now 422 `invalid_input`, was 400 `unknown_constraint_operator`), capability
+  lists lists, an agent's or host's name has no control character (a NUL was a 500 on
+  PostgreSQL, now 422 `invalid_input`); `max`/`min` need a JSON number argument and `in`/`not_in` compare numbers by value
+  (`1` equals `1.0`). api-keys: `name` a string, `permissions` a list, `metadata` an object. sso:
+  `config`, `attributes`, `jit` objects, `jit.enabled` a boolean, `jit.roles` and
+  `redirect_uris` lists; `sso_url`, `slo_url`, `slo_response_url` must be http(s) URLs
+  (decision 65).
+- **Client-visible:** `plugins/oauth`: a client's `jwks` must hold `keys` as an array (RFC 7517;
+  422 `invalid_client_metadata`, a `jwks_uri` document `invalid_client`); a fetched metadata or
+  JWKS document must be a JSON object. A key is chosen by `kid` only (a key without `kid` is no
+  longer named `"0"`, `"1"`…); a client assertion without `kid` verifies when the client has one
+  key. A client whose registered keys have no `kid` and that sent `kid: "0"` must drop the `kid`
+  (one key) or register keys with a `kid`. Clients registered with `keys` as an object keep
+  working (decision 65).
+- **Client-visible:** error texts. JWT failures in oauth, agents, sso and social read "the
+  signature does not verify", "the token has expired", "the token is not valid before …", … (were
+  "Signature verification failed", "Expired token", "Cannot handle token with nbf prior to …");
+  agents' argument-schema errors read `missing required properties: x`, `/p: must be string, not
+  integer`, …; problem titles in oauth, mcp and agents are sentences ("Invalid DPoP proof",
+  "Capability not granted", were "Invalid Dpop Proof", "Capability Not Granted"). Error codes and
+  problem types are unchanged (decision 65).
+- **Client-visible:** encodings. oauth authorization redirects leave `~` unescaped; social's
+  authorization URL is form-encoded (`scope=openid+email+profile`, was `%20`); mcp sends a boolean
+  tool argument as `true`/`false` (was `1`/empty) and refuses an object, list or null path
+  argument (`-32602`); messaging renders booleans `true`/`false` and escapes HTML with
+  `html.EscapeString` (`'` is `&#39;`, was `&#039;`) (decision 65).
+- `plugins/sso` and `plugins/social`: a provider's JWK without `alg` verifies the algorithm its
+  type implies (RSA RS256, EC P-256 ES256, Ed25519 EdDSA) and any other key without `alg` is
+  refused; it used to be taken as RS256. An expired IdP certificate in SAML still verifies, by
+  design (decision 65).
+
+### Fixed
+
+- `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
+  `%2520`); each path segment is now escaped once (decision 65).
+
 ## [0.5.1] - 2026-11-22
 
 Security fixes from the pre-1.0 security review (decisions 68 and 69). Upgrade now and **run

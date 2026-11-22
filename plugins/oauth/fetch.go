@@ -52,9 +52,9 @@ func assertPublicHTTPSURL(raw, what string) error {
 	return nil
 }
 
-// fetchJSON GETs url and decodes a JSON object of at most 64 KiB; failures carry code (400). A
-// JSON list is read as an empty object (no member is taken from it). The reason a fetch failed is
-// logged, never answered: it would tell a caller which internal hosts this server reaches.
+// fetchJSON GETs url and decodes a JSON object of at most 64 KiB; failures carry code (400). Any
+// other JSON value is refused: a metadata document and a JWK Set are objects. The reason a fetch
+// failed is logged, never answered: it would tell a caller which internal hosts this server reaches.
 func fetchJSON(ctx context.Context, client *http.Client, log *slog.Logger, rawURL, code string) (map[string]any, error) {
 	failed := refusal(code, "The document at "+rawURL+" could not be fetched, or is too large.")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -76,12 +76,8 @@ func fetchJSON(ctx context.Context, client *http.Client, log *slog.Logger, rawUR
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return nil, refusal(code, rawURL+" is not a JSON object.")
 	}
-	switch v := decoded.(type) {
-	case map[string]any:
+	if v, ok := decoded.(map[string]any); ok {
 		return v, nil
-	case []any:
-		return map[string]any{}, nil
-	default:
-		return nil, refusal(code, rawURL+" is not a JSON object.")
 	}
+	return nil, refusal(code, rawURL+" is not a JSON object.")
 }

@@ -204,7 +204,9 @@ func NewUsernames(db store.Adapter, clk clock.Clock, cfg Config) (*Usernames, er
 func Normalize(username string) string { return strings.ToLower(username) }
 
 // trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
-// (not the other Unicode spaces strings.TrimSpace strips).
+// (not the other Unicode spaces strings.TrimSpace strips). The set is fixed on purpose: a trimmed
+// username is stored (Set) and compared with stored ones (UserID, sign-in), so the same input must
+// keep trimming to the same name existing rows hold.
 func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
 
 // Violations lists the rules username breaks; none means acceptable.

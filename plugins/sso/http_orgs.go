@@ -283,12 +283,9 @@ func (p *Plugin) adminDelete(ctx context.Context, in *endpoint.Input) endpoint.R
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "deleted"})
 }
 
-// numericString matches a decimal number written as a query value: an optional sign, digits with
-// an optional fraction, an optional exponent, surrounding whitespace allowed.
-var numericString = regexp.MustCompile(`^\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*$`)
-
-// positiveInt reads a limit: a numeric value (truncated toward zero) of at least 1, def when
-// absent or "".
+// positiveInt reads a limit: a decimal integer of at least 1 (a query value of digits only, or a
+// JSON integer), clamped to MaxLimit; def when absent or "". Signs, spaces, fractions and
+// exponents are refused.
 func positiveInt(v any, def int) (int, bool) {
 	var s string
 	switch v := v.(type) {
@@ -304,13 +301,12 @@ func positiveInt(v any, def int) (int, bool) {
 	if s == "" {
 		return def, true
 	}
-	if !numericString.MatchString(s) {
+	if strings.Trim(s, "0123456789") != "" {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil {
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 1 {
 		return 0, false
 	}
-	n := int(max(-1e9, min(1e9, f)))
-	return n, n >= 1
+	return min(n, MaxLimit), true
 }

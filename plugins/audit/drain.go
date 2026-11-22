@@ -57,7 +57,7 @@ func (d Drain) Map() map[string]any {
 	}
 	var last any
 	if d.LastDeliveryAt != nil {
-		last = d.LastDeliveryAt.UTC().Format(dateAtom)
+		last = timestamp(*d.LastDeliveryAt)
 	}
 	return map[string]any{
 		"id":               d.ID,
@@ -68,7 +68,7 @@ func (d Drain) Map() map[string]any {
 		"status":           d.Status,
 		"last_delivery_at": last,
 		"last_error":       null(d.LastError),
-		"created_at":       d.CreatedAt.UTC().Format(dateAtom),
+		"created_at":       timestamp(d.CreatedAt),
 	}
 }
 

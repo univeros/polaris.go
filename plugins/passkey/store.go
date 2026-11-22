@@ -38,10 +38,6 @@ func Models() []schema.Model {
 	}
 }
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
 // record is a row of polaris_passkey: the credential id and COSE public key as the authenticator
 // presented them (base64url), the signature counter, the backup flags, and the factor it backs.
 type record struct {
@@ -63,10 +59,10 @@ func (r record) wire() map[string]any {
 		factorID = r.FactorID
 	}
 	if r.LastUsedAt != nil {
-		lastUsed = r.LastUsedAt.Format(dateAtom)
+		lastUsed = r.LastUsedAt.UTC().Format(time.RFC3339)
 	}
 	return map[string]any{"id": r.ID, "name": r.Name, "aaguid": r.AAGUID, "transports": r.Transports, "backed_up": r.BackedUp,
-		"factor_id": factorID, "last_used_at": lastUsed, "created_at": r.CreatedAt.Format(dateAtom)}
+		"factor_id": factorID, "last_used_at": lastUsed, "created_at": r.CreatedAt.UTC().Format(time.RFC3339)}
 }
 
 func (p *Plugin) now() time.Time { return p.g.Clock().Now().UTC().Truncate(time.Second) }

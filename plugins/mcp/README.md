@@ -94,7 +94,10 @@ route's own refusal comes back as a tool error result carrying its problem.
 
 ## Host integration
 
-- Tool arguments are not schema-checked by the MCP layer: the route's own 422 is the answer.
+- Tool arguments are not schema-checked by the MCP layer: the route's own 422 is the answer. A
+  path or query argument must be a string, a number or a boolean (sent as `true` / `false`); any
+  other value, or a missing path argument, is `-32602` (invalid params). A null query argument is
+  left out. Each path argument is escaped as one path segment.
 - Bodies over `polaris.Config.MaxBodyBytes` (default 1 MiB) get 413.
 - DPoP-bound tokens need a proof; its `htu` is checked against the configured resource, not `Host`,
   so it works behind a proxy.

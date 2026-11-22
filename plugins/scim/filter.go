@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
@@ -21,9 +22,11 @@ type clause struct{ attribute, operator, value string }
 // filter matches everything.
 type filter []clause
 
-// parseFilter reads a filter; anything outside the subset is the invalidFilter error.
+// parseFilter reads a filter; anything outside the subset is the invalidFilter error. A value is a
+// JSON string (RFC 7644 §3.4.2.2), decoded as one: an escape JSON does not define, a raw control
+// character or a NUL (the value is compared with stored text) is refused.
 func parseFilter(raw string) (filter, error) {
-	raw = trimBlank(raw)
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, nil
 	}
@@ -38,7 +41,11 @@ func parseFilter(raw string) (filter, error) {
 		if strings.HasPrefix(attribute, "emails") {
 			attribute = "emails"
 		}
-		out = append(out, clause{attribute, strings.ToLower(raw[m[4]:m[5]]), stripSlashes(raw[m[6]:m[7]])})
+		var value string
+		if json.Unmarshal([]byte(raw[m[6]-1:m[7]+1]), &value) != nil || strings.ContainsRune(value, 0) {
+			return nil, errFilter
+		}
+		out = append(out, clause{attribute, strings.ToLower(raw[m[4]:m[5]]), value})
 	}
 	if out == nil || consumed != len(raw) {
 		return nil, errFilter
@@ -69,31 +76,3 @@ func (f filter) matches(attributes map[string][]string) bool {
 	}
 	return true
 }
-
-// stripSlashes unescapes a filter value: a backslash escapes the next byte (\0 is NUL); a lone
-// trailing backslash is dropped.
-func stripSlashes(s string) string {
-	if !strings.Contains(s, `\`) {
-		return s
-	}
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' {
-			b.WriteByte(s[i])
-			continue
-		}
-		i++
-		if i < len(s) {
-			if s[i] == '0' {
-				b.WriteByte(0)
-			} else {
-				b.WriteByte(s[i])
-			}
-		}
-	}
-	return b.String()
-}
-
-// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
-// (not the other Unicode spaces strings.TrimSpace strips).
-func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }

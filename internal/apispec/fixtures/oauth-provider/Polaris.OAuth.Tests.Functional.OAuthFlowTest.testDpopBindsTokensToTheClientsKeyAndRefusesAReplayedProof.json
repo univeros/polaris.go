@@ -311,7 +311,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_dpop_proof",
-                "title": "Invalid Dpop Proof",
+                "title": "Invalid DPoP proof",
                 "status": 400,
                 "detail": "A DPoP proof is required.",
                 "error": "invalid_dpop_proof",
@@ -361,7 +361,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_dpop_proof",
-                "title": "Invalid Dpop Proof",
+                "title": "Invalid DPoP proof",
                 "status": 400,
                 "detail": "The proof is not a JWT.",
                 "error": "invalid_dpop_proof",
@@ -411,7 +411,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_dpop_proof",
-                "title": "Invalid Dpop Proof",
+                "title": "Invalid DPoP proof",
                 "status": 400,
                 "detail": "The proof is bound to another method or URL.",
                 "error": "invalid_dpop_proof",
@@ -830,7 +830,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_dpop_proof",
-                "title": "Invalid Dpop Proof",
+                "title": "Invalid DPoP proof",
                 "status": 400,
                 "detail": "The refresh token is bound to another DPoP key.",
                 "error": "invalid_dpop_proof",
@@ -996,7 +996,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_dpop_proof",
-                "title": "Invalid Dpop Proof",
+                "title": "Invalid DPoP proof",
                 "status": 400,
                 "detail": "The subject token is bound to a DPoP key; prove it, and the exchanged token stays bound to it.",
                 "error": "invalid_dpop_proof",

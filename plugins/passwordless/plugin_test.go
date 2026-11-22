@@ -725,21 +725,39 @@ func parallel(n int, f func()) {
 	wg.Wait()
 }
 
-func TestEscapedJSON(t *testing.T) {
-	got, err := escapedJSON(magicLinkData{Email: "zoë@example.com", RedirectURI: "https://app.example/x?a=1&b=<2>"})
-	if err != nil {
+// The data column is written in standard JSON ("/" and UTF-8 as they are, {} when empty), and a
+// row written by an earlier release (slashes escaped "\/", non-ASCII as \uXXXX, [] for no data)
+// still reads.
+func TestTheDataColumnReadsBothForms(t *testing.T) {
+	e := boot(t, Config{})
+	ctx := e.ctx
+	data := func(kind string) string {
+		t.Helper()
+		rows, err := e.g.DB().FindMany(ctx, TableSecrets, store.Criteria{"kind": kind}, store.Query{})
+		if err != nil || len(rows) != 1 {
+			t.Fatalf("%s rows: %v %v", kind, rows, err)
+		}
+		return rows[0].String("data")
+	}
+	ok(t, e.v.sendMagicLink(ctx, "ada@example.com", ""))
+	tok := e.linkToken()
+	if got, want := data(kindMagicLink), `{"email":"ada@example.com","redirect_uri":"https://app.example/signed-in"}`; got != want {
+		t.Fatalf("written %s, want %s", got, want)
+	}
+	ok(t, e.v.sendEmailCode(ctx, "ada@example.com", PurposeSignIn))
+	if got := data(kindEmailSignIn); got != "{}" {
+		t.Fatalf("no data written %s", got)
+	}
+
+	old := `{"email":"\u0061da@example.com","redirect_uri":"https:\/\/app.example\/signed-in"}`
+	if _, err := e.g.DB().Update(ctx, TableSecrets, store.Criteria{"kind": kindMagicLink}, store.Data{"data": old}); err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"email":"zo` + "\\u00eb" + `@example.com","redirect_uri":"https:\/\/app.example\/x?a=1&b=<2>"}`; got != want {
-		t.Fatalf("got %s, want %s", got, want)
+	redirect := must[string](t)(e.v.verifyMagicLink(ctx, tok))
+	if !strings.HasPrefix(redirect, tDone+"?code=") {
+		t.Fatalf("an old row redirects to %q", redirect)
 	}
-	if got, _ := escapedJSON("\U0001F600"); got != "\"\\ud83d\\ude00\"" {
-		t.Fatalf("surrogates %s", got)
-	}
-	if got, _ := escapedJSON(nil); got != "[]" {
-		t.Fatalf("nil %s", got)
-	}
-	if _, err := escapedJSON(make(chan int)); err == nil {
-		t.Fatal("unencodable accepted")
+	if _, err := e.g.Repos().Users.ByEmail(ctx, "ada@example.com"); err != nil {
+		t.Fatalf("an old row signs up its address: %v", err)
 	}
 }

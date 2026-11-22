@@ -117,34 +117,33 @@ func parseJWK(m map[string]any) (*jose.JSONWebKey, error) {
 
 // verifySigned checks a compact JWS signed with alg by key and returns its claims (numbers as
 // json.Number), applying the time checks with leeway: nbf and iat not after now, exp after now.
-// The error texts are what the token endpoint has always answered.
 func verifySigned(raw, alg string, key *jose.JSONWebKey, now time.Time, leeway time.Duration) (map[string]any, error) {
 	if !slices.Contains(asymmetricAlgorithms, alg) {
 		return nil, errors.New("algorithm not supported")
 	}
 	jws, err := jose.ParseSignedCompact(raw, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(alg)})
 	if err != nil {
-		return nil, errors.New("wrong number of segments or malformed token")
+		return nil, errors.New("the token is not a compact JWS")
 	}
 	payload, err := jws.Verify(key.Key)
 	if err != nil {
-		return nil, errors.New("Signature verification failed")
+		return nil, errors.New("the signature does not verify")
 	}
 	dec := json.NewDecoder(bytes.NewReader(payload))
 	dec.UseNumber()
 	var claims map[string]any
-	if dec.Decode(&claims) != nil {
-		return nil, errors.New("Syntax error, malformed JSON")
+	if dec.Decode(&claims) != nil || claims == nil {
+		return nil, errors.New("the claims are not a JSON object")
 	}
 	limit := now.Add(leeway).Unix()
 	if v, ok := number(claims["nbf"]); ok && int64(v) > limit {
-		return nil, fmt.Errorf("Cannot handle token with nbf prior to %s", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
+		return nil, fmt.Errorf("the token is not valid before %s", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
 	if v, ok := number(claims["iat"]); ok && int64(v) > limit {
-		return nil, fmt.Errorf("Cannot handle token with iat prior to %s", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
+		return nil, fmt.Errorf("the token was issued in the future (%s)", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
 	if v, ok := number(claims["exp"]); ok && now.Add(-leeway).Unix() >= int64(v) {
-		return nil, errors.New("Expired token")
+		return nil, errors.New("the token has expired")
 	}
 	return claims, nil
 }

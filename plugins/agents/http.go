@@ -2,9 +2,11 @@ package agents
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/univeros/polaris.go/internal/version"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -296,19 +298,14 @@ func (p *Plugin) register(ctx context.Context, in *endpoint.Input) endpoint.Resu
 	return p.registered(a, secret, grants, ap)
 }
 
-// listOf reads an optional list field (absent or null: empty); ok is false for anything else.
+// listOf reads an optional JSON list field (absent or null: empty); ok is false for anything
+// else, an object included.
 func listOf(in *endpoint.Input, field string) ([]any, bool) {
 	switch v := in.Value(field).(type) {
 	case nil:
 		return nil, true
 	case []any:
 		return v, true
-	case map[string]any:
-		out := make([]any, 0, len(v))
-		for _, k := range sortedKeys(v) {
-			out = append(out, v[k])
-		}
-		return out, true
 	}
 	return nil, false
 }
@@ -591,7 +588,7 @@ func (p *Plugin) decideApproval(ctx context.Context, in *endpoint.Input) endpoin
 	}
 	decision := in.Value("decision")
 	constraints := in.Value("constraints")
-	if (decision != "approve" && decision != "deny") || (constraints != nil && !isMap(constraints) && !isList(constraints)) {
+	if (decision != "approve" && decision != "deny") || (constraints != nil && !isMap(constraints)) {
 		return p.fail(ctx, refuse(ErrInvalidInput, "decision is approve or deny; constraints, when given, an object."))
 	}
 	ap, ok, err := p.s.approval(ctx, in.String("id"))
@@ -719,7 +716,11 @@ func (p *Plugin) listReceipts(ctx context.Context, in *endpoint.Input) endpoint.
 	if err != nil {
 		return p.fail(ctx, err)
 	}
-	after, limit := intField(in, "after", 0), intField(in, "limit", 100)
+	after, okAfter := intField(in, "after", 0)
+	limit, okLimit := intField(in, "limit", 100)
+	if !okAfter || !okLimit {
+		return p.fail(ctx, refuse(ErrInvalidInput, "after and limit are integers."))
+	}
 	list, err := p.s.receiptsOf(ctx, a.ID, int64(after), limit)
 	if err != nil {
 		return p.fail(ctx, err)
@@ -738,13 +739,25 @@ func (p *Plugin) listReceipts(ctx context.Context, in *endpoint.Input) endpoint.
 	return endpoint.JSON(http.StatusOK, map[string]any{"data": views(list, receiptView), "next_cursor": cursor, "has_more": more})
 }
 
-// intField reads a numeric query or body field (a number or a numeric string) truncated toward
-// zero; def when the field is absent or not numeric.
-func intField(in *endpoint.Input, field string, def int) int {
-	if f, ok := numeric(in.Value(field)); ok {
-		return int(f)
+// intField reads an integer field: a JSON integer in a body, decimal digits (optionally signed)
+// in a query; def when the field is absent or empty, ok false for anything else.
+func intField(in *endpoint.Input, field string, def int) (int, bool) {
+	var s string
+	switch v := in.Value(field).(type) {
+	case nil:
+		return def, true
+	case string:
+		s = v
+	case json.Number:
+		s = v.String()
+	default:
+		return 0, false
 	}
-	return def
+	if s == "" {
+		return def, true
+	}
+	n, err := strconv.Atoi(s)
+	return n, err == nil
 }
 
 func (p *Plugin) verifyReceipt(ctx context.Context, in *endpoint.Input) endpoint.Result {

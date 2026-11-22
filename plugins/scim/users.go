@@ -2,7 +2,6 @@ package scim
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/univeros/polaris.go/wiring"
 	"slices"
@@ -113,6 +112,10 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 	if err != nil {
 		return model.User{}, err
 	}
+	active, err := activeOf(body)
+	if err != nil {
+		return model.User{}, err
+	}
 	taken := conflict("A member with this userName exists.")
 	user, err := d.repos.Users.ByEmail(ctx, email)
 	exists := err == nil
@@ -164,7 +167,7 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 	if joined {
 		d.events.Dispatch(ctx, event.MemberJoined{OrganizationID: conn.OrganizationID, UserID: user.ID, Email: user.Email})
 	}
-	if body["active"] == false {
+	if !active {
 		if err := d.setMembershipActive(ctx, conn, user, false); err != nil {
 			return model.User{}, err
 		}
@@ -178,10 +181,14 @@ func (d *directory) replaceUser(ctx context.Context, conn Connection, user model
 	if err != nil {
 		return model.User{}, err
 	}
+	active, err := activeOf(body)
+	if err != nil {
+		return model.User{}, err
+	}
 	ext := externalIDOf(body)
 	parts := namePartsOf(body)
 	return d.writeUser(ctx, conn, user, userChange{email: &email, displayName: displayNameOf(body), setName: true, parts: &parts,
-		externalID: &ext, active: body["active"] != false, setActive: true})
+		externalID: &ext, active: active, setActive: true})
 }
 
 // patchUser applies PatchOp operations on active, userName, displayName, name.* and externalId;
@@ -190,7 +197,11 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 	var c userChange
 	for _, op := range ops {
 		if v := op.scalar("active"); v != nil {
-			c.active, c.setActive = truthy(v), true
+			active, ok := booleanOf(v)
+			if !ok {
+				return model.User{}, errActive
+			}
+			c.active, c.setActive = active, true
 		}
 		if v, ok := op.scalar("userName").(string); ok {
 			email, err := validEmail(v)
@@ -400,7 +411,7 @@ func (d *directory) userResource(ctx context.Context, conn Connection, user mode
 		"emails":      []map[string]any{{"value": user.Email, "primary": true}},
 		"active":      user.Status != model.UserStatusDisabled && found && m.Status == model.MembershipStatusActive,
 		"groups":      groups,
-		"meta": map[string]any{"resourceType": KindUser, "created": atom(user.CreatedAt), "lastModified": atom(user.UpdatedAt),
+		"meta": map[string]any{"resourceType": KindUser, "created": timestamp(user.CreatedAt), "lastModified": timestamp(user.UpdatedAt),
 			"location": location + "/Users/" + user.ID},
 	}
 	ext, err := d.resources.externalID(ctx, conn, KindUser, user.ID)
@@ -532,19 +543,41 @@ func nonBlank(s string) *string {
 	return &s
 }
 
-// truthy reads a directory's boolean leniently: true for true, 1 and "1", "true", "on", "yes"
-// in any case (surrounding blanks ignored); false otherwise.
-func truthy(v any) bool {
+var errActive = invalid(`active must be a boolean (true or false, or the string "true" or "false").`, TypeInvalidValue)
+
+// booleanOf reads active: a JSON boolean (RFC 7643 §2.3.2) or the string "true" or "false" in
+// any case. The strings are interoperability with Microsoft Entra ID, which sends "True"/"False"
+// in PATCH unless the application opts into its compliant behaviour (?aadOptscim062020); every
+// other value ("on", "1", numbers) is refused.
+func booleanOf(v any) (bool, bool) {
 	switch v := v.(type) {
 	case bool:
-		return v
-	case json.Number:
-		return v.String() == "1"
+		return v, true
 	case string:
-		switch strings.ToLower(trimBlank(v)) {
-		case "1", "true", "on", "yes":
-			return true
+		switch {
+		case strings.EqualFold(v, "true"):
+			return true, true
+		case strings.EqualFold(v, "false"):
+			return false, true
 		}
 	}
-	return false
+	return false, false
 }
+
+// activeOf is a POST or PUT body's active (RFC 7643 §4.1.1): booleanOf, true when absent or null.
+func activeOf(body map[string]any) (bool, error) {
+	v := body["active"]
+	if v == nil {
+		return true, nil
+	}
+	if b, ok := booleanOf(v); ok {
+		return b, nil
+	}
+	return false, errActive
+}
+
+// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
+// (not the other Unicode spaces strings.TrimSpace strips). It trims what is stored or compared
+// with stored values (names, external ids, a connection's name, ids, cursors), so values written
+// by earlier releases keep matching.
+func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }

@@ -37,7 +37,7 @@ func confusedDeputy(a *agentsCase) {
 	a.status(minted, 200, "the exchange is open to any session")
 	tok := str(a.json(minted)["access_token"])
 	a.equal([]any{claims(tok)["sub"], claims(tok)["client_id"]}, []any{bobID, id}, "Bob's token names the agent")
-	a.agentsProblem(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}), 401, "invalid_jwt", "", "execute")
+	a.agentsProblem(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}), 401, "invalid_jwt", "", "execute")
 	a.agentsProblem(a.bearer(tok, "GET", "/agents/session", nil), 401, "invalid_jwt", "", "the session")
 	a.agentsProblem(a.c.Get("/auth/me", contracttest.Bearer(tok)), 401, "invalid_jwt", "", "a core route")
 	a.agentsProblem(a.c.Get("/orgs/"+orgID+"/members", contracttest.Bearer(tok)), 401, "invalid_jwt", "", "a permissioned core route")
@@ -46,7 +46,7 @@ func confusedDeputy(a *agentsCase) {
 	a.equal(len(a.audited(agents.EventExecuted)), 0, "no execution was audited")
 
 	own := str(a.json(a.exchangeFor(id, ada))["access_token"])
-	a.equal(obj(a.json(a.bearer(own, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}))["data"])["agent"], id, "Ada's own exchange")
+	a.equal(obj(a.json(a.bearer(own, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}))["data"])["agent"], id, "Ada's own exchange")
 	a.equal(a.data(a.c.Get("/auth/me", contracttest.Bearer(own)))["id"], adaID, "as Ada")
 }
 
@@ -84,7 +84,7 @@ func clientNotManageable(a *agentsCase) {
 		a.t.Error("operators see the agent's client")
 	}
 	tok := str(a.json(a.exchangeFor(id, ada))["access_token"])
-	a.status(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}), 200, "the agent works")
+	a.status(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}), 200, "the agent works")
 	a.equal(a.data(a.c.Post("/agents/"+id+"/revoke", nil, contracttest.Bearer(ada)))["status"], "revoked", "kill switch")
 	client, _ = plugin.Client(a.ctx, id)
 	if client.DisabledAt == nil {

@@ -46,10 +46,6 @@ const (
 	DefaultMaxPerOwner   = 50
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
 // Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// Environment is the prefix of keys created without one: EnvLive (default) or EnvTest.

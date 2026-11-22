@@ -44,7 +44,7 @@ func (p *Plugin) organization(ctx context.Context, id string) (model.Organizatio
 func orgView(o model.Organization) map[string]any {
 	return map[string]any{
 		"id": o.ID, "name": o.Name, "slug": o.Slug, "status": cmp.Or(o.Status, model.OrganizationStatusActive),
-		"created_by": o.CreatedBy, "created_at": o.CreatedAt.Format(dateAtom), "updated_at": o.UpdatedAt.Format(dateAtom),
+		"created_by": o.CreatedBy, "created_at": timestamp(o.CreatedAt), "updated_at": timestamp(o.UpdatedAt),
 	}
 }
 

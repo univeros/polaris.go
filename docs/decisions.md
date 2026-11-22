@@ -1563,3 +1563,205 @@ as v0.5.1.
   `ErrUnavailable` (503) at once; a fetch that failed because its own request was cancelled is
   not remembered. A cached set inside its TTL keeps verifying as before. Test:
   `TestAFailedJWKSFetchIsRememberedBriefly`.
+
+## 65. 2026-11-22 — Plugins speak Go on the wire
+
+The plugins still reproduced behaviours of the language they were ported from (#53, #58): offsets
+written `+00:00`, numbers read from any numeric-looking string, `[]` standing in for `{}`, a
+boolean cast to `"1"` or `""`, JSON with `\/` and `\uXXXX`, the error texts of PHP libraries.
+After v1.0.0 changing any of them needs v2, so each is removed now, deliberately, under rules 4
+and 5: what a client sends is read strictly, what it reads is conventional Go, and stored rows,
+issued receipts and hash chains keep reading and verifying. Tests first in each plugin (the
+`wire_test.go` files and the tests named below). Contract fixture contents are edited where a
+client-visible text changed (file names unchanged); the normalizer already masks datetimes and
+treats `{}` and `[]` alike, so timestamp-only changes needed no fixture edit (the SCIM fixtures
+were brought up to date anyway).
+
+### 1. Timestamps: RFC 3339 with `Z`
+
+Every `dateAtom` layout (`2006-01-02T15:04:05-07:00`) is gone: admin, apikeys, agents, audit,
+multisession, oauth, passkey, scim, sentinel, social and sso write `t.UTC().Format(time.RFC3339)`,
+so UTC is `Z`. admin and passkey did not convert to UTC first: a key or grant created with
+`expires_at: "2030-01-01T00:00:00+02:00"` echoed the offset and now answers
+`2029-12-31T22:00:00Z`. Inputs keep accepting both forms (`time.RFC3339` parsing reads either), as
+does sentinel's re-parse of its stored `created_at`.
+
+Kept, because a hash covers the text:
+- **Audit hash chain.** `hashOf` hashes the event's wire keys; it now formats `occurred_at` as
+  `+00:00` inside the hash computation only (`hashedTimeLayout`), while `Event.Map` gives clients
+  `Z`. `canonicalJSON` and the stored `data` text are byte-identical. A chain written by an
+  earlier release keeps verifying and new rows chain onto it
+  (`TestAChainWrittenByAnEarlierReleaseKeepsVerifying`, a row carrying the hash the old code
+  computed; `TestClientsReadZTimesWhileTheHashKeepsItsForm`; `TestTheHashIsOverTheCanonicalForm`
+  unchanged). Data values of new events (`user.locked` `until`, the prune checkpoint's `before`,
+  the api-keys events' `expires_at`/`grace_until`) are written `Z`; old rows keep their text.
+- **Agent receipts.** A receipt's `created_at` stays `+00:00` (`receiptTime`): `Receipt.hashed()`
+  covers that text and the Go agent SDK hashes it as received, so a change would break every
+  receipt chain already issued (`TestAReceiptHashesItsCreationTimeInTheIssuedForm`; the SDK's
+  `receipt-chains.json` vectors pass). The receipts route keeps showing `+00:00`.
+
+Client impact: every timestamp a plugin route answers ends in `Z` instead of `+00:00`, the audit
+file and webhook sinks too. RFC 3339 parsers read both.
+
+### 2. JSON
+
+- **To clients:** standard Go encoding. The audit `FileSink` and `WebhookSink` write
+  `json.Marshal` output (UTF-8, `/` unescaped, `{}` for an empty object, `<>&` escaped as Go does)
+  instead of the hash chain's canonical form; the HMAC is over the bytes sent, so receivers still
+  verify (`TestTheSinksWriteStandardJSON`).
+- **Stored, writer switched** (every reader decodes both forms; each proven by a test reading a
+  row in the old form): admin's `ip_allowlist` (`TestAKeyStoredWithEscapedSlashesStillReads`); sso
+  provider `config`, `attributes`, `jit`, `redirect_uris` (`escapedJSON` and the ordered `object`
+  are deleted, `store.JSONValue` writes them; `TestProviderRowsAreStandardJSONAndOldRowsStillRead`
+  reads `[]`, `\/`, `Ü` and a surrogate pair); passwordless secrets' `data` (`escapedJSON`
+  deleted, nil written `{}`; `TestTheDataColumnReadsBothForms`). None is hashed, signed or
+  compared byte for byte. The lenient readers stay.
+- **Not changed, byte for byte:** the audit trail's `canonicalJSON` (stored and hashed) and the
+  agents receipts' `canonicalJSON` (hashed, verified by the SDK). Changing their bytes would break
+  every chain and receipt already written.
+
+### 3. Strict numbers, booleans and strings
+
+- **Limits and paging.** `positiveInt` in admin, audit, sentinel, sso and scim reads a JSON
+  integer or a query value of ASCII digits (`strconv.Atoi`, no trimming); `1.5`, `2.0`, `1e1`,
+  ` 2`, `+2` and overflow answer 422 with each plugin's existing code. The default for an absent
+  value and the clamp to the maximum are unchanged. SCIM `startIndex`/`count` (`integer`,
+  `paging`) take an integer (an optional sign; below 1 still reads as 1, RFC 7644 §3.4.2.4);
+  anything else is 400 `invalidValue`, audited as a refused request. agents `after`/`limit` on the
+  receipts route are 422 `invalid_input` instead of truncating or silently falling back.
+- **SCIM `active`** is a JSON boolean (RFC 7643) or the string `"true"`/`"false"` in any case, in
+  POST, PUT and PATCH; `"on"`, `"yes"`, `"1"`, other strings and numbers are 400 `invalidValue`
+  ("active must be a boolean (true or false, or the string "true" or "false")."). Before, PATCH
+  read `"True"`/`"on"`/`"yes"`/`"1"` as true, and POST/PUT activated an account sent `"false"`.
+  The two strings are not leniency kept from the port but interoperability with the most common
+  SCIM client: Microsoft Entra ID sends `{"op":"Replace","path":"active","value":"False"}` by
+  default, unless the application's Tenant URL carries `?aadOptscim062020`; refusing it would
+  stop Entra from deprovisioning anyone. Op names were already matched in any case (RFC 7644
+  §3.5.2). Tests: `TestActiveIsAJSONBoolean`, `TestEntraIDsPatchOfActiveWorks` (Entra's exact
+  PATCH bodies deactivate and reactivate).
+- **agents.** `max`/`min` constraints take a JSON number (a numeric string violates the
+  constraint: fail closed); `in`/`not_in` compare numbers by value (`1`, `1.0`, `1e0` equal; int64
+  exactly, else float64, no unbounded-precision parsing of client numbers), which closes a
+  `not_in: [1]` bypass with `1.0`. `rowJSON` keeps reading stored JSON with `json.Number` (exact
+  values); only its comment changed.
+- **Casts.** mcp sends a boolean tool argument as `true`/`false` (was `1`/empty) and refuses an
+  object, list or null path argument with JSON-RPC `-32602`; messaging renders a boolean variable
+  `true`/`false`; apikeys reads `name` only as a JSON string (`true` was `"1"`); social reads a
+  provider's string or number subject and gives `""` for a boolean (the existing empty-subject
+  refusal applies; a float id keeps its old text so stored subjects still match); social
+  `expires_in` must be an integer (garbage meant "expired at once", now "unknown").
+- **Trimming.** The exact set `" \t\n\r\x00\x0b"` is kept wherever the value is stored or compared
+  with stored values, so existing rows still match: usernames (`UserID`, `Set`, the sign-in
+  identifier), admin key names (NUL never reaches a column), oauth client names, sso provider
+  `name`/`issuer` and domains, scim display and name parts, `externalId`, group names, connection
+  names, organization ids and cursors, passwordless email, phone, token, code, `redirect_uri` and
+  `purpose`. `strings.TrimSpace` elsewhere: the SCIM filter string (parsed, not stored), agent and
+  host names (labels, never looked up), social's blank test. Each kept site says why. An agent or
+  host name containing a NUL or another control character (anywhere, not only at the ends) is
+  refused with the empty name's 422 `invalid_input`, so PostgreSQL never sees it (it refuses NUL in
+  text: a 500 before) (`TestAgentAndHostNamesRefuseControlCharacters`).
+
+### 4. Arrays standing in for objects, objects for lists
+
+Data from outside parties follows its RFC; stored data keeps reading:
+- **oauth.** `fetchJSON` refuses a document that is not a JSON object (a list read as `{}`);
+  `jwksKeys` requires `keys` to be an array (RFC 7517 §5): registering `jwks` otherwise is 422
+  `invalid_client_metadata`, a `jwks_uri` document otherwise `invalid_client`. Registration used to
+  store `keys` as an object; `storedJWKSKeys` still reads such a row, in key order
+  (`TestAKeySetIsAnArrayButAStoredObjectStillReads`); a cached old-form `jwks_uri` document is a
+  miss and is fetched again. `verifyWithKeySet` no longer names a key without `kid` by its index:
+  a header `kid` selects only the key with that `kid`; a token without `kid` verifies against the
+  set's only key and is refused when there are several (RFC 7515 §4.1.4); a non-string `kid` is
+  refused (`TestAKeyIsChosenByItsKidOnly`). Breaking for a registered client whose keys have no
+  `kid` and that sent `kid: "0"` (it had to: a `kid` was required): it drops the `kid` (one key)
+  or registers keys with a `kid`. Kept narrow on purpose: a compatibility path would keep the
+  positional naming forever.
+- **sso.** `asMap` and `listOf` are gone: `config`, `attributes`, `jit` must be objects,
+  `jit.enabled` a boolean, `jit.roles` and `redirect_uris` lists (422 `sso_invalid_input`, each
+  with its message); a PATCH's absent or null field still keeps the stored value. JWKS and
+  discovery were already strict.
+- **scim.** `members` is a list of `{"value": id}` objects (no `{}`, no bare ids), and a PATCH
+  operation without `path` carries an object (400 `invalidValue`).
+- **agents.** `arguments`/`input` on `/agents/execute` must be an object or null ("arguments is an
+  object."); constraints, their operators and `budget` must be objects (422 `invalid_input`;
+  `{"x":["y"]}` was 400 `unknown_constraint_operator`); `capabilities` and `default_capabilities`
+  must be lists. Stored grants read an old row's `[]` operators as `{}`
+  (`TestStoredConstraintsReadTheirOldForms`).
+- **apikeys.** `permissions` must be a list and `metadata` an object; a stored `[]` metadata still
+  reads as `{}` (`TestInputIsReadAsItsJSONType`).
+
+### 5. Error texts
+
+The firebase/php-jwt texts in oauth (`jwt.go`, `clients.go`, `dpop.go`), agents
+(`requestjwt.go`), sso (`oidc.go`) and social (`outbound.go`) are one Go vocabulary: "the
+signature does not verify", "the claims are not a JSON object", "the token is not valid before
+<time>" (sso and social: "… yet (nbf)"), "the token was issued in the future (<time>)", "the token
+has expired", "the token is not a compact JWS", "no key in the key set has the token's kid", "the
+token names no key (kid)…", "the key's alg is not the token's alg". The opis/json-schema texts of
+agents' argument validation read as Go (`missing required properties: x`, `/p: must be string,
+not integer`, `must be at least N characters, not M`, …; paths are JSON Pointers). Problem titles
+in oauth, mcp and agents are sentences with acronyms capitalized ("Invalid DPoP proof", "Invalid
+JWT", "Capability not granted"; were "Invalid Dpop Proof", "Invalid Jwt", "Capability Not
+Granted"), as the other plugins' titles already were. Error codes and problem `type` URLs are
+unchanged. Fixtures edited: the oauth-provider assertion step and titles (six files), the mcp
+titles, the agents titles and the `properties not allowed: extra` step.
+
+### 6. Encodings
+
+- oauth `formEncode` is deleted: authorization redirects use `url.QueryEscape` (form encoding of a
+  query, space `+`; `~` now unescaped, RFC 3986 unreserved). `basicAuth` keeps
+  `url.QueryUnescape` (RFC 6749 §2.3.1).
+- mcp path arguments were escaped twice (a space went out as `%2520`); `fillPath` escapes each
+  segment once (`url.PathEscape`, `RawPath`) and query arguments go through `url.Values.Encode`.
+- social: the authorization request query is form-encoded (`scope=openid+email+profile`, was
+  `%20`), RFC 6749 §4.1.1 and Appendix B; token request bodies already used `url.Values.Encode`.
+  The five social fixtures are edited at each start/link URL. `proxySignature` (base64url of the
+  hex digest) is **kept**: the stable origin behind the proxy verifies it and may run an earlier
+  release during a rollout.
+- messaging's `htmlEscaper` is `html.EscapeString` (`'` is `&#39;`, `"` is `&#34;`); rendered
+  output is sent, never stored or compared.
+- sso `validURL` is `net/url`-based and requires an absolute `http`/`https` URL with a host, in
+  printable ASCII: `sso_url`, `slo_url` and `slo_response_url` used to accept any scheme
+  (`javascript:`, `urn:`), and the browser is redirected to them ("config.<k> must be an http(s)
+  URL."). A provider stored with another scheme fails its next PATCH until corrected; it never
+  worked with the redirect binding.
+- scim `stripSlashes` is gone: a filter value is a JSON string literal (RFC 7644 §3.4.2.2) decoded
+  by `encoding/json`; an unknown escape (`\0`, `\x`, `\'`), a raw control character or a NUL
+  (`\u0000` or raw) is `invalidFilter`. `é`, `\/`, `\t` and surrogate pairs now decode (`\u`
+  gave a literal `u`). `FuzzFilter` fails on a NUL in an accepted value.
+
+### 7. Kept and documented
+
+- **A JWK without `alg` (sso, social)** no longer defaults to RS256: `algorithmOf` infers it from
+  the key type (RSA → RS256, EC P-256 → ES256, OKP Ed25519 → EdDSA) and refuses any other key
+  without `alg` ("the key names no alg and its type implies none"): P-384/521, symmetric and
+  private keys. A key's own `alg` still wins. EdDSA stays outside the accepted id_token
+  algorithms, so an EdDSA id_token is still refused at parse
+  (`TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies` in both plugins).
+- **An expired IdP certificate in SSO SAML still verifies: kept.** The certificate only carries
+  the key the organization admin configured; no chain or revocation is consulted, so the
+  configured key is the trust anchor and the validity dates add nothing. Shibboleth SP,
+  SimpleSAMLphp and most SAML SPs do the same, and IdPs routinely ship long-lived or expired
+  self-signed certificates: refusing them breaks working IdPs for no gain. A rotated or
+  compromised key is handled by changing the configured certificate. The reasoning is in
+  `saml.go`; `TestAnExpiredIdPCertificateStillVerifies` pins it and checks that a response signed
+  by another key is still refused.
+
+Security review. **oauth:** no check is weakened: signature and alg match, `jti` replay,
+`sub`/`aud`/`exp`, the time checks and their leeways are unchanged; key selection is stricter (no
+index naming); the one new acceptance (no `kid` with a single-key set) still verifies with the
+client's own registered key and algorithm; `fetchJSON`/`jwksKeys` refuse more; the new texts reveal
+no key material or internal host. **agents:** every change refuses more or compares more strictly
+(numeric strings fail `max`/`min`; `in`/`not_in` by value close the `1.0` bypass); the request-JWT
+checks (alg, signature, nbf/iat/exp with 60 s leeway, aud/htm/htu/body hash, jti) are unchanged;
+receipts' hashed bytes are identical. **passkey:** display of two timestamps only; no ceremony,
+verification or counter code touched. **social, sso:** alg inference makes each key verify only
+the algorithm its type implies, HMAC and `none` stay excluded and the token's alg must still match
+the key's; JWKS `keys` was already an array and a missing `kid` is refused outright (the
+single-key fallback of OIDC Core §10.1 is not added); the http(s)-only URL rule rejects
+`javascript:` redirects; `proxySignature`, `verifiedFlag` (decision 59), the constant-time
+compares and the nonce check are unchanged; the SAML certificate decision above. **scim, admin,
+audit:** stricter input only; the audit chain's hashed bytes are identical.
+
+Left open: the route specs' `output.example` timestamps still read `+00:00` (they belong with the
+core change, #64), as do `examples/b2b/README.md` and `examples/agents/README.md`.

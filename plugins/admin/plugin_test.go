@@ -129,7 +129,7 @@ func TestKeysAuthenticateByHashExpiryAndAllowlist(t *testing.T) {
 		t.Fatal("the hash never leaves")
 	}
 	stored, _ := e.db.FindOne(ctx, admin.TableKeys, store.Criteria{"id": key.ID})
-	if stored.String("ip_allowlist") != `["10.0.0.0\/8"]` || stored.String("key_hash") == secret {
+	if stored.String("ip_allowlist") != `["10.0.0.0/8"]` || stored.String("key_hash") == secret {
 		t.Fatalf("stored form: %v", stored)
 	}
 
@@ -167,6 +167,31 @@ func TestKeysAuthenticateByHashExpiryAndAllowlist(t *testing.T) {
 		if _, _, err := keys.Create(ctx, bad); !errors.Is(err, admin.ErrInvalid) {
 			t.Errorf("%+v: %v", bad, err)
 		}
+	}
+}
+
+// Rows written by earlier releases hold the allowlist with escaped slashes ("10.0.0.0\/8"); they
+// keep reading and authenticating.
+func TestAKeyStoredWithEscapedSlashesStillReads(t *testing.T) {
+	e := boot(t)
+	ctx := context.Background()
+	keys := e.admin.Keys()
+	key, secret, err := keys.Create(ctx, admin.Key{Name: "old", Role: admin.RoleSupport, IPAllowlist: []string{"10.0.0.0/8"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.Update(ctx, admin.TableKeys, store.Criteria{"id": key.ID}, store.Data{"ip_allowlist": `["10.0.0.0\/8"]`}); err != nil {
+		t.Fatal(err)
+	}
+	found, ok, err := keys.Find(ctx, key.ID)
+	if !ok || err != nil || !slices.Equal(found.IPAllowlist, []string{"10.0.0.0/8"}) {
+		t.Fatalf("%+v %v %v", found, ok, err)
+	}
+	if _, ok, _ := keys.Authenticate(ctx, secret, "10.1.2.3"); !ok {
+		t.Fatal("an old row authenticates inside its allowlist")
+	}
+	if _, ok, _ := keys.Authenticate(ctx, secret, "192.168.1.1"); ok {
+		t.Fatal("an old row refuses outside its allowlist")
 	}
 }
 
@@ -308,6 +333,11 @@ func TestEndpointEdgeCases(t *testing.T) {
 		{"GET", "/admin/users?limit=0", nil, 422, "admin_invalid_input"},
 		{"GET", "/admin/users?limit=many", nil, 422, "admin_invalid_input"},
 		{"GET", "/admin/organizations?limit=-1", nil, 422, "admin_invalid_input"},
+		{"GET", "/admin/users?limit=1.5", nil, 422, "admin_invalid_input"},
+		{"GET", "/admin/users?limit=1e1", nil, 422, "admin_invalid_input"},
+		{"GET", "/admin/users?limit=%202", nil, 422, "admin_invalid_input"},
+		{"GET", "/admin/organizations?limit=+2", nil, 422, "admin_invalid_input"},
+		{"GET", "/admin/audit?limit=2.0", nil, 422, "audit_invalid_query"},
 		{"GET", "/admin/audit?from=yesterday", nil, 422, "audit_invalid_query"},
 		{"GET", "/admin/audit?limit=", nil, 422, "audit_invalid_query"},
 		{"POST", "/admin/users/u1/password", map[string]any{}, 422, "admin_invalid_input"},
@@ -346,8 +376,8 @@ func TestEndpointEdgeCases(t *testing.T) {
 	if resp := c.Get("/admin/users?status=locked", as); len(contracttest.JSON(t, resp)["data"].([]any)) != 1 {
 		t.Fatal("status filter")
 	}
-	if resp := c.Post("/admin/grants", map[string]any{"user_id": "u1", "role": "viewer", "expires_at": "2030-01-01T00:00:00+02:00"}, as); contracttest.JSON(t, resp)["data"].(map[string]any)["expires_at"] != "2030-01-01T00:00:00+02:00" {
-		t.Fatal("the given offset is answered")
+	if resp := c.Post("/admin/grants", map[string]any{"user_id": "u1", "role": "viewer", "expires_at": "2030-01-01T00:00:00+02:00"}, as); contracttest.JSON(t, resp)["data"].(map[string]any)["expires_at"] != "2029-12-31T22:00:00Z" {
+		t.Fatal("a time given with an offset is answered in UTC")
 	}
 }
 

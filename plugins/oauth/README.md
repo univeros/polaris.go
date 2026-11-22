@@ -119,6 +119,10 @@ active organization) and `…/oauth/not_found` (404). In Go, match `*oauth.Error
   with your `HTTPClient`; DPoP and client-assertion `jti` replay relies on `polaris.Config.Cache` being
   shared across replicas.
 - Listen to `oauth.EventCIBARequested` to notify the user of a backchannel request.
+- A client's `jwks` (registered or at `jwks_uri`) is a JWK Set whose `keys` is an array (RFC 7517);
+  a `private_key_jwt` assertion names its key by `kid`, or carries no `kid` when the set holds one
+  key. Times are RFC 3339 in UTC (`2026-11-22T10:00:00Z`); problem titles are sentences
+  (`Invalid DPoP proof`), the `error` codes are those of RFC 6749 and its extensions.
 
 ## Example
 

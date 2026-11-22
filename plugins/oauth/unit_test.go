@@ -371,19 +371,16 @@ func TestKeySetsComeInlineOrFromTheJWKSURI(t *testing.T) {
 	fake.body = `{"nokeys":true}`
 	_, err = p.clients.keySet(ctx, Client{JWKSURI: "https://keys.example.com/other.json"})
 	wantCode(t, err, CodeInvalidClient, "not a key set")
-	if keys := jwksKeys(map[string]any{"keys": map[string]any{"b": 2, "a": 1}}); len(keys) != 2 || keys[0] != 1 {
-		t.Errorf("an object of keys reads in key order: %v", keys)
-	}
 	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", nil, time.Now())
 	if err == nil {
 		t.Error("an empty key set")
 	}
-	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", []any{map[string]any{}}, time.Now())
+	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", []any{map[string]any{}, map[string]any{}}, time.Now())
 	if err == nil || !strings.Contains(err.Error(), "kid") {
-		t.Error("an assertion without kid")
+		t.Error("an assertion without kid, two keys")
 	}
-	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "0"}, "RS256", []any{map[string]any{"alg": "ES256"}}, time.Now())
-	if err == nil || !strings.Contains(err.Error(), "algorithm") {
+	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "k"}, "RS256", []any{map[string]any{"kid": "k", "alg": "ES256"}}, time.Now())
+	if err == nil || !strings.Contains(err.Error(), "alg") {
 		t.Errorf("a key for another algorithm: %v", err)
 	}
 	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "z"}, "RS256", []any{map[string]any{"kid": "k"}}, time.Now())
@@ -416,11 +413,8 @@ func TestFetchIsBoundedAndJSONOnly(t *testing.T) {
 		_, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: d}), log, "https://x.example.com/doc", CodeInvalidClientMetadata)
 		wantCode(t, err, CodeInvalidClientMetadata, name)
 	}
-	doc, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
-	must(t, err)
-	if len(doc) != 0 {
-		t.Error("a list reads as an empty object")
-	}
+	_, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
+	wantCode(t, err, CodeInvalidClient, "a list is not a document")
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{}`)) }))
 	defer local.Close()
 	_, err = fetchJSON(ctx, netguard.NoRedirects(nil), log, local.URL+"/doc", CodeInvalidClientMetadata)
