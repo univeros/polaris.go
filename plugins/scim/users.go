@@ -197,7 +197,7 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 	var c userChange
 	for _, op := range ops {
 		if v := op.scalar("active"); v != nil {
-			active, ok := v.(bool)
+			active, ok := booleanOf(v)
 			if !ok {
 				return model.User{}, errActive
 			}
@@ -543,16 +543,35 @@ func nonBlank(s string) *string {
 	return &s
 }
 
-var errActive = invalid("active must be a JSON boolean (true or false).", TypeInvalidValue)
+var errActive = invalid(`active must be a boolean (true or false, or the string "true" or "false").`, TypeInvalidValue)
 
-// activeOf is a POST or PUT body's active (RFC 7643 §4.1.1): a JSON boolean, true when absent or
-// null.
-func activeOf(body map[string]any) (bool, error) {
-	switch v := body["active"].(type) {
-	case nil:
-		return true, nil
+// booleanOf reads active: a JSON boolean (RFC 7643 §2.3.2) or the string "true" or "false" in
+// any case. The strings are interoperability with Microsoft Entra ID, which sends "True"/"False"
+// in PATCH unless the application opts into its compliant behaviour (?aadOptscim062020); every
+// other value ("on", "1", numbers) is refused.
+func booleanOf(v any) (bool, bool) {
+	switch v := v.(type) {
 	case bool:
-		return v, nil
+		return v, true
+	case string:
+		switch {
+		case strings.EqualFold(v, "true"):
+			return true, true
+		case strings.EqualFold(v, "false"):
+			return false, true
+		}
+	}
+	return false, false
+}
+
+// activeOf is a POST or PUT body's active (RFC 7643 §4.1.1): booleanOf, true when absent or null.
+func activeOf(body map[string]any) (bool, error) {
+	v := body["active"]
+	if v == nil {
+		return true, nil
+	}
+	if b, ok := booleanOf(v); ok {
+		return b, nil
 	}
 	return false, errActive
 }

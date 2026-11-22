@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -130,6 +131,25 @@ func TestAReceiptHashesItsCreationTimeInTheIssuedForm(t *testing.T) {
 	}
 	if r.view()["created_at"] != "2026-11-22T10:00:00+00:00" {
 		t.Errorf("the receipt shows the text its hash covers: %v", r.view()["created_at"])
+	}
+}
+
+// A name with a NUL or another control character is refused like an empty one, so it never
+// reaches the store (PostgreSQL refuses NUL in text: a 500).
+func TestAgentAndHostNamesRefuseControlCharacters(t *testing.T) {
+	p, _ := bootUnit(t, Config{})
+	ctx := context.Background()
+	for _, name := range []string{"\x00", "Bot\x00", "a\x07b", "line\nbreak", "x\u0085y", "x\x7f"} {
+		_, _, err := p.s.createAgent(ctx, map[string]any{"name": name, "auth": AuthClientSecret},
+			Agent{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"})
+		_ = wantType(t, err, ErrInvalidInput, "agent "+strconv.Quote(name))
+		_, _, err = p.s.createHost(ctx, Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, name, nil)
+		_ = wantType(t, err, ErrInvalidInput, "host "+strconv.Quote(name))
+	}
+	a, _, err := p.s.createAgent(ctx, map[string]any{"name": "  Deploy bot \t", "auth": AuthClientSecret},
+		Agent{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"})
+	if err != nil || a.Name != "Deploy bot" {
+		t.Fatalf("%q %v", a.Name, err)
 	}
 }
 

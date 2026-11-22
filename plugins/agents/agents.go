@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/clock"
@@ -52,11 +53,20 @@ func (s *service) dispatch(ctx context.Context, events ...Event) {
 	}
 }
 
+// displayName is an agent's or host's name trimmed (strings.TrimSpace: a label, never looked up),
+// ok when it is 1 to 160 characters with no control character: a NUL would reach the store,
+// which PostgreSQL refuses.
+func displayName(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	ok := s != "" && utf8.RuneCountInString(s) <= 160 && !strings.ContainsFunc(s, unicode.IsControl)
+	return s, ok
+}
+
 // createAgent registers the agent and its OAuth client (no organization: the plugin manages it, so
 // the organization's client routes never see it); the secret is returned for client_secret.
 func (s *service) createAgent(ctx context.Context, fields map[string]any, owner Agent) (Agent, string, error) {
 	name, _ := fields["name"].(string)
-	name = strings.TrimSpace(name)
+	name, validName := displayName(name)
 	mode, auth := fields["mode"], fields["auth"]
 	if mode == nil {
 		mode = ModeDelegated
@@ -64,7 +74,7 @@ func (s *service) createAgent(ctx context.Context, fields map[string]any, owner 
 	if auth == nil {
 		auth = AuthPrivateKeyJWT
 	}
-	if name == "" || utf8.RuneCountInString(name) > 160 {
+	if !validName {
 		return Agent{}, "", refuse(ErrInvalidInput, "name is required, at most 160 characters.")
 	}
 	m, _ := mode.(string)

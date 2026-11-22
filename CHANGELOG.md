@@ -70,16 +70,18 @@ marked **Breaking**.
   `startIndex`/`count` and the agents receipts' `after`/`limit` must be integers (decimal digits
   in a query, a JSON integer in a body); `1.5`, `1e1`, padded values are refused (422, SCIM 400
   `invalidValue`) instead of truncated (decision 65).
-- **Client-visible:** `plugins/scim`: `active` must be a JSON boolean (RFC 7643) in POST, PUT and
-  PATCH; `"True"`, `"false"`, `"on"`, `1` answer 400 `invalidValue`. Microsoft Entra ID needs
-  `?aadOptscim062020` on the Tenant URL, or its deactivations fail. `members` must be a list of
+- **Client-visible:** `plugins/scim`: `active` must be a JSON boolean or the string
+  `"true"`/`"false"` in any case (what Microsoft Entra ID sends), in POST, PUT and PATCH; `"on"`,
+  `"yes"`, `"1"`, `1` answer 400 `invalidValue`, and a POST or PUT with `"false"` no longer
+  activates the account. `members` must be a list of
   `{"value": id}`; a PATCH operation without `path` must carry an object; a filter value is a JSON
   string (an unknown escape such as `\0`, a raw control character or a NUL is `invalidFilter`;
   `\uXXXX` now decodes) (decision 65).
 - **Client-visible:** request bodies are read as their JSON types. agents: `arguments`/`input`
   must be an object, constraints, operators and `budget` objects (a `[]` was read as `{}`; a list
   of operators is now 422 `invalid_input`, was 400 `unknown_constraint_operator`), capability
-  lists lists; `max`/`min` need a JSON number argument and `in`/`not_in` compare numbers by value
+  lists lists, an agent's or host's name has no control character (a NUL was a 500 on
+  PostgreSQL, now 422 `invalid_input`); `max`/`min` need a JSON number argument and `in`/`not_in` compare numbers by value
   (`1` equals `1.0`). api-keys: `name` a string, `permissions` a list, `metadata` an object. sso:
   `config`, `attributes`, `jit` objects, `jit.enabled` a boolean, `jit.roles` and
   `redirect_uris` lists; `sso_url`, `slo_url`, `slo_response_url` must be http(s) URLs

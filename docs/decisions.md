@@ -1377,14 +1377,16 @@ file and webhook sinks too. RFC 3339 parsers read both.
   `paging`) take an integer (an optional sign; below 1 still reads as 1, RFC 7644 §3.4.2.4);
   anything else is 400 `invalidValue`, audited as a refused request. agents `after`/`limit` on the
   receipts route are 422 `invalid_input` instead of truncating or silently falling back.
-- **SCIM `active`** is a JSON boolean (RFC 7643): `"True"`, `"false"`, `"on"`, `"yes"`, `"1"`, `1`
-  are 400 `invalidValue` "active must be a JSON boolean (true or false).", in POST, PUT and PATCH.
-  Before, PATCH read `"True"`/`"on"`/`"yes"`/`"1"` as true, and POST/PUT activated an account sent
-  `"false"`. Interop risk, accepted: Microsoft Entra ID sends `"True"`/`"False"` in PATCH unless
-  the application's Tenant URL carries `?aadOptscim062020`; without it Entra's deactivations now
-  fail and accounts are not deprovisioned. The README says so. A per-connection compatibility
-  switch is not added now (it would keep the lenient reader forever); it can be, additively, if
-  directories need it.
+- **SCIM `active`** is a JSON boolean (RFC 7643) or the string `"true"`/`"false"` in any case, in
+  POST, PUT and PATCH; `"on"`, `"yes"`, `"1"`, other strings and numbers are 400 `invalidValue`
+  ("active must be a boolean (true or false, or the string "true" or "false")."). Before, PATCH
+  read `"True"`/`"on"`/`"yes"`/`"1"` as true, and POST/PUT activated an account sent `"false"`.
+  The two strings are not leniency kept from the port but interoperability with the most common
+  SCIM client: Microsoft Entra ID sends `{"op":"Replace","path":"active","value":"False"}` by
+  default, unless the application's Tenant URL carries `?aadOptscim062020`; refusing it would
+  stop Entra from deprovisioning anyone. Op names were already matched in any case (RFC 7644
+  §3.5.2). Tests: `TestActiveIsAJSONBoolean`, `TestEntraIDsPatchOfActiveWorks` (Entra's exact
+  PATCH bodies deactivate and reactivate).
 - **agents.** `max`/`min` constraints take a JSON number (a numeric string violates the
   constraint: fail closed); `in`/`not_in` compare numbers by value (`1`, `1.0`, `1e0` equal; int64
   exactly, else float64, no unbounded-precision parsing of client numbers), which closes a
@@ -1402,7 +1404,10 @@ file and webhook sinks too. RFC 3339 parsers read both.
   `name`/`issuer` and domains, scim display and name parts, `externalId`, group names, connection
   names, organization ids and cursors, passwordless email, phone, token, code, `redirect_uri` and
   `purpose`. `strings.TrimSpace` elsewhere: the SCIM filter string (parsed, not stored), agent and
-  host names (labels, never looked up), social's blank test. Each kept site says why.
+  host names (labels, never looked up), social's blank test. Each kept site says why. An agent or
+  host name containing a NUL or another control character (anywhere, not only at the ends) is
+  refused with the empty name's 422 `invalid_input`, so PostgreSQL never sees it (it refuses NUL in
+  text: a 500 before) (`TestAgentAndHostNamesRefuseControlCharacters`).
 
 ### 4. Arrays standing in for objects, objects for lists
 
@@ -1507,6 +1512,4 @@ compares and the nonce check are unchanged; the SAML certificate decision above.
 audit:** stricter input only; the audit chain's hashed bytes are identical.
 
 Left open: the route specs' `output.example` timestamps still read `+00:00` (they belong with the
-core change, #64), as do `examples/b2b/README.md` and `examples/agents/README.md`. An agent or host
-name made only of NUL is no longer emptied to a 422 by the trim and reaches the store (a 500 on
-PostgreSQL, as an interior NUL already did).
+core change, #64), as do `examples/b2b/README.md` and `examples/agents/README.md`.

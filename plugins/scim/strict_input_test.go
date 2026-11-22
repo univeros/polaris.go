@@ -3,6 +3,7 @@ package scim
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,19 +64,56 @@ func TestQueryIntegersAreStrict(t *testing.T) {
 
 // active is a JSON boolean (RFC 7643 §4.1.1); a string is refused, not read.
 func TestActiveIsAJSONBoolean(t *testing.T) {
-	for body, want := range map[string]bool{`{}`: true, `{"active": null}`: true, `{"active": true}`: true, `{"active": false}`: false} {
+	for body, want := range map[string]bool{`{}`: true, `{"active": null}`: true, `{"active": true}`: true, `{"active": false}`: false,
+		`{"active": "True"}`: true, `{"active": "false"}`: false, `{"active": "FALSE"}`: false} {
 		var b map[string]any
 		_ = json.Unmarshal([]byte(body), &b)
 		if got, err := activeOf(b); err != nil || got != want {
 			t.Fatalf("%s: %v %v", body, got, err)
 		}
 	}
-	for _, v := range []any{"True", "false", "1", "on", "yes", json.Number("1"), json.Number("0")} {
+	for _, v := range []any{"1", "on", "yes", "", " true", "t", json.Number("1"), json.Number("0"), []any{}} {
 		_, err := activeOf(map[string]any{"active": v})
 		var e *Error
 		if !errors.As(err, &e) || e.Status != http.StatusBadRequest || e.Type != TypeInvalidValue {
 			t.Fatalf("active %#v: %v", v, err)
 		}
+	}
+}
+
+// Microsoft Entra ID (without ?aadOptscim062020) sends active as "True"/"False" and capitalises
+// op: its exact deactivation and reactivation PATCH bodies work.
+func TestEntraIDsPatchOfActiveWorks(t *testing.T) {
+	f := newFixture(t)
+	orgID := f.organization()
+	conn := f.connection(orgID, DeprovisionDeactivate)
+	d := f.p.dir
+	d.domains = func() any { return verifiedDomains{orgID: "acme.example"} }
+	user := must(d.createUser(f.ctx, conn, map[string]any{"userName": "ada@acme.example", "active": "True"}))
+	patchBody := func(body string) []operation {
+		var b map[string]any
+		if err := json.Unmarshal([]byte(body), &b); err != nil {
+			t.Fatal(err)
+		}
+		parsed, err := parsePatch(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed
+	}
+	user = must(d.patchUser(f.ctx, conn, user, patchBody(
+		`{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],"Operations":[{"op":"Replace","path":"active","value":"False"}]}`)))
+	if must(d.active(f.ctx, conn, user)) {
+		t.Fatal("Entra's \"False\" deactivates")
+	}
+	user = must(d.patchUser(f.ctx, conn, user, patchBody(
+		`{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],"Operations":[{"op":"Replace","path":"active","value":"True"}]}`)))
+	if !must(d.active(f.ctx, conn, user)) {
+		t.Fatal("Entra's \"True\" reactivates")
+	}
+	for _, v := range []any{"on", "1", json.Number("0")} {
+		_, err := d.patchUser(f.ctx, conn, user, ops(t, map[string]any{"op": "replace", "path": "active", "value": v}))
+		refused(t, err, 400, "active "+fmt.Sprint(v))
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/store"
 )
@@ -21,8 +20,8 @@ const (
 // keyed hash.
 func (s *service) createHost(ctx context.Context, owner Host, name any, defaults []any) (Host, string, error) {
 	n, _ := name.(string)
-	n = strings.TrimSpace(n)
-	if n == "" || utf8.RuneCountInString(n) > 160 {
+	n, ok := displayName(n)
+	if !ok {
 		return Host{}, "", refuse(ErrInvalidInput, "name is required, at most 160 characters.")
 	}
 	if len(defaults) > maxDefaults {
