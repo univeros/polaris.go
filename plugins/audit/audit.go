@@ -35,7 +35,8 @@ const ID = "audit"
 type Config struct {
 	// Retention is how long events are kept; zero: DefaultRetention for every name.
 	Retention Retention
-	// HashChain links each row to the previous one by SHA-256 (Verify checks it).
+	// HashChain links each row to the previous one by SHA-256 (Verify checks it); writers in every
+	// process append through the polaris_audit_chain lock row, one at a time.
 	HashChain bool
 	// Sinks receive every event beside the database (LogSink, FileSink, WebhookSink, yours).
 	Sinks []Sink
@@ -70,7 +71,8 @@ func New(cfg Config) *Plugin { return &Plugin{cfg: cfg} }
 // ID implements wiring.Plugin.
 func (*Plugin) ID() string { return ID }
 
-// Schema declares polaris_audit_event, polaris_audit_drain and polaris_audit_activity.
+// Schema declares polaris_audit_event, polaris_audit_drain, polaris_audit_activity and
+// polaris_audit_chain (the hash chain's lock row).
 func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest returns the plugin's routes (declared in internal/apispec/api/audit).

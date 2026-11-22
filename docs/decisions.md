@@ -985,6 +985,96 @@ Security review: both changes only refuse more. Tests: `TestEmailVerifiedIsTrueO
 `TestAnIDTokenIsNotAnAccessToken`, and `TestOnlyAccessTokensAreAccepted` extended with the refused
 shapes. The `mcp` contract fixtures replay unchanged.
 
+## 60. 2026-11-22 — Audit chain across processes, one operator grant per user, paginated tools/list
+
+Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
+
+- **Audit: the hash chain no longer forks across processes (#21).** A chained write read the
+  newest row and inserted after it under a per-process mutex, with its id minted before the
+  transaction: two replicas (or two `Store`s on one database) could link two rows to one
+  predecessor, or commit a row whose id sorts before its predecessor's, and `Verify` then
+  reported breaks in an untampered table (a test with 2 handles x 8 writers x 15 writes forked it
+  on memstore, SQLite, PostgreSQL and MySQL; on SQLite writes also failed with SQLITE_BUSY: 96 of
+  240 in one run). Now every chained write runs in one transaction whose first statement updates the
+  single row of a new table, `polaris_audit_chain` (id, last_id, last_hash, locked_by). That row
+  is the chain's lock and holds its tip. The lock: a row lock held to commit on PostgreSQL and
+  MySQL; on SQLite the database write lock, taken by the transaction's first statement, so the busy
+  timeout waits for it instead of failing a reader that tries to upgrade. The tip: after its lock
+  UPDATE the write reads last_id / last_hash from that same row, links to them, inserts the event
+  and moves the tip to it in the same transaction. Reading the tip from the events table instead
+  depended on snapshot timing: audit events are recorded with the caller's ctx, and a host's
+  transaction (`sqlstore.WithTx`, events dispatched before the host commits) nests the write as a
+  savepoint; on MySQL's REPEATABLE READ a transaction that had already read keeps a snapshot from
+  before the lock, so the newest row it saw was stale and the chain forked again (239 breaks in
+  240 rows in the test below). A row the transaction just updated is read as its own version, built
+  on the latest commit (InnoDB's UPDATE is a current read), on every dialect. When the freshly
+  minted UUID v7 does not sort after last_id (another replica's clock ahead, the same
+  millisecond), the write takes the next UUID after it (random tail + 1, version and variant kept),
+  so id order stays chain order. An id the caller set is kept as before. With the tip on the lock
+  row, pruning the newest event leaves the next row linked to the pruned one; the `audit.pruned`
+  checkpoint names that hash, so `Verify` accepts it. Alternatives rejected: a unique
+  index on `prev_hash` (the first row's prev_hash is NULL, so two first rows still fork; a chain
+  re-started after the chain was off would collide with the first one; it also needed the index
+  added to existing tables); advisory locks (different per dialect, none on SQLite).
+  **Upgrade:** `Migrate` creates the table (a missing table, nothing altered); the first chained
+  write inserts the lock row (the insert first, then the seed: the newest event's id and hash, in
+  a savepoint so a duplicate from another replica neither fails nor aborts a host's PostgreSQL
+  transaction). No chained write appends before the row exists, so the seed is the tip whatever
+  snapshot reads it. Rows, hashes and `Verify` are unchanged: existing chains keep verifying and
+  the next write links to their newest row. A host that upgrades without running `Migrate`
+  gets chained writes failing with an error naming the table and `Migrate` (logged by the recorder,
+  the operation itself is not failed), not a silently forkable chain.
+  Security review: tamper evidence only gains; no hash input changed (`hashOf` untouched, the
+  canonical-form test still pins it). The lock serializes chained writes across the deployment:
+  throughput is one chained write at a time per database, as it was per process, and an event
+  recorded inside a host's transaction holds the lock until the host commits. Tests:
+  `TestTheChainStaysLinearWithWritersInSeparateProcesses` (memory, SQLite with two pools on one
+  file, PostgreSQL and MySQL with two stores), `TestTheChainStaysLinearWhenWritersAppendInsideATransactionThatAlreadyRead`
+  (each write inside an outer transaction that read `polaris_audit_event` first; memory,
+  PostgreSQL, MySQL: SQLite cannot upgrade such a transaction to a writer while another writes, so
+  the host's transaction fails with SQLITE_BUSY and nothing forks),
+  `TestAChainFromBeforeTheLockTableKeepsVerifyingAfterMigrate`,
+  `TestPruningTheNewestEventKeepsTheChainVerifying`,
+  `TestAChainedWriteWithoutTheLockTableNamesTheFix`, `TestAfterSortsRightAfterAUUID`.
+- **Admin: one grant per user under concurrent first grants (#25).** `polaris_admin_grant.user_id`
+  is unique (`polaris_admin_grant_user_unique`, replacing the plain `polaris_admin_grant_user_index`).
+  `Grants.Grant` is an upsert; when its insert loses to a concurrent first grant of the same user
+  (`store.ErrDuplicate`) it runs again, now as the update of the row there, which is what the same
+  two grants answer when they arrive one after the other (the route's 200 with the grant, its id
+  kept). Up to three attempts. On SQLite writers are serialized, so the duplicate could not happen.
+  **Upgrade:** `Migrate` adds the unique index to existing tables and then drops the old one
+  (decision 63: `.Unique(…, "polaris_admin_grant_user_unique").DropIndex("polaris_admin_grant_user_index")`).
+  A database that already holds two grants for one user (only this race made them) is refused, not
+  repaired: `Migrate` fails with "if polaris_admin_grant holds duplicate (user_id) values, remove
+  the duplicate rows and migrate again", deletes nothing and keeps the old index. Keeping "the strongest" was rejected: grants carry a scope (the instance or one
+  organization), so there is no strongest across scopes, and choosing which operator power survives
+  is the operator's call. The remedy (query and revoke) is in the admin README and the changelog.
+  Security review: removes a way to hold two operator grants with `For` answering either one; no
+  check is weakened; the retry only re-runs the same authorized upsert. Tests:
+  `TestConcurrentFirstGrantsOfOneUserKeepOneRow` (memory, PostgreSQL, MySQL: 20 rounds of 8
+  concurrent first grants over two stores; before the fix PostgreSQL kept 2 rows and MySQL 5),
+  `TestAnUpgradeWithDuplicateGrantsIsRefusedWithTheRemedy` (SQLite, PostgreSQL, MySQL: refused
+  with the old index kept, then, once the extra grant is revoked, the index replaced and `Diff`
+  empty). `TestMigrateUpgradesEveryReleasedSchema` (decision 63) reaches the fresh schema from
+  v0.4.1 with exactly three changes: `polaris_audit_chain` created, the admin index created and the
+  old one dropped; the `admin` and `audit` DDL goldens are regenerated.
+- **MCP: `tools/list` is paginated (#27).** The 2026-07-28 profile and the 2025 stdio revisions
+  page list results with `params.cursor` / `nextCursor`. A result now carries at most
+  `mcp.ToolsPageSize` (100) tools; when more follow, `nextCursor` is the base64url of the last
+  listed tool's name, and the next request starts after that tool. The cursor is checked against
+  the caller's own list, recomputed under the caller's permissions on every request: one that does
+  not decode or does not name one of the caller's tools is `-32602` invalid params (the
+  specification's code for an invalid cursor). It is not signed because it grants nothing: it
+  only says where to resume in a list the caller may already see, so a forged one can only skip
+  ahead in that list. A name cursor rather than an offset keeps a page stable when tools are added
+  before it between requests. Client-visible: a caller with more than 100 tools (an instance
+  operator with every plugin: about 230 routes) gets several pages; a list of 100 or fewer is one
+  page with no `nextCursor`, byte-identical to before, so the `mcp` contract fixtures (34 tools)
+  replay unchanged. Security review: the list is filtered per caller exactly as before; the cursor
+  is input validated before use and leaks nothing about other callers' tools (any name outside the
+  caller's list, existing or not, is the same error). Test: `TestToolsListIsPaginated` (287 tools
+  in three pages, no tool twice, the short list unchanged, invalid cursors refused).
+
 ## 63. 2026-11-22 — Schema evolution: additive, declared in the schema DSL
 
 1.x will change tables that exist in deployed databases (a unique index on a plugin table, a column

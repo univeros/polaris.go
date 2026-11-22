@@ -20,7 +20,8 @@ func Models() []schema.Model {
 			schema.StringField("grantedBy", 36).AsNullable(),
 			schema.DateTimeField("expiresAt").AsNullable(),
 			schema.DateTimeField("createdAt"),
-		).Index([]string{"user_id"}, "polaris_admin_grant_user_index"),
+		).Unique([]string{"user_id"}, "polaris_admin_grant_user_unique").
+			DropIndex("polaris_admin_grant_user_index"), // v0.4.1 and earlier: not unique
 		schema.Table(TableKeys,
 			schema.StringField("id", 36).AsPrimary(),
 			schema.StringField("name", 120),

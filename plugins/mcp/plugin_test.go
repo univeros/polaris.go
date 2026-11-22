@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -355,5 +357,73 @@ func TestTheLoginToolAnswersTheRefreshTokenInItsBody(t *testing.T) {
 	data, _ := sc["body"].(map[string]any)["data"].(map[string]any)
 	if sc["status"] != float64(200) || data["refresh_token"] == "" || data["refresh_token"] == nil {
 		t.Fatalf("login tool: %v", sc)
+	}
+}
+
+// listAll follows tools/list's nextCursor to the end and returns every page's tool names.
+func listAll(t *testing.T, p *polaris.Polaris, credential string, extra []wiring.Tool) [][]string {
+	t.Helper()
+	var pages [][]string
+	params := map[string]any{}
+	for range 100 {
+		reply := stdio(t, p, credential, extra, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": params})["1"]
+		pages = append(pages, toolNames(reply))
+		next, _ := reply["result"].(map[string]any)["nextCursor"].(string)
+		if next == "" {
+			return pages
+		}
+		params = map[string]any{"cursor": next}
+	}
+	t.Fatal("tools/list never ended")
+	return nil
+}
+
+func TestToolsListIsPaginated(t *testing.T) {
+	srv := boot(t, audit.New(audit.Config{}), admin.New(admin.Config{}))
+	_, key, err := admin.Of(srv.Graph()).Keys().Create(context.Background(), admin.Key{Name: "ops", Role: admin.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	extra := make([]wiring.Tool, 250)
+	for i := range extra {
+		extra[i] = wiring.Tool{Name: fmt.Sprintf("host.tool%03d", i)}
+	}
+	pages := listAll(t, srv.Polaris, key, extra)
+	if len(pages) < 3 || len(pages[0]) != mcp.ToolsPageSize {
+		t.Fatalf("%d pages, the first of %d tools", len(pages), len(pages[0]))
+	}
+	seen := map[string]bool{}
+	for _, page := range pages {
+		if len(page) == 0 || len(page) > mcp.ToolsPageSize {
+			t.Errorf("page of %d tools", len(page))
+		}
+		for _, name := range page {
+			if seen[name] {
+				t.Errorf("%s listed twice", name)
+			}
+			seen[name] = true
+		}
+	}
+	for _, tool := range extra {
+		if !seen[tool.Name] {
+			t.Errorf("%s never listed", tool.Name)
+		}
+	}
+	if !seen["polaris.admin.users.list"] {
+		t.Error("route tools missing")
+	}
+
+	// A list that fits one page has no nextCursor (what the contract fixtures replay).
+	short := stdio(t, srv.Polaris, key, nil, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list"})["1"]["result"].(map[string]any)
+	if _, has := short["nextCursor"]; has || len(short["tools"].([]any)) > mcp.ToolsPageSize {
+		t.Errorf("short list: %d tools, nextCursor %v", len(short["tools"].([]any)), short["nextCursor"])
+	}
+
+	// A cursor that does not name one of this caller's tools is invalid params, not a page.
+	for _, cursor := range []any{"not base64!", "", 42, base64.RawURLEncoding.EncodeToString([]byte("polaris.not.a.tool"))} {
+		reply := stdio(t, srv.Polaris, key, extra, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": map[string]any{"cursor": cursor}})["1"]
+		if e, _ := reply["error"].(map[string]any); e == nil || e["code"] != float64(-32602) {
+			t.Errorf("cursor %v: %v", cursor, reply)
+		}
 	}
 }

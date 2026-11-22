@@ -30,6 +30,10 @@ marked **Breaking**.
   `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
   an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
   the same lines (decision 63).
+- `plugins/mcp`: `tools/list` is paginated. A result carries at most `mcp.ToolsPageSize` (100)
+  tools and a `nextCursor` when more follow; send it back as `params.cursor`. An invalid cursor is
+  `-32602`. Lists of 100 tools or fewer are unchanged; MCP clients that follow `nextCursor` (the
+  specification requires it) see every tool (decision 60).
 - **Client-visible:** access tokens and OAuth access / ID tokens carry `iat`, `nbf` and `exp` as
   whole seconds, with `exp` = `iat` + the lifetime exactly; they used to carry microsecond
   fractions that many JWT libraries refuse. Tokens issued before still verify (decision 62).
@@ -49,6 +53,24 @@ marked **Breaking**.
 - `plugins/scim`: a User answers back `name.givenName` and `name.familyName` as the directory sent
   them, so a directory comparing resources sees no difference. A PATCH of one part keeps the other
   (decision 62).
+
+### Security
+
+- `plugins/audit`: with `HashChain` on, replicas writing at the same time no longer fork the hash
+  chain (two rows linked to one predecessor, or ids out of chain order), which made `Verify`
+  report breaks in an untampered table. Each chained write now first takes the lock row of a new
+  table, `polaris_audit_chain`, so writers in every process append one at a time. **Run
+  `Migrate` after upgrading**: it creates the table; until then chained writes fail (logged) with
+  an error naming it. Existing chains keep verifying. On SQLite, set a busy timeout
+  (`_pragma=busy_timeout(5000)`) so concurrent writers wait (decision 60).
+- `plugins/admin`: two concurrent first grants for one user could both insert, leaving the user
+  with two operator grants of which either one applied. `polaris_admin_grant.user_id` is now unique
+  and the losing grant is applied as an update, as if it had come second (decision 60).
+  **Upgrade:** `Migrate` adds the unique index (`polaris_admin_grant_user_unique`) and drops the old
+  `polaris_admin_grant_user_index`. If your database already holds two grants for one user,
+  `Migrate` stops with an error naming `polaris_admin_grant` and `user_id`. Find them with
+  `SELECT user_id FROM polaris_admin_grant GROUP BY user_id HAVING COUNT(*) > 1`, revoke the ones
+  you do not want (`DELETE /admin/grants/{id}` or `Grants().Revoke`), and run `Migrate` again.
 
 ## [0.4.1] - 2026-11-22
 

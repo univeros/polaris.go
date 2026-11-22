@@ -88,9 +88,26 @@ func (s *Grants) Grant(ctx context.Context, g Grant) (Grant, error) {
 		return Grant{}, fmt.Errorf("%w: a grant needs a user id and a role (viewer, support, admin or owner)", ErrInvalid)
 	}
 	g.Scope = orInstance(g.Scope)
-	// ponytail: no unique index on user_id (adding one is a schema migration), so two concurrent
-	// first grants of one user on Postgres/MySQL can both insert; For then reads either.
-	err := s.db.Tx(ctx, func(ctx context.Context) error {
+	// user_id is unique: of two concurrent first grants one inserts, the other's insert is a
+	// duplicate and it runs again as the update of the row now there, as if it had come second.
+	var err error
+	for range grantAttempts {
+		if err = s.upsert(ctx, &g); !errors.Is(err, store.ErrDuplicate) {
+			break
+		}
+	}
+	if err != nil {
+		return Grant{}, fmt.Errorf("admin: grant: %w", err)
+	}
+	return g, nil
+}
+
+// grantAttempts bounds Grant's retries after a concurrent first grant of the same user.
+const grantAttempts = 3
+
+// upsert updates the user's grant row or inserts it, in one transaction.
+func (s *Grants) upsert(ctx context.Context, g *Grant) error {
+	return s.db.Tx(ctx, func(ctx context.Context) error {
 		r, err := s.db.FindOne(ctx, TableGrants, store.Criteria{"user_id": g.UserID})
 		if err != nil {
 			return err
@@ -108,10 +125,6 @@ func (s *Grants) Grant(ctx context.Context, g Grant) (Grant, error) {
 		}
 		return s.db.Insert(ctx, TableGrants, row)
 	})
-	if err != nil {
-		return Grant{}, fmt.Errorf("admin: grant: %w", err)
-	}
-	return g, nil
 }
 
 // For returns the user's grant when it has not lapsed.
