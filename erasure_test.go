@@ -60,6 +60,7 @@ var retainedOnErasure = map[string]string{
 	"polaris_audit_activity.user_id":             "",
 	"polaris_scim_membership_provenance.user_id": "",
 	"polaris_scim_user_name.user_id":             "",
+	"polaris_sso_account.user_id":                "",
 	"polaris_admin_grant.user_id":                "",
 	"polaris_oauth_code.user_id":                 "",
 	"polaris_oauth_device_code.user_id":          "",

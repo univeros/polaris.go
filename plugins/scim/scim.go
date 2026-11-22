@@ -1,16 +1,19 @@
 package scim
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
+	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"
@@ -92,6 +95,19 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 // core's permission check.
 func (*Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{activeOrganization}
+}
+
+// Provisioned reports whether a directory of the organization created the account (its
+// provenance row carries the account's own creation time, as owns reads it). The sso plugin asks
+// it (found as g.Plugin("scim")): an organization's identity provider signs in the accounts its
+// directory created.
+func (p *Plugin) Provisioned(ctx context.Context, organizationID string, u model.User) (bool, error) {
+	row, err := p.g.DB().FindOne(ctx, TableProvenance, store.Criteria{"organization_id": organizationID, "user_id": u.ID})
+	if err != nil || row == nil {
+		return false, err
+	}
+	created, _ := row.Time("created_at")
+	return created.UTC().Truncate(time.Second).Equal(u.CreatedAt.UTC().Truncate(time.Second)), nil
 }
 
 // Of returns the scim plugin registered on g, nil when absent.

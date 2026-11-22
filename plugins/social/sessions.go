@@ -42,21 +42,6 @@ func (p *Plugin) createUser(ctx context.Context, email string, verified bool, na
 	return u, p.g.Identity().InsertUser(ctx, u)
 }
 
-// claim hands a user nobody had proved the mailbox of to the trusted provider that just did:
-// the unproven password, the lockout streak, the sessions go; the user becomes verified.
-func (p *Plugin) claim(ctx context.Context, u model.User) (model.User, error) {
-	now := p.now()
-	next := u
-	next.EmailVerifiedAt, next.PasswordHash = &now, nil
-	next.FailedLoginCount, next.FailedLoginAt, next.LockedUntil = 0, nil, nil
-	next.UpdatedAt = now
-	if err := p.g.Repos().Users.Update(ctx, u, next); err != nil {
-		return u, err
-	}
-	_, err := p.g.Sessions().RevokeAll(ctx, u.ID, model.RevokedAdmin)
-	return next, err
-}
-
 // openSession is how a social sign-in ends: core's MFA gate when it applies, else a session as
 // core opens one with amr ["social:<provider>"], answered as core's login envelope.
 func (p *Plugin) openSession(ctx context.Context, u model.User, providerID string, client token.ClientContext) (map[string]any, error) {
@@ -64,7 +49,7 @@ func (p *Plugin) openSession(ctx context.Context, u model.User, providerID strin
 		return nil, refuse(kindAccountDisabled, "This account is disabled.")
 	}
 	if p.g.Auth().Flows.RequireVerifiedEmail && u.EmailVerifiedAt == nil {
-		return nil, refuse(kindEmailUnverified, "Verify your email address before signing in: the provider did not vouch for it.")
+		return nil, refuse(kindEmailUnverified, "The provider does not vouch for this email address: sign up with the address another way, then link the provider from your account.")
 	}
 	if p.settings.respectMFA {
 		factors, err := p.g.MFA().ConfirmedFactors(ctx, u.ID)

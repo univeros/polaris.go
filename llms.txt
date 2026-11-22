@@ -27,7 +27,8 @@ mux := http.NewServeMux()
 mux.Handle("/", p.Handler()) // every Polaris route: /auth/register, /auth/login, /auth/token/refresh, /orgs, ...
 mux.Handle("GET /api/invoices", p.Protect(invoicesHandler, "org.read")) // your route, Polaris principals
 // in the handler: who, ok := polaris.PrincipalFrom(r.Context()) — who.UserID, who.OrganizationID,
-// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated.
+// who.Permissions, who.Kind (polaris.KindUser | KindAPIKey | KindOAuthClient | KindAgent), who.Delegated,
+// who.OrganizationBound (an SSO session: it speaks for the user inside who.OrganizationID only).
 ```
 
 Environment: `APP_KEY` (≥ 32 bytes: `openssl rand -base64 32`), `AUTH_JWT_PRIVATE_KEY` and
@@ -134,7 +135,7 @@ security.HashChecker`); it upgrades on sign-in the same way.
 - `plugins/passkey` — `passkey.New(passkey.Config{RPID: "example.com", Origins: []string{"https://example.com"}})`: WebAuthn sign-in; a passkey is also an MFA factor.
 - `plugins/messaging` — `messaging.New(messaging.Config{Email: &messaging.SMTP{…}, SMS: &messaging.Twilio{…}})`: becomes core's mailer and SMS sender; templates per instance/org, translations, send caps.
 - `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); observes by default, `Mode: sentinel.Enforce` blocks and challenges.
-- `plugins/sso` — `sso.New(sso.Config{})`: SAML 2.0 and OIDC sign-in per organization, verified domains, single logout; an IdP signs in only members or users on the org's verified domains.
+- `plugins/sso` — `sso.New(sso.Config{})`: SAML 2.0 and OIDC sign-in per organization, verified domains, single logout; an IdP signs in only the accounts its organization provisioned or whose email domain it verified, and the session stays in that organization (no switch-org, no account-level routes; `Principal.OrganizationBound`).
 - `plugins/scim` — `scim.New(scim.Config{})`: SCIM 2.0 provisioning per organization with an org-managed connection token; changes global accounts only when the connection created them.
 - `plugins/ui` — `ui.New(ui.Config{AppName: "Acme", AfterSignIn: "/dashboard"})`: server-rendered sign-in, MFA, sign-up, verification, reset, sign-out and OAuth consent / device pages under `/auth/ui` (no JavaScript); `web.RequireSignIn(p.Protect(h))` for your pages.
 

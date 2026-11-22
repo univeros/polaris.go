@@ -73,7 +73,7 @@ Under `polaris.Config.PathPrefix` + `/auth/ui` (`ui.Prefix`):
 | `/mfa` | the factors of the sign-in under way | `POST /auth/mfa/challenge` (send a code), `/auth/mfa/verify` (a code or a recovery code) |
 | `/sign-up` | the form | `POST /auth/register`, then `/check-email` whatever the outcome |
 | `/check-email` | paste the code, or ask again | `POST /auth/email/verify/resend` |
-| `/verify` | `?token=` verifies at once; else the form | `POST /auth/email/verify` |
+| `/verify` | `?token=` from the email: a page with one button (opening the link verifies nothing, mail scanners follow links); else the form for the code | `POST /auth/email/verify` |
 | `/forgot` | the form | `POST /auth/password/forgot`; the same answer for every address |
 | `/reset` | `?token=` from the email, or paste the code | `POST /auth/password/reset`; every session ends |
 | `/sign-out` | a confirmation | `POST /auth/logout`, the cookies cleared |

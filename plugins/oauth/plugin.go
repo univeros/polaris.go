@@ -145,13 +145,7 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 		var err error
 		switch e := e.(type) {
 		case event.UserDeleted:
-			user := store.Criteria{"user_id": e.UserID}
-			err = errors.Join(
-				deleteWhere(ctx, p.graph.DB(), TableConsents, user),
-				p.tokens.deleteWhere(ctx, user),
-				deleteWhere(ctx, p.graph.DB(), TableCodes, user),
-				deleteWhere(ctx, p.graph.DB(), TableDeviceCodes, user),
-				deleteWhere(ctx, p.graph.DB(), TableCIBARequests, user))
+			err = p.EraseAccess(ctx, e.UserID)
 		case event.OrganizationDeleted:
 			err = p.eraseOrganization(ctx, e.OrganizationID)
 		}
@@ -159,6 +153,19 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 			p.graph.Logger().ErrorContext(ctx, "oauth: erasing after "+e.EventName()+" failed", "error", err)
 		}
 	}}
+}
+
+// EraseAccess implements wiring.AccessEraser: the user's consents, tokens, codes, device codes
+// and CIBA requests. They go when the user is erased, and with the first proof of the user's
+// mailbox (what a client was granted before it is not the mailbox owner's grant).
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	user := store.Criteria{"user_id": userID}
+	return errors.Join(
+		deleteWhere(ctx, p.graph.DB(), TableConsents, user),
+		p.tokens.deleteWhere(ctx, user),
+		deleteWhere(ctx, p.graph.DB(), TableCodes, user),
+		deleteWhere(ctx, p.graph.DB(), TableDeviceCodes, user),
+		deleteWhere(ctx, p.graph.DB(), TableCIBARequests, user))
 }
 
 func (p *Plugin) eraseOrganization(ctx context.Context, organizationID string) error {
