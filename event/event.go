@@ -48,4 +48,5 @@ func (b *Bus) Dispatch(ctx context.Context, e Event) {
 // Nop discards every event.
 type Nop struct{}
 
+// Dispatch drops the event.
 func (Nop) Dispatch(context.Context, Event) {}
