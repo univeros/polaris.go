@@ -9,6 +9,20 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- Host API for what the examples had to work around (decision 66):
+  `polaris.SignIn.OrganizationID` opens a session in an organization (membership checked; as a
+  sign-in plus `POST /auth/switch-org`); `p.Orgs().Invite` returns the `polaris.Invitation` and its
+  token for the host to deliver; `polaris.ErrEmailNotVerified` (also `ErrForbidden`) names the
+  refusal of `Sessions().Issue` for an unverified email; `p.Wrap(h)` applies `Config.Middleware` to
+  a host route outside `Protect`; `polaris.DevEnv` generates throwaway secrets for local
+  development and refuses to run without `POLARIS_DEV=1`; `polaristest.Hasher()` is the cheap test
+  Argon2id for a host's own `polaris.Config` in tests; `sqlstore.Store.Conn(ctx)` (plain
+  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
+  `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
+  Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
+
 ### Changed
 
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
@@ -94,6 +108,18 @@ marked **Breaking**.
   true; no value Polaris or the drivers write changes). New `auth_audit_log.metadata` rows are
   standard JSON (`{}` for no fields, `/` and non-ASCII unescaped, `Z` timestamps); earlier rows are
   untouched and decode to the same values (decision 64).
+- Event delivery has two phases. Listeners that write to the store (core's audit, every plugin's
+  listeners: audit, erasure, revocations) run inside the transaction that raised the event, as
+  before. The mail listener, metrics and `Config.Listeners` now run after a `sqlstore.Store.Tx`
+  commits and never after it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx`
+  around `p.Users().Create` no longer mails for a signup it then rolls back. A host listener that
+  writes to the database and must stay atomic moves to the new `Config.TxListeners`; plugins wrap a
+  listener with effects outside the database in `Graph.Deferred`. Under `sqlstore.WithTx` the
+  deferred listeners still run before the host commits: Polaris cannot see that commit
+  (decision 66).
+- The examples run with `POLARIS_DEV=1 go run ./examples/<name>` (`polaris.DevEnv` replaces each
+  example's copy of a key generator), and their tests use `polaristest.Hasher()`: a `-race` run of
+  each takes seconds instead of 45–90 s.
 
 ### Fixed
 

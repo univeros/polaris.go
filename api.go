@@ -2,6 +2,7 @@ package polaris
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/univeros/polaris.go/internal/services"
 	"log/slog"
@@ -11,8 +12,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/token"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -222,6 +225,49 @@ func (o Orgs) RemoveMember(ctx context.Context, organizationID, userID string) e
 	return classify(services.Of(o.p.graph).Orgs.DropMember(ctx, systemActor, organizationID, userID))
 }
 
+// Invitation is a pending invitation to an organization. Its secret token is not part of it:
+// Invite returns that separately, once.
+type Invitation struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organization_id"`
+	Email          string    `json:"email"`
+	Roles          []string  `json:"roles"` // role slugs the invitee gets on accepting
+	InvitedBy      string    `json:"invited_by"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// Invite invites email into the organization with roles, from inviterUserID, as POST
+// /orgs/{id}/invites does: the same rules (inviting the email again refreshes its pending
+// invitation and token), event member.invited and audit. The caller is trusted (no permission is
+// checked), but the roles must stay within the inviter's own authority in the organization
+// (ErrForbidden otherwise), so an invitation never grants more than its inviter holds.
+//
+// It returns the invitation and its token, a one-time secret valid for seven days: hand it to the
+// invitee (a link to your page that posts it to POST /auth/invites/accept). The configured
+// Config.Mailer is sent it too (notify.TemplateOrgInvite), as for the route; a host that delivers
+// invitations itself makes its mailer skip that template.
+//
+// A bad email, no role or an unknown one is ErrInvalidInput; an unknown organization ErrNotFound;
+// an email that is already a member's ErrConflict.
+func (o Orgs) Invite(ctx context.Context, organizationID, inviterUserID, email string, roles ...string) (Invitation, string, error) {
+	email = strings.TrimSpace(email)
+	if !manifest.IsEmail(email) {
+		return Invitation{}, "", classify(&orgs.Error{Kind: orgs.ErrInvalid, Message: "A valid email is required."})
+	}
+	if _, err := o.Get(ctx, organizationID); err != nil {
+		return Invitation{}, "", err
+	}
+	inv, err := services.Of(o.p.graph).Orgs.Invite(ctx, inviterUserID, organizationID, email, roles)
+	if err != nil {
+		return Invitation{}, "", classify(err)
+	}
+	return Invitation{
+		ID: inv.ID, OrganizationID: organizationID, Email: inv.Email, Roles: inv.RoleSlugs,
+		InvitedBy: inv.InvitedBy, ExpiresAt: inv.ExpiresAt, CreatedAt: inv.CreatedAt,
+	}, inv.Token, nil
+}
+
 // Tokens are a session's credentials, as the sign-in route answers them.
 type Tokens struct {
 	AccessToken      string    `json:"access_token"`
@@ -259,6 +305,11 @@ type SignIn struct {
 	AMR       []string
 	IP        string // recorded on the session; optional
 	UserAgent string // recorded on the session; optional
+	// OrganizationID opens the session in that organization, as a sign-in followed by
+	// POST /auth/switch-org: its tokens (refreshes included) carry the organization and the
+	// user's roles and permissions in it. The user must be an active member of an active
+	// organization. "" opens it without one.
+	OrganizationID string
 }
 
 // Sessions opens, refreshes and ends sessions in process, with the same rules, events and audit
@@ -268,15 +319,49 @@ type Sessions struct{ p *Polaris }
 // Sessions returns the session API.
 func (p *Polaris) Sessions() Sessions { return Sessions{p} }
 
-// Issue opens a session for a sign-in the host verified: the account checks of sign-in apply (a
-// disabled account, or an unverified email when verification is required, is ErrForbidden) but
-// not the password or the MFA gate. Access tokens carry Hooks.Claims.
+// Issue opens a session for a sign-in the host verified: the account checks of sign-in apply but
+// not the password or the MFA gate. A disabled account is ErrForbidden; an unverified email is
+// ErrEmailNotVerified (which matches ErrForbidden too) while Auth.Flows.RequireVerifiedEmail is on,
+// as it is by default: create the account with NewUser.EmailVerified when the host verified the
+// address itself. With OrganizationID, an unknown or inactive organization is ErrNotFound and a
+// user who is not an active member ErrForbidden; nothing is opened then. Access tokens carry
+// Hooks.Claims.
 func (s Sessions) Issue(ctx context.Context, in SignIn) (Tokens, error) {
-	t, err := services.Of(s.p.graph).Identity.SignIn(ctx, in.UserID, in.AMR, token.ClientContext{IP: in.IP, UserAgent: in.UserAgent})
+	svc := services.Of(s.p.graph)
+	client := token.ClientContext{IP: in.IP, UserAgent: in.UserAgent}
+	var t token.IssuedTokens
+	err := s.p.graph.DB().Tx(ctx, func(ctx context.Context) error {
+		var err error
+		if t, err = svc.Identity.SignIn(ctx, in.UserID, in.AMR, client); err != nil || in.OrganizationID == "" {
+			return err
+		}
+		if err := s.p.activeMember(ctx, in.UserID, in.OrganizationID); err != nil {
+			return err
+		}
+		t.AccessToken, err = svc.Sessions.SwitchOrganization(ctx, in.UserID, in.OrganizationID, t.SessionID)
+		return err
+	})
 	if err != nil {
 		return Tokens{}, classify(err)
 	}
 	return tokensOf(t), nil
+}
+
+// activeMember refuses an organization that is not active (ErrNotFound, as the route does) and a
+// user who is not its active member (ErrForbidden).
+func (p *Polaris) activeMember(ctx context.Context, userID, organizationID string) error {
+	org, err := p.graph.Repos().Organizations.Get(ctx, organizationID)
+	if errors.Is(err, repository.ErrNotFound) || (err == nil && org.Status != model.OrganizationStatusActive) {
+		return fmt.Errorf("polaris: organization %q: %w", organizationID, ErrNotFound)
+	}
+	if err != nil {
+		return err
+	}
+	m, err := p.graph.Repos().Memberships.ByUserAndOrganization(ctx, userID, organizationID)
+	if errors.Is(err, repository.ErrNotFound) || (err == nil && m.Status != model.MembershipStatusActive) {
+		return fmt.Errorf("polaris: user %q is not an active member of organization %q: %w", userID, organizationID, ErrForbidden)
+	}
+	return err
 }
 
 // Refresh exchanges a refresh token for new tokens, rotating it. An unknown, expired, revoked or

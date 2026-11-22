@@ -16,11 +16,12 @@ What an application imports. A host never needs another package.
 
 | Package | Stable names |
 |---|---|
-| `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Require`, `Authenticate`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `RequireKind`, `RequireOrganization`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `ImportedUser`, `Users`, `Orgs`, `Sessions` and their methods (`Users.Import` included), `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
+| `polaris` | `New`, `FromEnv`, `DevEnv` and `EnvDev`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Require`, `Authenticate`, `Wrap`, `Migrate`, `Prune`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `RequireKind`, `RequireOrganization`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Invitation`, `Tokens`, `SignIn`, `ImportedUser`, `Users`, `Orgs`, `Sessions` and their methods (`Users.Import`, `Orgs.Invite` included), `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrEmailNotVerified`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
+| `event` | for `Config.Listeners`: `Event`, `Listener`, the core event types and their `Name*` constants |
 | `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, `ui.Plugin.RequireSignIn`, …) |
-| `store/sqlstore` | `Open`, `New`, `WithTx`, `Store.DB` |
+| `store/sqlstore` | `Open`, `New`, `WithTx`, `Store` (`DB`, `Tx`, `Conn`, `AfterCommit`, `Close`), `Conn` |
 | `store` | `Dialect` values, `Adapter` (to pass one), `ErrDuplicate` |
-| `polaristest` | `New` and its options, `Server` fields |
+| `polaristest` | `New` and its options, `Server` fields, `Hasher` |
 | `agent` | the Go agent SDK: `New`, `GenerateKey`, `ImportKey`, `Enroll`, `RequestGrants`, `WaitForApproval`, `Execute`, `Do`, its errors |
 | `plugins/mcp` | `Protect`, `ProtectConfig`, `Claims`, `ServeStdio` |
 | `verify` | for a service that is not the Polaris host: `New`, `Config` (every field), `Verifier` (`Verify`, `Require`), `Claims`, `ClaimsFrom`, `ErrInvalidToken`, `ErrUnavailable` |
@@ -35,7 +36,15 @@ permission, and resolves the caller's authority on every request; `Require(perms
 answers 401 to a credential that does not verify (never anonymous); `verify` accepts only RS256 and
 EdDSA access tokens of the configured issuer and audience, and refuses DPoP-bound ones; hooks run
 inside the account's transaction; `Hooks.Claims` refuses reserved names; the programmatic API applies the HTTP routes'
-rules, events and audit, for a trusted caller (the actor recorded is `system`).
+rules, events and audit, for a trusted caller (the actor recorded is `system`); listeners that
+write to the store (core's audit, plugins' listeners, `Config.TxListeners`) run inside the
+transaction that raised the event, while `Config.Listeners` and the mail run after a
+`sqlstore.Store.Tx` commits and never after it rolls back (under `sqlstore.WithTx`, whose commit
+Polaris does not see, when Polaris's work is done); `DevEnv` refuses to run without
+`POLARIS_DEV=1`.
+
+`event` is listed here because `Config.Listeners` takes `event.Listener` and a listener switches on
+the event types; aliasing them in `polaris` would give every event two names.
 
 Adding a field to a stable struct, a method, an option or a constant is not a breaking change;
 hosts should use keyed struct literals.

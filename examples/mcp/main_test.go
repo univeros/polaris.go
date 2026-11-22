@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
 )
@@ -24,15 +26,16 @@ func TestWalkthrough(t *testing.T) {
 	for _, name := range []string{"APP_KEY", "AUTH_JWT_PRIVATE_KEY", "AUTH_JWT_PUBLIC_KEY", "AUTH_ISSUER"} {
 		t.Setenv(name, "")
 	}
-	if err := devEnv(base); err != nil {
+	t.Setenv(polaris.EnvDev, "1") // DevEnv generates the throwaway secrets
+	if err := polaris.DevEnv(base); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "polaris.db")+"?_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.DB().Close() })
-	h, p, err := newServer(ctx, db, base)
+	t.Cleanup(func() { _ = db.Close() })
+	h, p, err := newServer(ctx, db, base, cheapHashing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,3 +152,7 @@ func field(t *testing.T, m map[string]any, name string) string {
 	}
 	return s
 }
+
+// cheapHashing swaps the production Argon2id for polaristest.Hasher: the same hash format, and a
+// -race run that hashes in milliseconds instead of seconds.
+func cheapHashing(c *polaris.Config) { c.Hasher = polaristest.Hasher() }

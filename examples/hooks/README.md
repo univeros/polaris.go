@@ -4,25 +4,28 @@ Your app's own data next to Polaris, in the same database and the same transacti
 
 - `Hooks.OnUserCreated` / `OnUserDeleted` insert and delete a row in the app's `profiles` table
   **inside the transaction that creates or erases the account**, whatever the path (`/auth/register`,
-  `p.Users().Create`, admin, SCIM, …). If the hook fails, the account is not created.
+  `p.Users().Create`, admin, SCIM, …), with plain `database/sql` through `db.Conn(ctx)`. If the
+  hook fails, the account is not created.
 - `Hooks.Claims` puts the profile's plan into every access token as `app_plan`.
 - `Listeners` log every domain event. `Middleware` gives every request an `X-Request-Id`, and the
-  event log lines carry it.
+  event log lines carry it; `p.Wrap` puts the same middleware around the host's public signup route.
 - `POST /api/signup` is the host's own onboarding. It creates the account, its organization and the
-  profile's plan in **one host transaction** (`sqlstore.WithTx`). A plan the `profiles` table
-  refuses (a `CHECK` constraint) rolls everything back.
+  profile's plan in **one host transaction** (`db.Tx`). A plan the `profiles` table refuses (a
+  `CHECK` constraint) rolls everything back, and the events and the verification mail of a
+  rolled-back signup never go out: they wait for the commit.
 - `GET /api/profile` is a host route behind `p.Protect`. It reads the profile row and the claim.
 - `p.Prune` runs at start and every hour.
 
 ## Run it
 
 ```sh
-go run ./examples/hooks
+POLARIS_DEV=1 go run ./examples/hooks
 ```
 
-No setup: SQLite in a temporary directory, and throwaway keys when `APP_KEY`, `AUTH_JWT_*` and
-`AUTH_ISSUER` are not set. `ADDR` (default `localhost:8080`) is where it listens. Mail goes to the
-log. At start it prunes once:
+No setup beyond `POLARIS_DEV=1`: SQLite in a temporary directory, and throwaway keys from
+`polaris.DevEnv` when `APP_KEY`, `AUTH_JWT_*` and `AUTH_ISSUER` are not set (without
+`POLARIS_DEV=1` it refuses to start). `ADDR` (default `localhost:8080`) is where it listens. Mail
+goes to the log. At start it prunes once:
 
 ```
 2026/11/22 08:28:41 listening on http://localhost:8080
@@ -66,12 +69,11 @@ curl -s -X POST localhost:8080/api/signup -H 'Content-Type: application/json' -H
 ```
 
 ```
-event user.registered request_id=demo-rollback
-event org.created request_id=demo-rollback
 signup rolled back: constraint failed: CHECK constraint failed: plan IN ('free', 'pro') (275)
 ```
 
-Nothing is left behind: the same signup with a valid plan succeeds.
+No event line and no verification mail: inside `db.Tx` the events wait for the commit, and a
+rollback drops them. Nothing is left behind: the same signup with a valid plan succeeds.
 
 ```sh
 curl -s -X POST localhost:8080/api/signup -H 'Content-Type: application/json' \
@@ -82,8 +84,9 @@ curl -s -X POST localhost:8080/api/signup -H 'Content-Type: application/json' \
 {"can_delete_org":true,"organization_id":"01a20228-899f-…","user_id":"01a20228-88bd-…"}
 ```
 
-Events and the verification mail go out when Polaris's part is done, before the host commits: a
-listener with side effects outside the database runs even when the host then rolls back.
+A host that runs its own `*sql.Tx` (an ORM's, sqlc's) passes it with `sqlstore.WithTx(ctx, tx)`
+instead. Polaris cannot see that commit, so there the events and the mail go out when Polaris's
+part is done, before the host commits; prefer `db.Tx` when a rolled-back signup must send nothing.
 
 ### 3. Register through Polaris: the hook still runs
 
@@ -130,9 +133,10 @@ it expires (15 minutes); set `AUTH_ACCESS_TOKEN_DENYLIST=1` to refuse it at once
 
 ## The code
 
-- Hooks write through `db.Exec(ctx, …)` and read through `db.FindOne(ctx, …)`, with the `ctx`
-  Polaris passes in, so the statement joins the account's transaction.
-- In the host's own transaction, `sqlstore.WithTx(ctx, tx)` makes every Polaris call join `tx`; the
-  host's own statements use `tx` directly.
+- Hooks read and write with plain `database/sql` through `db.Conn(ctx)`, with the `ctx` Polaris
+  passes in: it is the account's transaction, so the statement joins it. Placeholders are the
+  driver's: `?` on SQLite and MySQL, `$1` on PostgreSQL.
+- In the host's own transaction, `db.Tx(ctx, fn)`, every Polaris call made with fn's `ctx` joins it,
+  and so do the host's statements through `db.Conn(ctx)`.
 
 `main_test.go` boots the same server with `httptest` and checks every step above.

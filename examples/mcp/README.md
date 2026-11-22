@@ -23,13 +23,14 @@ changes.
 ## Run it
 
 ```sh
-go run ./examples/mcp
+POLARIS_DEV=1 go run ./examples/mcp
 ```
 
 The example needs no setup:
 
 - The database is SQLite in a temporary directory.
-- `APP_KEY` and the JWT key pair are generated at start when the environment lacks them. Set
+- With `POLARIS_DEV=1`, `polaris.DevEnv` generates `APP_KEY` and the JWT key pair at start when
+  the environment lacks them (without it the example refuses to start). Set
   `APP_KEY`, `AUTH_JWT_PRIVATE_KEY`, `AUTH_JWT_PUBLIC_KEY` and `AUTH_ISSUER` (see
   [`examples/minimal`](../minimal/main.go)) to keep tokens across restarts.
 - `ADDR` changes the listen address. The default is `localhost:8080`.

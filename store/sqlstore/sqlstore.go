@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -68,6 +69,9 @@ func Open(ctx context.Context, d store.Dialect, dsn string) (*Store, error) {
 
 // DB returns the underlying pool.
 func (s *Store) DB() *sql.DB { return s.db }
+
+// Close closes the pool. Call it once, when the process stops using the Store.
+func (s *Store) Close() error { return s.db.Close() }
 
 // Dialect returns the dialect given to New.
 func (s *Store) Dialect() store.Dialect { return s.dialect }
@@ -135,6 +139,21 @@ func (s *Store) Exec(ctx context.Context, statement string, args ...any) error {
 // Tx runs fn in a transaction carried by the ctx fn receives: BEGIN at the top level, SAVEPOINT
 // polaris_sp_N when nested. fn's error (or panic) rolls back to where this Tx began and is
 // returned unchanged; a nil error commits or releases the savepoint.
+//
+// It is also the host's transaction: Polaris calls (p.Users().Create(ctx, …)) and the host's own
+// SQL through Conn(ctx), made with the ctx fn receives, commit or roll back together. So do the
+// listeners that write to the database (the audit trail, the erasure of an erased user's rows,
+// Config.TxListeners): they run inside it. The listeners whose effect leaves the database (the
+// mail, Config.Listeners) wait for the commit (see AfterCommit) and never run after a rollback.
+//
+//	err := db.Tx(ctx, func(ctx context.Context) error {
+//		u, err := p.Users().Create(ctx, polaris.NewUser{Email: email})
+//		if err != nil {
+//			return err
+//		}
+//		_, err = db.Conn(ctx).ExecContext(ctx, "UPDATE profiles SET plan = $1 WHERE user_id = $2", plan, u.ID)
+//		return err
+//	})
 func (s *Store) Tx(ctx context.Context, fn func(ctx context.Context) error) error {
 	if t, ok := s.txOf(ctx); ok {
 		return s.savepoint(ctx, t, fn)
@@ -146,8 +165,34 @@ func (s *Store) Tx(ctx context.Context, fn func(ctx context.Context) error) erro
 	if err != nil {
 		return fmt.Errorf("sqlstore: begin: %w", err)
 	}
-	inner := context.WithValue(ctx, txKey{s}, &txState{tx: tx, depth: 1})
-	return finishGuarded(func() error { return fn(inner) }, tx.Rollback, tx.Commit)
+	root := &txRoot{owned: true}
+	defer root.done.Store(true) // also on a panic: a ctx kept past this Tx no longer joins tx
+	inner := context.WithValue(ctx, txKey{s}, &txState{tx: tx, depth: 1, root: root})
+	if err := finishGuarded(func() error { return fn(inner) }, tx.Rollback, tx.Commit); err != nil {
+		return err
+	}
+	root.done.Store(true)
+	for _, after := range root.queue {
+		after()
+	}
+	return nil
+}
+
+// AfterCommit queues fn to run once the transaction ctx carries (a Store.Tx) commits, right after
+// the commit and in the order queued, and reports true. A rollback of that transaction, or of the
+// nested Tx (savepoint) that queued fn, drops it. Outside a Store.Tx it queues nothing and reports
+// false; so it does under WithTx, whose commit is the host's own call Polaris never sees.
+//
+// Polaris runs its listeners whose effect leaves the database (the mail, Config.Listeners) this
+// way, so nothing goes out for work that did not commit. The ctx fn captured stays usable: it no
+// longer joins the finished transaction.
+func (s *Store) AfterCommit(ctx context.Context, fn func()) bool {
+	t, ok := ctx.Value(txKey{s}).(*txState)
+	if !ok || !t.root.owned || t.root.done.Load() {
+		return false
+	}
+	t.root.queue = append(t.root.queue, fn)
+	return true
 }
 
 func (s *Store) savepoint(ctx context.Context, t *txState, fn func(ctx context.Context) error) error {
@@ -161,8 +206,13 @@ func (s *Store) savepoint(ctx context.Context, t *txState, fn func(ctx context.C
 			return err
 		}
 	}
-	inner := context.WithValue(ctx, txKey{s}, &txState{tx: t.tx, depth: t.depth + 1})
-	return finishGuarded(func() error { return fn(inner) }, stmt("ROLLBACK TO SAVEPOINT "), stmt("RELEASE SAVEPOINT "))
+	queued := len(t.root.queue)
+	rollback := func() error {
+		t.root.queue = t.root.queue[:queued] // what the undone work queued never runs
+		return stmt("ROLLBACK TO SAVEPOINT ")()
+	}
+	inner := context.WithValue(ctx, txKey{s}, &txState{tx: t.tx, depth: t.depth + 1, root: t.root})
+	return finishGuarded(func() error { return fn(inner) }, rollback, stmt("RELEASE SAVEPOINT "))
 }
 
 // finish rolls back on fnErr (returning it, joined with a rollback failure if any) or commits.
@@ -204,18 +254,20 @@ type hostTxKey struct{}
 // own transactions inside it become savepoints, so a Polaris failure undoes only its own writes
 // and returns the error.
 //
-// tx must come from the same database the Store uses (sqlstore.Store.DB().BeginTx). Events are
-// dispatched when Polaris's work is done, before the host commits: a listener with side effects
-// outside the database (mail) runs even if the host then rolls back. On PostgreSQL, a failed
-// statement aborts the whole transaction; only the savepoint around each Polaris transaction
-// recovers from it.
+// tx must come from the same database the Store uses (sqlstore.Store.DB().BeginTx). Polaris
+// cannot see the host commit tx, so the listeners with effects outside the database (mail,
+// Config.Listeners) run when Polaris's work is done, before the host commits, even if the host
+// then rolls back; the ones that write to the database run inside tx, as under Store.Tx. Store.Tx
+// has neither caveat: those listeners wait for its commit. On PostgreSQL, a
+// failed statement aborts the whole transaction; only the savepoint around each Polaris
+// transaction recovers from it.
 func WithTx(ctx context.Context, tx *sql.Tx) context.Context {
-	return context.WithValue(ctx, hostTxKey{}, &txState{tx: tx, depth: 1})
+	return context.WithValue(ctx, hostTxKey{}, &txState{tx: tx, depth: 1, root: &txRoot{}})
 }
 
-// txOf is the transaction ctx runs in: one of this Store's, else the host's (WithTx).
+// txOf is the transaction ctx runs in: one of this Store's still open, else the host's (WithTx).
 func (s *Store) txOf(ctx context.Context) (*txState, bool) {
-	if t, ok := ctx.Value(txKey{s}).(*txState); ok {
+	if t, ok := ctx.Value(txKey{s}).(*txState); ok && !t.root.done.Load() {
 		return t, true
 	}
 	t, ok := ctx.Value(hostTxKey{}).(*txState)
@@ -225,16 +277,37 @@ func (s *Store) txOf(ctx context.Context) (*txState, bool) {
 type txState struct {
 	tx    *sql.Tx
 	depth int
+	root  *txRoot // shared by a transaction and its savepoints
 }
 
-// conner is what *sql.DB and *sql.Tx share.
-type conner interface {
+// txRoot is one top-level transaction: whether it ended, and what runs after it commits.
+type txRoot struct {
+	owned bool // begun by Store.Tx, which commits it; false under WithTx (the host commits)
+	done  atomic.Bool
+	queue []func() // AfterCommit's; only the transaction's goroutine touches it
+}
+
+// Conn is what *sql.DB and *sql.Tx share: plain database/sql reads and writes.
+type Conn interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-func (s *Store) conn(ctx context.Context) conner {
+// Conn returns the transaction ctx carries (a Store.Tx, a Polaris transaction, WithTx's), else the
+// pool: the host's own SQL in step with Polaris. Inside Hooks.OnUserCreated, a write through
+// Conn(ctx) commits or rolls back with the account.
+//
+//	OnUserCreated: func(ctx context.Context, u polaris.User) error {
+//		_, err := db.Conn(ctx).ExecContext(ctx, "INSERT INTO profiles (user_id) VALUES ($1)", u.ID)
+//		return err
+//	},
+//
+// The statement reaches the driver as written: placeholders are $1, $2, … on PostgreSQL and ? on
+// MySQL and SQLite.
+func (s *Store) Conn(ctx context.Context) Conn { return s.conn(ctx) }
+
+func (s *Store) conn(ctx context.Context) Conn {
 	if t, ok := s.txOf(ctx); ok {
 		return t.tx
 	}

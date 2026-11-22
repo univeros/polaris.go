@@ -4,10 +4,10 @@
 // (social), passkeys, plus the messaging plugin delivering the mails and sentinel scoring every
 // attempt in observe mode. Core's MFA (TOTP, email codes) gates all of them.
 //
-//	go run ./examples/signin-methods
+//	POLARIS_DEV=1 go run ./examples/signin-methods
 //
-// Zero setup: SQLite in a temporary directory, and APP_KEY, AUTH_JWT_PRIVATE_KEY,
-// AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER generated when the environment lacks them. ADDR (default
+// SQLite in a temporary directory; with POLARIS_DEV=1, polaris.DevEnv generates APP_KEY,
+// AUTH_JWT_PRIVATE_KEY, AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER when the environment lacks them. ADDR (default
 // localhost:8080) is where it listens. Optional:
 //
 //   - OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET: an OpenID Connect provider, offered as
@@ -20,12 +20,7 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"log"
 	"net"
 	"net/http"
@@ -53,7 +48,7 @@ func main() {
 	ctx := context.Background()
 	addr := envOr("ADDR", "localhost:8080")
 	baseURL := "http://" + addr
-	if err := devEnv(baseURL); err != nil {
+	if err := polaris.DevEnv(baseURL); err != nil {
 		log.Fatal(err)
 	}
 	dir, err := os.MkdirTemp("", "polaris-signin-")
@@ -77,7 +72,7 @@ func main() {
 
 // newServer is the host: Polaris with every sign-in plugin, and the page a magic link or a social
 // sign-in lands on. email is the mail channel (nil: the log).
-func newServer(ctx context.Context, db store.Adapter, baseURL string, email messaging.Channel) (http.Handler, error) {
+func newServer(ctx context.Context, db store.Adapter, baseURL string, email messaging.Channel, tune ...func(*polaris.Config)) (http.Handler, error) {
 	landing := baseURL + "/signed-in" // where a magic link or a social sign-in ends, with ?code=
 	plugins := []polaris.Plugin{
 		audit.New(audit.Config{}),
@@ -104,6 +99,10 @@ func newServer(ctx context.Context, db store.Adapter, baseURL string, email mess
 	cfg, err := polaris.FromEnv(db, plugins...)
 	if err != nil {
 		return nil, err
+	}
+	// tune is the tests': a cheap hasher (polaristest.Hasher).
+	for _, f := range tune {
+		f(&cfg)
 	}
 	p, err := polaris.New(cfg)
 	if err != nil {
@@ -166,44 +165,4 @@ func envOr(name, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-// devEnv sets what polaris.FromEnv reads and the environment lacks, so the example runs with zero
-// setup: a random APP_KEY, a fresh RS256 key pair, AUTH_ISSUER. Tokens signed with a generated key
-// die with the process; in production set the variables (`polaris init` writes them to .env).
-func devEnv(issuer string) error {
-	if os.Getenv("APP_KEY") == "" {
-		b := make([]byte, 32)
-		if _, err := rand.Read(b); err != nil {
-			return err
-		}
-		if err := os.Setenv("APP_KEY", base64.StdEncoding.EncodeToString(b)); err != nil {
-			return err
-		}
-	}
-	if os.Getenv("AUTH_JWT_PRIVATE_KEY") == "" {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			return err
-		}
-		priv, err := x509.MarshalPKCS8PrivateKey(key)
-		if err != nil {
-			return err
-		}
-		pub, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-		if err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PRIVATE_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: priv}))); err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PUBLIC_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pub}))); err != nil {
-			return err
-		}
-		log.Print("generated a throwaway JWT key pair (set AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY to keep tokens across restarts)")
-	}
-	if os.Getenv("AUTH_ISSUER") == "" {
-		return os.Setenv("AUTH_ISSUER", issuer)
-	}
-	return nil
 }

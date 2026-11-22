@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/plugins/messaging"
+	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
 )
@@ -25,16 +27,17 @@ func TestSignInMethods(t *testing.T) {
 	for _, name := range []string{"APP_KEY", "AUTH_JWT_PRIVATE_KEY", "AUTH_JWT_PUBLIC_KEY", "AUTH_ISSUER", "OIDC_ISSUER"} {
 		t.Setenv(name, "")
 	}
-	if err := devEnv(base); err != nil {
+	t.Setenv(polaris.EnvDev, "1") // DevEnv generates the throwaway secrets
+	if err := polaris.DevEnv(base); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "polaris.db")+"?_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.DB().Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	mail := messaging.NewMemory("mail", "email")
-	h, err := newServer(ctx, db, base, mail)
+	h, err := newServer(ctx, db, base, mail, cheapHashing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,3 +142,7 @@ func (c client) do(method, path, bearer string, body any, want int) map[string]a
 	}
 	return out.Data
 }
+
+// cheapHashing swaps the production Argon2id for polaristest.Hasher: the same hash format, and a
+// -race run that hashes in milliseconds instead of seconds.
+func cheapHashing(c *polaris.Config) { c.Hasher = polaristest.Hasher() }

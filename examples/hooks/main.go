@@ -2,33 +2,32 @@
 // next to Polaris's tables in the same database.
 //
 //   - Hooks.OnUserCreated / OnUserDeleted write and erase the profile row inside the transaction
-//     that creates or erases the account, on every path (registration, Users().Create, admin, …).
+//     that creates or erases the account, on every path (registration, Users().Create, admin, …),
+//     with plain database/sql through db.Conn(ctx).
 //   - Hooks.Claims puts the profile's plan into every access token as `app_plan`.
 //   - Listeners log every domain event; Middleware gives every request an X-Request-Id that the
-//     log lines carry.
+//     log lines carry (p.Wrap puts it around the host's own public route too).
 //   - POST /api/signup is the host's own onboarding: account, organization and profile in ONE
-//     host transaction (sqlstore.WithTx). A plan the profiles table refuses undoes it all.
+//     host transaction (db.Tx). A plan the profiles table refuses undoes it all, and its events
+//     never go out: they wait for the commit.
 //   - GET /api/profile is a host route behind Protect that reads the profile and the claim.
 //   - p.Prune runs at start and every hour.
 //
 // Run it, then follow README.md:
 //
-//	go run ./examples/hooks
+//	POLARIS_DEV=1 go run ./examples/hooks
 //
-// Zero setup: SQLite in a temporary directory, and APP_KEY, AUTH_JWT_PRIVATE_KEY,
-// AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER generated when the environment lacks them. ADDR (default
-// localhost:8080) is where it listens.
+// SQLite in a temporary directory; with POLARIS_DEV=1, polaris.DevEnv generates APP_KEY,
+// AUTH_JWT_PRIVATE_KEY, AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER when the environment lacks them.
+// ADDR (default localhost:8080) is where it listens.
 package main
 
 import (
 	"context"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"log"
 	"net/http"
@@ -49,10 +48,13 @@ const profilesDDL = `CREATE TABLE IF NOT EXISTS profiles (
 	organization_id VARCHAR(36)
 )`
 
+// errPlan is the host's own refusal, which rolls the signup back.
+var errPlan = errors.New("plan is free or pro; nothing was created")
+
 func main() {
 	ctx := context.Background()
 	addr := envOr("ADDR", "localhost:8080")
-	if err := devEnv("http://" + addr); err != nil {
+	if err := polaris.DevEnv("http://" + addr); err != nil { // POLARIS_DEV=1; in production set the variables
 		log.Fatal(err)
 	}
 	dir, err := os.MkdirTemp("", "polaris-hooks-")
@@ -77,37 +79,44 @@ func main() {
 
 // newServer is the host: Polaris with the hooks, the listener and the middleware, plus the host's
 // own routes.
-func newServer(ctx context.Context, db *sqlstore.Store) (http.Handler, *polaris.Polaris, error) {
-	if _, err := db.DB().ExecContext(ctx, profilesDDL); err != nil {
+func newServer(ctx context.Context, db *sqlstore.Store, tune ...func(*polaris.Config)) (http.Handler, *polaris.Polaris, error) {
+	if _, err := db.Conn(ctx).ExecContext(ctx, profilesDDL); err != nil {
 		return nil, nil, err
 	}
 	cfg, err := polaris.FromEnv(db)
 	if err != nil {
 		return nil, nil, err
 	}
+	// The statements below use ? placeholders: SQLite's and MySQL's. PostgreSQL's are $1, $2, ….
 	cfg.Hooks = polaris.Hooks{
-		// ctx carries the account's transaction: a write through db with it commits or rolls back
-		// with the account. An error aborts the creation.
+		// ctx carries the account's transaction: db.Conn(ctx) is it, so the row commits or rolls
+		// back with the account. An error aborts the creation.
 		OnUserCreated: func(ctx context.Context, u polaris.User) error {
-			return db.Exec(ctx, "INSERT INTO profiles (user_id) VALUES (?)", u.ID)
+			_, err := db.Conn(ctx).ExecContext(ctx, "INSERT INTO profiles (user_id) VALUES (?)", u.ID)
+			return err
 		},
 		OnUserDeleted: func(ctx context.Context, userID string) error {
-			return db.Exec(ctx, "DELETE FROM profiles WHERE user_id = ?", userID)
+			_, err := db.Conn(ctx).ExecContext(ctx, "DELETE FROM profiles WHERE user_id = ?", userID)
+			return err
 		},
 		// Runs on every token mint (sign-in, refresh, org switch): keep it to one indexed read.
-		// FindOne with ctx joins the transaction when the mint runs inside one.
 		Claims: func(ctx context.Context, in polaris.ClaimsInput) (map[string]any, error) {
-			row, err := db.FindOne(ctx, "profiles", store.Criteria{"user_id": in.UserID})
-			if err != nil || row == nil {
-				return nil, err
+			var plan string
+			err := db.Conn(ctx).QueryRowContext(ctx, "SELECT plan FROM profiles WHERE user_id = ?", in.UserID).Scan(&plan)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, nil
 			}
-			return map[string]any{"app_plan": row.String("plan")}, nil
+			return map[string]any{"app_plan": plan}, err
 		},
 	}
 	cfg.Listeners = []event.Listener{func(ctx context.Context, e event.Event) {
 		log.Printf("event %s request_id=%s", e.EventName(), requestIDFrom(ctx))
 	}}
-	cfg.Middleware = []func(http.Handler) http.Handler{requestID} // around Handler and every Protect
+	cfg.Middleware = []func(http.Handler) http.Handler{requestID} // around Handler, every Protect and p.Wrap
+	// tune is the tests': a cheap hasher (polaristest.Hasher).
+	for _, f := range tune {
+		f(&cfg)
+	}
 	p, err := polaris.New(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -118,14 +127,15 @@ func newServer(ctx context.Context, db *sqlstore.Store) (http.Handler, *polaris.
 
 	mux := http.NewServeMux()
 	mux.Handle("/", p.Handler()) // /auth/register, /auth/login, /users/{id}, …
-	mux.Handle("POST /api/signup", requestID(signup(db, p)))
+	mux.Handle("POST /api/signup", p.Wrap(signup(db, p)))
 	mux.Handle("GET /api/profile", p.Protect(profile(db)))
 	return mux, p, nil
 }
 
 // signup creates the account, its organization and the profile's plan in one host transaction:
-// every Polaris call joins it through sqlstore.WithTx, OnUserCreated included. Events (and the
-// verification mail) go out when Polaris's part is done, even if the host then rolls back.
+// every Polaris call made with the ctx db.Tx passes joins it, OnUserCreated included, and so does
+// the host's own UPDATE through db.Conn(ctx). The events, and the verification mail, wait for the
+// commit: a rolled-back signup sends nothing.
 func signup(db *sqlstore.Store, p *polaris.Polaris) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ Email, Password, Company, Plan string }
@@ -133,53 +143,40 @@ func signup(db *sqlstore.Store, p *polaris.Polaris) http.HandlerFunc {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "send email, password, company and plan"})
 			return
 		}
-		ctx := r.Context()
-		tx, err := db.DB().BeginTx(ctx, nil)
-		if err != nil {
-			fail(w, err)
-			return
-		}
-		defer func() { _ = tx.Rollback() }() // no-op once committed
-		txCtx := sqlstore.WithTx(ctx, tx)
-
-		user, err := p.Users().Create(txCtx, polaris.NewUser{Email: in.Email, Password: in.Password})
+		var user polaris.User
+		var org polaris.Organization
+		err := db.Tx(r.Context(), func(ctx context.Context) error {
+			var err error
+			if user, err = p.Users().Create(ctx, polaris.NewUser{Email: in.Email, Password: in.Password}); err != nil {
+				return err
+			}
+			if org, err = p.Orgs().Create(ctx, user.ID, in.Company, ""); err != nil {
+				return err
+			}
+			// The host's own write, after Polaris's: a plan the CHECK refuses rolls back the
+			// account, its profile row and the organization with it.
+			_, err = db.Conn(ctx).ExecContext(ctx, "UPDATE profiles SET plan = ?, organization_id = ? WHERE user_id = ?", in.Plan, org.ID, user.ID)
+			if err != nil {
+				log.Printf("signup rolled back: %v", err)
+				return errPlan
+			}
+			return nil
+		})
 		switch {
-		case errors.Is(err, polaris.ErrConflict):
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "the email is taken"})
-			return
-		case errors.Is(err, polaris.ErrInvalidInput):
+		case errors.Is(err, polaris.ErrConflict): // the email, or the slug derived from the company
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "the email or the company name is taken"})
+		case errors.Is(err, polaris.ErrInvalidInput), errors.Is(err, errPlan):
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error()})
-			return
 		case err != nil:
 			fail(w, err)
-			return
+		default:
+			// The account signs in once its email is verified (the link went to the log).
+			writeJSON(w, http.StatusCreated, map[string]any{
+				"user_id": user.ID, "organization_id": org.ID,
+				// Can re-resolves from the database: the owner of the new organization may delete it.
+				"can_delete_org": p.Can(r.Context(), polaris.Principal{UserID: user.ID, OrganizationID: org.ID}, "org.delete"),
+			})
 		}
-		org, err := p.Orgs().Create(txCtx, user.ID, in.Company, "")
-		if errors.Is(err, polaris.ErrConflict) { // the slug derived from the name is taken
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "the company name is taken"})
-			return
-		}
-		if err != nil {
-			fail(w, err)
-			return
-		}
-		// The host's own write, after Polaris's: a plan the CHECK refuses rolls back the account,
-		// its profile row and the organization with it.
-		if _, err := tx.ExecContext(ctx, "UPDATE profiles SET plan = ?, organization_id = ? WHERE user_id = ?", in.Plan, org.ID, user.ID); err != nil {
-			log.Printf("signup rolled back: %v", err)
-			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "plan is free or pro; nothing was created"})
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			fail(w, err)
-			return
-		}
-		// The account signs in once its email is verified (the link went to the log).
-		writeJSON(w, http.StatusCreated, map[string]any{
-			"user_id": user.ID, "organization_id": org.ID,
-			// Can re-resolves from the database: the owner of the new organization may delete it.
-			"can_delete_org": p.Can(ctx, polaris.Principal{UserID: user.ID, OrganizationID: org.ID}, "org.delete"),
-		})
 	}
 }
 
@@ -189,7 +186,7 @@ func profile(db *sqlstore.Store) http.HandlerFunc {
 		who, _ := polaris.PrincipalFrom(r.Context())
 		var plan string
 		var org *string
-		err := db.DB().QueryRowContext(r.Context(), "SELECT plan, organization_id FROM profiles WHERE user_id = ?", who.UserID).Scan(&plan, &org)
+		err := db.Conn(r.Context()).QueryRowContext(r.Context(), "SELECT plan, organization_id FROM profiles WHERE user_id = ?", who.UserID).Scan(&plan, &org)
 		if errors.Is(err, sql.ErrNoRows) { // erased: OnUserDeleted removed it (the access token lives until it expires)
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "no profile"})
 			return
@@ -262,44 +259,4 @@ func envOr(name, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-// devEnv sets what polaris.FromEnv reads and the environment lacks, so the example runs with zero
-// setup: a random APP_KEY, a fresh RS256 key pair, AUTH_ISSUER. Tokens signed with a generated key
-// die with the process; in production set the variables (`polaris init` writes them to .env).
-func devEnv(issuer string) error {
-	if os.Getenv("APP_KEY") == "" {
-		b := make([]byte, 32)
-		if _, err := rand.Read(b); err != nil {
-			return err
-		}
-		if err := os.Setenv("APP_KEY", base64.StdEncoding.EncodeToString(b)); err != nil {
-			return err
-		}
-	}
-	if os.Getenv("AUTH_JWT_PRIVATE_KEY") == "" {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			return err
-		}
-		priv, err := x509.MarshalPKCS8PrivateKey(key)
-		if err != nil {
-			return err
-		}
-		pub, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-		if err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PRIVATE_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: priv}))); err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PUBLIC_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pub}))); err != nil {
-			return err
-		}
-		log.Print("generated a throwaway JWT key pair (set AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY to keep tokens across restarts)")
-	}
-	if os.Getenv("AUTH_ISSUER") == "" {
-		return os.Setenv("AUTH_ISSUER", issuer)
-	}
-	return nil
 }

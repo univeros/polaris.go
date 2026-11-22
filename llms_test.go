@@ -20,6 +20,7 @@ import (
 	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/agent"
 	"github.com/univeros/polaris.go/cli"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/agents"
 	"github.com/univeros/polaris.go/plugins/anonymous"
@@ -33,6 +34,7 @@ import (
 	"github.com/univeros/polaris.go/plugins/passwordless"
 	"github.com/univeros/polaris.go/plugins/sentinel"
 	"github.com/univeros/polaris.go/plugins/social"
+	"github.com/univeros/polaris.go/plugins/sso"
 	"github.com/univeros/polaris.go/plugins/username"
 	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/security"
@@ -75,7 +77,6 @@ var (
 	refundHandler   http.Handler
 	enrollmentToken string
 	listInvoices    func(context.Context, agents.Agent) (any, error)
-	createProfile   func(context.Context, string) error
 	deleteProfile   func(context.Context, string) error
 	planOf          func(string) string
 	legacyRows      []struct {
@@ -84,6 +85,9 @@ var (
 		CreatedAt                 time.Time
 	}
 	otherUserID   string
+	welcome       func(context.Context, string)
+	health        http.Handler
+	yourVerifier  sso.DomainVerifier
 	home, list    http.Handler
 	billing, team http.Handler
 	rawToken      string
@@ -107,32 +111,51 @@ func llmsQuickstart() {
 	_ = []polaris.Kind{polaris.KindUser, polaris.KindAPIKey, polaris.KindOAuthClient, polaris.KindAgent}
 }
 
-func llmsHooks(cfg polaris.Config, db *sqlstore.Store) {
+func llmsHooks(cfg polaris.Config, db *sqlstore.Store, mux *http.ServeMux) {
 	cfg.Hooks = polaris.Hooks{
-		OnUserCreated: func(ctx context.Context, u polaris.User) error { return createProfile(ctx, u.ID) }, // same transaction as the account
+		OnUserCreated: func(ctx context.Context, u polaris.User) error { // runs in the account's transaction
+			_, err := db.Conn(ctx).ExecContext(ctx, "INSERT INTO profiles (user_id) VALUES ($1)", u.ID) // ? on MySQL and SQLite
+			return err
+		},
 		OnUserDeleted: func(ctx context.Context, userID string) error { return deleteProfile(ctx, userID) },
 		Claims: func(ctx context.Context, in polaris.ClaimsInput) (map[string]any, error) {
 			return map[string]any{"app_plan": planOf(in.UserID)}, nil // reserved names (sub, org, roles, …) are refused
 		},
 	}
+	cfg.Listeners = []event.Listener{func(ctx context.Context, e event.Event) {
+		if r, ok := e.(event.UserRegistered); ok {
+			welcome(ctx, r.UserID) // inside db.Tx, only after the commit
+		}
+	}}
 	p, err := polaris.New(cfg)
 
-	tx, err := db.DB().BeginTx(ctx, nil) // your transaction (sqlstore.Store.DB() is the *sql.DB)
-	ada, err := p.Users().Create(sqlstore.WithTx(ctx, tx), polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
-	err = tx.Commit()                                    // or Rollback: the account and OnUserCreated's rows go too
+	var ada polaris.User
+	err = db.Tx(ctx, func(ctx context.Context) error { // your transaction: Polaris calls and db.Conn(ctx) join it
+		var err error
+		if ada, err = p.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true}); err != nil {
+			return err
+		}
+		_, err = db.Conn(ctx).ExecContext(ctx, "UPDATE profiles SET plan = $1 WHERE user_id = $2", "pro", ada.ID)
+		return err // an error rolls back the account and its rows, and its events never go out (no mail)
+	})
 	org, err := p.Orgs().Create(ctx, ada.ID, "Acme", "") // ada is its owner
 	err = p.Orgs().AddMember(ctx, org.ID, otherUserID, "member")
-	tokens, err := p.Sessions().Issue(ctx, polaris.SignIn{UserID: ada.ID}) // your own sign-in; tokens.AccessToken works on Protect
+	_, inviteToken, err := p.Orgs().Invite(ctx, org.ID, ada.ID, "grace@example.com", "admin")      // deliver it; POST /auth/invites/accept takes it
+	tokens, err := p.Sessions().Issue(ctx, polaris.SignIn{UserID: ada.ID, OrganizationID: org.ID}) // your own sign-in, in org; works on Protect
 	ok := p.Can(ctx, polaris.Principal{UserID: ada.ID, OrganizationID: org.ID}, "org.read")
-	// errors: errors.Is(err, polaris.ErrNotFound), polaris.ErrConflict, polaris.ErrForbidden, polaris.ErrInvalidInput, polaris.ErrInvalidCredentials
-	_, _ = tokens, ok
+	mux.Handle("GET /healthz", p.Wrap(health)) // Config.Middleware around a route Protect does not guard
+	// errors: errors.Is(err, polaris.ErrNotFound), polaris.ErrConflict, polaris.ErrForbidden, polaris.ErrEmailNotVerified, polaris.ErrInvalidInput, polaris.ErrInvalidCredentials
+	_, _, _ = tokens, ok, inviteToken
 	_ = errors.Is(err, polaris.ErrNotFound) || errors.Is(err, polaris.ErrConflict) || errors.Is(err, polaris.ErrForbidden) ||
-		errors.Is(err, polaris.ErrInvalidInput) || errors.Is(err, polaris.ErrInvalidCredentials)
+		errors.Is(err, polaris.ErrEmailNotVerified) || errors.Is(err, polaris.ErrInvalidInput) || errors.Is(err, polaris.ErrInvalidCredentials)
 	u, o, sess := p.Users(), p.Orgs(), p.Sessions()
 	_, _, _, _, _, _, _, _ = u.Get, u.ByEmail, u.Create, u.Import, u.SetPassword, u.Disable, u.Enable, u.Delete
-	_, _, _, _, _, _ = o.Create, o.Get, o.ListFor, o.AddMember, o.SetRoles, o.RemoveMember
+	_, _, _, _, _, _, _ = o.Create, o.Get, o.ListFor, o.AddMember, o.SetRoles, o.RemoveMember, o.Invite
 	_, _, _, _ = sess.Issue, sess.Refresh, sess.Revoke, sess.RevokeAll
-	_, _ = cfg.Listeners, cfg.Middleware
+	_, _, _ = cfg.Listeners, cfg.TxListeners, cfg.Middleware
+	_, _, _ = db.AfterCommit, sqlstore.WithTx, db.Close
+	_ = polaris.NewUser{}.EmailVerified
+	_ = cfg.Auth.Flows.RequireVerifiedEmail
 }
 
 func llmsMigrate(p *polaris.Polaris, db *sqlstore.Store) {
@@ -220,10 +243,11 @@ func llmsVerify(mux *http.ServeMux) {
 	_ = verify.Config{Audiences: []string{"https://billing.example.com"}, HTTPClient: http.DefaultClient}
 }
 
-func llmsTesting(t *testing.T) {
+func llmsTesting(t *testing.T, cfg polaris.Config) {
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}))) // SQLite in a temp dir, test keys, recorders
 	// srv.Handler(), srv.Users(), srv.Sessions(), srv.Mailer.Sent() (verification tokens), srv.SMS, srv.Events.Names()
 	// polaristest.WithConfig(func(c *polaris.Config) { c.Hooks = … }) for anything else
+	cfg.Hasher = polaristest.Hasher() // tests that build their own polaris.Config: cheap Argon2id, fast under -race
 	_, _, _, _, _, _ = srv.Handler(), srv.Users(), srv.Sessions(), srv.Mailer.Sent(), srv.SMS, srv.Events.Names()
 	_ = polaristest.WithConfig
 }
@@ -242,7 +266,10 @@ func llmsInline(p *polaris.Polaris, cfg polaris.Config) {
 		passkey.New(passkey.Config{RPID: "example.com", Origins: []string{"https://example.com"}}),
 		messaging.New(messaging.Config{Email: &messaging.SMTP{Addr: "smtp.example.com:587", From: "noreply@example.com"}, SMS: &messaging.Twilio{}}),
 		sentinel.New(sentinel.Config{Mode: sentinel.Enforce}),
+		sso.New(sso.Config{HTTPClient: http.DefaultClient, Domains: yourVerifier}),
 	}
+	_ = polaris.DevEnv("http://localhost:8080")
+	_ = []any{event.UserRegistered{}, event.MemberInvited{}}
 	os.Exit(cli.Run(ctx, p, os.Args[1:], os.Stdout, os.Stderr))
 }
 

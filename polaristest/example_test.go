@@ -40,3 +40,18 @@ func ExampleNew() {
 		t.Fatal("no event recorded") // srv.Events, srv.Mailer and srv.SMS record what Polaris sent
 	}
 }
+
+// A host whose tests boot its own server (its newServer builds the polaris.Config) keeps the
+// production Argon2id out of them: hashing at 64 MiB per password makes a -race suite crawl.
+func ExampleHasher() {
+	var t *testing.T // the test's t
+
+	cfg, err := polaris.FromEnv(nil /* the test database */)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Hasher = polaristest.Hasher() // tests only; the hash format is the production one
+	if _, err := polaris.New(cfg); err != nil {
+		t.Fatal(err)
+	}
+}
