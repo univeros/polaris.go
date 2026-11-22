@@ -9,6 +9,11 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-22
+
+Security fixes. Upgrade: `go get github.com/univeros/polaris.go@v0.4.1`. Check the `mcp.Protect`
+entry if your MCP server accepts tokens from an issuer other than Polaris.
+
 ### Security
 
 - `plugins/social`: a provider's `email_verified` / `verified` is true only when the provider
@@ -180,7 +185,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/univeros/polaris.go/compare/v0.2.1...v0.3.0
