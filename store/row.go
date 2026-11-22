@@ -55,8 +55,8 @@ func (r Row) Int(col string) int64 {
 	}
 }
 
-// Bool reads a boolean column: true, a non-zero number, or (case-insensitively) "1", "t", "true",
-// "y", "yes"; anything else is false.
+// Bool reads a boolean column: true, a non-zero number, or text strconv.ParseBool reads as true
+// ("1", "t", "true", as MySQL and PostgreSQL text results carry them); anything else is false.
 func (r Row) Bool(col string) bool {
 	switch v := r[col].(type) {
 	case bool:
@@ -67,11 +67,8 @@ func (r Row) Bool(col string) bool {
 		return r.Int(col) != 0
 	default:
 		s, _ := r.NullString(col)
-		switch strings.ToLower(s) {
-		case "1", "t", "true", "y", "yes":
-			return true
-		}
-		return false
+		b, _ := strconv.ParseBool(s)
+		return b
 	}
 }
 

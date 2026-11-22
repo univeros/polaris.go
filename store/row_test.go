@@ -13,7 +13,7 @@ func TestRowAccessors(t *testing.T) {
 	at := time.Date(2026, 6, 7, 10, 0, 0, 0, time.UTC)
 	r := store.Row{
 		"bytes": []byte("ada"), "int64": int64(7), "int": 3, "int32": int32(4), "float": 2.0, "text_int": " 12 ",
-		"true": true, "false": false, "t": "t", "yes": "YES", "one": []byte("1"), "no": "f", "nil": nil,
+		"true": true, "false": false, "t": "t", "T": "TRUE", "yes": "YES", "one": []byte("1"), "no": "f", "nil": nil,
 		"time": at.In(time.FixedZone("CEST", 7200)), "time_text": []byte("2026-06-07 10:00:00"),
 		"time_rfc": "2026-06-07T12:00:00+02:00", "time_frac": "2026-06-07 10:00:00.123456", "bad_time": "soon",
 		"json": `{"a":[1,2]}`,
@@ -39,7 +39,7 @@ func TestRowAccessors(t *testing.T) {
 			t.Errorf("Int(%s) = %d, want %d", col, got, want)
 		}
 	}
-	bools := map[string]bool{"true": true, "false": false, "t": true, "yes": true, "one": true, "no": false, "nil": false, "int64": true, "bytes": false}
+	bools := map[string]bool{"true": true, "false": false, "t": true, "T": true, "yes": false, "one": true, "no": false, "nil": false, "int64": true, "bytes": false}
 	for col, want := range bools {
 		if got := r.Bool(col); got != want {
 			t.Errorf("Bool(%s) = %v, want %v", col, got, want)
