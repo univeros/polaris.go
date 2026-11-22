@@ -112,6 +112,15 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	return nil
 }
 
+// Seed creates the hash chain's lock row (Polaris.Migrate calls it), so the first writes never
+// race to create it. A no-op without HashChain.
+func (p *Plugin) Seed(ctx context.Context) error {
+	if !p.cfg.HashChain {
+		return nil
+	}
+	return p.store.ensureHead(ctx)
+}
+
 // Endpoints serves the audit routes.
 func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) {
 	return p.endpoints(), nil

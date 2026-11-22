@@ -2010,3 +2010,29 @@ already set; the invitation token is returned once, as the event carried it, and
 the loggable struct; `SignIn.OrganizationID` applies the switch route's membership checks and the
 escalation guard still bounds `Invite`. Two-phase delivery keeps the audit trail and erasure atomic
 with the action; it only delays what leaves the database.
+
+## 72. 2026-11-22 — The audit chain's lock row is seeded by Migrate; no process-wide lock
+
+The database matrix found two faults in decision 60's hash-chain lock, both reproduced by tests:
+
+- **A Go mutex held while waiting for the chain's database row could deadlock.** `Store.Write`
+  held a process-wide `sync.Mutex` across the whole append, including the wait for the row lock.
+  A host transaction (`sqlstore.Store.Tx`, decision 66) that records two events owns the row
+  after its first event; another request's writer then held the mutex while waiting for that row,
+  and the host's second event waited for the mutex: neither the database nor Go detects it, so
+  both hang. `TestTwoEventsInOneHostTransactionDoNotDeadlockConcurrentWriters` hung until the test
+  timeout before the fix. The mutex is gone: the database row orders every writer.
+- **Creating the lock row lazily raced.** On PostgreSQL a writer could see the row as present
+  (another writer's still-uncommitted insert) and then fail with "the polaris_audit_chain row is
+  missing", losing that event; on MySQL concurrent inserts of the row deadlock (InnoDB keeps the
+  shared lock a duplicate-key error takes) and MySQL rolls back the host's whole transaction.
+  The row is now created by `Polaris.Migrate` through a new optional plugin interface,
+  `wiring.Seeder` (`Seed(ctx) error`, called after the schema is current, outside any
+  transaction, idempotent). A writer reads the row before it would ever insert it, and if the row
+  it read is not yet visible to its own transaction it creates it again (waiting for the other
+  transaction) and retries once. Lazy creation remains only for a database that did not run
+  `Migrate` since the upgrade.
+
+Security review: no change to what is hashed or how the chain verifies; the change removes a hang
+and a lost audit event. Tests: the deadlock test above and `TestSeedCreatesTheLockRowOnce` (every
+backend), the existing chain tests (`-count=3` on PostgreSQL 17 and MySQL 8.4).

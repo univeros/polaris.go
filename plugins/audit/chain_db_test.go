@@ -83,6 +83,7 @@ func concurrentWriters(t *testing.T, skip store.Dialect, write func(db store.Ada
 			one, two := twoProcesses(t, b.Dialect)
 			dbs := []store.Adapter{one, two}
 			stores := []*Store{NewStore(one, true), NewStore(two, true)}
+			seedHead(t, stores[0]) // Polaris.Migrate does this (Plugin.Seed) before any request
 			const writers, writes = 8, 15
 			var wg sync.WaitGroup
 			errs := make(chan error, 2*writers*writes)
@@ -211,5 +212,94 @@ func TestPruningTheNewestEventKeepsTheChainVerifying(t *testing.T) {
 	}
 	if r, err := p.Verify(ctx); err != nil || r.Rows != 3 || !r.Intact() {
 		t.Fatalf("verify %+v %v", r, err)
+	}
+}
+
+// A host transaction that records two events while other writers append must not hang: a writer
+// waiting for the chain's database lock must not also hold something the lock's owner needs to
+// commit. Each worker records two events inside one transaction; the test fails on a deadlock
+// (a timeout) as well as on a broken chain. The first writes also race to create the lock row.
+func TestTwoEventsInOneHostTransactionDoNotDeadlockConcurrentWriters(t *testing.T) {
+	for _, b := range storetest.Backends() {
+		if b.Dialect == store.SQLite || b.Dialect == store.Memory {
+			continue // one writer at a time (SQLite) or no transactions (memory): nothing to interleave
+		}
+		t.Run(b.Name, func(t *testing.T) {
+			one, two := twoProcesses(t, b.Dialect)
+			dbs := []store.Adapter{one, two}
+			stores := []*Store{NewStore(one, true), NewStore(two, true)}
+			seedHead(t, stores[0])
+			const workers, rounds = 6, 8
+			done := make(chan struct{})
+			errs := make(chan error, 2*workers*rounds)
+			go func() {
+				var wg sync.WaitGroup
+				for n, s := range stores {
+					for w := range workers {
+						wg.Go(func() {
+							for i := range rounds {
+								err := dbs[n].Tx(ctx, func(ctx context.Context) error {
+									for range 2 {
+										if _, err := s.Write(ctx, signedIn(fmt.Sprintf("u%d", w), time.Now(), "")); err != nil {
+											return err
+										}
+									}
+									return nil
+								})
+								if err != nil {
+									errs <- fmt.Errorf("round %d: %w", i, err)
+								}
+							}
+						})
+					}
+				}
+				wg.Wait()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(60 * time.Second):
+				t.Fatal("deadlock: concurrent host transactions recording two events did not finish")
+			}
+			close(errs)
+			for err := range errs {
+				t.Error(err)
+			}
+			c, _ := NewCatalog()
+			p := &Plugin{cfg: Config{HashChain: true}, catalog: c, store: stores[0], clock: clock.System{}}
+			r, err := p.Verify(ctx)
+			if err != nil || r.Rows != 2*2*workers*rounds || !r.Intact() {
+				t.Fatalf("verify: %d rows, %d breaks (first %v), %v", r.Rows, len(r.Breaks), first(r.Breaks), err)
+			}
+		})
+	}
+}
+
+func seedHead(t *testing.T, s *Store) {
+	t.Helper()
+	if err := s.ensureHead(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Migrate seeds the chain's lock row through Plugin.Seed, on every backend, idempotently.
+func TestSeedCreatesTheLockRowOnce(t *testing.T) {
+	for _, b := range storetest.Backends() {
+		t.Run(b.Name, func(t *testing.T) {
+			db, _ := twoProcesses(t, b.Dialect)
+			p := &Plugin{cfg: Config{HashChain: true}, store: NewStore(db, true)}
+			for range 2 {
+				if err := p.Seed(ctx); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rows, err := db.FindMany(ctx, TableChain, store.Criteria{}, store.Query{})
+			if err != nil || len(rows) != 1 {
+				t.Fatalf("lock rows: %v %v", rows, err)
+			}
+			if err := (&Plugin{cfg: Config{}}).Seed(ctx); err != nil {
+				t.Fatalf("without HashChain Seed is a no-op: %v", err)
+			}
+		})
 	}
 }
