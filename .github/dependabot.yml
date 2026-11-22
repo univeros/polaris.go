@@ -1,0 +1,41 @@
+# Dependency updates, weekly, grouped so a week brings a few pull requests rather than one per
+# module. Each goes through CI (make qa, govulncheck, the database matrix, apicheck). A new
+# dependency is still a decision (AGENT.md rule 9); updates of existing ones are not.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # otel and otelhttp move together (telemetry/otel is their only importer).
+      opentelemetry:
+        patterns: ["go.opentelemetry.io/*"]
+      golang-x:
+        patterns: ["golang.org/x/*"]
+      # SAML stack of plugins/sso. On an upgrade re-review the govulncheck ignore for
+      # crewjam/saml in scripts/govulncheck.sh.
+      saml:
+        patterns: ["github.com/crewjam/saml", "github.com/russellhaering/goxmldsig", "github.com/beevik/etree"]
+      # The pure-Go SQLite driver and its libc.
+      sqlite:
+        patterns: ["modernc.org/*"]
+      # Every other minor or patch update in one pull request; major versions come one by one.
+      others:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
