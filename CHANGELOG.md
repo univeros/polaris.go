@@ -9,15 +9,6 @@ marked **Breaking**.
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-11-22
-
-Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
-`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
-tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
-a remedy if your data needs a manual step (see the admin entry under Security). Read the
-**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
-429 bodies, `budget_exhausted` and whole-second token timestamps.
-
 ### Added
 
 - Host API for what the examples had to work around (decision 66):
@@ -31,6 +22,32 @@ a remedy if your data needs a manual step (see the admin entry under Security). 
   `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
   `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
   Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
+
+### Changed
+
+- Event delivery has two phases. Listeners that write to the store (core's audit, every plugin's
+  listeners: audit, erasure, revocations) run inside the transaction that raised the event, as
+  before. The mail listener, metrics and `Config.Listeners` now run after a `sqlstore.Store.Tx`
+  commits and never after it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx`
+  around `p.Users().Create` no longer mails for a signup it then rolls back. A host listener that
+  writes to the database and must stay atomic moves to the new `Config.TxListeners`; plugins wrap a
+  listener with effects outside the database in `Graph.Deferred`. Under `sqlstore.WithTx` the
+  deferred listeners still run before the host commits: Polaris cannot see that commit
+  (decision 66).
+- The examples run with `POLARIS_DEV=1 go run ./examples/<name>` (`polaris.DevEnv` replaces each
+  example's copy of a key generator), and their tests use `polaristest.Hasher()`: a `-race` run of
+  each takes seconds instead of 45–90 s.
+
+## [0.5.0] - 2026-11-22
+
+Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
+tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
+a remedy if your data needs a manual step (see the admin entry under Security). Read the
+**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
+429 bodies, `budget_exhausted` and whole-second token timestamps.
+
+### Added
 
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
   tables, it adds the columns and indexes a release declares on an existing table and drops the
@@ -52,18 +69,6 @@ a remedy if your data needs a manual step (see the admin entry under Security). 
 
 ### Changed
 
-- Event delivery has two phases. Listeners that write to the store (core's audit, every plugin's
-  listeners: audit, erasure, revocations) run inside the transaction that raised the event, as
-  before. The mail listener, metrics and `Config.Listeners` now run after a `sqlstore.Store.Tx`
-  commits and never after it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx`
-  around `p.Users().Create` no longer mails for a signup it then rolls back. A host listener that
-  writes to the database and must stay atomic moves to the new `Config.TxListeners`; plugins wrap a
-  listener with effects outside the database in `Graph.Deferred`. Under `sqlstore.WithTx` the
-  deferred listeners still run before the host commits: Polaris cannot see that commit
-  (decision 66).
-- The examples run with `POLARIS_DEV=1 go run ./examples/<name>` (`polaris.DevEnv` replaces each
-  example's copy of a key generator), and their tests use `polaristest.Hasher()`: a `-race` run of
-  each takes seconds instead of 45–90 s.
 - `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
   `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
   an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
