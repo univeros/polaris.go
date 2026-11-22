@@ -37,9 +37,27 @@
 //     revoked, or an OAuth token was revoked;
 //   - the user was disabled or deleted, a membership suspended, an agent revoked (the kill
 //     switch) or its grants withdrawn;
-//   - the roles or permissions changed: Claims.Scopes are the permissions the token was issued
-//     with, not the ones the database holds now. The host's polaris.Protect resolves them from
-//     the database on every request; this package cannot.
+//   - the roles or permissions changed: Claims.Scopes are what the token was issued with, not
+//     what the database holds now. The host's polaris.Protect resolves permissions from the
+//     database on every request; this package cannot.
+//
+// # What a scope proves
+//
+// A permission name in Claims.Scopes ("invoices.read", a core permission, one of
+// Config.Permissions on the host) means the token's subject held that permission in
+// Claims.OrganizationID when the token was issued: a session token carries the user's
+// permissions, and the oauth plugin puts a permission scope in a token only if the user (or, for
+// client credentials, the client: a trusted client's listed scopes, an agent's grants) held it
+// then, whatever the client asked for. So Require("invoices.read") is an authorization check as
+// of the token's issue. Hosts older than v0.5.1 granted an OAuth client any permission scope it
+// asked for; upgrade the host before relying on this.
+//
+// A scope that is not a permission (openid, profile, email, offline_access, and the host's
+// oauth.Config.Scopes such as "deploy") proves only that the client was allowed to ask for it,
+// which every client is unless its registration lists scopes; with dynamic client registration
+// on, that is anyone. Do not use such a scope alone to decide what the caller may do: check
+// Claims.Subject or the client_id claim as well, or declare a permission on the host and require
+// that.
 //
 // The access token lifetime bounds every one of these: AUTH_ACCESS_TOKEN_TTL (15 minutes by
 // default) for session tokens, the provider's access token lifetime for OAuth tokens. Keep it
@@ -124,8 +142,10 @@ type Claims struct {
 	// OrganizationID is org, the active organization; "" when none.
 	OrganizationID string
 	// Scopes are what the token was issued with: a session token's permissions in
-	// OrganizationID at sign-in or refresh, an OAuth token's granted scopes. They are not
-	// re-read from the database (see the package documentation).
+	// OrganizationID at sign-in or refresh, an OAuth token's granted scopes (a permission among
+	// them only if the subject held it then). They are not re-read from the database, and a
+	// scope that is not a permission is no proof of authority (see "What a scope proves" in the
+	// package documentation).
 	Scopes []string
 	// ExpiresAt is exp.
 	ExpiresAt time.Time
@@ -222,6 +242,9 @@ func ClaimsFrom(ctx context.Context) (Claims, bool) {
 //   - 503 {"error":"unavailable"} when the issuer's keys cannot be read (logged).
 //
 // It has the shape routers chain: r.Use(v.Require()), mux.Handle(p, v.Require("x")(h)).
+//
+// Require a permission name to authorize: a scope that is not a permission says only what the
+// client asked for (see "What a scope proves" in the package documentation).
 func (v *Verifier) Require(scopes ...string) func(http.Handler) http.Handler {
 	required := slices.Clone(scopes)
 	return func(next http.Handler) http.Handler {

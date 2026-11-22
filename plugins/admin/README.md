@@ -42,6 +42,10 @@ operator acts on that organization only. Roles, each including the ones before i
 | `RoleAdmin` | `Manage` (ban, passwords, MFA, member roles, deletions), `Impersonate` |
 | `RoleOwner` | `Own`: grants, operator keys, drains, other plugins' `/admin` routes |
 
+`Manage` on an account (ban, unban, password, MFA removal and reset, delete) stops at operators:
+an operator below `RoleOwner` gets 403 `admin/forbidden` when the account is a superadmin's or
+belongs to an operator whose grant is of the caller's role or above. Only an owner manages those.
+
 ## Routes
 
 | Method | Path | Purpose |

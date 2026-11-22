@@ -29,6 +29,9 @@ const (
 	// MinRefetch is how often an unknown kid may fetch the issuer's JWK Set again: an
 	// unauthenticated JWT naming any kid is not a refetch amplifier.
 	MinRefetch = time.Minute
+	// FailureBackoff is how long a failed fetch of the JWK Set is remembered: until then requests
+	// that need a fetch fail with ErrUnavailable at once.
+	FailureBackoff = 5 * time.Second
 	// DefaultTTL is how long a fetched JWK Set is used before it is fetched again.
 	DefaultTTL   = time.Hour
 	maxJWKSBytes = 64 << 10
@@ -188,6 +191,8 @@ type JWKS struct {
 	set       []map[string]any
 	fetchedAt time.Time
 	refetched time.Time
+	failedAt  time.Time // the last failed fetch, remembered for FailureBackoff
+	failure   error
 }
 
 func (j *JWKS) keys(ctx context.Context, fresh bool) ([]map[string]any, error) {
@@ -204,12 +209,21 @@ func (j *JWKS) keys(ctx context.Context, fresh bool) ([]map[string]any, error) {
 		}
 		j.refetched = now
 	}
+	// The requests that waited on mu behind a failing fetch read now after it failed: they answer
+	// its failure instead of each waiting out the client's timeout in turn.
+	if j.failure != nil && now.Sub(j.failedAt) < FailureBackoff {
+		return nil, j.failure
+	}
 	set, err := j.fetch(ctx)
 	if err != nil {
 		j.Log("fetching the issuer's JWK Set failed", "url", j.URL, "error", err)
+		// A request that gave up (its context ended) says nothing about the issuer.
+		if ctx.Err() == nil {
+			j.failedAt, j.failure = j.Clock.Now(), err
+		}
 		return nil, err
 	}
-	j.set, j.fetchedAt = set, now
+	j.set, j.fetchedAt, j.failure = set, now, nil
 	return set, nil
 }
 

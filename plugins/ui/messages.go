@@ -48,6 +48,8 @@ var English = map[string]string{
 	"sign_out_title":    "Sign out",
 	"sign_out_intro":    "Sign out of this browser?",
 	"sign_out":          "Sign out",
+	"refresh_title":     "Continue",
+	"refresh_intro":     "You arrived from another site. Continue to stay signed in.",
 	"consent_title":     "Authorize access",
 	"consent_intro":     "{client} wants to access your account. It will be able to:",
 	"consent_redirect":  "You will be sent back to {uri}.",

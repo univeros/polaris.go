@@ -89,9 +89,9 @@ func (s *Service) SendOTP(ctx context.Context, userID string, factor model.MFAFa
 }
 
 // VerifyOTP checks code against the newest live challenge of the user's factor under purpose and
-// consumes it. Any failure is ErrInvalidOTP: no live challenge, its attempts spent (even with the
-// right code), a wrong code (which spends an attempt and dispatches event.OTPVerifyFailed), or a
-// challenge another request consumed first.
+// consumes it. Every presented code spends an attempt, before it is compared. Any failure is
+// ErrInvalidOTP: no live challenge, its attempts spent (even with the right code), a wrong code
+// (which dispatches event.OTPVerifyFailed), or a challenge another request consumed first.
 func (s *Service) VerifyOTP(ctx context.Context, userID, factorID, code string, purpose ChallengePurpose) error {
 	now := s.clock.Now()
 	pending, err := s.pending(ctx, userID, factorID, purpose, now)
@@ -105,13 +105,18 @@ func (s *Service) VerifyOTP(ctx context.Context, userID, factorID, code string, 
 		return ErrInvalidOTP
 	}
 
+	// Reserve the attempt before comparing: the database counts attempts < max_attempts, so of
+	// any number of concurrent requests only max_attempts ever get a compare, whatever each read.
+	// A right code spends an attempt too.
+	reserved, err := s.repos.OTPChallenges.SpendAttempt(ctx, c.ID, c.MaxAttempts)
+	if err != nil {
+		return fmt.Errorf("mfa: spend OTP attempt: %w", err)
+	}
+	if !reserved {
+		return ErrInvalidOTP
+	}
 	if !s.pepper.Matches(otpPepperContext, code, deref(c.CodeHash)) {
 		left := max(0, c.MaxAttempts-c.Attempts-1)
-		// The database enforces attempts < max_attempts, so concurrent failures cannot push the
-		// counter past the budget whatever this request read.
-		if _, err := s.repos.OTPChallenges.SpendAttempt(ctx, c.ID, c.MaxAttempts); err != nil {
-			return fmt.Errorf("mfa: spend OTP attempt: %w", err)
-		}
 		s.events.Dispatch(ctx, event.OTPVerifyFailed{UserID: userID, FactorID: factorID, AttemptsLeft: &left})
 		return ErrInvalidOTP
 	}
@@ -172,7 +177,7 @@ func (s *Service) spendSendBudget(ctx context.Context, userID, destination strin
 	defer s.quotaMu.Unlock()
 	budgets := make([]sendBudget, len(keys))
 	for i, key := range keys {
-		b, err := s.readBudget(ctx, key, now.Unix())
+		b, err := s.readBudget(ctx, key, now.Unix(), s.otp.SendWindow)
 		if err != nil {
 			return err
 		}
@@ -192,13 +197,13 @@ func (s *Service) spendSendBudget(ctx context.Context, userID, destination strin
 
 // readBudget returns the key's counter, or a fresh window when it elapsed, never existed or is
 // unreadable.
-func (s *Service) readBudget(ctx context.Context, key string, now int64) (sendBudget, error) {
+func (s *Service) readBudget(ctx context.Context, key string, now int64, window time.Duration) (sendBudget, error) {
 	raw, ok, err := s.cache.Get(ctx, key)
 	if err != nil {
-		return sendBudget{}, fmt.Errorf("mfa: read OTP send budget: %w", err)
+		return sendBudget{}, fmt.Errorf("mfa: read budget: %w", err)
 	}
 	var b sendBudget
-	if !ok || json.Unmarshal(raw, &b) != nil || now-b.Start >= int64(s.otp.SendWindow/time.Second) {
+	if !ok || json.Unmarshal(raw, &b) != nil || now-b.Start >= int64(window/time.Second) {
 		return sendBudget{Start: now}, nil
 	}
 	return b, nil

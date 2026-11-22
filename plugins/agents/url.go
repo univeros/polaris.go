@@ -89,8 +89,10 @@ func unreserved(c byte) bool {
 	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || c == '-' || c == '.' || c == '_' || c == '~'
 }
 
-// requestURL is the URL the client called, without its query: what a request JWT's aud names.
-// Behind a TLS-terminating proxy the host must set r.TLS for the scheme to read https.
+// requestURL is the URL the client called on a host route (Protect, Guard), without its query:
+// what a request JWT's aud names there. The scheme and host are the request's own, so behind a
+// TLS-terminating proxy the host must set r.TLS for the scheme to read https, and the host routes
+// must be served only under the names the application answers to.
 func requestURL(r *http.Request) string {
 	scheme := "http"
 	if r.TLS != nil {
@@ -100,10 +102,26 @@ func requestURL(r *http.Request) string {
 	if host == "" {
 		host = r.URL.Host
 	}
-	path := r.URL.EscapedPath()
-	// RequestURI is the target the client sent, before a host's http.StripPrefix rewrote URL.Path.
-	if u, err := url.ParseRequestURI(r.RequestURI); err == nil && r.RequestURI != "" {
-		path = u.EscapedPath()
+	return scheme + "://" + host + requestPath(r)
+}
+
+// ownURL is the URL of one of the plugin's own routes as an agent names it in aud: the path
+// called on the configured base URL's origin. The Host header and r.TLS play no part, so a
+// forged or forwarded Host cannot make a JWT signed for another server read as one for this one,
+// and a TLS-terminating proxy changes nothing.
+func ownURL(baseURL string, r *http.Request) string {
+	origin := baseURL
+	if u, err := url.Parse(baseURL); err == nil && u.Host != "" {
+		origin = u.Scheme + "://" + u.Host
 	}
-	return scheme + "://" + host + path
+	return origin + requestPath(r)
+}
+
+// requestPath is the path the client sent: RequestURI's, before a host's http.StripPrefix rewrote
+// URL.Path.
+func requestPath(r *http.Request) string {
+	if u, err := url.ParseRequestURI(r.RequestURI); err == nil && r.RequestURI != "" {
+		return u.EscapedPath()
+	}
+	return r.URL.EscapedPath()
 }

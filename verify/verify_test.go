@@ -397,6 +397,7 @@ func TestJWKSDown(t *testing.T) {
 		t.Fatalf("a cached set past its TTL is not used stale: %v", err)
 	}
 	i.set(func(i *issuer) { i.down = false })
+	i.clock.Advance(5 * time.Second) // a failed fetch is remembered that long (decision 69)
 	if _, err := warm.Verify(context.Background(), i.session(t, i.rsa)); err != nil {
 		t.Fatalf("the issuer is back: %v", err)
 	}

@@ -65,15 +65,16 @@ func assertActive(a Agent) error {
 
 // authenticate is who an agent-facing route (or a guarded host route) talks to: an agent with a
 // signed request JWT, or one of its OAuth access tokens (verified by the oauth plugin, DPoP binding
-// included). body is the raw request body.
-func (s *service) authenticate(r *http.Request, body []byte) (principal, error) {
+// included). body is the raw request body; url is what a request JWT's aud must name (ownURL on
+// the plugin's routes, requestURL on a host's).
+func (s *service) authenticate(r *http.Request, body []byte, url string) (principal, error) {
 	m := credentialScheme.FindStringSubmatch(r.Header.Get("Authorization"))
 	if m == nil {
 		return principal{}, refuse(ErrUnauthorized, "An agent credential is required: a signed request JWT or an access token as a bearer.")
 	}
 	raw := m[2]
 	if peeked, ok := peekRequestJWT(raw); ok {
-		return s.byJWT(r, raw, peeked.sub, body)
+		return s.byJWT(r, raw, peeked.sub, body, url)
 	}
 	if h := oauth.JWTHeader(raw); h != nil && h["typ"] == oauth.AccessTokenType {
 		tok, err := s.oauth.ResolveBearer(r)
@@ -98,7 +99,7 @@ func deref(p *principal) principal {
 	return *p
 }
 
-func (s *service) byJWT(r *http.Request, raw, sub string, body []byte) (principal, error) {
+func (s *service) byJWT(r *http.Request, raw, sub string, body []byte, url string) (principal, error) {
 	ctx := r.Context()
 	a, ok, err := s.agent(ctx, sub)
 	if err != nil {
@@ -110,7 +111,6 @@ func (s *service) byJWT(r *http.Request, raw, sub string, body []byte) (principa
 	if err := assertActive(a); err != nil {
 		return principal{}, err
 	}
-	url := requestURL(r)
 	caps, err := s.jwts.verify(ctx, raw, a, r.Method, url, body)
 	if err != nil {
 		return principal{}, err

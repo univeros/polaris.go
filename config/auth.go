@@ -94,7 +94,10 @@ type Password struct {
 	BreachCheck bool // AUTH_PASSWORD_BREACH_CHECK
 }
 
-// Lockout holds the failed-login lockout policy (auth.lockout).
+// Lockout holds the failed-login lockout policy (auth.lockout). MaxAttempts and Duration also
+// bound the second factor: after MaxAttempts second-factor codes that did not clear (the MFA login
+// step and step-up, recovery codes included), every code of that user is refused as a wrong one
+// until Duration has passed since the first of them; a code that clears resets the count.
 type Lockout struct {
 	MaxAttempts int
 	Window      time.Duration

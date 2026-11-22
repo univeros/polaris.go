@@ -125,10 +125,11 @@ type Service struct {
 	types      map[string]FactorType
 	otp        config.OTP
 	mfa        config.MFA
+	lockout    config.Lockout // the second-factor attempt limit (verifyCounted)
 	clock      clock.Clock
 	events     event.Dispatcher
 
-	quotaMu sync.Mutex // serializes the send-budget read-modify-write within this process
+	quotaMu sync.Mutex // serializes the budget read-modify-writes (sends, attempts) within this process
 }
 
 // New validates cfg and returns a Service.
@@ -160,6 +161,10 @@ func New(cfg Config) (*Service, error) {
 		db: cfg.DB, repos: repository.New(cfg.DB), pepper: cfg.Pepper, encrypter: cfg.Encrypter, totp: cfg.TOTP,
 		qr: cfg.QR, sms: cfg.SMS, mailer: cfg.Mailer, cache: cfg.Cache, sessions: cfg.Sessions, tickets: cfg.Tickets,
 		principals: cfg.Principals, types: types, otp: cfg.Auth.OTP, mfa: cfg.Auth.MFA, clock: cfg.Clock, events: cfg.Events,
+		lockout: cfg.Auth.Lockout,
+	}
+	if s.lockout.MaxAttempts <= 0 || s.lockout.Duration <= 0 { // a hand-built Config: never unlimited
+		s.lockout = config.Defaults().Lockout
 	}
 	if s.qr == nil {
 		s.qr = SVGQRCode{}

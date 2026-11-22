@@ -399,9 +399,20 @@ func (p *Plugin) renew(w http.ResponseWriter, r *http.Request) (reply, error) {
 }
 
 // refresh renews the session and returns to return_to; without a usable refresh cookie it asks the
-// user to sign in, then returns there.
+// user to sign in, then returns there. This GET rotates the refresh token, and the cookie is
+// SameSite=Lax, so another site can navigate the browser here: twice with the same cookie reads
+// as a reused token and ends the session. So a navigation the browser says another site started
+// (Sec-Fetch-Site neither same-origin nor none) rotates nothing; the page offers a link, and
+// following it is a same-origin navigation. A browser that sends no Sec-Fetch-Site is served as
+// before.
 func (p *Plugin) refresh(w http.ResponseWriter, r *http.Request) {
 	returnTo := r.URL.Query().Get("return_to")
+	site := r.Header.Get("Sec-Fetch-Site")
+	if p.secure && cookie(r, refreshCookie) != "" && site != "" && site != "same-origin" && site != "none" {
+		p.message(w, r, http.StatusOK, "refresh_title", "refresh_intro",
+			p.base+"/refresh?return_to="+url.QueryEscape(p.target(returnTo)), "continue")
+		return
+	}
 	if p.secure {
 		rep, err := p.renew(w, r)
 		switch {
