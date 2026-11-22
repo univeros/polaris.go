@@ -1,5 +1,5 @@
-// Package wiring builds every Polaris service from a Config, explicitly and once: the Go form of
-// upstream's Polaris\Wiring\Graph, without a container.
+// Package wiring builds every Polaris service from a Config, explicitly and once, without a
+// container.
 //
 // It is the plugin SDK, with packages endpoint, manifest, event and token: a plugin implements
 // Plugin (plus the optional interfaces it needs) and receives the *Graph, whose accessor methods

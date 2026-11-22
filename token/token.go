@@ -2,9 +2,9 @@
 // with a kid header, managed iss/aud/iat/nbf/exp claims and the Polaris claim set, plus the
 // JWK Set that publishes the verification keys.
 //
-// The wire format is frozen (spec §3.3): for the same key, clock and claims, Codec.Issue
-// produces the same bytes as upstream's PolarisTokenGenerator (lcobucci/jwt), and Codec.Parse
-// accepts and rejects exactly what upstream's PolarisTokenParser does.
+// The wire format is frozen: for the same key, clock and claims, Codec.Issue produces the same
+// bytes in every release, and Codec.Parse keeps accepting every token an earlier release issued
+// (testdata/vectors holds the known-answer vectors).
 //
 // Package token is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
 // third-party plugin builds on. API.md states what is stable.

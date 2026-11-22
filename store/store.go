@@ -1,5 +1,4 @@
-// Package store is the persistence port: a row-level adapter over any database, the Go form of
-// PHP Polaris\Contract\DatabaseAdapter. Every service and plugin talks to the database through it.
+// Package store is the persistence port: a row-level adapter over any database. Every service and plugin talks to the database through it.
 //
 // Criteria map a column to:
 //   - a scalar (string, int, int64, bool, time.Time): column = value

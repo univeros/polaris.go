@@ -1,4 +1,4 @@
-// Package storetest is the store.Adapter conformance suite (port of PHP AdapterConformanceTests):
+// Package storetest is the store.Adapter conformance suite:
 // every criteria form, ordering, paging, Increment, transactions with savepoints, duplicate keys
 // and concurrent use, over core's tables. An adapter passes it to be a drop-in store.
 package storetest

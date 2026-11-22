@@ -1,6 +1,5 @@
 // Package config holds Polaris configuration: the boot secrets ([Secrets]) and the auth settings
-// ([Auth]), with the defaults, environment variables and validation rules of upstream
-// `docs/auth/configuration.md`.
+// ([Auth]), with their defaults, environment variables and validation rules.
 //
 // Start from the environment or from [Defaults], change what you need, then validate:
 //
@@ -9,8 +8,7 @@
 //		log.Fatal(err) // every problem, each with its fix
 //	}
 //
-// Every validation error wraps [ErrInvalid] and names the field, the upstream config key or
-// environment variable, and what to do about it. A zero [Auth] is not valid: use [Defaults].
+// Every validation error wraps [ErrInvalid] and names the field or environment variable, and what to do about it. A zero [Auth] is not valid: use [Defaults].
 package config
 
 import (

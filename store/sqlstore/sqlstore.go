@@ -1,5 +1,5 @@
 // Package sqlstore is the store.Adapter over database/sql for PostgreSQL (pgx), MySQL and SQLite
-// (modernc, no cgo), the Go form of PHP polaris/pdo: prepared statements only, nested transactions
+// (modernc, no cgo): prepared statements only, nested transactions
 // as savepoints, unique-constraint violations as store.ErrDuplicate. It also exports core's schema
 // as DDL and installs, inspects and diffs it on a live database.
 package sqlstore

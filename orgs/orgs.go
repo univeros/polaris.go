@@ -1,6 +1,5 @@
-// Package orgs manages organizations, their members, invitations and roles (upstream
-// OrganizationService, MembershipService, InvitationService and RoleService; docs/auth/rbac.md
-// §3, §6–§8), enforcing the multi-tenant invariants a permission check alone cannot express:
+// Package orgs manages organizations, their members, invitations and roles,
+// enforcing the multi-tenant invariants a permission check alone cannot express:
 //
 //   - No privilege escalation: an actor only grants roles and permissions they hold themselves
 //     (a superadmin is exempt), checked with authz.EscalationGuard.
@@ -14,7 +13,7 @@
 //
 // Refusals are values: a *Error whose Kind is ErrInvalid (422), ErrNotFound (404), ErrConflict
 // (409) or ErrInvalidInvitation (400), or an *authz.ForbiddenError (403). Their Message is the
-// client-facing text upstream answers.
+// client-facing text.
 package orgs
 
 import (

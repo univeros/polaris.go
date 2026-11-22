@@ -1,5 +1,4 @@
-// Package identity runs the account flows of docs/auth/flows.md §1–3, §8 and §10 (upstream
-// Polaris\Identity): registration and email verification, password login with windowed lockout
+// Package identity runs the account flows: registration and email verification, password login with windowed lockout
 // and the MFA hand-off, password forgot/reset/change, and user administration (read, update,
 // disable, enable, erase).
 //
@@ -9,7 +8,7 @@
 // and reset tokens are 256-bit secrets of which only the keyed hash (security.Pepper) is stored.
 //
 // Errors are values: every refusal matches one of the Err* sentinels with errors.Is, and its
-// Error() is the message upstream returns to the client.
+// Error() is the message the client receives.
 package identity
 
 import (

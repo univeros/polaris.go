@@ -1,10 +1,10 @@
 // Package manifest loads the endpoint specs (api/**/*.yaml) that declare every Polaris route, checks
-// request input against their field rules, and exports them as upstream does: the JSON manifest and
-// an OpenAPI 3.1 document.
+// request input against their field rules, and exports them: the JSON manifest and an OpenAPI 3.1
+// document.
 //
 // A spec's route name comes from its file path ("auth/login.yaml" is "polaris.auth.login",
 // a plugin's "agents/execute.yaml" is "polaris.agents.execute"); endpoints register under it.
-// domain.class, the PHP endpoint class, is kept only for the exports.
+// domain.class is kept only for the exports.
 //
 // Load core's directory first, then each plugin's, in registration order:
 //

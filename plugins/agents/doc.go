@@ -1,12 +1,10 @@
-// Package agents makes AI agents Polaris principals (the port of upstream's polaris/agents,
-// plugin id "agents"): agents registered by their owners or enrolled by hosts, each an OAuth client
+// Package agents makes AI agents Polaris principals (plugin id "agents"): agents registered by their owners or enrolled by hosts, each an OAuth client
 // of the oauth plugin (client credentials for an autonomous agent, token exchange with act for a
 // delegated one; private_key_jwt, a pcs_ secret or the user's token), signed request JWTs
 // (typ agent+jwt: aud the exact URL, jti once, exp - iat at most 5 min, htm/htu/body_hash
 // binding), capability grants with constraints and budgets approved by a person (device code,
 // CIBA push, in-app) with the strength the risk needs or by policy, one execution path with a
-// signed receipt hash chain, and a kill switch. Agents speak the Agent Auth Protocol subset of
-// upstream's docs/better/agent-auth-compat.md.
+// signed receipt hash chain, and a kill switch. Agents speak a subset of the Agent Auth Protocol.
 //
 // Install it after the oauth plugin; capabilities are plain Go funcs or host routes:
 //

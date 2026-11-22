@@ -23,6 +23,6 @@
 // against ErrBudgetExhausted, ErrConstraintViolated, ...) and the RFC 9457 problem document.
 // A capability with a Location runs at the host: call it with Agent.Do.
 //
-// The wire behaviour is upstream's (polaris-core packages/agent and agent-ts): the same requests,
-// the same JWTs, the same receipt checks; the PHP server verifies the JWTs this package signs.
+// The wire behaviour is the agents plugin's (plugins/agents): the requests, JWTs and receipt
+// checks it expects; the server verifies the JWTs this package signs.
 package agent

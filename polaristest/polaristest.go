@@ -1,7 +1,7 @@
 // Package polaristest boots a complete Polaris server for tests: a fresh database (SQLite in a temp
 // file by default; see WithDialect and EnvDB) with the schema and permission catalog installed, test RSA keys, recording mailer, SMS sender and event
-// log, and a frozen rate-limit clock — the environment upstream's functional suite uses, so the
-// contract fixtures replay. Applications built on Polaris use it for their own tests too.
+// log, and a frozen rate-limit clock — the environment the contract fixtures
+// replay in. Applications built on Polaris use it for their own tests too.
 //
 //	srv := polaristest.New(t, polaristest.WithConfig(func(c *polaris.Config) { c.Hooks = myHooks }))
 //	ada, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
