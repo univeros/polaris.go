@@ -163,6 +163,7 @@ func llmsAgents(db store.Adapter, mux *http.ServeMux) {
 	}})
 	cfg, _ := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag)
 	cfg.Permissions = map[string]string{"billing.refund": "Refund an invoice"} // your own permissions; Migrate seeds them
+	cfg.RolePermissions = map[string][]string{"owner": {"billing.refund"}}     // owners hold it, so they can approve it
 	p, _ := polaris.New(cfg)
 	mux.Handle("/", p.Handler())                                         // includes /.well-known/agent-configuration, /agents/*, /oauth2/*
 	mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler)) // grant, constraints, budget checked BEFORE refundHandler

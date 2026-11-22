@@ -145,6 +145,9 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 				return err
 			}
 			user = next
+			if err := d.resources.setNameParts(ctx, conn, user.ID, namePartsOf(body)); err != nil {
+				return err
+			}
 		}
 		var err error
 		if joined, err = d.join(ctx, conn, user.ID, now); err != nil {
@@ -176,7 +179,8 @@ func (d *directory) replaceUser(ctx context.Context, conn Connection, user model
 		return model.User{}, err
 	}
 	ext := externalIDOf(body)
-	return d.writeUser(ctx, conn, user, userChange{email: &email, displayName: displayNameOf(body), setName: true,
+	parts := namePartsOf(body)
+	return d.writeUser(ctx, conn, user, userChange{email: &email, displayName: displayNameOf(body), setName: true, parts: &parts,
 		externalID: &ext, active: body["active"] != false, setActive: true})
 }
 
@@ -204,7 +208,20 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 		given, okG := op.scalar("name.givenName").(string)
 		family, okF := op.scalar("name.familyName").(string)
 		if okG || okF {
-			name := trimBlank(given + " " + family)
+			if c.parts == nil { // a part not in the request keeps what the directory sent before
+				stored, err := d.resources.nameParts(ctx, conn, user.ID)
+				if err != nil {
+					return model.User{}, err
+				}
+				c.parts = &stored
+			}
+			if okG {
+				c.parts.given = namePart(given)
+			}
+			if okF {
+				c.parts.family = namePart(family)
+			}
+			name := trimBlank(c.parts.given + " " + c.parts.family)
 			c.displayName, c.setName = &name, true
 		}
 		v := op.scalar("externalId")
@@ -221,7 +238,8 @@ type userChange struct {
 	email       *string
 	displayName *string
 	setName     bool
-	externalID  *string // "" forgets it
+	parts       *nameParts // name.givenName and name.familyName
+	externalID  *string    // "" forgets it
 	active      bool
 	setActive   bool
 }
@@ -236,7 +254,7 @@ func (d *directory) writeUser(ctx context.Context, conn Connection, user model.U
 		if c.email != nil && *c.email != user.Email {
 			return model.User{}, immutable("userName is managed by the account's owner, not by this directory.")
 		}
-		c.email, c.setName = nil, false
+		c.email, c.setName, c.parts = nil, false, nil
 	}
 	err = d.db.Tx(ctx, func(ctx context.Context) error {
 		next := user
@@ -256,6 +274,11 @@ func (d *directory) writeUser(ctx context.Context, conn Connection, user model.U
 		next.UpdatedAt = d.now()
 		if err := d.repos.Users.Update(ctx, user, next); err != nil {
 			return err
+		}
+		if c.parts != nil {
+			if err := d.resources.setNameParts(ctx, conn, user.ID, *c.parts); err != nil {
+				return err
+			}
 		}
 		if c.externalID == nil {
 			return nil
@@ -357,12 +380,23 @@ func (d *directory) userResource(ctx context.Context, conn Connection, user mode
 	if user.DisplayName != nil {
 		name = *user.DisplayName
 	}
+	parts, err := d.resources.nameParts(ctx, conn, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	nameAttribute := map[string]any{"formatted": name}
+	if parts.given != "" {
+		nameAttribute["givenName"] = parts.given
+	}
+	if parts.family != "" {
+		nameAttribute["familyName"] = parts.family
+	}
 	res := map[string]any{
 		"schemas":     []string{UserSchema},
 		"id":          user.ID,
 		"userName":    user.Email,
 		"displayName": name,
-		"name":        map[string]any{"formatted": name},
+		"name":        nameAttribute,
 		"emails":      []map[string]any{{"value": user.Email, "primary": true}},
 		"active":      user.Status != model.UserStatusDisabled && found && m.Status == model.MembershipStatusActive,
 		"groups":      groups,
@@ -461,16 +495,28 @@ func displayNameOf(body map[string]any) *string {
 			name = given + " " + family
 		}
 	}
-	trimmed := nonBlank(name)
-	if trimmed != nil && len(*trimmed) > 120 {
-		cut := 120
-		for cut > 0 && !utf8.RuneStart((*trimmed)[cut]) {
-			cut--
-		}
-		short := (*trimmed)[:cut]
-		trimmed = &short
+	return nonBlank(namePart(name))
+}
+
+// namePartsOf is name.givenName and name.familyName of a User body.
+func namePartsOf(body map[string]any) nameParts {
+	parts, _ := body["name"].(map[string]any)
+	given, _ := parts["givenName"].(string)
+	family, _ := parts["familyName"].(string)
+	return nameParts{given: namePart(given), family: namePart(family)}
+}
+
+// namePart is s without blank edges, at most 120 bytes (cut on a character boundary).
+func namePart(s string) string {
+	s = trimBlank(s)
+	if len(s) <= 120 {
+		return s
 	}
-	return trimmed
+	cut := 120
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }
 
 func externalIDOf(body map[string]any) string {

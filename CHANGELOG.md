@@ -17,6 +17,12 @@ marked **Breaking**.
   safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
   (decision 63).
 - Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
+- `Config.RolePermissions`: say which system roles (`owner`, `admin`, `member`) hold your own
+  permissions, e.g. `{"owner": {"invoices.read"}}`. Every organization's copy of the role holds
+  them (existing organizations on the next `Migrate`), so an owner can put them into custom roles,
+  invitations, API keys and agent grants. Before, nobody but a superadmin could grant a host
+  permission; drop any workaround that wrote role grants through `Graph().Repos()` (decision 62).
+- `endpoint.TooManyRequests` for plugin authors: the 429 in the route's error style (decision 62).
 
 ### Changed
 
@@ -24,6 +30,25 @@ marked **Breaking**.
   `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
   an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
   the same lines (decision 63).
+- **Client-visible:** access tokens and OAuth access / ID tokens carry `iat`, `nbf` and `exp` as
+  whole seconds, with `exp` = `iat` + the lifetime exactly; they used to carry microsecond
+  fractions that many JWT libraries refuse. Tokens issued before still verify (decision 62).
+- **Client-visible:** a 429 now has a JSON body: `{"error":"too_many_requests","message":…}` on
+  core routes and your `Protect` routes, an `application/problem+json` document on plugin routes.
+  `Retry-After` and `X-RateLimit-*` are unchanged (decision 62).
+- **Client-visible:** `plugins/agents`: once a grant's budget is spent, further calls answer 403
+  `budget_exhausted` (`agent.ErrBudgetExhausted`) instead of `capability_not_granted`
+  (decision 62).
+- `plugins/scim` adds a table, `polaris_scim_user_name`; run `Migrate` after upgrading
+  (decision 62).
+
+### Fixed
+
+- `plugins/audit`: audit rows of core events (`org.*`, `session.*`, `mfa.*`, `user.*`) record the
+  request's `ip` and `user_agent`, as plugin events already did (decision 62).
+- `plugins/scim`: a User answers back `name.givenName` and `name.familyName` as the directory sent
+  them, so a directory comparing resources sees no difference. A PATCH of one part keeps the other
+  (decision 62).
 
 ## [0.4.1] - 2026-11-22
 

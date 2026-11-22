@@ -138,7 +138,7 @@ func (p *Plugin) middleware(next http.Handler) http.Handler {
 			for name, values := range headers {
 				w.Header()[name] = values
 			}
-			w.WriteHeader(http.StatusTooManyRequests)
+			endpoint.Write(w, endpoint.TooManyRequests(endpoint.Route(r.Context())))
 			return
 		}
 		hw := &headerWriter{ResponseWriter: w, extra: headers}

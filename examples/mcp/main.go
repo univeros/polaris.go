@@ -35,7 +35,6 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	polaris "github.com/univeros/polaris.go"
-	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/mcp"
 	"github.com/univeros/polaris.go/plugins/oauth"
 	"github.com/univeros/polaris.go/store"
@@ -91,6 +90,8 @@ func newServer(ctx context.Context, db store.Adapter, baseURL string) (http.Hand
 	}
 	// The host's own permission: it is also the OAuth scope the MCP server requires.
 	cfg.Permissions = map[string]string{"deploy.run": "Deploy a service"}
+	// Every organization's owner holds it, so the owner can delegate the deploy.run scope.
+	cfg.RolePermissions = map[string][]string{"owner": {"deploy.run"}}
 	p, err := polaris.New(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -134,8 +135,8 @@ func deploy(ctx context.Context, _ *sdk.CallToolRequest, in deployArgs) (*sdk.Ca
 	return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: text}}}, nil, nil
 }
 
-// seed creates the demo user and their organization, and gives the organization's owner role the
-// host's own permission (so the user can delegate the deploy.run scope).
+// seed creates the demo user and their organization; its owner role holds deploy.run
+// (Config.RolePermissions).
 func seed(ctx context.Context, p *polaris.Polaris) (string, error) {
 	ada, err := p.Users().Create(ctx, polaris.NewUser{Email: demoEmail, Password: demoPassword, EmailVerified: true})
 	if err != nil {
@@ -145,29 +146,7 @@ func seed(ctx context.Context, p *polaris.Polaris) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return org.ID, grantToRole(ctx, p, org.ID, "owner", "deploy.run")
-}
-
-// grantToRole grants the host's own permissions to an organization's role. Polaris has no host call
-// for it: over HTTP an owner cannot (POST /orgs/{id}/roles refuses keys the caller does not hold,
-// and no system role holds the host's permissions), so this goes through the plugin SDK's
-// repositories. Run it when the organization is created.
-func grantToRole(ctx context.Context, p *polaris.Polaris, orgID, roleSlug string, keys ...string) error {
-	repos := p.Graph().Repos()
-	role, err := repos.Roles.ByOrganizationAndSlug(ctx, &orgID, roleSlug)
-	if err != nil {
-		return fmt.Errorf("role %s: %w", roleSlug, err)
-	}
-	for _, key := range keys {
-		perm, err := repos.Permissions.ByKey(ctx, key)
-		if err != nil {
-			return fmt.Errorf("permission %s: %w", key, err)
-		}
-		if err := repos.RolePermissions.Insert(ctx, model.RolePermission{RoleID: role.ID, PermissionID: perm.ID}); err != nil {
-			return fmt.Errorf("grant %s: %w", key, err)
-		}
-	}
-	return nil
+	return org.ID, nil
 }
 
 func envOr(name, fallback string) string {

@@ -85,12 +85,12 @@ func TestRoundTripNullableOrgIsCarriedExplicitly(t *testing.T) {
 	}
 }
 
-func TestIssueEncodesDatesWithMicrosecondPrecision(t *testing.T) {
+func TestIssueEncodesDatesAsWholeSeconds(t *testing.T) {
 	clk := at(t, "2026-06-07 12:00:00")
-	clk.Set(clk.Now().Add(123456789 * time.Nanosecond)) // ns beyond µs are dropped: dates have microsecond precision
+	clk.Set(clk.Now().Add(123456789 * time.Nanosecond)) // the fraction is dropped: dates are whole seconds
 	c := newCodec(t, testConfig(t, clk, func(c *Config) { c.Audience = "" }))
 	jwt := mustIssue(t, c, Claims{}.With("sub", "u").With("iss", "ignored").With("", "dropped").With("ratio", 0.5))
-	want := `{"iss":"https://auth.polaris.test","iat":1780833600.123456,"nbf":1780833600.123456,"exp":1780834500.123456,"sub":"u","ratio":0.5}`
+	want := `{"iss":"https://auth.polaris.test","iat":1780833600,"nbf":1780833600,"exp":1780834500,"sub":"u","ratio":0.5}`
 	if got := segment(t, jwt, 1); got != want {
 		t.Fatalf("payload\n got %s\nwant %s", got, want)
 	}
@@ -98,7 +98,7 @@ func TestIssueEncodesDatesWithMicrosecondPrecision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tok.IssuedAt().Equal(clk.Now().Truncate(time.Microsecond)) {
+	if !tok.IssuedAt().Equal(clk.Now().Truncate(time.Second)) {
 		t.Fatalf("iat = %v", tok.IssuedAt())
 	}
 }

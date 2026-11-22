@@ -75,6 +75,15 @@ type Config struct {
 	// invoice"), joined to the catalog so roles, API keys, OAuth scopes and agent capabilities can
 	// carry them and Protect can require them. Migrate seeds them.
 	Permissions map[string]string
+	// RolePermissions gives the system roles of every organization the host's (or a plugin's)
+	// permissions: role slug ("owner", "admin" or "member") → permission keys, e.g.
+	// {"owner": {"invoices.read", "invoices.void"}, "admin": {"invoices.read"}}. New organizations
+	// start with them; Migrate adds a newly declared one to every existing organization once (a
+	// tenant may later remove it from admin or member; the owner role is not editable). Only an
+	// actor holding a permission can grant it to a custom role, so without this a host
+	// permission is grantable by a superadmin only. New refuses another slug or an undeclared or
+	// core key. Removing a key here revokes nothing already granted.
+	RolePermissions map[string][]string
 
 	// PathPrefix is where the Polaris routes are mounted ("/api"); default "/".
 	PathPrefix string
@@ -326,7 +335,9 @@ func (g *Graph) buildCore() error {
 	if err := g.buildTokens(); err != nil {
 		return err
 	}
-	g.buildAuthz()
+	if err := g.buildAuthz(); err != nil {
+		return err
+	}
 	return g.buildServices()
 }
 
@@ -363,7 +374,7 @@ func (g *Graph) buildTokens() error {
 	return nil
 }
 
-func (g *Graph) buildAuthz() {
+func (g *Graph) buildAuthz() error {
 	var contributions []map[string]string
 	if len(g.config.Permissions) > 0 {
 		contributions = append(contributions, g.config.Permissions)
@@ -373,11 +384,16 @@ func (g *Graph) buildAuthz() {
 			contributions = append(contributions, pp.Permissions())
 		}
 	}
-	g.catalog = authz.NewCatalog(contributions...)
+	catalog, err := authz.NewCatalog(contributions...).WithRoleGrants(g.config.RolePermissions)
+	if err != nil {
+		return fmt.Errorf("polaris: Config.RolePermissions: %w", err)
+	}
+	g.catalog = catalog
 	g.resolver = authz.NewResolver(g.repos)
 	g.gate = authz.NewGate(g.resolver)
 	g.principals = authz.NewPrincipals(g.repos, g.resolver, g.auth.AccessToken.EmbedScope)
 	g.escalation = authz.NewEscalationGuard(g.repos)
+	return nil
 }
 
 func (g *Graph) buildServices() error {
@@ -416,7 +432,7 @@ func (g *Graph) buildServices() error {
 		return fmt.Errorf("polaris: identity: %w", err)
 	}
 	if g.orgs, err = orgs.New(orgs.Config{
-		DB: g.db, Sessions: g.sessions, Pepper: g.pepper, Clock: g.clock, Events: g.events,
+		DB: g.db, Sessions: g.sessions, Pepper: g.pepper, Clock: g.clock, Events: g.events, Catalog: g.catalog,
 	}); err != nil {
 		return fmt.Errorf("polaris: organizations: %w", err)
 	}

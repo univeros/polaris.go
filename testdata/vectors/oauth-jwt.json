@@ -3,7 +3,7 @@
     "cases": [
         {
             "issuer": "https://auth.polaris.test",
-            "regenerate": true,
+            "regenerate": false,
             "name": "at-jwt-rs256",
             "alg": "RS256",
             "typ": "at+jwt",
@@ -99,7 +99,7 @@
         },
         {
             "issuer": "https://auth.polaris.test",
-            "regenerate": true,
+            "regenerate": false,
             "name": "id-token-single-audience",
             "alg": "RS256",
             "typ": "",

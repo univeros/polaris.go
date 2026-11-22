@@ -28,7 +28,7 @@ func TestMintAccessTokenLayout(t *testing.T) {
 	if got := segment(t, jwt, 0); got != `{"typ":"at+jwt","alg":"RS256","kid":"test-kid-1"}` {
 		t.Fatalf("header = %s", got)
 	}
-	want := `{"iss":"https://auth.polaris.test","iat":1780833600,"nbf":1780833600,"exp":1780833900.0005,` +
+	want := `{"iss":"https://auth.polaris.test","iat":1780833600,"nbf":1780833600,"exp":1780833900,` +
 		`"sub":"user-1","jti":"at-1","aud":"https://rs.example","client_id":"client-1"}`
 	if got := segment(t, jwt, 1); got != want {
 		t.Fatalf("payload\n got %s\nwant %s", got, want)

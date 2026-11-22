@@ -170,7 +170,7 @@ func locationCapability(a *agentsCase) {
 	a.equal(failed.Code, 500, "failed")
 	row, _ = a.srv.Graph().DB().FindOne(a.ctx, agents.TableReceipts, store.Criteria{"id": failed.Header().Get(agents.ReceiptHeader)})
 	a.equal(row.String("outcome"), "failed", "the outcome follows the status")
-	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), bob))["error"], "capability_not_granted", "the budget of two is spent")
+	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), bob))["error"], "budget_exhausted", "the budget of two is spent")
 	a.equal(callHost(mw, "https://host.polaris.test/other", "", map[string]any{}).Code, 200, "other URLs pass through")
 	n, _ := a.srv.Graph().DB().Count(a.ctx, agents.TableReceipts, store.Criteria{"agent_id": id})
 	a.equal([]any{n, len(h.seen)}, []any{2, 3}, "two receipts; the pass-through reached the handler too")

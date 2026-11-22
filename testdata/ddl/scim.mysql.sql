@@ -39,3 +39,15 @@ CREATE TABLE `polaris_scim_membership_provenance` (
 );
 
 CREATE UNIQUE INDEX `polaris_scim_provenance_unique` ON `polaris_scim_membership_provenance` (`organization_id`, `user_id`);
+
+CREATE TABLE `polaris_scim_user_name` (
+    `id` VARCHAR(36) NOT NULL,
+    `connection_id` VARCHAR(36) NOT NULL,
+    `user_id` VARCHAR(36) NOT NULL,
+    `given_name` VARCHAR(120) NULL,
+    `family_name` VARCHAR(120) NULL,
+    `updated_at` DATETIME NOT NULL,
+    PRIMARY KEY (`id`)
+);
+
+CREATE UNIQUE INDEX `polaris_scim_user_name_unique` ON `polaris_scim_user_name` (`connection_id`, `user_id`);

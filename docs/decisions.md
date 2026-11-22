@@ -1039,3 +1039,84 @@ plugin per dialect in `testdata/ddl`, like core's). Lint: revive's `exported` ru
 exported name without a doc comment (its "X …" wording check is not enforced: the event types
 read "UserLoggedIn: …"). Security review: no security-critical package changes; `Migrate` runs
 DDL built from the compiled-in schema only, quoting every identifier, never from input.
+
+## 62. 2026-11-22 — Six fixes found while writing the examples
+
+Writing `examples/` against the public surface turned up six defects; each is fixed with a test
+that failed first.
+
+- **A host's permissions are grantable: `Config.RolePermissions`.** `cfg.Permissions` put the
+  host's keys in the catalog, but no system role held one, and `POST /orgs/{id}/roles` (like
+  invitations, API keys and agent approvals) refuses to grant what the actor does not hold, so only
+  a superadmin could ever grant them; llms.txt documented a flow that answered 403, and three
+  examples wrote role grants through `Graph().Repos()`. Now the host says which system roles hold
+  which of its permissions: `cfg.RolePermissions = map[string][]string{"owner": {"invoices.read"}}`
+  (slugs `owner`, `admin`, `member`). `authz.Catalog.WithRoleGrants` adds them to the role
+  templates; a new organization's copies start with them (`orgs.Config.Catalog`); `Seed` (run by
+  `Migrate`) gives a grant new to a template to every existing organization's copy, once: the
+  template's own grants record what was given, so a later `Migrate` leaves a tenant's removal from
+  its editable admin or member role alone. `New` refuses another slug (superadmin already holds
+  everything; a custom role belongs to its organization), a key the catalog lacks and a core key
+  (the system roles' core permissions stay fixed; `users.*` stays platform-only). Removing a key
+  from the map revokes nothing. "You cannot grant what you do not hold" is unchanged for everyone.
+  Rejected: the owner role holding every host permission automatically (a host permission can be
+  platform-scoped, as `users.manage` is, and an implicit grant to every tenant's owner is an
+  escalation the host did not ask for); a `p.Orgs()` role-management call for a trusted caller
+  (every host would write per-organization code at creation and a backfill for existing
+  organizations, which is what the examples' workaround was, and the HTTP flow would still fail).
+- **An exhausted budget is `budget_exhausted`.** The execution that spends a grant's last unit
+  marks it exhausted, and the next call found no active grant and answered
+  `capability_not_granted`, so an agent following llms.txt (`errors.Is(err,
+  agent.ErrBudgetExhausted)`) never saw its budget run out. Without a live grant, the refusal now
+  looks at the agent's latest grant for the capability: exhausted answers 403 `budget_exhausted`
+  ("The grant's budget cannot cover this execution (0 left)."), anything else
+  `capability_not_granted` as before. Client-visible; the `agents` fixture step that pinned the old
+  answer is edited.
+- **429 has a body.** The per-IP, per-user and per-API-key limiters answered 429 with no body,
+  where every other refusal is JSON. `endpoint.TooManyRequests(route)` answers core's
+  `{"error":"too_many_requests","message":…}` on core routes and host routes, and an RFC 9457
+  problem (`…/problems/too_many_requests`) on plugin routes; `Retry-After` and `X-RateLimit-*` are
+  unchanged. Client-visible (Content-Type and body); three core and api-keys fixture steps edited.
+- **Audit rows of core events record the client.** Core's events carry no client fields (only
+  sign-in, failed sign-in, lock, reuse and revoke-all name an IP), and the audit recorder mapped
+  them without the request, so `org.created`, `org.member_invited` and the rest had null `ip` and
+  `user_agent` where plugin events (`api_keys.*`) filled them from the request. The recorder now
+  fills both from `endpoint.Client(ctx)` when the event does not name its own; outside a request
+  (a `p.Orgs()` call) they stay null. `request_id` is null for every event, plugin ones included:
+  Polaris has no request id; carrying a host's is a separate decision. A minimal change in
+  `plugins/audit` (`Recorder.Listen`).
+- **SCIM keeps name parts.** The user row holds only a display name, so a User created with
+  `name.givenName`/`familyName` came back with `name.formatted` alone and a directory comparing
+  resources saw a difference. A new plugin table, `polaris_scim_user_name` (connection, user,
+  given and family name), keeps what each connection sent for accounts it manages (created, or
+  owned under the existing ownership rule), and the User resource answers them (RFC 7643 §4.1.1).
+  PUT replaces both (absent means cleared); a PATCH of one part keeps the other and recomputes the
+  display name from both (before, a PATCH of `givenName` alone set the display name to the given
+  name only). Deleting the user from the directory, its leaving, and deleting the connection drop
+  the rows. A new table rather than columns on `polaris_scim_resource`: that row exists only while
+  the directory sent an `externalId` and is counted as the connection's managed users. Existing
+  databases get the table on `Migrate` (`TestMigrateUpgradesEveryReleasedSchema`); a user without
+  a row reads as before.
+- **Whole-second NumericDates.** Access tokens and OAuth/OIDC tokens carried fractional
+  `iat`/`nbf`/`exp` (`1795333957.332773`): RFC 7519 allows it, but many verifiers decode into an
+  integer and refuse them; and an OAuth token's `exp` fell microseconds short of `iat` + TTL
+  because the plugin read the clock a moment before the codec. `Codec.Issue` writes `iat = nbf`
+  = now in whole seconds and `exp = iat + TTL`; `Codec.Mint` writes `exp = iat +` the lifetime
+  (`expiresAt − now`) rounded to whole seconds. Decoding is unchanged, so tokens already issued
+  with fractions keep verifying (rule 5): the four recorded vectors minted at fractional instants
+  keep their tokens and checks and no longer pin minted bytes; the whole-second vectors still mint
+  byte for byte. `Codec.Sign` (receipts) is unchanged. The denylist already compares whole
+  seconds.
+
+Security review: `RolePermissions` is host configuration read at `New`, validated, and grants only
+contributed (non-core) permissions to the roles the host names; the escalation guard is untouched.
+The agents change only reports a refusal under another code, after the same checks. The
+token change is encoding only; the verification checks and leeways are unchanged. Tests:
+`TestHostPermissionsReachRolesThroughRolePermissions`, `TestUndeclaredHostPermissionsStayUngrantable`,
+`TestMigrateGivesExistingOrganizationsNewRolePermissions`, `TestRolePermissionsAreCheckedAtNew`;
+`TestASpentCountBudgetIsBudgetExhausted` (Go agent SDK) and the lifecycle and token-middleware
+expectations; `TestA429OnAPluginRouteIsAProblem` and `TestRateLimiterAnswers429WithTheHeadersOf10`;
+`TestEventsRecordTheRequestsClient`; `TestTheDirectoryReadsBackTheNamePartsItSent`,
+`TestADirectoryDoesNotStoreNamePartsOfAnAccountItDoesNotOwn`;
+`TestDateClaimsAreMintedAsWholeSeconds`, `TestIssueEncodesDatesAsWholeSeconds`,
+`TestMintAccessTokenLayout`, the vectors.

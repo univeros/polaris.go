@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,44 @@ import (
 func TestTheGoAgentSDKWalksThrough(t *testing.T) {
 	for _, signer := range []config.Signer{config.SignerRS256, config.SignerEdDSA} {
 		t.Run(string(signer), func(t *testing.T) { walkThrough(t, signer) })
+	}
+}
+
+// An agent that spent the last count of its budget is then refused with budget_exhausted, which
+// the SDK reports as agent.ErrBudgetExhausted, not as a missing grant.
+func TestASpentCountBudgetIsBudgetExhausted(t *testing.T) {
+	var handler http.Handler
+	web := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
+	defer web.Close()
+	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
+		oauth.New(oauth.Config{BaseURL: web.URL}), agents.New(agents.Config{Capabilities: capabilities()})))
+	handler = srv.Handler()
+	ctx := context.Background()
+	a := &agentsCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), nil), ctx: ctx}
+	_, session := a.login("ada@example.com")
+	_, session = a.organization(session, "Acme")
+	host := a.data(a.c.Post("/agents/hosts", map[string]any{"name": "Laptop"}, contracttest.Bearer(session)))
+	key, err := agent.GenerateKey(agent.EdDSA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sdk, err := agent.New(ctx, web.URL, agent.WithKey(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bot, _, err := sdk.Enroll(ctx, str(host["enrollment_token"]), agent.Registration{Name: "Counter", Mode: agent.Delegated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	asked, err := bot.RequestGrants(ctx, agent.GrantRequest{Capabilities: []agent.CapabilityRequest{{Name: "members.list", Constraints: map[string]any{"budget": map[string]any{"count": 1}}}}})
+	if err != nil || asked.Approval != nil {
+		t.Fatalf("grants %+v %v", asked, err)
+	}
+	if _, err := bot.Execute(ctx, "members.list", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bot.Execute(ctx, "members.list", nil); !errors.Is(err, agent.ErrBudgetExhausted) {
+		t.Fatalf("the second call: want ErrBudgetExhausted, got %v", err)
 	}
 }
 
