@@ -366,6 +366,30 @@ func TestDelegationDropsTheSuperadminOverride(t *testing.T) {
 	})
 }
 
+// A tenant's identity provider must not reach the platform override: an organization-bound
+// superadmin holds nothing, an organization-bound member what the member's roles grant.
+func TestAnOrganizationBoundCallerNeverHoldsTheSuperadminOverride(t *testing.T) {
+	backends(t, func(t *testing.T, _ store.Adapter, r *repository.Repos) {
+		g := NewGate(NewResolver(r))
+		super := member(t, r, org)
+		assign(t, r, super, org, systemRole(t, r, RoleSuperadmin).ID)
+		a, err := g.Authority(ctx, Caller{UserID: super, OrganizationID: org, OrganizationBound: true})
+		must(t, err)
+		if len(a.Roles) != 0 || len(a.Scope) != 0 || a.IsSuperadmin() {
+			t.Fatalf("%+v", a)
+		}
+		plain := member(t, r, org)
+		assign(t, r, plain, org, systemRole(t, r, RoleMember).ID)
+		bound, err := g.Authority(ctx, Caller{UserID: plain, OrganizationID: org, OrganizationBound: true})
+		must(t, err)
+		free, err := g.Authority(ctx, Caller{UserID: plain, OrganizationID: org})
+		must(t, err)
+		if !slices.Equal(bound.Roles, free.Roles) || !slices.Equal(bound.Scope, free.Scope) || len(bound.Roles) == 0 {
+			t.Fatalf("bound %+v, free %+v", bound, free)
+		}
+	})
+}
+
 func TestEscalationGuard(t *testing.T) {
 	backends(t, func(t *testing.T, _ store.Adapter, r *repository.Repos) {
 		g := NewEscalationGuard(r)
@@ -407,6 +431,27 @@ func TestPrincipals(t *testing.T) {
 		must(t, err)
 		if p.EmailVerified || len(p.Roles) != 0 {
 			t.Fatalf("stranger %+v", p)
+		}
+	})
+}
+
+// Only the system superadmin role (no organization) is the platform superadmin. An organization's
+// own role that happens to be slugged "superadmin" (created before the slug was reserved) is an
+// ordinary role: it grants its permissions in that organization and nothing more, and the
+// resolved authority never carries the superadmin override.
+func TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin(t *testing.T) {
+	backends(t, func(t *testing.T, _ store.Adapter, r *repository.Repos) {
+		u := member(t, r, org)
+		fake := orgRole(t, r, org, RoleSuperadmin)
+		grant(t, r, fake, OrgRead)
+		assign(t, r, u, org, fake)
+		a, err := NewResolver(r).Resolve(ctx, u, org)
+		must(t, err)
+		if a.IsSuperadmin() || slices.Contains(a.Roles, RoleSuperadmin) || !slices.Equal(a.Scope, []string{OrgRead}) {
+			t.Fatalf("an organization role slugged superadmin resolved as %+v", a)
+		}
+		if a, err = NewResolver(r).Resolve(ctx, u, ""); err != nil || a.IsSuperadmin() {
+			t.Fatalf("without an organization: %+v %v", a, err)
 		}
 	})
 }

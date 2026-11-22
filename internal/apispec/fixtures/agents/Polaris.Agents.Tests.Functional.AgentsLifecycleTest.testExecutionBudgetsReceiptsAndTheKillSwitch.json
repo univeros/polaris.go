@@ -480,7 +480,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -532,7 +532,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "input": []
+                "input": {}
             }
         },
         "response": {
@@ -610,13 +610,13 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_arguments",
-                "title": "Invalid Arguments",
+                "title": "Invalid arguments",
                 "status": 422,
                 "detail": "The arguments do not match the capability's input schema.",
                 "error": "agents_invalid_arguments",
                 "message": "The arguments do not match the capability's input schema.",
                 "errors": [
-                    "Additional object properties are not allowed: extra"
+                    "properties not allowed: extra"
                 ]
             }
         }
@@ -664,7 +664,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "The agent holds no active grant for \"org.rename\".",
                 "error": "capability_not_granted",
@@ -689,7 +689,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -713,7 +713,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "The request JWT does not name this capability.",
                 "error": "capability_not_granted",
@@ -738,7 +738,7 @@
             },
             "body": {
                 "capability": "nope",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -762,7 +762,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_found",
-                "title": "Capability Not Found",
+                "title": "Capability not found",
                 "status": 404,
                 "detail": "Unknown capability \"nope\".",
                 "error": "capability_not_found",
@@ -813,7 +813,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/constraint_violated",
-                "title": "Constraint Violated",
+                "title": "Constraint violated",
                 "status": 403,
                 "detail": "The arguments violate the grant's constraints.",
                 "error": "constraint_violated",
@@ -977,7 +977,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/budget_exhausted",
-                "title": "Budget Exhausted",
+                "title": "Budget exhausted",
                 "status": 403,
                 "detail": "The grant's budget cannot cover this execution (20 left).",
                 "error": "budget_exhausted",
@@ -1196,7 +1196,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/budget_exhausted",
-                "title": "Budget Exhausted",
+                "title": "Budget exhausted",
                 "status": 403,
                 "detail": "The grant's budget cannot cover this execution (0 left).",
                 "error": "budget_exhausted",
@@ -1941,7 +1941,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -1968,7 +1968,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/agent_inactive",
-                "title": "Agent Inactive",
+                "title": "Agent inactive",
                 "status": 401,
                 "detail": "The agent is revoked.",
                 "error": "agent_revoked",

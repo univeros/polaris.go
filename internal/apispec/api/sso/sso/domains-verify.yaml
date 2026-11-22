@@ -28,7 +28,7 @@ output:
       id: "018f..."
       domain: "acme.example"
       verified: true
-      verified_at: "2026-09-11T10:00:00+00:00"
+      verified_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

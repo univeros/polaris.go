@@ -176,14 +176,11 @@ func (v *service) spendFor(ctx context.Context, kind, email, code string) (model
 
 func (v *service) verifyEmail(ctx context.Context, email, code string) error {
 	u, err := v.spendFor(ctx, kindEmailVerify, email, code)
-	if err != nil || u.EmailVerifiedAt != nil {
+	if err != nil {
 		return err
 	}
-	now := v.now()
-	verified, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{"email_verified_at": now, "updated_at": now})
-	if err == nil && verified == 1 {
-		v.g.Events().Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
-	}
+	// As core's verification link: the code confirms the registration that set the password.
+	_, _, err = v.g.Identity().ProveEmail(ctx, u.ID, true)
 	return err
 }
 
@@ -207,10 +204,11 @@ func (v *service) resetPassword(ctx context.Context, email, code, password strin
 	if u.Status == model.UserStatusLocked {
 		data["status"] = model.UserStatusActive
 	}
-	if u.EmailVerifiedAt == nil {
-		data["email_verified_at"] = now
-	}
 	err = v.g.DB().Tx(ctx, func(ctx context.Context) error {
+		// The code came through the mailbox: a first proof for an account nobody had proven.
+		if _, _, err := v.g.Identity().ProveEmail(ctx, u.ID, false); err != nil {
+			return err
+		}
 		if _, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, data); err != nil {
 			return err
 		}

@@ -3,8 +3,8 @@ package scim
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -125,11 +125,9 @@ func body(in *endpoint.Input) map[string]any {
 	return all
 }
 
-var numericPattern = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
-
-// numeric reads a decimal number (a JSON number or a numeric string, surrounding whitespace
-// allowed) truncated toward zero and clamped to ±1e9; ok is false when the value is not numeric.
-func numeric(v any) (int, bool) {
+// integer reads an integer: a JSON number written as one, or a query value of decimal digits with
+// an optional sign (no spaces, fraction or exponent), saturated to ±1e9; ok is false otherwise.
+func integer(v any) (int, bool) {
 	var s string
 	switch v := v.(type) {
 	case string:
@@ -139,28 +137,33 @@ func numeric(v any) (int, bool) {
 	default:
 		return 0, false
 	}
-	if !numericPattern.MatchString(s) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil && !errors.Is(err, strconv.ErrRange) {
 		return 0, false
 	}
-	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil {
-		return 0, false
-	}
-	return int(max(-1e9, min(1e9, f))), true
+	return int(max(-1e9, min(1e9, n))), true
 }
 
-func startIndex(in *endpoint.Input) int {
-	if n, ok := numeric(in.Value("startIndex")); ok {
-		return max(1, n)
+// paging reads a list request's startIndex and count (RFC 7644 §3.4.2.4): integers, startIndex
+// below 1 read as 1 and count clamped to 0..MaxCount; absent, 1 and the default count. Anything
+// else is invalidValue.
+func paging(in *endpoint.Input) (start, count int, err error) {
+	start, count = 1, defaultCount
+	if v := in.Value("startIndex"); v != nil {
+		n, ok := integer(v)
+		if !ok {
+			return 0, 0, invalid("startIndex must be an integer.", TypeInvalidValue)
+		}
+		start = max(1, n)
 	}
-	return 1
-}
-
-func count(in *endpoint.Input) int {
-	if n, ok := numeric(in.Value("count")); ok {
-		return max(0, min(MaxCount, n))
+	if v := in.Value("count"); v != nil {
+		n, ok := integer(v)
+		if !ok {
+			return 0, 0, invalid("count must be an integer.", TypeInvalidValue)
+		}
+		count = max(0, min(MaxCount, n))
 	}
-	return defaultCount
+	return start, count, nil
 }
 
 func (p *Plugin) scimEndpoints() map[string]endpoint.Endpoint {
@@ -189,8 +192,11 @@ func (p *Plugin) listUsers(ctx context.Context, in *endpoint.Input, conn Connect
 	if err != nil {
 		return p.refuse(ctx, conn, err, true)
 	}
-	start := startIndex(in)
-	pg, err := p.dir.listUsers(ctx, conn, f, start, count(in), p.location(conn))
+	start, count, err := paging(in)
+	if err != nil {
+		return p.refuse(ctx, conn, err, true)
+	}
+	pg, err := p.dir.listUsers(ctx, conn, f, start, count, p.location(conn))
 	if err != nil {
 		return p.refuse(ctx, conn, err, false)
 	}
@@ -288,8 +294,11 @@ func (p *Plugin) listGroups(ctx context.Context, in *endpoint.Input, conn Connec
 	if err != nil {
 		return p.refuse(ctx, conn, err, true)
 	}
-	start := startIndex(in)
-	pg, err := p.dir.listGroups(ctx, conn, f, start, count(in), p.location(conn))
+	start, count, err := paging(in)
+	if err != nil {
+		return p.refuse(ctx, conn, err, true)
+	}
+	pg, err := p.dir.listGroups(ctx, conn, f, start, count, p.location(conn))
 	if err != nil {
 		return p.refuse(ctx, conn, err, false)
 	}

@@ -16,7 +16,7 @@ import (
 // Caller is the authz.Caller of a principal: its user, active organization and, for a principal a
 // plugin resolver built, the delegated permissions.
 func Caller(t *token.Token) authz.Caller {
-	c := authz.Caller{UserID: t.Subject(), OrganizationID: t.Organization()}
+	c := authz.Caller{UserID: t.Subject(), OrganizationID: t.Organization(), OrganizationBound: t.OrganizationBound()}
 	if perms, ok := t.Delegation(); ok {
 		c.Delegated, c.DelegatedPermissions = true, perms
 	}

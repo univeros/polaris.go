@@ -39,6 +39,12 @@ type Principal struct {
 	// Delegated is true for an API key, OAuth client or agent acting with a subset of its owner's
 	// permissions; such a credential may not self-serve (create organizations, keys, factors).
 	Delegated bool `json:"delegated"`
+	// OrganizationBound is true for a session the organization's identity provider opened
+	// (plugins/sso). Whoever runs that provider can open one for any account the organization
+	// owns, so it speaks for the user inside OrganizationID only: Polaris keeps it off the
+	// account's own routes, and a host route that acts on the user's account or on data outside
+	// that organization should refuse it too.
+	OrganizationBound bool `json:"organization_bound"`
 	// ClientID is the OAuth client (KindOAuthClient, KindAgent); AgentID the agent (KindAgent);
 	// KeyID the API key (KindAPIKey). "" otherwise.
 	ClientID string `json:"client_id,omitempty"`
@@ -71,7 +77,8 @@ func PrincipalFrom(ctx context.Context) (Principal, bool) {
 	clientID, agentID, keyID := token.CredentialIDs(tok)
 	p := Principal{
 		UserID: tok.Subject(), OrganizationID: tok.Organization(), Roles: []string{}, Permissions: []string{},
-		Kind: token.KindOf(tok), Delegated: delegated, ClientID: clientID, AgentID: agentID, KeyID: keyID,
+		Kind: token.KindOf(tok), Delegated: delegated, OrganizationBound: tok.OrganizationBound(),
+		ClientID: clientID, AgentID: agentID, KeyID: keyID,
 		Claims: tok.Claims(), scope: scope,
 	}
 	if p.Kind == KindOAuthClient && p.UserID == clientID {
@@ -134,7 +141,7 @@ func (p *Polaris) Can(ctx context.Context, principal Principal, permissions ...s
 	if len(permissions) == 0 || principal.UserID == "" {
 		return false
 	}
-	caller := authz.Caller{UserID: principal.UserID, OrganizationID: principal.OrganizationID}
+	caller := authz.Caller{UserID: principal.UserID, OrganizationID: principal.OrganizationID, OrganizationBound: principal.OrganizationBound}
 	if principal.Delegated {
 		caller.Delegated, caller.DelegatedPermissions = true, slices.Clone(principal.scope)
 	}

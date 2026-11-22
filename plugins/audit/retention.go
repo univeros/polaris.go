@@ -128,7 +128,7 @@ func (p *Plugin) Prune(ctx context.Context) (int64, error) {
 	}
 	if p.cfg.HashChain && deleted > 0 {
 		_, err := p.store.Write(ctx, Event{Name: AuditPruned, OccurredAt: now, Data: map[string]any{
-			"count": deleted, "before": def.UTC().Format(dateAtom), "last_hash": null(lastHash),
+			"count": deleted, "before": timestamp(def), "last_hash": null(lastHash),
 		}})
 		return deleted, err
 	}

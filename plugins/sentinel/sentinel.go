@@ -301,7 +301,7 @@ func (p *Plugin) QuietFor(ctx context.Context, kind, recipient string) bool {
 	}
 	since := p.g.Clock().Now().Add(-QuietWindow)
 	for _, d := range page["data"].([]map[string]any) {
-		created, _ := time.Parse(dateAtom, d["created_at"].(string))
+		created, _ := time.Parse(time.RFC3339, d["created_at"].(string))
 		if d["action"] != Allow && !created.Before(since) {
 			return true
 		}

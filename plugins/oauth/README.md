@@ -74,6 +74,25 @@ Emits `oauth.Event` with `EventClientCreated`, `EventClientUpdated`, `EventClien
 `Plugin.AuditNames` adds them to the catalog. Contributes no permissions; organization clients need
 core's `org.update`; `/admin/oauth` needs the admin capability `read` to list, `own` to create or delete.
 
+## Scopes a token carries
+
+A token may carry fewer scopes than the client asked for; the token response's `scope` is what was
+granted (RFC 6749 §3.3). A permission scope (`org.read`, one of your `Config.Permissions`) is put in
+an access token only if the token's subject holds that permission when the token is minted, at the
+first issue, on every refresh and on a token exchange:
+
+- a user: what their roles grant in the token's organization (nothing without an organization);
+- a client acting as itself (`client_credentials`): nothing, unless an operator registered it
+  `trusted` with the permission in its `scopes` (`POST /admin/oauth/clients`; an organization
+  cannot change a trusted client's scopes), or a plugin that owns the client vouches for it
+  (`oauth.ClientAuthority`: `plugins/agents` answers an agent's live grants that its owner holds).
+
+The refresh token keeps the scopes that were consented, so a permission the user gains back
+returns at the next refresh. Other scopes (`openid`, `profile`, `email`, `offline_access`,
+`Config.Scopes`) are granted as asked: they describe what the client requested, not what anyone may
+do. A service that checks tokens without this database (`verify`, `mcp.Protect`) should require
+permission scopes to authorize.
+
 ## Problems
 
 A refused OAuth request is a problem `https://polaris.univeros.io/problems/oauth/<code>` that also
@@ -100,6 +119,10 @@ active organization) and `…/oauth/not_found` (404). In Go, match `*oauth.Error
   with your `HTTPClient`; DPoP and client-assertion `jti` replay relies on `polaris.Config.Cache` being
   shared across replicas.
 - Listen to `oauth.EventCIBARequested` to notify the user of a backchannel request.
+- A client's `jwks` (registered or at `jwks_uri`) is a JWK Set whose `keys` is an array (RFC 7517);
+  a `private_key_jwt` assertion names its key by `kid`, or carries no `kid` when the set holds one
+  key. Times are RFC 3339 in UTC (`2026-11-22T10:00:00Z`); problem titles are sentences
+  (`Invalid DPoP proof`), the `error` codes are those of RFC 6749 and its extensions.
 
 ## Example
 

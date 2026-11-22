@@ -3,12 +3,9 @@ package scim
 import (
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/polaristest"
@@ -50,36 +47,6 @@ func TestEmailAndNameOfABody(t *testing.T) {
 	}
 	if displayNameOf(map[string]any{"displayName": " "}) != nil {
 		t.Fatal("a blank name")
-	}
-}
-
-func TestNumbersOfAQuery(t *testing.T) {
-	for v, want := range map[any]int{"12": 12, " 3 ": 3, "1e2": 100, "2.9": 2, json.Number("7"): 7, "-4": -4} {
-		if got, ok := numeric(v); !ok || got != want {
-			t.Fatalf("numeric(%v) = %d %v", v, got, ok)
-		}
-	}
-	for _, v := range []any{"abc", "0x1A", "inf", "", true, nil} {
-		if _, ok := numeric(v); ok {
-			t.Fatalf("numeric(%v) accepted", v)
-		}
-	}
-	in := func(q string) *endpoint.Input {
-		return endpoint.NewInput(httptest.NewRequest(http.MethodGet, "/?"+q, nil), nil)
-	}
-	if startIndex(in("startIndex=-3")) != 1 || startIndex(in("startIndex=x")) != 1 || count(in("count=500")) != MaxCount ||
-		count(in("count=-1")) != 0 || count(in("")) != defaultCount {
-		t.Fatal("startIndex / count bounds")
-	}
-	for v, want := range map[any]int{nil: DefaultLimit, "": DefaultLimit, "5": 5} {
-		if got, ok := positiveInt(v, DefaultLimit); !ok || got != want {
-			t.Fatalf("positiveInt(%v) = %d", v, got)
-		}
-	}
-	for _, v := range []any{"0", "x", 3.5} {
-		if _, ok := positiveInt(v, DefaultLimit); ok {
-			t.Fatalf("positiveInt(%v) accepted", v)
-		}
 	}
 }
 

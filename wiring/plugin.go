@@ -1,6 +1,7 @@
 package wiring
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 
@@ -66,6 +67,15 @@ type BearerResolverProvider interface {
 // services through the plugin itself, whose Init has run by the time any request verifies a code.
 type MFAFactorTypeProvider interface {
 	MFAFactorTypes() []mfa.FactorType
+}
+
+// AccessEraser is a plugin that stores ways to act as a user: provider links, passkeys, API keys,
+// OAuth grants, agents, phone numbers. EraseAccess deletes the user's, with ctx (it runs inside
+// the transaction of Identity.ProveEmail's first proof, so an error rolls the proof back): what
+// existed before anyone proved the account's mailbox is not the mailbox owner's. A plugin adding
+// such a table implements it.
+type AccessEraser interface {
+	EraseAccess(ctx context.Context, userID string) error
 }
 
 // Ports are core ports a plugin serves; a nil field is not provided.

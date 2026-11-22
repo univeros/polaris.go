@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/univeros/polaris.go/wiring"
 	"log/slog"
 	"net/http"
@@ -269,44 +268,49 @@ func audienceIncludes(aud any, want ...string) bool {
 	return false
 }
 
-// verifyWithKeySet picks the key the header's kid names (a key without kid is named by its
-// position in the set), and verifies the assertion with a minute of leeway. A key whose alg
-// differs from the header's is refused.
+// verifyWithKeySet picks the key the header's kid names and verifies the assertion with a minute
+// of leeway. Only a key's own kid names it (RFC 7515 §4.1.4); a token without kid is verified
+// with the set's only key, and refused when the set holds more than one. A key whose alg differs
+// from the header's is refused.
 func verifyWithKeySet(raw string, header map[string]any, alg string, set []any, now time.Time) (map[string]any, error) {
 	if len(set) == 0 {
-		return nil, errors.New("JWK Set did not contain any keys")
+		return nil, errors.New("the key set holds no keys")
 	}
-	kid, _ := header["kid"].(string)
-	if kid == "" {
-		return nil, errors.New(`"kid" empty, unable to lookup correct key`)
-	}
-	for i, entry := range set {
-		m, ok := entry.(map[string]any)
+	var m map[string]any
+	switch kid, named := header["kid"]; {
+	case !named:
+		if len(set) > 1 {
+			return nil, errors.New("the token names no key (kid) and the key set holds more than one")
+		}
+		m, _ = set[0].(map[string]any)
+	default:
+		name, ok := kid.(string)
 		if !ok {
-			continue
+			return nil, errors.New("the token's kid is not a string")
 		}
-		name, ok := m["kid"].(string)
-		if !ok {
-			name = fmt.Sprint(i)
+		for _, entry := range set {
+			if k, ok := entry.(map[string]any); ok && k["kid"] == name {
+				m = k
+				break
+			}
 		}
-		if name != kid {
-			continue
-		}
-		if ka, ok := m["alg"].(string); ok && ka != alg {
-			return nil, errors.New("Incorrect key for this algorithm")
-		}
-		key, err := parseJWK(m)
-		if err != nil {
-			return nil, errors.New("the key could not be read")
-		}
-		return verifySigned(raw, alg, key, now, time.Minute)
 	}
-	return nil, errors.New(`"kid" invalid, unable to lookup correct key`)
+	if m == nil {
+		return nil, errors.New("no key in the key set has the token's kid")
+	}
+	if ka, ok := m["alg"].(string); ok && ka != alg {
+		return nil, errors.New("the key's alg is not the token's alg")
+	}
+	key, err := parseJWK(m)
+	if err != nil {
+		return nil, errors.New("the key could not be read")
+	}
+	return verifySigned(raw, alg, key, now, time.Minute)
 }
 
 // keySet is the client's keys: inline, or fetched from its jwks_uri and cached for an hour.
 func (s *clients) keySet(ctx context.Context, c Client) ([]any, error) {
-	if keys := jwksKeys(c.JWKS); keys != nil {
+	if keys := storedJWKSKeys(c.JWKS); keys != nil {
 		return keys, nil
 	}
 	if err := assertPublicHTTPSURL(c.JWKSURI, "jwks_uri"); err != nil {
@@ -335,20 +339,23 @@ func (s *clients) keySet(ctx context.Context, c Client) ([]any, error) {
 	return keys, nil
 }
 
-// jwksKeys is the keys member of a JWK Set, nil without one. A list is taken as is; an object is
-// read as the list of its values in key order.
+// jwksKeys is the keys member of a JWK Set, nil unless it is an array (RFC 7517 §5).
 func jwksKeys(set map[string]any) []any {
-	switch keys := set["keys"].(type) {
-	case []any:
-		return keys
-	case map[string]any:
+	keys, _ := set["keys"].([]any)
+	return keys
+}
+
+// storedJWKSKeys reads the key set of a stored client. Earlier releases accepted keys as an
+// object and stored it so; such a row reads as the list of its values in key order.
+func storedJWKSKeys(set map[string]any) []any {
+	if keys, ok := set["keys"].(map[string]any); ok {
 		out := make([]any, 0, len(keys))
 		for _, k := range sortedKeys(keys) {
 			out = append(out, keys[k])
 		}
 		return out
 	}
-	return nil
+	return jwksKeys(set)
 }
 
 // fromMetadata is the client a metadata document at url describes (the MCP 2026 profile):

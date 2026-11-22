@@ -46,10 +46,6 @@ const (
 	DefaultMaxPerOwner   = 50
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
 // Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// Environment is the prefix of keys created without one: EnvLive (default) or EnvTest.
@@ -156,6 +152,12 @@ func (p *Plugin) BearerResolvers(*wiring.Graph) []pipeline.BearerResolver {
 // Middleware refuses step-up routes to keys and applies a key's own rate limit.
 func (p *Plugin) Middleware(*wiring.Graph) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{p.middleware}
+}
+
+// EraseAccess implements wiring.AccessEraser: the keys minted before anyone proved the user's
+// mailbox go with its first proof.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	return p.keys.DeleteForUser(ctx, userID)
 }
 
 // Listeners erase the keys of an erased user or organization, and the organization keys a

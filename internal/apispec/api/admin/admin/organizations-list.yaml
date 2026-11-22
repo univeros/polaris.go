@@ -29,8 +29,8 @@ output:
         slug: "acme-rockets"
         status: "active"
         created_by: "018f..."
-        created_at: "2026-09-11T10:00:00+00:00"
-        updated_at: "2026-09-11T10:00:00+00:00"
+        created_at: "2026-09-11T10:00:00Z"
+        updated_at: "2026-09-11T10:00:00Z"
     next_cursor: null
 
 errors:

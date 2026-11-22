@@ -31,7 +31,8 @@ func TestHappyPath(t *testing.T) {
 		t.Fatalf("verify link %q", link)
 	}
 	u, _ := url.Parse(link)
-	expect(t, b.get(u.RequestURI()), 200, "Email verified")
+	expect(t, b.get(u.RequestURI()), 200, "Confirm that this email address is yours")
+	expect(t, b.post("/auth/ui/verify", url.Values{"token": {token}}), 200, "Email verified")
 
 	location(t, b.signIn("ada@example.com"), "/dashboard")
 	if b.jar["__Host-polaris_session"] == "" || b.jar["__Secure-polaris_ui_refresh"] == "" {
@@ -194,10 +195,50 @@ func TestEnumerationSafeAnswers(t *testing.T) {
 	expect(t, b.post("/auth/ui/sign-up", url.Values{"email": {"short@example.com"}, "password": {"short"}}), 422, `role="alert"`)
 }
 
+// A mail scanner follows the links of a message with GET: opening the verification link verifies
+// nothing. The page it answers posts the token back when the person presses its button.
+func TestOpeningTheVerificationLinkVerifiesNothing(t *testing.T) {
+	a := newApp(t, ui.Config{})
+	a.json(http.MethodPost, "/auth/register", map[string]any{"email": "ada@example.com", "password": password}, "")
+	token, _ := a.lastMail("ada@example.com", "verify_email")["token"].(string)
+	link, _ := url.Parse(a.web.VerifyEmailURL(token))
+	verified := func() bool {
+		u, err := a.srv.Graph().Repos().Users.ByEmail(t.Context(), "ada@example.com")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u.EmailVerifiedAt != nil
+	}
+
+	scanner := a.browser()
+	for range 2 {
+		rec := scanner.get(link.RequestURI())
+		expect(t, rec, 200, `method="post"`, `name="csrf"`, `type="hidden" name="token" value="`+token+`"`)
+		if strings.Contains(rec.Body.String(), "Email verified") {
+			t.Fatal("the GET verified the address")
+		}
+	}
+	if verified() {
+		t.Fatal("opening the link verified the account")
+	}
+	// A post without the page's CSRF cookie and token (a form replayed blind) is refused.
+	if rec := a.browser().post("/auth/ui/verify", url.Values{"token": {token}, "csrf": {"forged"}}); rec.Code == 200 || verified() {
+		t.Fatalf("a post without the CSRF token verified: %d", rec.Code)
+	}
+
+	b := a.browser()
+	b.get(link.RequestURI())
+	expect(t, b.post("/auth/ui/verify", url.Values{"token": {token}}), 200, "Email verified")
+	if !verified() {
+		t.Fatal("pressing the button verifies")
+	}
+}
+
 func TestVerifyAndResetPassword(t *testing.T) {
 	a := newApp(t, ui.Config{})
 	b := a.browser()
-	expect(t, b.get("/auth/ui/verify?token=forged"), 400, "invalid or has expired")
+	expect(t, b.get("/auth/ui/verify?token=forged"), 200, `name="token" value="forged"`)
+	expect(t, b.post("/auth/ui/verify", url.Values{"token": {"forged"}}), 400, "invalid or has expired")
 	expect(t, b.get("/auth/ui/verify"), 200, `name="token"`)
 	a.json(http.MethodPost, "/auth/register", map[string]any{"email": "ada@example.com", "password": password}, "")
 	token, _ := a.lastMail("ada@example.com", "verify_email")["token"].(string)

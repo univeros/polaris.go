@@ -178,16 +178,17 @@ func tokensOf(body any) (tokens, error) {
 			}
 		}
 	}
+	// expires_in is an integer (RFC 6749 §5.1); a form-encoded answer carries it as a string.
+	// Anything else leaves the expiry unknown.
+	var expiresIn string
 	switch e := m["expires_in"].(type) {
 	case json.Number:
-		if n, err := strconv.Atoi(e.String()); err == nil {
-			t.expiresIn = &n
-		}
+		expiresIn = e.String()
 	case string:
-		if e != "" {
-			n, _ := strconv.Atoi(strings.TrimSpace(e))
-			t.expiresIn = &n
-		}
+		expiresIn = e
+	}
+	if n, err := strconv.Atoi(expiresIn); err == nil {
+		t.expiresIn = &n
 	}
 	return t, nil
 }
@@ -321,18 +322,15 @@ func (q query) set(k, v string) query {
 	return append(q, [2]string{k, v})
 }
 
-// encode writes the pairs in order as k=v joined by "&", both sides escaped by rawURLEncode.
+// encode writes the pairs in order as k=v joined by "&", form-encoded (url.QueryEscape: a space
+// is "+"), the format RFC 6749 gives the authorization request's query (§4.1.1, Appendix B).
 func (q query) encode() string {
 	parts := make([]string, len(q))
 	for i, kv := range q {
-		parts[i] = rawURLEncode(kv[0]) + "=" + rawURLEncode(kv[1])
+		parts[i] = url.QueryEscape(kv[0]) + "=" + url.QueryEscape(kv[1])
 	}
 	return strings.Join(parts, "&")
 }
-
-// rawURLEncode percent-encodes as RFC 3986 asks: everything but A-Za-z0-9-_.~ escaped, space
-// as %20.
-func rawURLEncode(s string) string { return strings.ReplaceAll(url.QueryEscape(s), "+", "%20") }
 
 func appendQuery(base, encoded string) string {
 	if strings.Contains(base, "?") {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"slices"
 	"strings"
 	"time"
 
@@ -20,7 +19,7 @@ const (
 	MaxLimit     = 200
 )
 
-// The configuration members a provider keeps, in the order they are stored.
+// The configuration members a provider keeps.
 var (
 	samlKeys = []string{"sso_url", "slo_url", "slo_response_url", "certificate", "idp_initiated"}
 	oidcKeys = []string{"issuer", "client_id", "client_secret", "scopes"}
@@ -167,32 +166,23 @@ func withMember(m map[string]any, key string, value any) map[string]any {
 	return out
 }
 
-// providerRow is the provider's mutable columns. The JSON columns are written by escapedJSON with
-// the known configuration members first, in a fixed order, so stored rows keep one byte form.
+// providerRow is the provider's mutable columns, the JSON ones in standard encoding (keys sorted,
+// an empty object {}). Rows written by earlier releases hold another byte form (slashes and
+// non-ASCII escaped, an empty object as []); hydrateProvider reads both, and no stored JSON is
+// compared byte for byte.
 func providerRow(p Provider) (store.Row, error) {
-	keys := oidcKeys
-	if p.Type == TypeSAML {
-		keys = samlKeys
+	config := p.Config
+	if config == nil {
+		config = map[string]any{}
 	}
-	var config object
-	for _, k := range keys {
-		if v, ok := p.Config[k]; ok {
-			config = append(config, member{k, v})
-		}
-	}
-	for _, k := range sortedAnyKeys(p.Config) { // members set from code, after the known ones
-		if !slices.Contains(keys, k) {
-			config = append(config, member{k, p.Config[k]})
-		}
-	}
-	var attributes object
-	for _, k := range sortedKeys(p.Attributes) {
-		attributes = append(attributes, member{k, p.Attributes[k]})
+	attributes := p.Attributes
+	if attributes == nil {
+		attributes = map[string]string{}
 	}
 	encoded := make([]string, 4)
-	for i, v := range []any{config, attributes, object{{"enabled", p.JIT.Enabled}, {"roles", nonNil(p.JIT.Roles)}}, nonNil(p.RedirectURIs)} {
+	for i, v := range []any{config, attributes, map[string]any{"enabled": p.JIT.Enabled, "roles": nonNil(p.JIT.Roles)}, nonNil(p.RedirectURIs)} {
 		var err error
-		if encoded[i], err = escapedJSON(v); err != nil {
+		if encoded[i], err = store.JSONValue(v); err != nil {
 			return nil, err
 		}
 	}
@@ -202,15 +192,6 @@ func providerRow(p Provider) (store.Row, error) {
 	}, nil
 }
 
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
 func hydrateProvider(r store.Row) Provider {
 	p := Provider{
 		ID: r.String("id"), OrganizationID: r.String("organization_id"), Type: r.String("type"), Name: r.String("name"),
@@ -218,7 +199,7 @@ func hydrateProvider(r store.Row) Provider {
 		Config: map[string]any{}, Attributes: map[string]string{},
 	}
 	var config, attributes map[string]any
-	_ = r.JSON("config", &config) // an empty object is stored as "[]", which leaves the maps empty
+	_ = r.JSON("config", &config) // an empty object written [] by earlier releases leaves the maps empty
 	for k, v := range config {
 		p.Config[k] = v
 	}

@@ -239,7 +239,9 @@ func (s DefaultSAML) serviceProvider(p Provider, sp SP, sloLocation string, idpI
 		LogoutBindings:                   []string{saml.HTTPRedirectBinding},
 		AssertionConsumerServiceBindings: []string{saml.HTTPPostBinding},
 		// The certificate is only a container for the IdP's key, which the operator configured
-		// explicitly: an expired one still verifies.
+		// explicitly: the configuration is the trust anchor (no chain, no revocation), so its
+		// dates add nothing, and IdPs commonly publish long-expired self-signed certificates. An
+		// expired one still verifies; rotating the key is a configuration change.
 		IgnoreCertificateExpiry: true,
 	}
 	if sp.Key != nil && sp.Certificate != nil {

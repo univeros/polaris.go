@@ -17,7 +17,8 @@ input:
 domain:
   description: >
     Validates the response (signature, audience, destination, InResponseTo unless the provider allows
-    IdP-initiated sign-in, conditions, replay), resolves or provisions the user, ensures the membership,
+    IdP-initiated sign-in, conditions, replay), resolves or provisions the user (an existing account
+    only when the organization provisioned it or verified its email domain), ensures the membership,
     opens an organization-scoped session and sends the browser to the application's redirect_uri with
     sso_code. Rejections are sso/assertion_invalid; the reason is in the audit trail.
 

@@ -22,6 +22,61 @@ const msgNoUser = "The user does not exist."
 
 var userStatuses = []string{model.UserStatusActive, model.UserStatusDisabled, model.UserStatusLocked}
 
+// roleOrder ranks the operator roles, lowest first.
+var roleOrder = []Role{RoleViewer, RoleSupport, RoleAdmin, RoleOwner}
+
+// manageUser is Authorize(ctx, Manage, "") for a route that changes the account userID (ban,
+// unban, password, MFA, delete): besides the capability, an operator below owner may not touch
+// the account of a superadmin or of an operator whose grant is of its own role or above; changing
+// that account's password or factors would be taking its role. An owner manages every account.
+// A superadmin counts whatever the account's status, so a disabled one cannot be unbanned from
+// below. An unknown userID passes: the route answers its own 404.
+func (p *Plugin) manageUser(ctx context.Context, userID string) (Principal, endpoint.Result, bool) {
+	op, res, ok := Authorize(ctx, Manage, "")
+	if !ok || op.Role == RoleOwner {
+		return op, res, ok
+	}
+	protected, err := p.isSuperadmin(ctx, userID)
+	if err == nil && !protected {
+		var grant Grant
+		var held bool
+		grant, held, err = p.grants.For(ctx, userID)
+		protected = held && slices.Index(roleOrder, grant.Role) >= slices.Index(roleOrder, op.Role)
+	}
+	if err != nil {
+		return Principal{}, p.fail(ctx, "authorize", err), false
+	}
+	if protected {
+		return Principal{}, Forbidden("Only an owner manages the account of a superadmin or of an operator of your role or above."), false
+	}
+	return op, endpoint.Result{}, true
+}
+
+// isSuperadmin reports whether the user holds core's global superadmin role, whatever the
+// account's status (the authority resolver grants a disabled user nothing, superadmin included).
+func (p *Plugin) isSuperadmin(ctx context.Context, userID string) (bool, error) {
+	repos := p.g.Repos()
+	role, err := repos.Roles.ByOrganizationAndSlug(ctx, nil, authz.RoleSuperadmin)
+	if errors.Is(err, repository.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	memberships, err := repos.Memberships.ListByUser(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, m := range memberships {
+		if _, err := repos.MembershipRoles.Get(ctx, m.ID, role.ID); err == nil {
+			return true, nil
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
 // user loads the user of a route, or the 404 (or 500) to answer.
 func (p *Plugin) user(ctx context.Context, userID string) (model.User, endpoint.Result, bool) {
 	u, err := p.g.Repos().Users.Get(ctx, userID)
@@ -45,7 +100,7 @@ func (p *Plugin) userView(ctx context.Context, u model.User) (map[string]any, er
 	return map[string]any{
 		"id": u.ID, "email": u.Email, "display_name": u.DisplayName, "status": cmp.Or(u.Status, model.UserStatusActive),
 		"email_verified": u.EmailVerifiedAt != nil, "mfa_enforced": u.MFAEnforced, "locked_until": atom(u.LockedUntil),
-		"created_at": u.CreatedAt.Format(dateAtom), "last_login_at": atom(u.LastLoginAt), "last_active_at": lastActive,
+		"created_at": timestamp(u.CreatedAt), "last_login_at": atom(u.LastLoginAt), "last_active_at": lastActive,
 	}, nil
 }
 
@@ -117,7 +172,7 @@ func (p *Plugin) identityRefusal(ctx context.Context, what string, err error) en
 
 // banUser answers POST /admin/users/{id}/ban: core's disable, every session ends.
 func (p *Plugin) banUser(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -130,7 +185,7 @@ func (p *Plugin) banUser(ctx context.Context, in *endpoint.Input) endpoint.Resul
 
 // unbanUser answers POST /admin/users/{id}/unban: core's enable, the lockout cleared.
 func (p *Plugin) unbanUser(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -144,7 +199,7 @@ func (p *Plugin) unbanUser(ctx context.Context, in *endpoint.Input) endpoint.Res
 // setPassword answers POST /admin/users/{id}/password: a password under the policy, as a reset
 // sets it (every session ends, event.PasswordChanged with method reset).
 func (p *Plugin) setPassword(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -167,7 +222,7 @@ func (p *Plugin) setPassword(ctx context.Context, in *endpoint.Input) endpoint.R
 
 // deleteUser answers DELETE /admin/users/{id}: core's anonymisation.
 func (p *Plugin) deleteUser(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -289,7 +344,7 @@ func (p *Plugin) listFactors(ctx context.Context, in *endpoint.Input) endpoint.R
 	for _, f := range factors {
 		out = append(out, map[string]any{
 			"id": f.ID, "type": f.Type, "label": f.Label, "is_default": f.IsDefault,
-			"confirmed_at": atom(f.ConfirmedAt), "last_used_at": atom(f.LastUsedAt), "created_at": f.CreatedAt.Format(dateAtom),
+			"confirmed_at": atom(f.ConfirmedAt), "last_used_at": atom(f.LastUsedAt), "created_at": timestamp(f.CreatedAt),
 		})
 	}
 	return success(out)
@@ -298,7 +353,7 @@ func (p *Plugin) listFactors(ctx context.Context, in *endpoint.Input) endpoint.R
 // removeFactor answers DELETE /admin/users/{id}/mfa/{factorId}; the last confirmed factor under
 // enforced MFA stays (reset instead).
 func (p *Plugin) removeFactor(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -319,7 +374,7 @@ func (p *Plugin) removeFactor(ctx context.Context, in *endpoint.Input) endpoint.
 // resetMFA answers DELETE /admin/users/{id}/mfa: every factor and recovery code removed, enforced
 // MFA or not, so a locked-out user enrols again at their next sign-in.
 func (p *Plugin) resetMFA(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Manage, "")
+	op, res, ok := p.manageUser(ctx, in.String("id"))
 	if !ok {
 		return res
 	}

@@ -160,7 +160,7 @@ func grantsByEachMethod(a *agentsCase) {
 	a.equal(st, map[string]any{"org.rename": "active", "members.list": "active", "credits.spend": "active", "audit.export": "denied"}, "session grants")
 	membersGrant := str(byName["members.list"]["id"])
 	a.equal(a.data(a.c.Delete("/agents/grants/"+membersGrant, contracttest.Bearer(session)))["status"], "revoked", "revoked")
-	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}, nil), 403, "capability_not_granted", "", "revoked grant")
+	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}, nil), 403, "capability_not_granted", "", "revoked grant")
 	a.agentsProblem(a.c.Delete("/agents/grants/"+membersGrant, contracttest.Bearer(session)), 409, "conflict", "", "revoked twice")
 
 	var how []string
@@ -189,13 +189,13 @@ func executionBudgetsReceiptsKillSwitch(a *agentsCase) {
 	asked := a.json(a.signed(key, id, "POST", "/agents/grants/request", map[string]any{"capabilities": []any{map[string]any{"name": "credits.spend", "constraints": map[string]any{"amount": map[string]any{"max": 50}, "budget": map[string]any{"amount": 100, "field": "amount"}}}}, "preferred_method": "in_app"}, nil))
 	a.c.Post("/agents/approvals/"+str(obj(asked["approval"])["id"])+"/decide", map[string]any{"decision": "approve"}, contracttest.Bearer(session))
 
-	first := a.json(a.signed(key, id, "POST", "/agents/execute", exec("members.list", []any{}, nil), nil))
+	first := a.json(a.signed(key, id, "POST", "/agents/execute", exec("members.list", map[string]any{}, nil), nil))
 	a.equal([]any{first["data"], obj(first["receipt"])["seq"]}, []any{map[string]any{"members": 1, "agent": id}, 1}, "first")
-	a.equal(obj(a.json(a.signed(key, id, "POST", "/agents/execute", map[string]any{"capability": "members.list", "input": []any{}}, nil))["receipt"])["seq"], 2, "input alias")
+	a.equal(obj(a.json(a.signed(key, id, "POST", "/agents/execute", map[string]any{"capability": "members.list", "input": map[string]any{}}, nil))["receipt"])["seq"], 2, "input alias")
 	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("members.list", map[string]any{"extra": 1}, nil), nil), 422, "invalid_arguments", "", "schema")
 	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("org.rename", map[string]any{"name": "X"}, nil), nil), 403, "capability_not_granted", "", "not granted")
-	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("members.list", []any{}, nil), map[string]any{"capabilities": []any{"credits.spend"}}), 403, "capability_not_granted", "", "the JWT restricts")
-	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("nope", []any{}, nil), nil), 404, "capability_not_found", "", "unknown")
+	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("members.list", map[string]any{}, nil), map[string]any{"capabilities": []any{"credits.spend"}}), 403, "capability_not_granted", "", "the JWT restricts")
+	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("nope", map[string]any{}, nil), nil), 404, "capability_not_found", "", "unknown")
 
 	violated := a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("credits.spend", map[string]any{"amount": 60}, nil), nil), 403, "constraint_violated", "", "max")
 	a.equal(violated["violations"], []any{map[string]any{"field": "amount", "constraint": "max", "actual": 60}}, "violations")
@@ -235,7 +235,7 @@ func executionBudgetsReceiptsKillSwitch(a *agentsCase) {
 	if revoked["sealed_at"] == nil {
 		a.t.Error("sealed_at")
 	}
-	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("members.list", []any{}, nil), nil), 401, "agent_inactive", "agent_revoked", "revoked")
+	a.agentsProblem(a.signed(key, id, "POST", "/agents/execute", exec("members.list", map[string]any{}, nil), nil), 401, "agent_inactive", "agent_revoked", "revoked")
 	a.agentsProblem(a.c.Post("/agents/"+id+"/resume", nil, contracttest.Bearer(session)), 409, "conflict", "", "revoked for good")
 	a.agentsProblem(a.c.Post("/agents/"+id+"/revoke", nil, contracttest.Bearer(session)), 409, "conflict", "", "revoked twice")
 	a.equal(len(a.list(a.c.Get("/agents/approvals", contracttest.Bearer(session)))), 0, "approvals cancelled")

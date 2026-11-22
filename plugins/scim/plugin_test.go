@@ -258,7 +258,7 @@ func TestPlugin(t *testing.T) {
 		if patched.Status != model.UserStatusActive || activeIn(conn, patched) {
 			t.Fatalf("active false suspends the membership, never the account: %s", patched.Status)
 		}
-		patched = must(patch(patched, map[string]any{"op": "replace", "value": map[string]any{"active": "True",
+		patched = must(patch(patched, map[string]any{"op": "replace", "value": map[string]any{"active": true,
 			"name": map[string]any{"givenName": "Ada", "familyName": "King"}, "externalId": "ext-2"}}))
 		if !activeIn(conn, patched) || *patched.DisplayName != "Ada King" || externalID(ada.ID) != "ext-2" {
 			t.Fatalf("patched %+v %s", patched, externalID(ada.ID))
@@ -378,7 +378,7 @@ func TestPlugin(t *testing.T) {
 		if !reflect.DeepEqual(members(patched), []any{bob.ID}) {
 			t.Fatalf("removed %v", members(patched))
 		}
-		patched = must(patch(patched, map[string]any{"op": "replace", "value": map[string]any{"members": []any{ada.ID}}}))
+		patched = must(patch(patched, map[string]any{"op": "replace", "value": map[string]any{"members": []any{map[string]any{"value": ada.ID}}}}))
 		if !reflect.DeepEqual(members(patched), []any{ada.ID}) {
 			t.Fatalf("path-less replace %v", members(patched))
 		}

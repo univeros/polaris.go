@@ -1312,6 +1312,460 @@ erasure. It is keyed by address, not user id, and `event.UserDeleted` does not c
 (the row is already a tombstone when it is dispatched); erasing it needs the address passed along
 or a retention prune, a separate change.
 
+## 68. 2026-11-22 — Account boundaries: what an organization's IdP may reach, the first proof of a mailbox, verification links
+
+Three ways across an account's boundary, found by a security review with running tests, all
+closed. Each is client-visible; the changelog lists what a host or client sees.
+
+- **sso: an organization's IdP signs in only the accounts the organization owns (supersedes the
+  rule of #43).** #43 let a provider sign in an existing account that was "already a member of that
+  organization or its email domain is verified for it". Membership was the mistake: any user can
+  create an organization, configure an IdP that asserts any email, and invite people; a person who
+  accepted became an account that organization's IdP could open, with a session like any other.
+  Now a provider signs in an existing account only when (`owns`) one of the organization's
+  providers created it just in time (a new table, `polaris_sso_account`, written with the account),
+  one of its SCIM directories created it (`scim.Plugin.Provisioned`: the provenance row carries the
+  account's creation time, the test SCIM's own `owns` already used), or the account's email domain
+  is verified for the organization. Anything else answers `sso/user_unknown`. An IdP LogoutRequest
+  ends sessions under the same rule (it was "members"). An unverified account on a verified domain
+  is proven by the sign-in (below). **Break, deliberate:** accounts a provider created before this
+  release have no record; they sign in again once the organization verifies their domain, or the
+  host records them (`sso.Plugin.MarkProvisioned`). No heuristic can tell them from a member who
+  signed up alone, so none is tried. Run `Migrate` (one new table).
+- **sso: the session an IdP opens is bound to its organization.** Even for an account the
+  organization owns, whoever runs the IdP is not the account holder, and #43's session was a full
+  one: fresh `auth_time`, no MFA gate, free to `switch-org` to any other organization of the user
+  and to change the password, factors and keys. The binding is the session's `amr` holding `sso`
+  (already stored on the refresh-token row and minted into every access token, so there is no
+  schema change and sessions issued before the upgrade are bound too); `token.Token.OrganizationBound`
+  reads it. Enforced in four places: `session.SwitchOrganization` refuses another organization
+  (`ErrOrganizationBound`, 403); `session.StepUp` keeps `sso` in the amr (`sso,otp`), so proving a
+  factor does not unbind it; the pipeline's authorization step refuses a bound session
+  (`pipeline.DeniesBound`) on every route that needs no permission and writes, destroys or is a
+  step-up route, which is the rule that already keeps delegated credentials off the account
+  holder's routes (`pipeline.DeniesDelegate`), minus logging out of the session itself; and
+  neither the token (`session.Mint`) nor `authz.Gate` (`Caller.OrganizationBound`) gives a bound
+  session the superadmin override, while the provider refuses to sign a superadmin in at all.
+  Routes with a permission stay open to it in its organization, step-up ones included: the IdP
+  sign-in is the recent authentication there, and nowhere else, since it cannot leave. The rule is
+  by route shape, not a list, so a new self-service route is closed to bound sessions by default.
+  Hosts see `Principal.OrganizationBound`. Consequence accepted: a user whose only way in is the
+  IdP cannot enroll a factor, mint an API key, approve an OAuth client or register an agent; they
+  sign in to the account itself for that. Reads without a permission (`/auth/me`, the lists of the
+  user's sessions, organizations, factors, keys) stay open.
+- **One operation for the first proof of a mailbox: `identity.Service.ProveEmail`.** An account
+  can exist before anyone proved its address (a registration never verified; a social sign-up
+  whose provider did not vouch for the email). Whoever made it may not own the mailbox, and each
+  path that later proved the mailbox cleaned up a different subset: the verification link and the
+  password reset nothing (the reset did not even mark the account verified), a passwordless
+  sign-in the password, a trusted social link the password, the sessions and the other provider
+  links. So a provider account linked before the proof stayed a way into the account after its
+  owner verified it or reset its password. Now every path calls `ProveEmail` (through
+  `wiring.Identity`, decision 51) and nothing else writes `email_verified_at` on an existing
+  account: core's verification link and reset, passwordless email codes, magic links and reset
+  codes, the trusted social link, SSO. On the first proof of an account it marks it verified and,
+  in one transaction, drops the password and lockout state, the MFA factors, recovery codes and
+  pending challenges, what the plugins hold (a new optional interface, `wiring.AccessEraser`:
+  social links, passkeys, API keys, OAuth consents, tokens and codes, agents and hosts, the
+  passwordless phone and pending secrets; each reuses its erasure code, run inside the
+  transaction rather than from an event), and every session; then dispatches
+  `user.email_verified`. On a proven account it does nothing. A reset then sets the new password
+  in the same transaction. One distinction is kept, as a parameter: a registration's own
+  verification message (core's link, the passwordless `verify-email` code) confirms the
+  registration, so when the account has a password it is marked verified and nothing is removed
+  (removing would add nothing: whoever holds that password could put it all back, and dropping
+  the password would break every registration); an account without a password has no
+  registration to confirm and gets the full first proof.
+- **social: no account and no link for an email the provider does not vouch for, when no session
+  opens.** With `RequireVerifiedEmail` (the default) the sign-up committed the account and the link
+  and then refused the session, leaving both waiting in the address's name. It now refuses first
+  (`social/email_unverified`, same status; nothing written). With `RequireVerifiedEmail` off the
+  account is created and signs in as before, and the first proof removes the link.
+- **ui: opening the verification link verifies nothing.** `GET /auth/ui/verify?token=` verified at
+  once (#57 reasoned that verification is idempotent and signs nobody in). Mail scanners follow
+  links, so a registration made with someone else's address was confirmed by that person's mail
+  system. The GET now renders the page with the token in a hidden field and one button; the
+  CSRF-guarded POST verifies, as #61 did for magic links. Core has no GET verification route
+  (`POST /auth/email/verify` only). A host template overriding `verify.html` keeps working (its
+  field arrives filled).
+
+Security review (rule 6), per item:
+
+- *IdP ownership.* Only refuses more, except SCIM-created accounts, accepted on the record SCIM's
+  own ownership check trusts. `MarkProvisioned` is in-process, for the host. Residual: an
+  organization that verified a domain can sign in every account on it, by design (it controls
+  those mailboxes). Tests: `TestAMembershipDoesNotLetTheOrganizationsIdPSignTheMemberIn` (failed
+  before: the member was signed in), `TestTheAccountsAnOrganizationProvisionedAreItsIdPsToSignIn`,
+  `TestAnOrganizationsIdPCannotClaimOutsideAccounts` (unchanged, passes).
+- *Bound sessions.* The marker is inside the signed token and on the server-side session row; a
+  client cannot remove it, refresh restores it from the row, step-up preserves it. Paths that mint
+  a session or a credential from a session (multi-session switch, one-time tokens, OAuth consent,
+  API keys, agents) are all permission-less writes and so refused. Residual: a service that
+  resolves an actor's authority itself from the user id does not see the binding; with the
+  sign-in refusal and the refusals above that leaves reads by an account made superadmin while its
+  bound session lives. Tests: `TestAnSSOSessionStaysInItsOrganization` (HTTP; failed before:
+  switch-org, password change, factor enrolment, account deletion all answered 200),
+  `TestAnSSOSessionCarriesNoSuperadminOverride` (failed before),
+  `TestAnIdentityProvidersSessionStaysBoundToItsOrganization`, `TestAuthorization` (bound cases),
+  `TestAnOrganizationBoundCallerNeverHoldsTheSuperadminOverride`.
+- *First proof.* One transaction: a failure in any plugin's removal rolls the proof back
+  (`TestAFailedFirstProofChangesNothing`); concurrent proofs run the removal once (a conditional
+  update claims it); sessions are revoked last because the denylist watermark is in the cache.
+  Nothing is weakened: every path removes at least what it removed before. Residual, inherent to
+  confirming a registration by link: a person who confirms a registration they did not make
+  leaves its password holder in control; the page says so. Tests:
+  `TestAnUnvouchedEmailLeavesNoAccountAndNoLink` and
+  `TestTheFirstProofOfTheMailboxRemovesWhatCameBefore` (social, HTTP; both failed before: the
+  account and link were created, and the link survived the owner's reset and signed in),
+  `TestTheFirstProofOfAMailboxRemovesEveryWayIn` and
+  `TestConfirmingARegistrationKeepsWhatItsPasswordHolderHas` (every plugin booted, a row in every
+  access table), `TestAResetIsTheFirstProofOfAnUnprovenMailbox`,
+  `TestTheVerificationLinkConfirmsARegistration`, passwordless
+  `TheFirstProofOfTheMailboxRemovesWhatCameBefore`.
+- *Verification page.* The token stays in the page the link already names; the POST needs the
+  same-origin `Origin` and the signed double-submit token of #57. A scanner that also submits
+  forms would still verify (none known to by default). Test:
+  `TestOpeningTheVerificationLinkVerifiesNothing` (failed before: the GET verified).
+
+Contract fixtures replay unchanged (no recorded exchange crossed these boundaries); the route
+specs of the changed routes describe the new behaviour. Breaking for `make apicheck` only: the
+narrow interface `wiring.Identity` gains `ProveEmail`, which API.md §2 allows without notice (only
+Polaris implements those interfaces). Otherwise the API is additive (`wiring.Identity.ProveEmail`,
+`wiring.AccessEraser`, `token.AMRSSO`, `Token.OrganizationBound`, `authz.Caller.OrganizationBound`,
+`polaris.Principal.OrganizationBound`, `pipeline.DeniesBound`, `session.ErrOrganizationBound`,
+`sso.Plugin.MarkProvisioned`, `sso.TableAccounts`, `scim.Plugin.Provisioned`,
+`identity.Config.OnEmailProven`).
+
+Left open: existing databases may hold provider links made before this release on unverified
+accounts; they go at the account's first proof. On accounts already verified they cannot be told
+from the owner's own links by Polaris; a host can list the `polaris_social_account` rows created
+before their account's `email_verified_at`. Bound sessions keep the permission-less reads.
+
+## 67. 2026-11-22 — Only the system role is the superadmin
+
+The security review for v1 (docs/v1.md 4.2) found that the platform superadmin was recognised by
+slug: `authz.Authority.IsSuperadmin` is `Roles` containing "superadmin", and the resolver filled
+`Roles` with the slugs of the member's roles in the active organization. `orgs.CreateRole` accepted
+the slug "superadmin" in any organization (the system superadmin role is not copied into
+organizations, so the slug was free). An organization's owner could therefore create a role
+slugged "superadmin", take it, and be treated as the platform superadmin by every check that reads
+the authority or the token's `roles` claim: the cross-organization guard, the "you cannot grant
+what you do not hold" rule, and the plugins' organization routes (sso, scim, oauth clients, audit).
+
+- The resolver never puts "superadmin" into an organization's authority: only `isSuperadmin`
+  (membership in the system role, `organization_id IS NULL`) yields `RoleSuperadmin`. An existing
+  organization role with that slug becomes an ordinary role (its permissions, in its organization).
+- `orgs.CreateRole` refuses the slug ("This role slug is reserved.", 422).
+- `authz.Seed` never copies a superadmin template grant into organization roles of that slug.
+
+Security review: the fix removes the only path from an organization role to the override; every
+consumer reads the authority or the `roles` claim minted from it. An access token minted before the
+upgrade keeps its claim until it expires (`AUTH_ACCESS_TOKEN_TTL`, 15 minutes by default); turning
+on `AUTH_ACCESS_TOKEN_DENYLIST` and revoking sessions ends it sooner. Hosts should look for
+organization roles slugged "superadmin" (`SELECT * FROM auth_roles WHERE slug = 'superadmin' AND
+organization_id IS NOT NULL`) and review their audit log for what such members did. Tests:
+`TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin` (authz, every backend) and the
+reserved-slug refusal in `TestCreateRoleRefusals` (orgs).
+
+## 69. 2026-11-22 — Authorization bounds: OAuth scopes, operator reach, second-factor attempts
+
+Seven findings of a security review, each reproduced by a failing test before its fix. Released
+as v0.5.1.
+
+- **oauth: a permission scope is granted only to a subject that holds the permission.** A scope
+  that is a permission name was granted to whoever asked: on consent, on the device and CIBA
+  grants, on a token exchange and to `client_credentials`, limited only by the client's own
+  `scopes` list (empty: every scope). The host was not affected, because its resolver intersects
+  the token's scopes with the user's authority on every request (a client acting as itself
+  resolves to nothing). A service that checks tokens without the database (`verify.Require`,
+  `mcp.Protect`) had only the `scope` claim, and with a caller-chosen `resource` as `aud` it
+  accepted a permission scope the subject never held. Now `tokens.issue`, which every grant goes
+  through, keeps a permission scope in the access token only if the subject holds the permission
+  at that moment: a user, by `authz.Resolver` in the token's organization; a client acting as
+  itself, only when an operator registered it `trusted` with the permission in its `scopes`, or
+  when a plugin that owns the client answers for it (`oauth.ClientAuthority`, new: `plugins/agents`
+  answers the permissions of the agent's live grants that its owner holds). The refresh token
+  keeps the consented scopes and each refresh and exchange is bounded again, so a lost permission
+  leaves at the next token and a regained one returns. An organization's client route can no
+  longer change the `scopes` of a trusted client (they are now that client's authority).
+  Non-permission scopes (`openid`, `profile`, `email`, `offline_access`, `Config.Scopes`) are
+  granted as before. **Client-visible:** a token response's `scope` (and the token's) may list
+  fewer scopes than requested, which RFC 6749 §3.3 allows; `PATCH /orgs/{id}/oauth/clients/{id}`
+  answers 400 `invalid_client_metadata` for a changed `scopes` on a trusted client. One agents
+  fixture step is edited (a user without the permission exchanging for `members.read` now gets
+  `"scope": ""`). `oauth.Plugin.IssueTokens` is bounded the same way. The `verify` package
+  documentation said `Claims.Scopes` are the permissions the token was issued with; it now says
+  what a permission scope proves and that any other scope proves only what the client asked for,
+  and `mcp.Protect` says the same.
+  Security review: the bound is in the one function that mints access tokens, so no grant skips
+  it; it only removes scopes. A trusted client's listed scopes are set by an operator (`own`) or
+  the Go API. Left as is, and documented: a non-permission scope of `Config.Scopes` is still
+  granted to any client allowed to ask for it, a self-registered one included, so it is not proof
+  of authority for a remote verifier. Tests: `TestAClientHoldsNoPermissionScopeOfItsOwn`,
+  `TestAUsersPermissionScopesAreBoundedByTheirAuthority` (issue, refresh, exchange),
+  `TestOnlyAnOperatorChangesATrustedClientsScopes`, `TestAnAgentsOwnTokenIsBoundedByItsOwnersAuthority`;
+  the oauth fixtures replay unchanged.
+- **admin: `Manage` on an account does not reach up.** Ban, unban, set password, remove a factor,
+  reset MFA and delete checked only the caller's `Manage` capability, so an operator with the
+  `admin` role could set the password or reset the MFA of an `owner` operator or a superadmin and
+  sign in as them; impersonation already refused a superadmin. Now one helper, `manageUser`, used
+  by those six routes: below `RoleOwner`, the target may not be a superadmin (whatever the
+  account's status, so a disabled one cannot be unbanned from below) nor hold an operator grant of
+  the caller's role or above. **Client-visible:** such a request answers 403 `admin/forbidden`.
+  Session revocation (`Support`) and member-role changes are unchanged: they do not give the
+  caller the target's credentials. Security review: only refuses more; an owner's reach is
+  unchanged. Test: `TestOnlyAnOwnerManagesAnEqualOrHigherOperatorOrASuperadmin` (admin key and
+  admin user against an owner, a peer admin and a disabled superadmin, six actions each; a support
+  operator's account and an owner caller still pass). The admin fixtures replay unchanged.
+- **mfa: second-factor attempts are limited per user.** Wrong codes at `/auth/mfa/verify` and
+  step-up were limited per IP only (`mfa_confirm`); the password lockout counts password failures,
+  and the `login_mfa` ticket is stateless, so whoever held the password could mint tickets and
+  keep guessing TOTP or recovery codes from many addresses. Now `VerifyLogin` and `VerifyStepUp`
+  count every attempt of the user before checking it (in the cache, as the OTP send budget is) and
+  a code that clears resets the count: after `auth.lockout.max_attempts` attempts that did not
+  clear, every code, a right one and a recovery code included, is refused as a wrong one
+  (`ErrInvalidOTP`, the same 422) until `auth.lockout.lock_duration` has passed since the first.
+  No new setting. **Client-visible:** a user who mistypes the second factor five times waits up to
+  15 minutes (defaults) and sees the wrong-code answer meanwhile. Security review: the refusal
+  discloses nothing a wrong code does not; the counter is atomic within a process and, like the
+  send budget, not across replicas (the per-IP limit bounds the residual). Whoever holds the
+  password can make the second step unavailable for the window, as with the password lockout.
+  Test: `TestRepeatedWrongSecondFactorCodesCloseTheGateForAWhile`.
+- **mfa: an OTP attempt is reserved before the compare.** `VerifyOTP` read the challenge, compared
+  the code, and only then spent an attempt, so requests in flight together could each get a
+  compare beyond `max_attempts`. Now the conditional UPDATE (`attempts < max_attempts`) runs first
+  and the code is compared only if it applied, as `plugins/passwordless` does; a right code spends
+  an attempt too. Test: `TestACorrectCodeIsRefusedWhenTheBudgetWasSpentAfterTheRead` (the budget
+  is spent between this request's read and its compare; memory and SQLite).
+- **ui: `/refresh` does not rotate for a navigation another site started.** `GET /auth/ui/refresh`
+  rotates the refresh token and the cookie is `SameSite=Lax`, so another site could navigate the
+  browser there; two such navigations carrying the same cookie read as a reused token and end the
+  session family. Now a request whose `Sec-Fetch-Site` is neither `same-origin` nor `none` gets a
+  page with one link to the same URL (messages `refresh_title`, `refresh_intro`), and following it
+  renews the session. Chosen over a reuse grace period in core, which would weaken reuse
+  detection for every client. **Client-visible:** a user who arrives from a link on another site
+  with an expired access cookie sees that page once instead of being returned at once. A browser
+  that sends no `Sec-Fetch-Site` is served as before. Security review: refuses more; the link is
+  built from the validated `return_to`. Test: `TestANavigationFromAnotherSiteDoesNotRotateTheRefreshToken`.
+- **agents: a request JWT's `aud` is compared with the configured origin.** On the plugin's own
+  routes the expected `aud` was built from the request's `Host` header and `r.TLS`, so a JWT an
+  agent signed for another server was accepted when that server forwarded it with its own `Host`.
+  Now it is the called path on `Config.BaseURL`'s origin (default: the oauth plugin's base URL),
+  as `plugins/ui` does; a TLS-terminating proxy no longer needs `r.TLS` set for these routes.
+  Host routes behind `Protect` / `Guard` still compare with the URL as requested (a bound
+  `Protect` may be mounted at any URL), which the README now states. Requiring `htm` was
+  considered and left optional: `jti` is single-use and existing agents may omit it.
+  **Client-visible:** an agent that reached Polaris under a host name other than the base URL's
+  now gets `aud_mismatch`. Test: `TestARequestJWTForAnotherOriginIsRefusedWhateverTheHostHeader`.
+- **verify, mcp.Protect: a failed JWK Set fetch is remembered for 5 seconds.** The fetch runs under
+  a mutex, so while the issuer was down every request waited for the one before it to time out.
+  Now a failure is kept for `jwtverify.FailureBackoff` and requests that need a fetch answer
+  `ErrUnavailable` (503) at once; a fetch that failed because its own request was cancelled is
+  not remembered. A cached set inside its TTL keeps verifying as before. Test:
+  `TestAFailedJWKSFetchIsRememberedBriefly`.
+
+## 65. 2026-11-22 — Plugins speak Go on the wire
+
+The plugins still reproduced behaviours of the language they were ported from (#53, #58): offsets
+written `+00:00`, numbers read from any numeric-looking string, `[]` standing in for `{}`, a
+boolean cast to `"1"` or `""`, JSON with `\/` and `\uXXXX`, the error texts of PHP libraries.
+After v1.0.0 changing any of them needs v2, so each is removed now, deliberately, under rules 4
+and 5: what a client sends is read strictly, what it reads is conventional Go, and stored rows,
+issued receipts and hash chains keep reading and verifying. Tests first in each plugin (the
+`wire_test.go` files and the tests named below). Contract fixture contents are edited where a
+client-visible text changed (file names unchanged); the normalizer already masks datetimes and
+treats `{}` and `[]` alike, so timestamp-only changes needed no fixture edit (the SCIM fixtures
+were brought up to date anyway).
+
+### 1. Timestamps: RFC 3339 with `Z`
+
+Every `dateAtom` layout (`2006-01-02T15:04:05-07:00`) is gone: admin, apikeys, agents, audit,
+multisession, oauth, passkey, scim, sentinel, social and sso write `t.UTC().Format(time.RFC3339)`,
+so UTC is `Z`. admin and passkey did not convert to UTC first: a key or grant created with
+`expires_at: "2030-01-01T00:00:00+02:00"` echoed the offset and now answers
+`2029-12-31T22:00:00Z`. Inputs keep accepting both forms (`time.RFC3339` parsing reads either), as
+does sentinel's re-parse of its stored `created_at`.
+
+Kept, because a hash covers the text:
+- **Audit hash chain.** `hashOf` hashes the event's wire keys; it now formats `occurred_at` as
+  `+00:00` inside the hash computation only (`hashedTimeLayout`), while `Event.Map` gives clients
+  `Z`. `canonicalJSON` and the stored `data` text are byte-identical. A chain written by an
+  earlier release keeps verifying and new rows chain onto it
+  (`TestAChainWrittenByAnEarlierReleaseKeepsVerifying`, a row carrying the hash the old code
+  computed; `TestClientsReadZTimesWhileTheHashKeepsItsForm`; `TestTheHashIsOverTheCanonicalForm`
+  unchanged). Data values of new events (`user.locked` `until`, the prune checkpoint's `before`,
+  the api-keys events' `expires_at`/`grace_until`) are written `Z`; old rows keep their text.
+- **Agent receipts.** A receipt's `created_at` stays `+00:00` (`receiptTime`): `Receipt.hashed()`
+  covers that text and the Go agent SDK hashes it as received, so a change would break every
+  receipt chain already issued (`TestAReceiptHashesItsCreationTimeInTheIssuedForm`; the SDK's
+  `receipt-chains.json` vectors pass). The receipts route keeps showing `+00:00`.
+
+Client impact: every timestamp a plugin route answers ends in `Z` instead of `+00:00`, the audit
+file and webhook sinks too. RFC 3339 parsers read both.
+
+### 2. JSON
+
+- **To clients:** standard Go encoding. The audit `FileSink` and `WebhookSink` write
+  `json.Marshal` output (UTF-8, `/` unescaped, `{}` for an empty object, `<>&` escaped as Go does)
+  instead of the hash chain's canonical form; the HMAC is over the bytes sent, so receivers still
+  verify (`TestTheSinksWriteStandardJSON`).
+- **Stored, writer switched** (every reader decodes both forms; each proven by a test reading a
+  row in the old form): admin's `ip_allowlist` (`TestAKeyStoredWithEscapedSlashesStillReads`); sso
+  provider `config`, `attributes`, `jit`, `redirect_uris` (`escapedJSON` and the ordered `object`
+  are deleted, `store.JSONValue` writes them; `TestProviderRowsAreStandardJSONAndOldRowsStillRead`
+  reads `[]`, `\/`, `Ü` and a surrogate pair); passwordless secrets' `data` (`escapedJSON`
+  deleted, nil written `{}`; `TestTheDataColumnReadsBothForms`). None is hashed, signed or
+  compared byte for byte. The lenient readers stay.
+- **Not changed, byte for byte:** the audit trail's `canonicalJSON` (stored and hashed) and the
+  agents receipts' `canonicalJSON` (hashed, verified by the SDK). Changing their bytes would break
+  every chain and receipt already written.
+
+### 3. Strict numbers, booleans and strings
+
+- **Limits and paging.** `positiveInt` in admin, audit, sentinel, sso and scim reads a JSON
+  integer or a query value of ASCII digits (`strconv.Atoi`, no trimming); `1.5`, `2.0`, `1e1`,
+  ` 2`, `+2` and overflow answer 422 with each plugin's existing code. The default for an absent
+  value and the clamp to the maximum are unchanged. SCIM `startIndex`/`count` (`integer`,
+  `paging`) take an integer (an optional sign; below 1 still reads as 1, RFC 7644 §3.4.2.4);
+  anything else is 400 `invalidValue`, audited as a refused request. agents `after`/`limit` on the
+  receipts route are 422 `invalid_input` instead of truncating or silently falling back.
+- **SCIM `active`** is a JSON boolean (RFC 7643) or the string `"true"`/`"false"` in any case, in
+  POST, PUT and PATCH; `"on"`, `"yes"`, `"1"`, other strings and numbers are 400 `invalidValue`
+  ("active must be a boolean (true or false, or the string "true" or "false")."). Before, PATCH
+  read `"True"`/`"on"`/`"yes"`/`"1"` as true, and POST/PUT activated an account sent `"false"`.
+  The two strings are not leniency kept from the port but interoperability with the most common
+  SCIM client: Microsoft Entra ID sends `{"op":"Replace","path":"active","value":"False"}` by
+  default, unless the application's Tenant URL carries `?aadOptscim062020`; refusing it would
+  stop Entra from deprovisioning anyone. Op names were already matched in any case (RFC 7644
+  §3.5.2). Tests: `TestActiveIsAJSONBoolean`, `TestEntraIDsPatchOfActiveWorks` (Entra's exact
+  PATCH bodies deactivate and reactivate).
+- **agents.** `max`/`min` constraints take a JSON number (a numeric string violates the
+  constraint: fail closed); `in`/`not_in` compare numbers by value (`1`, `1.0`, `1e0` equal; int64
+  exactly, else float64, no unbounded-precision parsing of client numbers), which closes a
+  `not_in: [1]` bypass with `1.0`. `rowJSON` keeps reading stored JSON with `json.Number` (exact
+  values); only its comment changed.
+- **Casts.** mcp sends a boolean tool argument as `true`/`false` (was `1`/empty) and refuses an
+  object, list or null path argument with JSON-RPC `-32602`; messaging renders a boolean variable
+  `true`/`false`; apikeys reads `name` only as a JSON string (`true` was `"1"`); social reads a
+  provider's string or number subject and gives `""` for a boolean (the existing empty-subject
+  refusal applies; a float id keeps its old text so stored subjects still match); social
+  `expires_in` must be an integer (garbage meant "expired at once", now "unknown").
+- **Trimming.** The exact set `" \t\n\r\x00\x0b"` is kept wherever the value is stored or compared
+  with stored values, so existing rows still match: usernames (`UserID`, `Set`, the sign-in
+  identifier), admin key names (NUL never reaches a column), oauth client names, sso provider
+  `name`/`issuer` and domains, scim display and name parts, `externalId`, group names, connection
+  names, organization ids and cursors, passwordless email, phone, token, code, `redirect_uri` and
+  `purpose`. `strings.TrimSpace` elsewhere: the SCIM filter string (parsed, not stored), agent and
+  host names (labels, never looked up), social's blank test. Each kept site says why. An agent or
+  host name containing a NUL or another control character (anywhere, not only at the ends) is
+  refused with the empty name's 422 `invalid_input`, so PostgreSQL never sees it (it refuses NUL in
+  text: a 500 before) (`TestAgentAndHostNamesRefuseControlCharacters`).
+
+### 4. Arrays standing in for objects, objects for lists
+
+Data from outside parties follows its RFC; stored data keeps reading:
+- **oauth.** `fetchJSON` refuses a document that is not a JSON object (a list read as `{}`);
+  `jwksKeys` requires `keys` to be an array (RFC 7517 §5): registering `jwks` otherwise is 422
+  `invalid_client_metadata`, a `jwks_uri` document otherwise `invalid_client`. Registration used to
+  store `keys` as an object; `storedJWKSKeys` still reads such a row, in key order
+  (`TestAKeySetIsAnArrayButAStoredObjectStillReads`); a cached old-form `jwks_uri` document is a
+  miss and is fetched again. `verifyWithKeySet` no longer names a key without `kid` by its index:
+  a header `kid` selects only the key with that `kid`; a token without `kid` verifies against the
+  set's only key and is refused when there are several (RFC 7515 §4.1.4); a non-string `kid` is
+  refused (`TestAKeyIsChosenByItsKidOnly`). Breaking for a registered client whose keys have no
+  `kid` and that sent `kid: "0"` (it had to: a `kid` was required): it drops the `kid` (one key)
+  or registers keys with a `kid`. Kept narrow on purpose: a compatibility path would keep the
+  positional naming forever.
+- **sso.** `asMap` and `listOf` are gone: `config`, `attributes`, `jit` must be objects,
+  `jit.enabled` a boolean, `jit.roles` and `redirect_uris` lists (422 `sso_invalid_input`, each
+  with its message); a PATCH's absent or null field still keeps the stored value. JWKS and
+  discovery were already strict.
+- **scim.** `members` is a list of `{"value": id}` objects (no `{}`, no bare ids), and a PATCH
+  operation without `path` carries an object (400 `invalidValue`).
+- **agents.** `arguments`/`input` on `/agents/execute` must be an object or null ("arguments is an
+  object."); constraints, their operators and `budget` must be objects (422 `invalid_input`;
+  `{"x":["y"]}` was 400 `unknown_constraint_operator`); `capabilities` and `default_capabilities`
+  must be lists. Stored grants read an old row's `[]` operators as `{}`
+  (`TestStoredConstraintsReadTheirOldForms`).
+- **apikeys.** `permissions` must be a list and `metadata` an object; a stored `[]` metadata still
+  reads as `{}` (`TestInputIsReadAsItsJSONType`).
+
+### 5. Error texts
+
+The firebase/php-jwt texts in oauth (`jwt.go`, `clients.go`, `dpop.go`), agents
+(`requestjwt.go`), sso (`oidc.go`) and social (`outbound.go`) are one Go vocabulary: "the
+signature does not verify", "the claims are not a JSON object", "the token is not valid before
+<time>" (sso and social: "… yet (nbf)"), "the token was issued in the future (<time>)", "the token
+has expired", "the token is not a compact JWS", "no key in the key set has the token's kid", "the
+token names no key (kid)…", "the key's alg is not the token's alg". The opis/json-schema texts of
+agents' argument validation read as Go (`missing required properties: x`, `/p: must be string,
+not integer`, `must be at least N characters, not M`, …; paths are JSON Pointers). Problem titles
+in oauth, mcp and agents are sentences with acronyms capitalized ("Invalid DPoP proof", "Invalid
+JWT", "Capability not granted"; were "Invalid Dpop Proof", "Invalid Jwt", "Capability Not
+Granted"), as the other plugins' titles already were. Error codes and problem `type` URLs are
+unchanged. Fixtures edited: the oauth-provider assertion step and titles (six files), the mcp
+titles, the agents titles and the `properties not allowed: extra` step.
+
+### 6. Encodings
+
+- oauth `formEncode` is deleted: authorization redirects use `url.QueryEscape` (form encoding of a
+  query, space `+`; `~` now unescaped, RFC 3986 unreserved). `basicAuth` keeps
+  `url.QueryUnescape` (RFC 6749 §2.3.1).
+- mcp path arguments were escaped twice (a space went out as `%2520`); `fillPath` escapes each
+  segment once (`url.PathEscape`, `RawPath`) and query arguments go through `url.Values.Encode`.
+- social: the authorization request query is form-encoded (`scope=openid+email+profile`, was
+  `%20`), RFC 6749 §4.1.1 and Appendix B; token request bodies already used `url.Values.Encode`.
+  The five social fixtures are edited at each start/link URL. `proxySignature` (base64url of the
+  hex digest) is **kept**: the stable origin behind the proxy verifies it and may run an earlier
+  release during a rollout.
+- messaging's `htmlEscaper` is `html.EscapeString` (`'` is `&#39;`, `"` is `&#34;`); rendered
+  output is sent, never stored or compared.
+- sso `validURL` is `net/url`-based and requires an absolute `http`/`https` URL with a host, in
+  printable ASCII: `sso_url`, `slo_url` and `slo_response_url` used to accept any scheme
+  (`javascript:`, `urn:`), and the browser is redirected to them ("config.<k> must be an http(s)
+  URL."). A provider stored with another scheme fails its next PATCH until corrected; it never
+  worked with the redirect binding.
+- scim `stripSlashes` is gone: a filter value is a JSON string literal (RFC 7644 §3.4.2.2) decoded
+  by `encoding/json`; an unknown escape (`\0`, `\x`, `\'`), a raw control character or a NUL
+  (`\u0000` or raw) is `invalidFilter`. `é`, `\/`, `\t` and surrogate pairs now decode (`\u`
+  gave a literal `u`). `FuzzFilter` fails on a NUL in an accepted value.
+
+### 7. Kept and documented
+
+- **A JWK without `alg` (sso, social)** no longer defaults to RS256: `algorithmOf` infers it from
+  the key type (RSA → RS256, EC P-256 → ES256, OKP Ed25519 → EdDSA) and refuses any other key
+  without `alg` ("the key names no alg and its type implies none"): P-384/521, symmetric and
+  private keys. A key's own `alg` still wins. EdDSA stays outside the accepted id_token
+  algorithms, so an EdDSA id_token is still refused at parse
+  (`TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies` in both plugins).
+- **An expired IdP certificate in SSO SAML still verifies: kept.** The certificate only carries
+  the key the organization admin configured; no chain or revocation is consulted, so the
+  configured key is the trust anchor and the validity dates add nothing. Shibboleth SP,
+  SimpleSAMLphp and most SAML SPs do the same, and IdPs routinely ship long-lived or expired
+  self-signed certificates: refusing them breaks working IdPs for no gain. A rotated or
+  compromised key is handled by changing the configured certificate. The reasoning is in
+  `saml.go`; `TestAnExpiredIdPCertificateStillVerifies` pins it and checks that a response signed
+  by another key is still refused.
+
+Security review. **oauth:** no check is weakened: signature and alg match, `jti` replay,
+`sub`/`aud`/`exp`, the time checks and their leeways are unchanged; key selection is stricter (no
+index naming); the one new acceptance (no `kid` with a single-key set) still verifies with the
+client's own registered key and algorithm; `fetchJSON`/`jwksKeys` refuse more; the new texts reveal
+no key material or internal host. **agents:** every change refuses more or compares more strictly
+(numeric strings fail `max`/`min`; `in`/`not_in` by value close the `1.0` bypass); the request-JWT
+checks (alg, signature, nbf/iat/exp with 60 s leeway, aud/htm/htu/body hash, jti) are unchanged;
+receipts' hashed bytes are identical. **passkey:** display of two timestamps only; no ceremony,
+verification or counter code touched. **social, sso:** alg inference makes each key verify only
+the algorithm its type implies, HMAC and `none` stay excluded and the token's alg must still match
+the key's; JWKS `keys` was already an array and a missing `kid` is refused outright (the
+single-key fallback of OIDC Core §10.1 is not added); the http(s)-only URL rule rejects
+`javascript:` redirects; `proxySignature`, `verifiedFlag` (decision 59), the constant-time
+compares and the nonce check are unchanged; the SAML certificate decision above. **scim, admin,
+audit:** stricter input only; the audit chain's hashed bytes are identical.
+
+Left open: the route specs' `output.example` timestamps still read `+00:00` (they belong with the
+core change, #64), as do `examples/b2b/README.md` and `examples/agents/README.md`.
+
 ## 64. 2026-11-22 — Core behaves as Go, not as the port it started from
 
 Decision 58 renamed what read as a port; several behaviours of core still reproduced the PHP

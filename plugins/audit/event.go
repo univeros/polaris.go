@@ -18,9 +18,13 @@ const (
 	ActorSystem = "system"
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
-// the API emits and the hashed rows hold.
-const dateAtom = "2006-01-02T15:04:05-07:00"
+// hashedTimeLayout is how occurred_at enters the hash: RFC 3339 to the second with UTC written
+// "+00:00". Chains hashed by earlier releases keep verifying only while it stays the same; the
+// wire form is timestamp's.
+const hashedTimeLayout = "2006-01-02T15:04:05-07:00"
+
+// timestamp is the wire form of a time: RFC 3339 in UTC, to the second ("2026-09-11T10:00:00Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
 // Redacted replaces what Redact strips.
 const Redacted = "[redacted]"
@@ -106,7 +110,7 @@ func (e Event) Map() map[string]any {
 	return map[string]any{
 		"id":              e.ID,
 		"name":            e.Name,
-		"occurred_at":     e.OccurredAt.UTC().Format(dateAtom),
+		"occurred_at":     timestamp(e.OccurredAt),
 		"actor_type":      e.ActorType,
 		"actor_id":        null(e.ActorID),
 		"subject_id":      null(e.SubjectID),

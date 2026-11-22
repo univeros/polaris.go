@@ -107,6 +107,11 @@ func (s *clients) apply(c Client, f ClientFields, mayTrust, creating bool) (Clie
 				out = append(out, name)
 			}
 		}
+		// A trusted client's permission scopes are its own authority (tokens.held): only an
+		// operator changes them.
+		if !mayTrust && c.Trusted && !slices.Equal(out, c.Scopes) {
+			return c, invalidMetadata("Only an operator changes the scopes of a trusted client.")
+		}
 		c.Scopes = out
 	}
 	if f.set("token_endpoint_auth_method") || creating {

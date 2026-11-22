@@ -93,9 +93,9 @@ func (c Client) view() map[string]any {
 		"policy_uri":                 null(c.PolicyURI),
 		"tos_uri":                    null(c.TosURI),
 		"created_by":                 null(c.CreatedBy),
-		"disabled_at":                atomPtr(c.DisabledAt),
-		"created_at":                 atom(c.CreatedAt),
-		"updated_at":                 atom(c.UpdatedAt),
+		"disabled_at":                timestampPtr(c.DisabledAt),
+		"created_at":                 timestamp(c.CreatedAt),
+		"updated_at":                 timestamp(c.UpdatedAt),
 	}
 }
 
@@ -200,13 +200,12 @@ func jwksValue(j map[string]any) any {
 	return j
 }
 
-// atom formats t in UTC as RFC 3339 to the second with the offset written "+00:00" (not "Z"), the
-// timestamp format the API emits and stored rows keep.
-func atom(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05-07:00") }
+// timestamp formats t as the API writes times: RFC 3339 in UTC to the second ("…Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-func atomPtr(t *time.Time) any {
+func timestampPtr(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return atom(*t)
+	return timestamp(*t)
 }

@@ -293,14 +293,15 @@ func (p *Plugin) resend(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, rep.status, "check-email", v)
 }
 
-// verifyPage verifies the token of an email link at once (a verification is idempotent and signs
-// nobody in); without one it asks for the code.
+// verifyPage never verifies: mail scanners follow a message's links with GET, and would confirm
+// a registration its recipient never made. With the token of an email link it answers a page
+// whose one button posts the token (the CSRF-guarded POST verifies); without one it asks for the
+// code.
 func (p *Plugin) verifyPage(w http.ResponseWriter, r *http.Request) {
-	if token := r.URL.Query().Get("token"); token != "" {
-		p.verifyToken(w, r, token)
-		return
-	}
-	p.render(w, r, http.StatusOK, "verify", p.newView(w, r, "verify_title"))
+	v := p.newView(w, r, "verify_title")
+	v.Token = r.URL.Query().Get("token")
+	v.TokenGiven = v.Token != ""
+	p.render(w, r, http.StatusOK, "verify", v)
 }
 
 func (p *Plugin) verify(w http.ResponseWriter, r *http.Request) {
@@ -399,9 +400,20 @@ func (p *Plugin) renew(w http.ResponseWriter, r *http.Request) (reply, error) {
 }
 
 // refresh renews the session and returns to return_to; without a usable refresh cookie it asks the
-// user to sign in, then returns there.
+// user to sign in, then returns there. This GET rotates the refresh token, and the cookie is
+// SameSite=Lax, so another site can navigate the browser here: twice with the same cookie reads
+// as a reused token and ends the session. So a navigation the browser says another site started
+// (Sec-Fetch-Site neither same-origin nor none) rotates nothing; the page offers a link, and
+// following it is a same-origin navigation. A browser that sends no Sec-Fetch-Site is served as
+// before.
 func (p *Plugin) refresh(w http.ResponseWriter, r *http.Request) {
 	returnTo := r.URL.Query().Get("return_to")
+	site := r.Header.Get("Sec-Fetch-Site")
+	if p.secure && cookie(r, refreshCookie) != "" && site != "" && site != "same-origin" && site != "none" {
+		p.message(w, r, http.StatusOK, "refresh_title", "refresh_intro",
+			p.base+"/refresh?return_to="+url.QueryEscape(p.target(returnTo)), "continue")
+		return
+	}
 	if p.secure {
 		rep, err := p.renew(w, r)
 		switch {

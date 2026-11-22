@@ -11,9 +11,8 @@ import (
 )
 
 // The JSON Schema subset a capability's input may use. No dependency is taken for it (stdlib
-// first), so the keywords below are checked here, with the refusal messages clients of earlier
-// releases already see, and a schema using any other keyword fails New rather than being silently
-// weaker than written. Annotations (title, description, default, examples, format, $schema,
+// first), so the keywords below are checked here, and a schema using any other keyword fails New
+// rather than being silently weaker than written. Annotations (title, description, default, examples, format, $schema,
 // $comment) are accepted and not checked.
 var (
 	checkedKeywords = []string{"type", "properties", "required", "additionalProperties", "items", "enum", "const",
@@ -79,23 +78,23 @@ func validateSchema(s map[string]any, data any) string {
 
 func validate(s map[string]any, data any, path string) (string, string) {
 	if t, ok := s["type"]; ok && !typeMatches(t, data) {
-		return path, fmt.Sprintf("The data (%s) must match the type: %s", jsonType(data), typeList(t))
+		return path, fmt.Sprintf("must be %s, not %s", typeList(t), jsonType(data))
 	}
 	if enum, ok := s["enum"].([]any); ok && !slices.ContainsFunc(enum, func(e any) bool { return jsonEqual(e, data) }) {
-		return path, "The data should match one item from enum"
+		return path, "must be one of the enum values"
 	}
 	if c, ok := s["const"]; ok && !jsonEqual(c, data) {
-		return path, "The data must match the const value"
+		return path, "must equal the const value"
 	}
 	switch d := data.(type) {
 	case map[string]any:
 		return validateObject(s, d, path)
 	case []any:
 		if n, ok := wholeNumber(s["minItems"]); ok && int64(len(d)) < n {
-			return path, fmt.Sprintf("Array should have at least %d items, %d found", n, len(d))
+			return path, fmt.Sprintf("must have at least %d item(s), not %d", n, len(d))
 		}
 		if n, ok := wholeNumber(s["maxItems"]); ok && int64(len(d)) > n {
-			return path, fmt.Sprintf("Array should have at most %d items, %d found", n, len(d))
+			return path, fmt.Sprintf("must have at most %d item(s), not %d", n, len(d))
 		}
 		if items, ok := s["items"].(map[string]any); ok {
 			for i, item := range d {
@@ -107,14 +106,14 @@ func validate(s map[string]any, data any, path string) (string, string) {
 	case string:
 		n := int64(utf8.RuneCountInString(d))
 		if least, ok := wholeNumber(s["minLength"]); ok && n < least {
-			return path, fmt.Sprintf("Minimum string length is %d, found %d", least, n)
+			return path, fmt.Sprintf("must be at least %d characters, not %d", least, n)
 		}
 		if most, ok := wholeNumber(s["maxLength"]); ok && n > most {
-			return path, fmt.Sprintf("Maximum string length is %d, found %d", most, n)
+			return path, fmt.Sprintf("must be at most %d characters, not %d", most, n)
 		}
 		if p, ok := s["pattern"].(string); ok {
 			if re, err := regexp.Compile(p); err != nil || !re.MatchString(d) {
-				return path, "The string should match pattern: " + p
+				return path, "must match the pattern " + p
 			}
 		}
 	default:
@@ -136,7 +135,7 @@ func validateObject(s map[string]any, d map[string]any, path string) (string, st
 			}
 		}
 		if len(missing) > 0 {
-			return path, fmt.Sprintf("The required properties (%s) are missing", strings.Join(missing, ", "))
+			return path, "missing required properties: " + strings.Join(missing, ", ")
 		}
 	}
 	props, _ := s["properties"].(map[string]any)
@@ -156,7 +155,7 @@ func validateObject(s map[string]any, d map[string]any, path string) (string, st
 	switch ap := s["additionalProperties"].(type) {
 	case bool:
 		if !ap && len(extra) > 0 {
-			return path, "Additional object properties are not allowed: " + strings.Join(extra, ", ")
+			return path, "properties not allowed: " + strings.Join(extra, ", ")
 		}
 	case map[string]any:
 		for _, name := range extra {
@@ -174,16 +173,16 @@ func validateNumber(s map[string]any, v float64, path string) (string, string) {
 		return n, fmt.Sprint(s[k]), ok
 	}
 	if n, shown, ok := bound("minimum"); ok && v < n {
-		return path, "Number must be greater than or equal to " + shown
+		return path, "must be at least " + shown
 	}
 	if n, shown, ok := bound("maximum"); ok && v > n {
-		return path, "Number must be lower than or equal to " + shown
+		return path, "must be at most " + shown
 	}
 	if n, shown, ok := bound("exclusiveMinimum"); ok && v <= n {
-		return path, "Number must be greater than " + shown
+		return path, "must be greater than " + shown
 	}
 	if n, shown, ok := bound("exclusiveMaximum"); ok && v >= n {
-		return path, "Number must be lower than " + shown
+		return path, "must be less than " + shown
 	}
 	return "", ""
 }
@@ -218,7 +217,7 @@ func typeList(t any) string {
 		for _, n := range list {
 			names = append(names, fmt.Sprint(n))
 		}
-		return strings.Join(names, ", ")
+		return strings.Join(names, " or ")
 	}
 	return fmt.Sprint(t)
 }

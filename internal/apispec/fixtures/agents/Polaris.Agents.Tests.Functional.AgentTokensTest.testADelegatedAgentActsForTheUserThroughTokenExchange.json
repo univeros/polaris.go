@@ -377,7 +377,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_scope",
-                "title": "Invalid Scope",
+                "title": "Invalid scope",
                 "status": 400,
                 "detail": "The client may not ask for \"org.update\".",
                 "error": "invalid_scope",
@@ -424,7 +424,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/unauthorized_client",
-                "title": "Unauthorized Client",
+                "title": "Unauthorized client",
                 "status": 400,
                 "detail": "The client may not use client_credentials.",
                 "error": "unauthorized_client",
@@ -566,7 +566,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -796,7 +796,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "The token does not carry the permission \"org.update\" the capability requires.",
                 "error": "capability_not_granted",
@@ -847,7 +847,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The credential is neither an agent JWT (typ agent+jwt) nor an access token (typ at+jwt).",
                 "error": "invalid_jwt",
@@ -1200,7 +1200,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
                 "detail": "Unknown client, or one that does not authenticate with a key.",
                 "error": "invalid_client",

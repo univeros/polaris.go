@@ -218,12 +218,14 @@ func TestConstraintsAreParsedAndEvaluated(t *testing.T) {
 	if v := violations(map[string]map[string]any{"a": {"in": []any{json.Number("1")}}}, map[string]any{"a": map[string]any{}}); len(v) != 1 || v[0].Actual != "<array>" {
 		t.Errorf("non-scalar %v", v)
 	}
-	if v := violations(map[string]map[string]any{"a": {"max": json.Number("5")}, "b": {"in": []any{json.Number("1")}}}, map[string]any{"a": "4", "b": json.Number("1.0")}); len(v) != 1 || v[0].Field != "b" {
-		t.Errorf("numeric string passes max, 1.0 is not 1: %v", v)
+	// A JSON number is what max and min bound: a numeric string violates them. JSON has one number
+	// type, so 1.0 is 1 for in and not_in.
+	if v := violations(map[string]map[string]any{"a": {"max": json.Number("5")}, "b": {"in": []any{json.Number("1")}}, "c": {"not_in": []any{json.Number("1")}}},
+		map[string]any{"a": "4", "b": json.Number("1.0"), "c": json.Number("1e0")}); len(v) != 2 || v[0].Field != "a" || v[1].Field != "c" {
+		t.Errorf("a numeric string fails max, 1.0 and 1e0 are 1: %v", v)
 	}
 	for name, c := range map[string]any{
-		"operator":       map[string]any{"amount": map[string]any{"between": []any{1, 2}}},
-		"list operators": map[string]any{"amount": []any{"x"}},
+		"operator": map[string]any{"amount": map[string]any{"between": []any{1, 2}}},
 	} {
 		_, err := parseConstraints(c)
 		if e := wantType(t, err, ErrUnknownConstraintOperator, name); e.Status() != 400 {
@@ -243,12 +245,17 @@ func TestConstraintsAreParsedAndEvaluated(t *testing.T) {
 		"pattern":     map[string]any{"a": map[string]any{"pattern": "(?<=x)"}},
 		"shape":       "x",
 		"list":        []any{"x"},
+		// An object is an object: [] is not an empty one.
+		"empty list":     []any{},
+		"list operators": map[string]any{"amount": []any{"x"}},
+		"empty ops list": map[string]any{"amount": []any{}},
+		"budget list":    map[string]any{"budget": []any{}},
 	} {
 		_, err := parseConstraints(c)
 		_ = wantType(t, err, ErrInvalidInput, name)
 	}
-	if c, err := parseConstraints([]any{}); err != nil || len(c.fields) != 0 {
-		t.Error("[] is no constraint")
+	if c, err := parseConstraints(map[string]any{}); err != nil || len(c.fields) != 0 {
+		t.Error("{} is no constraint")
 	}
 	amount := Grant{BudgetKind: BudgetAmount, BudgetField: "amount"}
 	if n, _ := cost(amount, map[string]any{"amount": json.Number("12.5")}); n != 13 {
@@ -278,23 +285,23 @@ func TestSchemaSubsetRefusalMessages(t *testing.T) {
 		`{"name":"ab"}`:                   "",
 		`{"name":"ab","f":null}`:          "",
 		`{"name":"ab","n":2.0}`:           "",
-		`{}`:                              "The required properties (name) are missing",
-		`{"name":"ab","x":1,"y":2}`:       "Additional object properties are not allowed: x, y",
-		`{"name":1}`:                      "/name: The data (integer) must match the type: string",
-		`{"name":"a"}`:                    "/name: Minimum string length is 2, found 1",
-		`{"name":"abcd"}`:                 "/name: Maximum string length is 3, found 4",
-		`{"name":"AB"}`:                   "/name: The string should match pattern: ^[a-z]+$",
-		`{"name":"ab","n":0}`:             "/n: Number must be greater than or equal to 1",
-		`{"name":"ab","n":10}`:            "/n: Number must be lower than or equal to 9",
-		`{"name":"ab","n":5}`:             "/n: Number must be lower than 5",
-		`{"name":"ab","n":1.5}`:           "/n: The data (number) must match the type: integer",
-		`{"name":"ab","tags":[]}`:         "/tags: Array should have at least 1 items, 0 found",
-		`{"name":"ab","tags":[1,2,3]}`:    "/tags: Array should have at most 2 items, 3 found",
-		`{"name":"ab","tags":["c"]}`:      "/tags/0: The data should match one item from enum",
-		`{"name":"ab","k":"y"}`:           "/k: The data must match the const value",
-		`{"name":"ab","f":0}`:             "/f: Number must be greater than 0",
-		`{"name":"ab","f":"x"}`:           "/f: The data (string) must match the type: number, null",
-		`{"name":"ab","meta":{"a":1}}`:    "/meta/a: The data (integer) must match the type: boolean",
+		`{}`:                              "missing required properties: name",
+		`{"name":"ab","x":1,"y":2}`:       "properties not allowed: x, y",
+		`{"name":1}`:                      "/name: must be string, not integer",
+		`{"name":"a"}`:                    "/name: must be at least 2 characters, not 1",
+		`{"name":"abcd"}`:                 "/name: must be at most 3 characters, not 4",
+		`{"name":"AB"}`:                   "/name: must match the pattern ^[a-z]+$",
+		`{"name":"ab","n":0}`:             "/n: must be at least 1",
+		`{"name":"ab","n":10}`:            "/n: must be at most 9",
+		`{"name":"ab","n":5}`:             "/n: must be less than 5",
+		`{"name":"ab","n":1.5}`:           "/n: must be integer, not number",
+		`{"name":"ab","tags":[]}`:         "/tags: must have at least 1 item(s), not 0",
+		`{"name":"ab","tags":[1,2,3]}`:    "/tags: must have at most 2 item(s), not 3",
+		`{"name":"ab","tags":["c"]}`:      "/tags/0: must be one of the enum values",
+		`{"name":"ab","k":"y"}`:           "/k: must equal the const value",
+		`{"name":"ab","f":0}`:             "/f: must be greater than 0",
+		`{"name":"ab","f":"x"}`:           "/f: must be number or null, not string",
+		`{"name":"ab","meta":{"a":1}}`:    "/meta/a: must be boolean, not integer",
 		`{"name":"ab","meta":{"a":true}}`: "",
 	} {
 		var v map[string]any
@@ -746,7 +753,7 @@ func TestExecutionIsRefusedWithoutAGrantAndHoldsTheAgentRow(t *testing.T) {
 	hp := principal{agent: h, via: ViaJWT}
 	_, err := p.s.requestGrants(ctx, h, []any{"members"})
 	must(t, err)
-	ev, err := p.s.evaluate(ctx, hp, "members", []any{})
+	ev, err := p.s.evaluate(ctx, hp, "members", map[string]any{})
 	must(t, err)
 	done, err := p.s.run(ctx, ev, ran, nil, client{})
 	must(t, err)

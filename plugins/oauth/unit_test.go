@@ -371,19 +371,16 @@ func TestKeySetsComeInlineOrFromTheJWKSURI(t *testing.T) {
 	fake.body = `{"nokeys":true}`
 	_, err = p.clients.keySet(ctx, Client{JWKSURI: "https://keys.example.com/other.json"})
 	wantCode(t, err, CodeInvalidClient, "not a key set")
-	if keys := jwksKeys(map[string]any{"keys": map[string]any{"b": 2, "a": 1}}); len(keys) != 2 || keys[0] != 1 {
-		t.Errorf("an object of keys reads in key order: %v", keys)
-	}
 	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", nil, time.Now())
 	if err == nil {
 		t.Error("an empty key set")
 	}
-	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", []any{map[string]any{}}, time.Now())
+	_, err = verifyWithKeySet("a.b.c", map[string]any{}, "RS256", []any{map[string]any{}, map[string]any{}}, time.Now())
 	if err == nil || !strings.Contains(err.Error(), "kid") {
-		t.Error("an assertion without kid")
+		t.Error("an assertion without kid, two keys")
 	}
-	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "0"}, "RS256", []any{map[string]any{"alg": "ES256"}}, time.Now())
-	if err == nil || !strings.Contains(err.Error(), "algorithm") {
+	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "k"}, "RS256", []any{map[string]any{"kid": "k", "alg": "ES256"}}, time.Now())
+	if err == nil || !strings.Contains(err.Error(), "alg") {
 		t.Errorf("a key for another algorithm: %v", err)
 	}
 	_, err = verifyWithKeySet("a.b.c", map[string]any{"kid": "z"}, "RS256", []any{map[string]any{"kid": "k"}}, time.Now())
@@ -416,11 +413,8 @@ func TestFetchIsBoundedAndJSONOnly(t *testing.T) {
 		_, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: d}), log, "https://x.example.com/doc", CodeInvalidClientMetadata)
 		wantCode(t, err, CodeInvalidClientMetadata, name)
 	}
-	doc, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
-	must(t, err)
-	if len(doc) != 0 {
-		t.Error("a list reads as an empty object")
-	}
+	_, err := fetchJSON(ctx, netguard.NoRedirects(&http.Client{Transport: &docs{status: 200, body: `[1]`}}), log, "https://x.example.com/doc", CodeInvalidClient)
+	wantCode(t, err, CodeInvalidClient, "a list is not a document")
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{}`)) }))
 	defer local.Close()
 	_, err = fetchJSON(ctx, netguard.NoRedirects(nil), log, local.URL+"/doc", CodeInvalidClientMetadata)
@@ -594,11 +588,11 @@ func TestTheGoAPIIssuesExchangesAndVerifies(t *testing.T) {
 		}
 	}
 	exchanged, err := p.Exchange(ctx, c, ExchangeRequest{SubjectToken: resp.AccessToken, SubjectTokenType: TokenTypeAccessToken,
-		ActorToken: resp.AccessToken, ActorTokenType: TokenTypeAccessToken, Scopes: []string{"org.read"}})
+		ActorToken: resp.AccessToken, ActorTokenType: TokenTypeAccessToken, Scopes: []string{"profile"}})
 	must(t, err)
 	introspected, err := p.tokens.introspect(ctx, exchanged.AccessToken)
 	must(t, err)
-	if introspected["act"].(map[string]any)["sub"] != user.ID || introspected["scope"] != "org.read" {
+	if introspected["act"].(map[string]any)["sub"] != user.ID || introspected["scope"] != "profile" {
 		t.Errorf("the actor token's subject acts: %v", introspected)
 	}
 
@@ -612,7 +606,8 @@ func TestTheGoAPIIssuesExchangesAndVerifies(t *testing.T) {
 	if principal.Subject() != user.ID || principal.Claim("auth_time") != nil || !hasAMR(principal) {
 		t.Errorf("principal %v", principal.Claims())
 	}
-	if perms, ok := principal.Delegation(); !ok || strings.Join(perms, ",") != "org.read" {
+	// Ada is in no organization, so the org.read asked for is not in her token (decision 69).
+	if perms, ok := principal.Delegation(); !ok || len(perms) != 0 {
 		t.Errorf("delegated %v", perms)
 	}
 	r.Header.Set("Authorization", "DPoP "+resp.AccessToken)
@@ -687,5 +682,22 @@ func TestTheDefaultOperatorsAreTheSuperadmins(t *testing.T) {
 	}
 	if _, refused := p.operator(ctx, r, false, "org-2"); refused == nil {
 		t.Error("outside its scope")
+	}
+}
+
+// A trusted client's scopes are its own permissions (decision 69): only an operator changes them.
+func TestOnlyAnOperatorChangesATrustedClientsScopes(t *testing.T) {
+	ctx := context.Background()
+	p, _ := boot(t, Config{})
+	issued, err := p.CreateClient(ctx, ClientFields{"name": "Bot", "trusted": true, "scopes": []any{"org.read"},
+		"grant_types": []any{GrantClientCredentials}}, "", "", true)
+	must(t, err)
+	_, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"scopes": []any{"org.read", "users.manage"}}, false)
+	wantCode(t, err, CodeInvalidClientMetadata, "an organization widening a trusted client")
+	if _, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"name": "Bot 2", "scopes": []any{"org.read"}}, false); err != nil {
+		t.Errorf("unchanged scopes: %v", err)
+	}
+	if _, _, err = p.UpdateClient(ctx, issued.Client, ClientFields{"scopes": []any{"users.manage"}}, true); err != nil {
+		t.Errorf("an operator: %v", err)
 	}
 }

@@ -44,8 +44,8 @@ output:
       redirect_uris: ["https://app.example.com/sso/done"]
       enabled: true
       created_by: "018f..."
-      created_at: "2026-09-11T10:00:00+00:00"
-      updated_at: "2026-09-11T10:00:00+00:00"
+      created_at: "2026-09-11T10:00:00Z"
+      updated_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

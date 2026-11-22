@@ -21,7 +21,7 @@ domain:
 output:
   status: 200
   example:
-    data: { user_code: "BCDFGHJK", client: { client_id: "pcl_...", name: "Acme TV", logo_uri: null, client_uri: null, policy_uri: null, tos_uri: null, trusted: false }, scopes: [{ name: org.read, description: "View the organization profile" }], expires_at: "2026-10-10T10:30:00+00:00" }
+    data: { user_code: "BCDFGHJK", client: { client_id: "pcl_...", name: "Acme TV", logo_uri: null, client_uri: null, policy_uri: null, tos_uri: null, trusted: false }, scopes: [{ name: org.read, description: "View the organization profile" }], expires_at: "2026-10-10T10:30:00Z" }
 
 errors:
   - { status: 401, code: unauthorized }

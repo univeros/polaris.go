@@ -78,6 +78,11 @@ type Config struct {
 	// OnUserDeleted runs inside the transaction that erases or removes an account; an error
 	// aborts it. nil: nothing.
 	OnUserDeleted func(ctx context.Context, userID string) error
+	// OnEmailProven runs inside the transaction of a mailbox's first proof (ProveEmail), after
+	// core dropped the password and the factors: it removes what else could act as the account
+	// (the plugins' provider links, passkeys, keys and grants). An error aborts the proof. nil:
+	// nothing.
+	OnEmailProven func(ctx context.Context, userID string) error
 }
 
 // Service runs the identity flows. It is immutable after New and safe for concurrent use.
@@ -96,6 +101,8 @@ type Service struct {
 	events    event.Dispatcher
 	onCreated func(ctx context.Context, u model.User) error
 	onDeleted func(ctx context.Context, userID string) error
+	// onEmailProven is Config.OnEmailProven.
+	onEmailProven func(ctx context.Context, userID string) error
 	// dummyHash is verified against when the account is missing or passwordless, so a login
 	// costs one Argon2id verify either way (timing parity). Hashed once, lazily.
 	dummyHash func() (string, error)
@@ -130,7 +137,7 @@ func New(cfg Config) (*Service, error) {
 		sessions: cfg.Sessions, mfa: cfg.MFA, tickets: cfg.Tickets, authority: cfg.Authority,
 		policy: PasswordPolicy{MinLength: cfg.Auth.Password.MinLength, Breaches: cfg.Breaches},
 		auth:   cfg.Auth, clock: cfg.Clock, events: cfg.Events,
-		onCreated: cfg.OnUserCreated, onDeleted: cfg.OnUserDeleted,
+		onCreated: cfg.OnUserCreated, onDeleted: cfg.OnUserDeleted, onEmailProven: cfg.OnEmailProven,
 	}
 	if s.clock == nil {
 		s.clock = clock.System{}

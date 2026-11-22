@@ -51,7 +51,8 @@ type ProtectConfig struct {
 	// Audiences are further aud values naming this resource (Polaris's own /mcp accepts its issuer).
 	Audiences []string
 	// Scopes must all be held by every request's token; a token short of one is answered 403
-	// insufficient_scope naming the missing ones, so the client steps up.
+	// insufficient_scope naming the missing ones, so the client steps up. Only a permission name
+	// is an authorization check (see [Protect]).
 	Scopes []string
 	// ScopesSupported is what the metadata advertises; default Scopes.
 	ScopesSupported []string
@@ -95,6 +96,15 @@ type ProtectedResource struct {
 // token (typ JWT, or no typ, carrying its roles list). Any other token the issuer signs is
 // refused, an OpenID ID token included even when its aud (a client_id) equals the resource; a
 // non-Polaris issuer's tokens must be at+jwt.
+//
+// What a scope proves: the token is checked locally, without the issuer's database. A Polaris
+// permission name in cfg.Scopes ("invoices.read") is an authorization check as of the token's
+// issue: Polaris (v0.5.1 and later) puts a permission scope in a token only if its subject held
+// the permission then. A scope that is not a permission (the host's oauth.Config.Scopes, such as
+// "deploy" below) says only that the client was allowed to ask for it, which with dynamic client
+// registration is anyone: use it to shape consent and discovery, and decide what the caller may
+// do from a permission scope, or from the sub and client_id in [Claims]. Permissions that
+// changed after the token was issued are not seen until it expires.
 //
 //	h, err := mcp.Protect(mcpHandler, mcp.ProtectConfig{
 //		Resource: "https://tools.example.com/mcp",
@@ -325,12 +335,20 @@ func (e *refusal) write(w http.ResponseWriter) {
 	writeJSON(w, e.status, "application/problem+json", body, h)
 }
 
-// title turns a snake_case name into words with their first letter upper-cased:
-// "insufficient_scope" is "Insufficient Scope".
+// acronyms are the words of a problem name a title writes in capitals.
+var acronyms = map[string]string{
+	"api": "API", "dpop": "DPoP", "id": "ID", "ip": "IP", "jwt": "JWT", "mcp": "MCP", "mfa": "MFA",
+	"oidc": "OIDC", "otp": "OTP", "saml": "SAML", "scim": "SCIM", "sso": "SSO", "uri": "URI", "url": "URL",
+}
+
+// title is a snake_case problem name as a sentence: "insufficient_scope" is "Insufficient
+// scope", "invalid_dpop_proof" is "Invalid DPoP proof".
 func title(name string) string {
 	words := strings.Split(name, "_")
 	for i, w := range words {
-		if w != "" {
+		if a, ok := acronyms[w]; ok {
+			words[i] = a
+		} else if i == 0 && w != "" {
 			words[i] = strings.ToUpper(w[:1]) + w[1:]
 		}
 	}

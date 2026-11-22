@@ -28,6 +28,13 @@
 //     answer is 302 <redirect_uri>?sso_code=…. Tokens never travel in a URL.
 //  3. POST /sso/exchange {code} answers core's login envelope, once, within a minute.
 //
+// Whoever runs an organization's IdP can assert any email, so a provider signs in an existing
+// account only when its organization owns it (a provider or a SCIM directory of the organization
+// created it, or its email domain is verified for the organization; a membership is not enough),
+// and the session it opens is bound to that organization (token.Token.OrganizationBound): no
+// switch to another organization, none of the routes reserved to the account holder, no
+// superadmin override. The README lists both rules.
+//
 // A rejected assertion or token answers 403 sso/assertion_invalid with a generic detail; the
 // reason is the sso.assertion_rejected event (Event.Data["reason"]).
 //

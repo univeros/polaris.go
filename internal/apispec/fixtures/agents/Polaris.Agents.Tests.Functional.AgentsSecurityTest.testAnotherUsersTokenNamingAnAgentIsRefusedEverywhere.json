@@ -433,7 +433,7 @@
                 "access_token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVjODdjMjAwZGM1ZTRlMzlmMzBkMzRjN2Q1NWU3YTE0ZmJlZDIxNGYwZDg4ZDFjMmNhZDFiNDcwZGI2YmNhNDIifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzkxODEyMTk1LjUxMDE1MiwibmJmIjoxNzkxODEyMTk1LjUxMDE1MiwiZXhwIjoxNzkxODE1Nzk1LjUxMDEyLCJzdWIiOiIwMWExMzA1NC01MzczLTcyNzYtYjBmNi0xZjJlZjdmYmYwNWYiLCJqdGkiOiIwMWExMzA1NC01NGI2LTcxZWYtOGVmNy0xOTNiYmQwMjVjYzYiLCJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiY2xpZW50X2lkIjoiMDFhMTMwNTQtNTM3Mi03YTdhLTliMDQtNDIyMDViODkxNDQ3Iiwic2NvcGUiOiJtZW1iZXJzLnJlYWQiLCJhdXRoX3RpbWUiOjE3OTE4MTIxOTUsImFjdCI6eyJzdWIiOiIwMWExMzA1NC01MzcyLTdhN2EtOWIwNC00MjIwNWI4OTE0NDciLCJjbGllbnRfaWQiOiIwMWExMzA1NC01MzcyLTdhN2EtOWIwNC00MjIwNWI4OTE0NDcifX0.O5A2Ttl86EbSvYNoGdmwesg8ywzgPolYyQr4zTK19Nk17jwiYrn-9BDtZEr-aIqiupIubOxmlOH7iuZqxmdiuIggaKcPJ-gK7yKj9Xf2gTqhCIfj2hb4gSNT2SGk1QUwloSYj2W00OjIWUXUnueA4gATzhCwZM_DlvCgQ7oB_gT3nOKOnizfTjC5IiUI_uWOdU0J4unYJppP2jAkiBKxMpjxniBXUAgF3eV3O1CH164iU2_ag1ZmJwPamw3u7UGujHs8TYJIDdA4U9jmW932RjWW4v4Aa11wQo5b1Y2MAG6bFEPUtUCrqJKnhrF6hxa8y5yMw1jR8Y2SWCrN0xjUyw",
                 "token_type": "Bearer",
                 "expires_in": 3600,
-                "scope": "members.read",
+                "scope": "",
                 "issued_token_type": "urn:ietf:params:oauth:token-type:access_token"
             }
         }
@@ -455,7 +455,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -482,7 +482,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -528,7 +528,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -562,7 +562,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -596,7 +596,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -666,7 +666,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {

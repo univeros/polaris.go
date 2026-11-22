@@ -247,6 +247,9 @@ func (p *Pipeline) authorize(next http.Handler) http.Handler {
 		if tok := endpoint.Token(r.Context()); tok != nil && DeniesDelegate(rt, tok) {
 			endpoint.Write(w, endpoint.Forbidden("This action is for the account holder, not for a delegated credential."))
 			return
+		} else if tok != nil && DeniesBound(rt, tok) {
+			endpoint.Write(w, endpoint.Forbidden(MsgOrganizationBound))
+			return
 		}
 		p.permit(w, r, rt.RequiresPermissions, next, false)
 	})
@@ -262,6 +265,29 @@ func DeniesDelegate(rt *manifest.Route, tok *token.Token) bool {
 		return false
 	}
 	return rt.StepUp || (len(rt.RequiresPermissions) == 0 && rt.Effect != manifest.EffectRead)
+}
+
+// MsgOrganizationBound is what a session an organization's identity provider opened reads on a
+// route reserved to the account holder.
+const MsgOrganizationBound = "This session was opened by an organization's identity provider and acts in that organization only; sign in to the account itself for this action."
+
+// DeniesBound: a session an organization's identity provider opened (token.Token.OrganizationBound)
+// may read, may do what a permission of its organization allows (step-up routes included: the
+// identity provider's sign-in is its recent authentication there), and may end itself. It may not
+// call a route that needs no permission and writes, destroys or is a step-up route: those act on
+// the account (password, factors, passkeys, keys, provider links, organizations joined or
+// created, the organization switch, deletion), and whoever runs the identity provider is not the
+// account holder.
+//
+// The MCP server filters tools with it.
+func DeniesBound(rt *manifest.Route, tok *token.Token) bool {
+	if !tok.OrganizationBound() || len(rt.RequiresPermissions) > 0 {
+		return false
+	}
+	if rt.Session == manifest.SessionEnd && rt.Effect == manifest.EffectWrite {
+		return false // logging out of this session
+	}
+	return rt.StepUp || rt.Effect != manifest.EffectRead
 }
 
 // permit runs next when the principal's authority grants every required permission, recording

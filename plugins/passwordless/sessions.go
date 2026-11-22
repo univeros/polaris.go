@@ -56,8 +56,8 @@ func (v *service) byEmail(ctx context.Context, email string) (model.User, bool, 
 }
 
 // forEmail is the account that owns a proven address: created verified and without a password
-// when nobody does and sign-up is on; an unverified owner becomes verified and loses a password
-// nobody proved the mailbox for (account pre-hijacking).
+// when nobody does and sign-up is on; for an unverified owner this is the mailbox's first proof
+// (Identity.ProveEmail).
 func (v *service) forEmail(ctx context.Context, email string) (model.User, error) {
 	email = identity.NormalizeEmail(email)
 	u, found, err := v.byEmail(ctx, email)
@@ -76,23 +76,22 @@ func (v *service) forEmail(ctx context.Context, email string) (model.User, error
 		}
 		return u, err
 	}
-	if u.EmailVerifiedAt != nil {
-		return u, nil
+	// Whoever registered the address never proved it: on this first proof the password they set
+	// and everything else that could sign in go (account pre-hijacking; the owner sets a password
+	// by reset).
+	u, _, err = v.g.Identity().ProveEmail(ctx, u.ID, false)
+	return u, err
+}
+
+// EraseAccess implements wiring.AccessEraser: the phone number confirmed (it signs in by SMS) and
+// the links and codes pending before anyone proved the user's mailbox go with its first proof.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	for _, table := range []string{TableSecrets, TablePhones} {
+		if _, err := p.svc.g.DB().Delete(ctx, table, store.Criteria{"user_id": userID}); err != nil {
+			return err
+		}
 	}
-	// Whoever registered the address never proved it: a password they set is not the mailbox
-	// owner's, so it goes (the owner can set one by reset). Conditional, so one sign-in verifies.
-	verified, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID, "email_verified_at": nil}, store.Data{
-		"email_verified_at": now, "password_hash": nil, "failed_login_count": 0, "failed_login_at": nil,
-		"locked_until": nil, "updated_at": now,
-	})
-	if err != nil {
-		return model.User{}, err
-	}
-	if verified == 1 {
-		v.g.Events().Dispatch(ctx, event.UserEmailVerified{UserID: u.ID, Email: u.Email})
-	}
-	u.EmailVerifiedAt, u.PasswordHash = &now, nil
-	return u, nil
+	return nil
 }
 
 // facts are how a session authenticated; a one-time token carries its generating session's.

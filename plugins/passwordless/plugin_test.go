@@ -416,6 +416,52 @@ func TestPlugin(t *testing.T) {
 		refused(t, e.v.resetPassword(ctx, "ada@example.com", code, "another new passphrase"), ErrCodeInvalid, "once")
 	})
 
+	// Whoever registered an address without proving it may have left more than a password: the
+	// first proof of the mailbox (a sign-in code, a reset code) removes every way in they made.
+	t.Run("TheFirstProofOfTheMailboxRemovesWhatCameBefore", func(t *testing.T) {
+		e := boot(t, Config{})
+		ctx := e.ctx
+		planted := func(email, phone string) model.User {
+			u := e.user(email, false)
+			now := time.Now().UTC().Truncate(time.Second)
+			ok(t, e.g.DB().Insert(ctx, TablePhones, store.Row{"user_id": u.ID, "e164": phone, "verified_at": now, "created_at": now}))
+			ok(t, e.g.Repos().MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now}))
+			return u
+		}
+		left := func(u model.User) (phones int64, factors int) {
+			phones, err := e.g.DB().Count(ctx, TablePhones, store.Criteria{"user_id": u.ID})
+			ok(t, err)
+			list, err := e.g.Repos().MFAFactors.ListByUser(ctx, u.ID)
+			ok(t, err)
+			return phones, len(list)
+		}
+
+		ada := planted("ada@example.com", "+15550100")
+		ok(t, e.v.sendEmailCode(ctx, "ada@example.com", PurposeSignIn))
+		data := must[envelope](t)(e.v.signInWithEmailCode(ctx, "ada@example.com", e.mailCode()))
+		if phones, factors := left(ada); data["access_token"] == nil || phones != 0 || factors != 0 || e.reload(ada.ID).PasswordHash != nil {
+			t.Fatalf("a sign-in code: session %v, phones %d, factors %d", data["access_token"] != nil, phones, factors)
+		}
+
+		grace := planted("grace@example.com", "+15550101")
+		ok(t, e.v.sendEmailCode(ctx, "grace@example.com", PurposeResetPassword))
+		ok(t, e.v.resetPassword(ctx, "grace@example.com", e.mailCode(), "a brand new passphrase"))
+		if phones, factors := left(grace); phones != 0 || factors != 0 || e.reload(grace.ID).EmailVerifiedAt == nil {
+			t.Fatalf("a reset code: phones %d, factors %d", phones, factors)
+		}
+		if res, err := e.g.Identity().Login(ctx, "grace@example.com", "a brand new passphrase", token.ClientContext{}); err != nil || res.UserID != grace.ID {
+			t.Fatalf("the owner signs in with the new password: %v", err)
+		}
+
+		// A verification code confirms the registration that set the password: nothing goes.
+		lin := planted("lin@example.com", "+15550102")
+		ok(t, e.v.sendEmailCode(ctx, "lin@example.com", PurposeVerifyEmail))
+		ok(t, e.v.verifyEmail(ctx, "lin@example.com", e.mailCode()))
+		if phones, factors := left(lin); phones != 1 || factors != 1 || e.reload(lin.ID).PasswordHash == nil || e.reload(lin.ID).EmailVerifiedAt == nil {
+			t.Fatalf("a verification code: phones %d, factors %d", phones, factors)
+		}
+	})
+
 	t.Run("AResetLiftsALockAndVerifies", func(t *testing.T) {
 		e := boot(t, Config{})
 		u := e.user("ada@example.com", false)
@@ -679,21 +725,39 @@ func parallel(n int, f func()) {
 	wg.Wait()
 }
 
-func TestEscapedJSON(t *testing.T) {
-	got, err := escapedJSON(magicLinkData{Email: "zoë@example.com", RedirectURI: "https://app.example/x?a=1&b=<2>"})
-	if err != nil {
+// The data column is written in standard JSON ("/" and UTF-8 as they are, {} when empty), and a
+// row written by an earlier release (slashes escaped "\/", non-ASCII as \uXXXX, [] for no data)
+// still reads.
+func TestTheDataColumnReadsBothForms(t *testing.T) {
+	e := boot(t, Config{})
+	ctx := e.ctx
+	data := func(kind string) string {
+		t.Helper()
+		rows, err := e.g.DB().FindMany(ctx, TableSecrets, store.Criteria{"kind": kind}, store.Query{})
+		if err != nil || len(rows) != 1 {
+			t.Fatalf("%s rows: %v %v", kind, rows, err)
+		}
+		return rows[0].String("data")
+	}
+	ok(t, e.v.sendMagicLink(ctx, "ada@example.com", ""))
+	tok := e.linkToken()
+	if got, want := data(kindMagicLink), `{"email":"ada@example.com","redirect_uri":"https://app.example/signed-in"}`; got != want {
+		t.Fatalf("written %s, want %s", got, want)
+	}
+	ok(t, e.v.sendEmailCode(ctx, "ada@example.com", PurposeSignIn))
+	if got := data(kindEmailSignIn); got != "{}" {
+		t.Fatalf("no data written %s", got)
+	}
+
+	old := `{"email":"\u0061da@example.com","redirect_uri":"https:\/\/app.example\/signed-in"}`
+	if _, err := e.g.DB().Update(ctx, TableSecrets, store.Criteria{"kind": kindMagicLink}, store.Data{"data": old}); err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"email":"zo` + "\\u00eb" + `@example.com","redirect_uri":"https:\/\/app.example\/x?a=1&b=<2>"}`; got != want {
-		t.Fatalf("got %s, want %s", got, want)
+	redirect := must[string](t)(e.v.verifyMagicLink(ctx, tok))
+	if !strings.HasPrefix(redirect, tDone+"?code=") {
+		t.Fatalf("an old row redirects to %q", redirect)
 	}
-	if got, _ := escapedJSON("\U0001F600"); got != "\"\\ud83d\\ude00\"" {
-		t.Fatalf("surrogates %s", got)
-	}
-	if got, _ := escapedJSON(nil); got != "[]" {
-		t.Fatalf("nil %s", got)
-	}
-	if _, err := escapedJSON(make(chan int)); err == nil {
-		t.Fatal("unencodable accepted")
+	if _, err := e.g.Repos().Users.ByEmail(ctx, "ada@example.com"); err != nil {
+		t.Fatalf("an old row signs up its address: %v", err)
 	}
 }

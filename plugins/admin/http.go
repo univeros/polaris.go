@@ -91,15 +91,15 @@ func success(data any) endpoint.Result { return endpoint.Data(http.StatusOK, dat
 
 func status(s string) endpoint.Result { return success(map[string]any{"status": s}) }
 
-// positiveInt reads an optional number or numeric string (fraction truncated) of at least 1, clamped
-// to MaxLimit; def when absent or "".
+// positiveInt reads an optional limit of at least 1, clamped to MaxLimit: a JSON integer, or a
+// query value of decimal digits only (no sign, spaces, fraction or exponent); def when absent or "".
 func positiveInt(v any, def int) (int, bool) {
 	var s string
 	switch v := v.(type) {
 	case nil:
 		return def, true
 	case string:
-		s = strings.TrimSpace(v)
+		s = v
 	case json.Number:
 		s = v.String()
 	default:
@@ -108,11 +108,14 @@ func positiveInt(v any, def int) (int, bool) {
 	if s == "" {
 		return def, true
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil || f < 1 {
+	if strings.TrimLeft(s, "0123456789") != "" {
 		return 0, false
 	}
-	return int(min(f, MaxLimit)), true
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 1 {
+		return 0, false
+	}
+	return min(n, MaxLimit), true
 }
 
 var timeLayouts = []string{time.RFC3339Nano, "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"}

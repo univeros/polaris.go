@@ -8,6 +8,7 @@
 package wiring
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -428,6 +429,7 @@ func (g *Graph) buildServices() error {
 		Tickets: g.tickets, Authority: g.resolver, Auth: g.auth, Breaches: g.breaches,
 		Clock: g.clock, Events: g.events,
 		OnUserCreated: g.config.Hooks.onUserCreated(), OnUserDeleted: g.config.Hooks.OnUserDeleted,
+		OnEmailProven: g.eraseAccess,
 	}); err != nil {
 		return fmt.Errorf("polaris: identity: %w", err)
 	}
@@ -440,6 +442,18 @@ func (g *Graph) buildServices() error {
 		Identity: g.identity, Sessions: g.sessions, MFA: g.mfa, Orgs: g.orgs, Tickets: g.tickets,
 		Denylist: g.denylist, Catalog: g.catalog, Resolver: g.resolver, Gate: g.gate,
 		Principals: g.principals, Escalation: g.escalation, Pepper: g.pepper,
+	}
+	return nil
+}
+
+// eraseAccess runs every AccessEraser plugin for a mailbox's first proof (identity.ProveEmail).
+func (g *Graph) eraseAccess(ctx context.Context, userID string) error {
+	for _, p := range g.plugins {
+		if e, ok := p.(AccessEraser); ok {
+			if err := e.EraseAccess(ctx, userID); err != nil {
+				return fmt.Errorf("plugin %q: %w", p.ID(), err)
+			}
+		}
 	}
 	return nil
 }

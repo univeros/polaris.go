@@ -27,7 +27,8 @@ func TestBehindATLSTerminatingProxy(t *testing.T) {
 				t.Fatalf("the email link follows the connection: %q", link)
 			}
 			u, _ := url.Parse(link)
-			expect(t, b.get(u.RequestURI()), 200, "Email verified")
+			expect(t, b.get(u.RequestURI()), 200, `name="token" value="`+token+`"`)
+			expect(t, b.post("/auth/ui/verify", url.Values{"token": {token}}), 200, "Email verified")
 
 			location(t, b.signIn("ada@example.com"), "/dashboard")
 			user, _ := a.srv.Users().ByEmail(t.Context(), "ada@example.com")

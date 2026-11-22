@@ -110,11 +110,11 @@ func (k Key) Map(now time.Time) map[string]any {
 		"metadata":        metadata(k.Metadata),
 		"status":          k.Status(now),
 		"rotated_from":    null(k.RotatedFromID),
-		"grace_until":     atom(k.GraceUntil),
-		"expires_at":      atom(k.ExpiresAt),
-		"last_used_at":    atom(k.LastUsedAt),
-		"created_at":      k.CreatedAt.UTC().Format(dateAtom),
-		"updated_at":      k.UpdatedAt.UTC().Format(dateAtom),
+		"grace_until":     timestamp(k.GraceUntil),
+		"expires_at":      timestamp(k.ExpiresAt),
+		"last_used_at":    timestamp(k.LastUsedAt),
+		"created_at":      timestamp(&k.CreatedAt),
+		"updated_at":      timestamp(&k.UpdatedAt),
 	}
 }
 
@@ -514,11 +514,12 @@ func nullTime(t *time.Time) any {
 	return *t
 }
 
-func atom(t *time.Time) any {
+// timestamp is how the API writes a time: RFC 3339 in UTC, to the second ("Z"); nil is null.
+func timestamp(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return t.UTC().Format(dateAtom)
+	return t.UTC().Format(time.RFC3339)
 }
 
 func list(s []string) []string {

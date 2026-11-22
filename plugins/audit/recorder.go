@@ -113,7 +113,7 @@ func mapCore(ev event.Event) (Event, bool) {
 	case event.UserLocked:
 		var until any
 		if v.Until != nil {
-			until = v.Until.UTC().Format(dateAtom)
+			until = timestamp(*v.Until)
 		}
 		e = userEvent(UserLocked, v.UserID, map[string]any{"until": until})
 		e.IP = str(v.IP)

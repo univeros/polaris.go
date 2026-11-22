@@ -9,6 +9,206 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Changed
+
+- **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
+  (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
+  sinks), multi-session, oauth, passkey, scim, sentinel, social, sso. admin echoed a key's or
+  grant's `expires_at` in the offset it was sent with; it now answers UTC. Agent receipts keep
+  `+00:00` in `created_at`, which their hash covers. Inputs accept both (decision 65).
+- **Client-visible:** `plugins/audit`: the file and webhook sinks write standard JSON (UTF-8, `/`
+  unescaped, `{}` for an empty object); the signature header still covers the bytes sent. The
+  stored trail and its hash chain are unchanged (decision 65).
+- **Client-visible:** `limit` on the admin, audit, sentinel, sso and scim listings, SCIM
+  `startIndex`/`count` and the agents receipts' `after`/`limit` must be integers (decimal digits
+  in a query, a JSON integer in a body); `1.5`, `1e1`, padded values are refused (422, SCIM 400
+  `invalidValue`) instead of truncated (decision 65).
+- **Client-visible:** `plugins/scim`: `active` must be a JSON boolean or the string
+  `"true"`/`"false"` in any case (what Microsoft Entra ID sends), in POST, PUT and PATCH; `"on"`,
+  `"yes"`, `"1"`, `1` answer 400 `invalidValue`, and a POST or PUT with `"false"` no longer
+  activates the account. `members` must be a list of
+  `{"value": id}`; a PATCH operation without `path` must carry an object; a filter value is a JSON
+  string (an unknown escape such as `\0`, a raw control character or a NUL is `invalidFilter`;
+  `\uXXXX` now decodes) (decision 65).
+- **Client-visible:** request bodies are read as their JSON types. agents: `arguments`/`input`
+  must be an object, constraints, operators and `budget` objects (a `[]` was read as `{}`; a list
+  of operators is now 422 `invalid_input`, was 400 `unknown_constraint_operator`), capability
+  lists lists, an agent's or host's name has no control character (a NUL was a 500 on
+  PostgreSQL, now 422 `invalid_input`); `max`/`min` need a JSON number argument and `in`/`not_in` compare numbers by value
+  (`1` equals `1.0`). api-keys: `name` a string, `permissions` a list, `metadata` an object. sso:
+  `config`, `attributes`, `jit` objects, `jit.enabled` a boolean, `jit.roles` and
+  `redirect_uris` lists; `sso_url`, `slo_url`, `slo_response_url` must be http(s) URLs
+  (decision 65).
+- **Client-visible:** `plugins/oauth`: a client's `jwks` must hold `keys` as an array (RFC 7517;
+  422 `invalid_client_metadata`, a `jwks_uri` document `invalid_client`); a fetched metadata or
+  JWKS document must be a JSON object. A key is chosen by `kid` only (a key without `kid` is no
+  longer named `"0"`, `"1"`…); a client assertion without `kid` verifies when the client has one
+  key. A client whose registered keys have no `kid` and that sent `kid: "0"` must drop the `kid`
+  (one key) or register keys with a `kid`. Clients registered with `keys` as an object keep
+  working (decision 65).
+- **Client-visible:** error texts. JWT failures in oauth, agents, sso and social read "the
+  signature does not verify", "the token has expired", "the token is not valid before …", … (were
+  "Signature verification failed", "Expired token", "Cannot handle token with nbf prior to …");
+  agents' argument-schema errors read `missing required properties: x`, `/p: must be string, not
+  integer`, …; problem titles in oauth, mcp and agents are sentences ("Invalid DPoP proof",
+  "Capability not granted", were "Invalid Dpop Proof", "Capability Not Granted"). Error codes and
+  problem types are unchanged (decision 65).
+- **Client-visible:** encodings. oauth authorization redirects leave `~` unescaped; social's
+  authorization URL is form-encoded (`scope=openid+email+profile`, was `%20`); mcp sends a boolean
+  tool argument as `true`/`false` (was `1`/empty) and refuses an object, list or null path
+  argument (`-32602`); messaging renders booleans `true`/`false` and escapes HTML with
+  `html.EscapeString` (`'` is `&#39;`, was `&#039;`) (decision 65).
+- `plugins/sso` and `plugins/social`: a provider's JWK without `alg` verifies the algorithm its
+  type implies (RSA RS256, EC P-256 ES256, Ed25519 EdDSA) and any other key without `alg` is
+  refused; it used to be taken as RS256. An expired IdP certificate in SAML still verifies, by
+  design (decision 65).
+- **Client-visible:** core routes write timestamps as RFC 3339 in UTC with `Z`
+  (`2026-06-10T09:00:00Z`, was `2026-06-10T09:00:00+00:00`): `GET /auth/sessions`, `POST`/`GET
+  /orgs/{id}/invites`, `GET`/`PATCH /users/{id}`. Same instant; any RFC 3339 parser reads both. A
+  client comparing timestamp strings byte for byte must compare parsed times (decision 64).
+- **Client-visible:** a core route answers 422 when a field holds another JSON type than its spec
+  declares, e.g. `{"errors": ["code must be a string."]}`. Send strings as strings (`"code":
+  "123456"`, not `123456`) and booleans as `true`/`false` (`"default": true`, not `"1"` or `1`).
+  Before, numbers and booleans were turned into text and `default` read `"0"`, `0` and `""` as
+  false (decision 64).
+- **Client-visible:** the `e164` and `regex` input rules no longer accept a value with a trailing
+  newline (`"+15551234567\n"`), and neither does a new organization slug (decision 64).
+- **Client-visible, Breaking for OpenAPI code generators:** each OpenAPI `operationId` is the
+  route's name (`polaris.auth.login`, was `post_LoginEndpoint`), unique across core and the
+  plugins; the JSON manifest (`polaris manifest`) carries `"name"` where it carried `"class"`.
+  Regenerate generated clients; their method names change (decision 64).
+- **Client-visible:** the exported manifest, the OpenAPI document and MCP tool schemas write an
+  empty object as `{}` (was `[]`): an untyped schema is `{}`, `"properties": {}`, and examples
+  documented as `{}` are typed as objects. Token claims encode an empty object as `{}` and large or
+  tiny floats as `encoding/json` does; tokens issued before keep verifying (decision 64).
+- **Client-visible:** new TOTP factors get a 20-byte secret (32 base32 characters, was 103), which
+  every authenticator app accepts. Factors enrolled before keep their secrets and keep working
+  (decision 64).
+- **Breaking:** `manifest.Route.Class` and the `domain.class` key of route specs are gone; a spec
+  that still has the key loads and the key is ignored. A `max:` rule argument must be a whole
+  number (`max:10abc` no longer loads) (decision 64).
+- Tokens whose `iat`, `nbf` or `exp` is a string or negative, or whose `aud` is not a string or a
+  list of strings, are refused. Polaris never issued such a token (decision 64).
+- `notify.Text` renders booleans as `true`/`false` (was `1` and empty); the built-in templates
+  carry none. `store.Row.Bool` reads text as `strconv.ParseBool` does (`y`/`yes` are no longer
+  true; no value Polaris or the drivers write changes). New `auth_audit_log.metadata` rows are
+  standard JSON (`{}` for no fields, `/` and non-ASCII unescaped, `Z` timestamps); earlier rows are
+  untouched and decode to the same values (decision 64).
+
+### Fixed
+
+- `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
+  `%2520`); each path segment is now escaped once (decision 65).
+
+## [0.5.1] - 2026-11-22
+
+Security fixes from the pre-1.0 security review (decisions 68 and 69). Upgrade now and **run
+`Migrate`** (one new table, `polaris_sso_account`). Some fixes change what clients see; read every
+entry if you use `plugins/sso`, `plugins/social`, `plugins/oauth` (with `verify` or `mcp.Protect`
+downstream), `plugins/admin` or `plugins/ui`. In particular: accounts an SSO provider created
+before this release sign in through SSO again once the organization verifies its email domain or
+you call `sso.Of(g).MarkProvisioned`; SSO sessions stay in their organization; OAuth tokens carry
+only the permission scopes their subject holds.
+
+### Added
+
+- For plugin authors: `wiring.Identity.ProveEmail`, the optional `wiring.AccessEraser` (a plugin
+  that stores a way to act as a user removes it on the mailbox's first proof),
+  `token.Token.OrganizationBound`, `token.AMRSSO`, `authz.Caller.OrganizationBound`,
+  `pipeline.DeniesBound`, `session.ErrOrganizationBound`. For hosts:
+  `Principal.OrganizationBound`, `sso.Plugin.MarkProvisioned`.
+- `oauth.ClientAuthority`: a plugin whose OAuth clients act as themselves says which permissions
+  such a client holds (`plugins/agents` implements it with `Plugin.ClientPermissions`).
+
+### Security
+
+- sso: a provider signs in an existing account only when its organization owns the account: one of
+  its providers created it just in time, one of its SCIM directories created it, or the account's
+  email domain is verified for the organization. Being a member of the organization is no longer
+  enough. **Breaking, client-visible:** other accounts answer 403 `sso/user_unknown`, including
+  accounts a provider created before this release: verify the organization's email domain, or
+  record them with `sso.Of(g).MarkProvisioned(ctx, organizationID, userID)`. An IdP LogoutRequest
+  ends sessions under the same rule. A platform superadmin no longer signs in through an
+  organization's provider.
+- sso: the session a provider opens is bound to the provider's organization (`amr` holds `sso`;
+  sessions opened before the upgrade included). **Client-visible:** `POST /auth/switch-org` to
+  another organization answers 403, and so does every route reserved to the account holder: the
+  password, MFA factors and step-up, passkeys, API keys, provider links, phone numbers, agents,
+  OAuth consent, creating or joining an organization, the profile, account deletion and
+  logout-everywhere. Reading, logging out, refreshing and the organization's permissioned routes
+  work as before. A user who needs the others signs in to the account itself. Hosts read
+  `Principal.OrganizationBound` and should refuse it on routes that act on the user's account or
+  on data outside the organization.
+- The first proof of an account's mailbox is one operation on every path (`Identity.ProveEmail`):
+  a password reset, a passwordless email code or magic link, a trusted social link and an SSO
+  sign-in on a verified domain, for an account whose email was never verified, mark it verified
+  and remove what could act as it before: the password, MFA factors and recovery codes, passkeys,
+  provider links, API keys, OAuth grants, agents, the confirmed phone and every session. Before,
+  each path removed a different part, and a provider account linked to an unverified account kept
+  signing in after the mailbox's owner took the account over. **Client-visible:** a password reset
+  (core's and the passwordless code) now verifies an unverified account (`email_verified` true,
+  `user.email_verified` dispatched); a verification link or code on an account that has no
+  password removes the same things; with a password it confirms the registration and removes
+  nothing, as before.
+- social: a sign-up whose provider does not vouch for the email creates no account and no link
+  when unverified accounts cannot sign in (`RequireVerifiedEmail`, the default). It answered 403
+  `social/email_unverified` before too, but left both behind in the address's name.
+  **Client-visible:** the address stays free to register; the person signs up another way and
+  links the provider from their account.
+- ui: opening the email verification link no longer verifies (mail scanners follow links).
+  **Client-visible:** `GET /auth/ui/verify?token=…` answers a page with one button, and its
+  CSRF-guarded POST verifies. New message key `verify_confirm`; a host template replacing
+  `verify.html` keeps working and may use `.TokenGiven`.
+- `plugins/oauth`: a scope that is a permission name (`org.read`, one of your
+  `Config.Permissions`) is put in an access token only if the token's subject holds that
+  permission when the token is minted: at issue, on every refresh and on a token exchange. A user
+  holds what their roles grant in the token's organization. A client acting as itself
+  (`client_credentials`) holds none, unless an operator registered it `trusted` with the
+  permission in its `scopes`, or it is an agent of `plugins/agents` (its live grants that its
+  owner holds). Before, any permission scope a client asked for was granted; the host's own routes
+  were not affected (they intersect with the user's permissions on every request), but a service
+  checking tokens with `verify.Require` or `mcp.Protect` read a permission the subject did not
+  hold. **Client-visible:** a token response's `scope` may list fewer scopes than requested
+  (RFC 6749 §3.3); clients should read it. `PATCH /orgs/{id}/oauth/clients/{clientId}` answers 400
+  `invalid_client_metadata` when it changes the `scopes` of a trusted client (an operator sets
+  them). If you run `verify` or `mcp.Protect` in other services, upgrade the Polaris host; their
+  documentation now says what a scope proves: only a permission scope is an authorization check,
+  a `Config.Scopes` scope says what the client asked for (decision 69).
+- `plugins/admin`: an operator below `owner` can no longer ban, unban, set the password of, remove
+  or reset the MFA of, or delete the account of a superadmin or of an operator whose grant is of
+  its own role or above. **Client-visible:** those requests answer 403 `admin/forbidden`; an
+  `owner` manages every account as before (decision 69).
+- MFA: second-factor attempts are limited per user, not only per IP. After
+  `auth.lockout.max_attempts` (5) codes that did not clear at the MFA login step or step-up,
+  recovery codes included, every code of that user is answered as a wrong one until
+  `auth.lockout.lock_duration` (15 minutes) has passed since the first; a code that clears resets
+  the count. **Client-visible:** during that window a right code answers the wrong-code 422
+  (decision 69).
+- MFA: an email or SMS code attempt is counted before the code is compared, so requests sent
+  together cannot get more compares than `auth.otp.max_attempts` (decision 69).
+- `plugins/ui`: `GET /auth/ui/refresh` renews the session only for a navigation the browser marks
+  `Sec-Fetch-Site: same-origin` or `none` (or without the header). **Client-visible:** arriving
+  from a link on another site with an expired access cookie shows a page with one "Continue" link
+  (messages `refresh_title`, `refresh_intro`) that renews the session, instead of renewing at
+  once (decision 69).
+- `plugins/agents`: on the plugin's routes a request JWT's `aud` is checked against
+  `Config.BaseURL`'s origin (default: the oauth plugin's base URL) instead of the request's `Host`
+  header; a TLS-terminating proxy no longer has to set `r.TLS` for them. **Client-visible:** an
+  agent calling Polaris under another host name gets `aud_mismatch`. An autonomous agent's own
+  token carries only the grant permissions its owner still holds (decision 69).
+- `verify`, `mcp.Protect`: a failed fetch of the issuer's JWK Set is remembered for 5 seconds, so
+  requests answer 503 at once while the issuer is down instead of waiting for one another's
+  timeout (decision 69).
+
+## [0.5.0] - 2026-11-22
+
+Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
+tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
+a remedy if your data needs a manual step (see the admin entry under Security). Read the
+**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
+429 bodies, `budget_exhausted` and whole-second token timestamps.
+
 ### Added
 
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
@@ -58,38 +258,6 @@ marked **Breaking**.
   (decision 62).
 - `plugins/scim` adds a table, `polaris_scim_user_name`; run `Migrate` after upgrading
   (decision 62).
-- **Client-visible:** core routes write timestamps as RFC 3339 in UTC with `Z`
-  (`2026-06-10T09:00:00Z`, was `2026-06-10T09:00:00+00:00`): `GET /auth/sessions`, `POST`/`GET
-  /orgs/{id}/invites`, `GET`/`PATCH /users/{id}`. Same instant; any RFC 3339 parser reads both. A
-  client comparing timestamp strings byte for byte must compare parsed times (decision 64).
-- **Client-visible:** a core route answers 422 when a field holds another JSON type than its spec
-  declares, e.g. `{"errors": ["code must be a string."]}`. Send strings as strings (`"code":
-  "123456"`, not `123456`) and booleans as `true`/`false` (`"default": true`, not `"1"` or `1`).
-  Before, numbers and booleans were turned into text and `default` read `"0"`, `0` and `""` as
-  false (decision 64).
-- **Client-visible:** the `e164` and `regex` input rules no longer accept a value with a trailing
-  newline (`"+15551234567\n"`), and neither does a new organization slug (decision 64).
-- **Client-visible, Breaking for OpenAPI code generators:** each OpenAPI `operationId` is the
-  route's name (`polaris.auth.login`, was `post_LoginEndpoint`), unique across core and the
-  plugins; the JSON manifest (`polaris manifest`) carries `"name"` where it carried `"class"`.
-  Regenerate generated clients; their method names change (decision 64).
-- **Client-visible:** the exported manifest, the OpenAPI document and MCP tool schemas write an
-  empty object as `{}` (was `[]`): an untyped schema is `{}`, `"properties": {}`, and examples
-  documented as `{}` are typed as objects. Token claims encode an empty object as `{}` and large or
-  tiny floats as `encoding/json` does; tokens issued before keep verifying (decision 64).
-- **Client-visible:** new TOTP factors get a 20-byte secret (32 base32 characters, was 103), which
-  every authenticator app accepts. Factors enrolled before keep their secrets and keep working
-  (decision 64).
-- **Breaking:** `manifest.Route.Class` and the `domain.class` key of route specs are gone; a spec
-  that still has the key loads and the key is ignored. A `max:` rule argument must be a whole
-  number (`max:10abc` no longer loads) (decision 64).
-- Tokens whose `iat`, `nbf` or `exp` is a string or negative, or whose `aud` is not a string or a
-  list of strings, are refused. Polaris never issued such a token (decision 64).
-- `notify.Text` renders booleans as `true`/`false` (was `1` and empty); the built-in templates
-  carry none. `store.Row.Bool` reads text as `strconv.ParseBool` does (`y`/`yes` are no longer
-  true; no value Polaris or the drivers write changes). New `auth_audit_log.metadata` rows are
-  standard JSON (`{}` for no fields, `/` and non-ASCII unescaped, `Z` timestamps); earlier rows are
-  untouched and decode to the same values (decision 64).
 
 ### Fixed
 
@@ -109,6 +277,12 @@ marked **Breaking**.
   (decision 62).
 
 ### Security
+
+- **Critical:** an organization's owner could create a role slugged `superadmin` and be treated as
+  the platform superadmin (other organizations' members, roles, OAuth clients, SSO providers and
+  audit; platform-only permissions). Only the system superadmin role counts now, and the slug is
+  reserved (decision 67). After upgrading, check for organization roles with that slug:
+  `SELECT * FROM auth_roles WHERE slug = 'superadmin' AND organization_id IS NOT NULL`.
 
 - MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
   factors. After an email code or magic link to an address (or an SMS code to a phone), the
@@ -318,7 +492,9 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1

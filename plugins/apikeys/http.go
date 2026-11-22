@@ -154,8 +154,10 @@ func (p *Plugin) create(ctx context.Context, in *endpoint.Input, tok *token.Toke
 	limit, okL := rateLimitOf(in.Value("rate_limit"))
 	meta, errM := metadataOf(in.Value("metadata"))
 	expires, okE := timeOf(in.Value("expires_at"))
-	if !okP || !okL || errors.Is(errM, errMalformed) || !okE {
-		return invalidInput("permissions is a list, rate_limit an object with window and max, metadata an object, expires_at a date.")
+	name, okN := in.Value("name").(string)
+	okN = okN || in.Value("name") == nil
+	if !okN || !okP || !okL || errors.Is(errM, errMalformed) || !okE {
+		return invalidInput("name is a string, permissions a list, rate_limit an object with window and max, metadata an object, expires_at a date.")
 	}
 	ownerType, ownerID, orgID, err := p.owner(ctx, in, tok)
 	if err != nil {
@@ -170,14 +172,14 @@ func (p *Plugin) create(ctx context.Context, in *endpoint.Input, tok *token.Toke
 	}
 	env, _ := in.Value("environment").(string)
 	issued, err := p.keys.Create(ctx, CreateParams{
-		OwnerType: ownerType, OwnerID: ownerID, OrganizationID: orgID, CreatedBy: tok.Subject(), Name: scalar(in.Value("name")),
+		OwnerType: ownerType, OwnerID: ownerID, OrganizationID: orgID, CreatedBy: tok.Subject(), Name: name,
 		Permissions: perms, Held: held, Environment: env, RateLimit: limit, ExpiresAt: expires, Metadata: meta,
 	})
 	if err != nil {
 		return p.refuse(ctx, err)
 	}
 	key := issued.Key
-	p.dispatch(ctx, AuditCreated, tok, key, map[string]any{"name": key.Name, "permissions": list(key.Permissions), "expires_at": atom(key.ExpiresAt)})
+	p.dispatch(ctx, AuditCreated, tok, key, map[string]any{"name": key.Name, "permissions": list(key.Permissions), "expires_at": timestamp(key.ExpiresAt)})
 	data := key.Map(p.keys.now())
 	data["key"] = issued.Secret
 	return endpoint.Data(http.StatusCreated, data)
@@ -278,7 +280,7 @@ func (p *Plugin) rotate(ctx context.Context, in *endpoint.Input, tok *token.Toke
 	if err != nil {
 		return p.refuse(ctx, err)
 	}
-	p.dispatch(ctx, AuditRotated, tok, key, map[string]any{"successor": issued.Key.ID, "grace_until": atom(key.GraceUntil)})
+	p.dispatch(ctx, AuditRotated, tok, key, map[string]any{"successor": issued.Key.ID, "grace_until": timestamp(key.GraceUntil)})
 	data := issued.Key.Map(p.keys.now())
 	data["key"] = issued.Secret
 	return endpoint.Data(http.StatusCreated, data)
@@ -301,37 +303,16 @@ func (p *Plugin) verify(ctx context.Context, in *endpoint.Input, _ *token.Token)
 		"valid": true, "id": key.ID, "name": key.Name, "owner_type": key.OwnerType, "owner_id": key.OwnerID,
 		"organization_id": null(key.OrganizationID), "subject": key.Subject(), "permissions": list(key.Permissions),
 		"rate_limit": rateLimitValue(key.RateLimit), "metadata": metadata(key.Metadata),
-		"status": key.Status(p.keys.now()), "expires_at": atom(key.ExpiresAt),
+		"status": key.Status(p.keys.now()), "expires_at": timestamp(key.ExpiresAt),
 	})
 }
 
-// scalar reads a scalar as text: a string as is, a number in its JSON form, true as "1"; false
-// and anything else are "".
-func scalar(v any) string {
-	switch v := v.(type) {
-	case string:
-		return v
-	case json.Number:
-		return v.String()
-	case bool:
-		if v {
-			return "1"
-		}
-	}
-	return ""
-}
-
-// permissionsOf reads a permission list: absent is empty when allowNil (create); a non-string item
-// becomes "?", which the key service refuses as an unknown permission.
+// permissionsOf reads a JSON list of permissions: absent is empty when allowNil (create); a
+// non-string item becomes "?", which the key service refuses as an unknown permission.
 func permissionsOf(v any, allowNil bool) ([]string, bool) {
 	switch v := v.(type) {
 	case nil:
 		return []string{}, allowNil
-	case map[string]any:
-		if len(v) == 0 {
-			return []string{}, true
-		}
-		return []string{"?"}, true
 	case []any:
 		out := make([]string, len(v))
 		for i, item := range v {
@@ -354,8 +335,6 @@ func rateLimitOf(v any) (*RateLimit, bool) {
 		return nil, true
 	case map[string]any:
 		return &RateLimit{Window: integer(v["window"]), Max: integer(v["max"])}, true
-	case []any:
-		return &RateLimit{}, true
 	}
 	return nil, false
 }
@@ -375,18 +354,13 @@ func integer(v any) int {
 // errMalformed marks an input of the wrong JSON type.
 var errMalformed = errors.New("apikeys: malformed input")
 
-// metadataOf reads an object; an empty list is an empty object, a non-empty one is refused.
+// metadataOf reads a JSON object.
 func metadataOf(v any) (map[string]any, error) {
 	switch v := v.(type) {
 	case nil:
 		return map[string]any{}, nil
 	case map[string]any:
 		return v, nil
-	case []any:
-		if len(v) == 0 {
-			return map[string]any{}, nil
-		}
-		return nil, invalid("metadata must be an object.")
 	}
 	return nil, errMalformed
 }

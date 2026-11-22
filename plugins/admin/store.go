@@ -24,18 +24,18 @@ const keyPepperContext = "admin_key"
 
 const keyNameMax = 120
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
 // ErrInvalid wraps the refusal of a grant or key with an invalid role, scope, name or allowlist.
 var ErrInvalid = errors.New("admin: invalid input")
 
+// timestamp is the wire form of a time: RFC 3339 in UTC, to the second ("2026-09-11T10:00:00Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
+
+// atom is timestamp for an optional time: nil for none.
 func atom(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return t.Format(dateAtom)
+	return timestamp(*t)
 }
 
 func null(s string) any {
@@ -68,7 +68,7 @@ type Grant struct {
 func (g Grant) Map() map[string]any {
 	return map[string]any{
 		"id": g.ID, "user_id": g.UserID, "role": string(g.Role), "scope": g.Scope,
-		"granted_by": null(g.GrantedBy), "expires_at": atom(g.ExpiresAt), "created_at": g.CreatedAt.Format(dateAtom),
+		"granted_by": null(g.GrantedBy), "expires_at": atom(g.ExpiresAt), "created_at": timestamp(g.CreatedAt),
 	}
 }
 
@@ -195,7 +195,7 @@ func (k Key) Map() map[string]any {
 	return map[string]any{
 		"id": k.ID, "name": k.Name, "role": string(k.Role), "scope": k.Scope, "ip_allowlist": allow,
 		"expires_at": atom(k.ExpiresAt), "last_used_at": atom(k.LastUsedAt), "created_by": null(k.CreatedBy),
-		"created_at": k.CreatedAt.Format(dateAtom),
+		"created_at": timestamp(k.CreatedAt),
 	}
 }
 
@@ -238,9 +238,8 @@ func (s *Keys) Create(ctx context.Context, k Key) (Key, string, error) {
 	}
 	err = s.db.Insert(ctx, TableKeys, store.Row{
 		"id": k.ID, "name": k.Name, "key_hash": s.pepper.Hash(keyPepperContext, secret), "role": string(k.Role),
-		// The stored text escapes slashes ("10.0.0.0\/8"), the bytes rows written by earlier releases
-		// hold.
-		"scope": k.Scope, "ip_allowlist": strings.ReplaceAll(allow, "/", `\/`), "expires_at": timeOrNil(k.ExpiresAt),
+		// Rows written by earlier releases escape slashes ("10.0.0.0\/8"); hydrateKey decodes both.
+		"scope": k.Scope, "ip_allowlist": allow, "expires_at": timeOrNil(k.ExpiresAt),
 		"last_used_at": nil, "created_by": null(k.CreatedBy), "created_at": k.CreatedAt,
 	})
 	if err != nil {

@@ -123,7 +123,7 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	sp := u.p.SP()
 	check(t, sp.EntityID("p1") == base+"/sso/metadata/p1" && sp.ACSURL("p1") == base+"/sso/callback/p1" && sp.SLOURL("p1") == base+"/sso/slo/p1", "sp %v", sp)
 	check(t, sso.Of(g) == u.p, "Of")
-	check(t, len(sso.Models()) == 2 && sso.Models()[0].Table == sso.TableProviders, "models")
+	check(t, len(sso.Models()) == 3 && sso.Models()[0].Table == sso.TableProviders && sso.Models()[2].Table == sso.TableAccounts, "models")
 }
 
 func TestProvidersKeepTheSecretEncryptedAndAreListed(t *testing.T) {
@@ -149,8 +149,8 @@ func TestProvidersKeepTheSecretEncryptedAndAreListed(t *testing.T) {
 	if !storetest.JSONNormalized(u.srv.DB.Dialect()) {
 		check(t, strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "stored bytes: %s", row.String("config"))
 	}
-	check(t, stored("redirect_uris", `["https:\/\/app.example\/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
-		stored("attributes", `{"email":"email"}`), "stored in the escaped JSON form: %v", row)
+	check(t, stored("redirect_uris", `["https://app.example/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
+		stored("attributes", `{"email":"email"}`), "stored in standard JSON: %v", row)
 	secret, err := providers.Secret(p)
 	check(t, secret == "shh" && err == nil, "secret %q %v", secret, err)
 	m := p.Map()

@@ -189,7 +189,8 @@ func (p *Plugin) baseURL(g *wiring.Graph) string {
 	return strings.TrimRight(g.Auth().Issuer, "/") + strings.TrimRight(g.Config().PathPrefix, "/") + Prefix
 }
 
-// VerifyEmailURL is the link for a verification email: the page that verifies token. A Mailer
+// VerifyEmailURL is the link for a verification email: the page whose button verifies token
+// (opening the link verifies nothing: mail scanners follow links). A Mailer
 // builds it from the "token" of notify.TemplateVerifyEmail.
 func (p *Plugin) VerifyEmailURL(token string) string {
 	return p.baseURL(p.g) + "/verify?token=" + url.QueryEscape(token)

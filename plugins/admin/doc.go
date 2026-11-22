@@ -30,6 +30,10 @@
 //	Impersonate                  ✓     ✓    impersonate a user
 //	Own                                ✓    grants, API keys, drains, other plugins' admin routes
 //
+// Manage on an account (ban, unban, password, MFA, delete) does not reach up: below owner, an
+// operator is refused (403 admin/forbidden) on the account of a superadmin or of an operator whose
+// grant is of its own role or above.
+//
 // # Admin routes of other plugins (agents, oauth, scim)
 //
 // A plugin adds an admin route by declaring it in its own manifest with tags: [admin, …] and

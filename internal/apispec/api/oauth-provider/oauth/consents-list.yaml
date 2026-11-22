@@ -19,7 +19,7 @@ output:
   status: 200
   example:
     data:
-      - { id: "018f...", client_id: "pcl_...", organization_id: null, scopes: [openid, org.read], granted_at: "2026-10-10T10:00:00+00:00", updated_at: "2026-10-10T10:00:00+00:00", client: { client_id: "pcl_...", name: "Acme CLI", logo_uri: null, client_uri: null, policy_uri: null, tos_uri: null, trusted: false } }
+      - { id: "018f...", client_id: "pcl_...", organization_id: null, scopes: [openid, org.read], granted_at: "2026-10-10T10:00:00Z", updated_at: "2026-10-10T10:00:00Z", client: { client_id: "pcl_...", name: "Acme CLI", logo_uri: null, client_uri: null, policy_uri: null, tos_uri: null, trusted: false } }
 
 errors:
   - { status: 401, code: unauthorized }

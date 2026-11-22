@@ -5788,7 +5788,7 @@
                                         {
                                             "id": "018f...",
                                             "name": "session.signed_in",
-                                            "occurred_at": "2026-09-11T10:00:00+00:00",
+                                            "occurred_at": "2026-09-11T10:00:00Z",
                                             "actor_type": "user",
                                             "actor_id": "018f...",
                                             "subject_id": "018f...",
@@ -6003,7 +6003,7 @@
                                         {
                                             "id": "018f...",
                                             "name": "org.member_invited",
-                                            "occurred_at": "2026-09-11T10:00:00+00:00",
+                                            "occurred_at": "2026-09-11T10:00:00Z",
                                             "actor_type": "user",
                                             "actor_id": "018f...",
                                             "subject_id": "018f...",
@@ -6306,7 +6306,7 @@
                                         {
                                             "id": "018f...",
                                             "name": "admin.user_banned",
-                                            "occurred_at": "2026-09-11T10:00:00+00:00",
+                                            "occurred_at": "2026-09-11T10:00:00Z",
                                             "actor_type": "admin",
                                             "actor_id": "018f...",
                                             "subject_id": "018f...",
@@ -6487,7 +6487,7 @@
                                         "status": "active",
                                         "last_delivery_at": null,
                                         "last_error": null,
-                                        "created_at": "2026-09-11T10:00:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -6636,7 +6636,7 @@
                                             "status": "active",
                                             "last_delivery_at": null,
                                             "last_error": null,
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -6876,7 +6876,7 @@
                                         "status": "active",
                                         "last_delivery_at": null,
                                         "last_error": null,
-                                        "created_at": "2026-09-11T10:00:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -7013,7 +7013,7 @@
                                         "scope": "instance",
                                         "granted_by": "018f...",
                                         "expires_at": null,
-                                        "created_at": "2026-09-11T10:00:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -7134,7 +7134,7 @@
                                             "scope": "instance",
                                             "granted_by": "018f...",
                                             "expires_at": null,
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -7372,7 +7372,7 @@
                                         "expires_at": null,
                                         "last_used_at": null,
                                         "created_by": "018f...",
-                                        "created_at": "2026-09-11T10:00:00+00:00",
+                                        "created_at": "2026-09-11T10:00:00Z",
                                         "key": "pak_..."
                                     }
                                 }
@@ -7498,7 +7498,7 @@
                                             "expires_at": null,
                                             "last_used_at": null,
                                             "created_by": "018f...",
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -7696,9 +7696,9 @@
                                             "type": "totp",
                                             "label": "Phone",
                                             "is_default": true,
-                                            "confirmed_at": "2026-09-11T10:00:00+00:00",
+                                            "confirmed_at": "2026-09-11T10:00:00Z",
                                             "last_used_at": null,
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -8125,8 +8125,8 @@
                                         "slug": "acme-rockets",
                                         "status": "active",
                                         "created_by": "018f...",
-                                        "created_at": "2026-09-11T10:00:00+00:00",
-                                        "updated_at": "2026-09-11T10:00:00+00:00",
+                                        "created_at": "2026-09-11T10:00:00Z",
+                                        "updated_at": "2026-09-11T10:00:00Z",
                                         "members": [
                                             {
                                                 "user_id": "018f...",
@@ -8279,8 +8279,8 @@
                                             "slug": "acme-rockets",
                                             "status": "active",
                                             "created_by": "018f...",
-                                            "created_at": "2026-09-11T10:00:00+00:00",
-                                            "updated_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z",
+                                            "updated_at": "2026-09-11T10:00:00Z"
                                         }
                                     ],
                                     "next_cursor": null
@@ -8536,8 +8536,8 @@
                                             "current": false,
                                             "ip": "203.0.113.7",
                                             "user_agent": "Mozilla/5.0",
-                                            "created_at": "2026-09-11T10:00:00+00:00",
-                                            "last_used_at": "2026-09-11T10:05:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z",
+                                            "last_used_at": "2026-09-11T10:05:00Z"
                                         }
                                     ]
                                 }
@@ -8877,7 +8877,7 @@
                                 },
                                 "example": {
                                     "data": {
-                                        "generated_at": "2026-09-11T10:00:00+00:00",
+                                        "generated_at": "2026-09-11T10:00:00Z",
                                         "totals": {
                                             "users": 120,
                                             "organizations": 8,
@@ -9209,9 +9209,9 @@
                                         "email_verified": true,
                                         "mfa_enforced": false,
                                         "locked_until": null,
-                                        "created_at": "2026-09-11T10:00:00+00:00",
-                                        "last_login_at": "2026-09-11T10:05:00+00:00",
-                                        "last_active_at": "2026-09-11T10:05:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z",
+                                        "last_login_at": "2026-09-11T10:05:00Z",
+                                        "last_active_at": "2026-09-11T10:05:00Z"
                                     }
                                 }
                             }
@@ -9489,9 +9489,9 @@
                                             "email_verified": true,
                                             "mfa_enforced": false,
                                             "locked_until": null,
-                                            "created_at": "2026-09-11T10:00:00+00:00",
-                                            "last_login_at": "2026-09-11T10:05:00+00:00",
-                                            "last_active_at": "2026-09-11T10:05:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z",
+                                            "last_login_at": "2026-09-11T10:05:00Z",
+                                            "last_active_at": "2026-09-11T10:05:00Z"
                                         }
                                     ],
                                     "next_cursor": null
@@ -9889,7 +9889,7 @@
                                             "reasons": [
                                                 "email: 11 attempts in 600 s (limit 10)"
                                             ],
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ],
                                     "next_cursor": null
@@ -10017,7 +10017,7 @@
                                         "action": "block",
                                         "note": "scanner",
                                         "created_by": "018f...",
-                                        "created_at": "2026-09-11T10:00:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -10120,7 +10120,7 @@
                                             "action": "block",
                                             "note": "scanner",
                                             "created_by": "018f...",
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -10992,7 +10992,7 @@
                                             },
                                             "verified": false,
                                             "verified_at": null,
-                                            "created_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -11202,7 +11202,7 @@
                                         "id": "018f...",
                                         "domain": "acme.example",
                                         "verified": true,
-                                        "verified_at": "2026-09-11T10:00:00+00:00"
+                                        "verified_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -11736,8 +11736,8 @@
                                         ],
                                         "enabled": true,
                                         "created_by": "018f...",
-                                        "created_at": "2026-09-11T10:00:00+00:00",
-                                        "updated_at": "2026-09-11T10:00:00+00:00"
+                                        "created_at": "2026-09-11T10:00:00Z",
+                                        "updated_at": "2026-09-11T10:00:00Z"
                                     }
                                 }
                             }
@@ -11952,8 +11952,8 @@
                                             ],
                                             "enabled": true,
                                             "created_by": "018f...",
-                                            "created_at": "2026-09-11T10:00:00+00:00",
-                                            "updated_at": "2026-09-11T10:00:00+00:00"
+                                            "created_at": "2026-09-11T10:00:00Z",
+                                            "updated_at": "2026-09-11T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -13276,10 +13276,10 @@
                                             "name": "Okta",
                                             "status": "active",
                                             "deprovision": "deactivate",
-                                            "last_sync_at": "2026-09-12T10:00:00+00:00",
+                                            "last_sync_at": "2026-09-12T10:00:00Z",
                                             "decommissioned_at": null,
                                             "created_by": "018f...",
-                                            "created_at": "2026-09-12T10:00:00+00:00",
+                                            "created_at": "2026-09-12T10:00:00Z",
                                             "sync": {
                                                 "users": 12,
                                                 "groups": 2,
@@ -16779,8 +16779,8 @@
                                                 "display_name": "Ada"
                                             },
                                             "last_method": "magic_link",
-                                            "signed_in_at": "2026-10-09T10:00:00+00:00",
-                                            "last_seen": "2026-10-09T10:05:00+00:00",
+                                            "signed_in_at": "2026-10-09T10:00:00Z",
+                                            "last_seen": "2026-10-09T10:05:00Z",
                                             "current": true
                                         }
                                     ]
@@ -17156,8 +17156,8 @@
                                                 "name": "Ada",
                                                 "picture": "https://..."
                                             },
-                                            "created_at": "2026-10-09T10:00:00+00:00",
-                                            "updated_at": "2026-10-09T10:00:00+00:00"
+                                            "created_at": "2026-10-09T10:00:00Z",
+                                            "updated_at": "2026-10-09T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -17924,7 +17924,7 @@
                                 "example": {
                                     "data": {
                                         "access_token": "<opaque>",
-                                        "expires_at": "2026-10-09T11:00:00+00:00",
+                                        "expires_at": "2026-10-09T11:00:00Z",
                                         "scopes": [
                                             "repo"
                                         ]
@@ -18452,7 +18452,7 @@
                                         "backed_up": true,
                                         "factor_id": "018f...",
                                         "last_used_at": null,
-                                        "created_at": "2026-10-09T10:00:00+00:00"
+                                        "created_at": "2026-10-09T10:00:00Z"
                                     }
                                 }
                             }
@@ -18576,8 +18576,8 @@
                                             ],
                                             "backed_up": true,
                                             "factor_id": "018f...",
-                                            "last_used_at": "2026-10-09T10:05:00+00:00",
-                                            "created_at": "2026-10-09T10:00:00+00:00"
+                                            "last_used_at": "2026-10-09T10:05:00Z",
+                                            "created_at": "2026-10-09T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -18895,7 +18895,7 @@
                                             "backed_up": true,
                                             "factor_id": "018f...",
                                             "last_used_at": null,
-                                            "created_at": "2026-10-09T10:00:00+00:00"
+                                            "created_at": "2026-10-09T10:00:00Z"
                                         },
                                         "recovery_codes": [
                                             "<code>",
@@ -19147,8 +19147,8 @@
                                         "grace_until": null,
                                         "expires_at": null,
                                         "last_used_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "key": "pk_live_..."
                                     }
                                 }
@@ -19364,9 +19364,9 @@
                                             "rotated_from": null,
                                             "grace_until": null,
                                             "expires_at": null,
-                                            "last_used_at": "2026-10-10T10:05:00+00:00",
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "last_used_at": "2026-10-10T10:05:00Z",
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -19629,8 +19629,8 @@
                                         "grace_until": null,
                                         "expires_at": null,
                                         "last_used_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z"
                                     }
                                 }
                             }
@@ -19845,8 +19845,8 @@
                                         "grace_until": null,
                                         "expires_at": null,
                                         "last_used_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:10:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:10:00Z"
                                     }
                                 }
                             }
@@ -20051,8 +20051,8 @@
                                         "grace_until": null,
                                         "expires_at": null,
                                         "last_used_at": null,
-                                        "created_at": "2026-10-10T11:00:00+00:00",
-                                        "updated_at": "2026-10-10T11:00:00+00:00",
+                                        "created_at": "2026-10-10T11:00:00Z",
+                                        "updated_at": "2026-10-10T11:00:00Z",
                                         "key": "pk_live_..."
                                     }
                                 }
@@ -20534,8 +20534,8 @@
                                         "tos_uri": null,
                                         "created_by": "018f...",
                                         "disabled_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "client_secret": null
                                     }
                                 }
@@ -20749,8 +20749,8 @@
                                             "tos_uri": null,
                                             "created_by": "018f...",
                                             "disabled_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -21467,8 +21467,8 @@
                                             ],
                                             "binding_message": "Deploy to production?",
                                             "status": "pending",
-                                            "expires_at": "2026-10-10T10:10:00+00:00",
-                                            "created_at": "2026-10-10T10:00:00+00:00",
+                                            "expires_at": "2026-10-10T10:10:00Z",
+                                            "created_at": "2026-10-10T10:00:00Z",
                                             "client": {
                                                 "client_id": "pcl_...",
                                                 "name": "Acme bot",
@@ -21728,8 +21728,8 @@
                                                 "openid",
                                                 "org.read"
                                             ],
-                                            "granted_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00",
+                                            "granted_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z",
                                             "client": {
                                                 "client_id": "pcl_...",
                                                 "name": "Acme CLI",
@@ -22294,7 +22294,7 @@
                                                 "description": "View the organization profile"
                                             }
                                         ],
-                                        "expires_at": "2026-10-10T10:30:00+00:00"
+                                        "expires_at": "2026-10-10T10:30:00Z"
                                     }
                                 }
                             }
@@ -22854,8 +22854,8 @@
                                         "tos_uri": null,
                                         "created_by": "018f...",
                                         "disabled_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "client_secret": "pcs_..."
                                     }
                                 }
@@ -23084,8 +23084,8 @@
                                             "tos_uri": null,
                                             "created_by": "018f...",
                                             "disabled_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -23410,8 +23410,8 @@
                                         "tos_uri": null,
                                         "created_by": "018f...",
                                         "disabled_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z"
                                     }
                                 }
                             }
@@ -23705,8 +23705,8 @@
                                         "tos_uri": null,
                                         "created_by": "018f...",
                                         "disabled_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:10:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:10:00Z"
                                     }
                                 }
                             }
@@ -23958,8 +23958,8 @@
                                     "client_uri": null,
                                     "policy_uri": null,
                                     "tos_uri": null,
-                                    "created_at": "2026-10-10T10:00:00+00:00",
-                                    "updated_at": "2026-10-10T10:00:00+00:00",
+                                    "created_at": "2026-10-10T10:00:00Z",
+                                    "updated_at": "2026-10-10T10:00:00Z",
                                     "client_secret": "pcs_...",
                                     "client_secret_expires_at": 0
                                 }
@@ -24696,8 +24696,8 @@
                                             "status": "active",
                                             "created_by": "018f...",
                                             "sealed_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -24906,9 +24906,9 @@
                                         "public_jwk": null,
                                         "status": "revoked",
                                         "created_by": "018f...",
-                                        "sealed_at": "2026-10-10T10:00:00+00:00",
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "sealed_at": "2026-10-10T10:00:00Z",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "sealed_receipt": {
                                             "id": "018f...",
                                             "agent_id": "018f...",
@@ -24922,7 +24922,7 @@
                                             "prev_hash": null,
                                             "hash": "2c26...",
                                             "signature": "<jwt>",
-                                            "created_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z"
                                         }
                                     }
                                 }
@@ -25202,9 +25202,9 @@
                                         "binding_message": null,
                                         "status": "approved",
                                         "decided_by": "018f...",
-                                        "expires_at": "2026-10-10T10:10:00+00:00",
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "expires_at": "2026-10-10T10:10:00Z",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "grants": [
                                             {
                                                 "id": "018f...",
@@ -25222,8 +25222,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ]
                                     }
@@ -25602,9 +25602,9 @@
                                             "binding_message": null,
                                             "status": "pending",
                                             "decided_by": null,
-                                            "expires_at": "2026-10-10T10:10:00+00:00",
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00",
+                                            "expires_at": "2026-10-10T10:10:00Z",
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z",
                                             "verification_uri": "https://app.example.com/agents/approve",
                                             "verification_uri_complete": "https://app.example.com/agents/approve?user_code=BCDF-GHJK",
                                             "expires_in": 600,
@@ -25630,8 +25630,8 @@
                                                 "status": "active",
                                                 "created_by": "018f...",
                                                 "sealed_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             },
                                             "grants": [
                                                 {
@@ -25650,8 +25650,8 @@
                                                     "approved_via": "auto",
                                                     "approval_id": null,
                                                     "expires_at": null,
-                                                    "created_at": "2026-10-10T10:00:00+00:00",
-                                                    "updated_at": "2026-10-10T10:00:00+00:00"
+                                                    "created_at": "2026-10-10T10:00:00Z",
+                                                    "updated_at": "2026-10-10T10:00:00Z"
                                                 }
                                             ]
                                         }
@@ -25997,9 +25997,9 @@
                                         "binding_message": null,
                                         "status": "pending",
                                         "decided_by": null,
-                                        "expires_at": "2026-10-10T10:10:00+00:00",
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "expires_at": "2026-10-10T10:10:00Z",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "verification_uri": "https://app.example.com/agents/approve",
                                         "verification_uri_complete": "https://app.example.com/agents/approve?user_code=BCDF-GHJK",
                                         "expires_in": 600,
@@ -26025,8 +26025,8 @@
                                             "status": "active",
                                             "created_by": "018f...",
                                             "sealed_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         },
                                         "grants": [
                                             {
@@ -26045,8 +26045,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ]
                                     }
@@ -26751,8 +26751,8 @@
                                         "status": "active",
                                         "created_by": "018f...",
                                         "sealed_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "grants": [
                                             {
                                                 "id": "018f...",
@@ -26770,8 +26770,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ],
                                         "approval": {
@@ -27092,8 +27092,8 @@
                                         "approved_via": "auto",
                                         "approval_id": null,
                                         "expires_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z"
                                     }
                                 }
                             }
@@ -27353,8 +27353,8 @@
                                             "approved_via": "auto",
                                             "approval_id": null,
                                             "expires_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ],
                                     "approval": {
@@ -27536,7 +27536,7 @@
                                         ],
                                         "created_by": "018f...",
                                         "revoked_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
                                         "enrollment_token": "peh_..."
                                     }
                                 }
@@ -27677,7 +27677,7 @@
                                             ],
                                             "created_by": "018f...",
                                             "revoked_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -27932,8 +27932,8 @@
                                             "status": "active",
                                             "created_by": "018f...",
                                             "sealed_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         }
                                     ]
                                 }
@@ -28584,8 +28584,8 @@
                                         "status": "active",
                                         "created_by": "018f...",
                                         "sealed_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "client_secret": "pcs_...",
                                         "grants": [
                                             {
@@ -28604,8 +28604,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ],
                                         "approval": null
@@ -28781,8 +28781,8 @@
                                         "status": "active",
                                         "created_by": "018f...",
                                         "sealed_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z"
                                     }
                                 }
                             }
@@ -29013,9 +29013,9 @@
                                         "public_jwk": null,
                                         "status": "revoked",
                                         "created_by": "018f...",
-                                        "sealed_at": "2026-10-10T10:00:00+00:00",
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "sealed_at": "2026-10-10T10:00:00Z",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "sealed_receipt": {
                                             "id": "018f...",
                                             "agent_id": "018f...",
@@ -29029,7 +29029,7 @@
                                             "prev_hash": "2c26...",
                                             "hash": "a1b2...",
                                             "signature": "<jwt>",
-                                            "created_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z"
                                         }
                                     }
                                 }
@@ -29351,8 +29351,8 @@
                                             "status": "active",
                                             "created_by": "018f...",
                                             "sealed_at": null,
-                                            "created_at": "2026-10-10T10:00:00+00:00",
-                                            "updated_at": "2026-10-10T10:00:00+00:00"
+                                            "created_at": "2026-10-10T10:00:00Z",
+                                            "updated_at": "2026-10-10T10:00:00Z"
                                         },
                                         "mode": "autonomous",
                                         "owner": {
@@ -29379,8 +29379,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ]
                                     }
@@ -29616,8 +29616,8 @@
                                         "status": "active",
                                         "created_by": "018f...",
                                         "sealed_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00",
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z",
                                         "grants": [
                                             {
                                                 "id": "018f...",
@@ -29635,8 +29635,8 @@
                                                 "approved_via": "auto",
                                                 "approval_id": null,
                                                 "expires_at": null,
-                                                "created_at": "2026-10-10T10:00:00+00:00",
-                                                "updated_at": "2026-10-10T10:00:00+00:00"
+                                                "created_at": "2026-10-10T10:00:00Z",
+                                                "updated_at": "2026-10-10T10:00:00Z"
                                             }
                                         ]
                                     }
@@ -29791,8 +29791,8 @@
                                         "status": "suspended",
                                         "created_by": "018f...",
                                         "sealed_at": null,
-                                        "created_at": "2026-10-10T10:00:00+00:00",
-                                        "updated_at": "2026-10-10T10:00:00+00:00"
+                                        "created_at": "2026-10-10T10:00:00Z",
+                                        "updated_at": "2026-10-10T10:00:00Z"
                                     }
                                 }
                             }

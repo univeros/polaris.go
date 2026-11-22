@@ -145,7 +145,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=63ac0ac69bfb4e80065add5a9b6d6c23",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=63ac0ac69bfb4e80065add5a9b6d6c23",
                     "state": "63ac0ac69bfb4e80065add5a9b6d6c23"
                 }
             }
@@ -219,7 +219,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=931b42e6d4fba53e00fc9563940c6924",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=931b42e6d4fba53e00fc9563940c6924",
                     "state": "931b42e6d4fba53e00fc9563940c6924"
                 }
             }
@@ -340,7 +340,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=3ef89847b29ece74da6de20797221bff",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=3ef89847b29ece74da6de20797221bff",
                     "state": "3ef89847b29ece74da6de20797221bff"
                 }
             }

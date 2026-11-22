@@ -95,11 +95,25 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
   to its live grants, with claims `agents.ClaimActorType` (`"agent"`) and `agents.ClaimAgentID`.
 - `ag.Guard(mux)` guards every capability `Location` on a whole mux; `Protect` panics for a name
   that is not a configured `Location` capability (use it after `polaris.New`).
+- A request JWT's `aud` on the plugin's own routes (`/agents/…`) is the path called on
+  `Config.BaseURL`'s origin (default: the oauth plugin's base URL); the `Host` header and `r.TLS`
+  are not read, so a TLS-terminating proxy needs no setup and another host name is refused
+  (`aud_mismatch`). On your routes behind `Protect` / `Guard` the `aud` is the URL as the request
+  names it (`Host`, and `r.TLS` for the scheme): serve them only under your own host names.
+- An autonomous agent's own token (`client_credentials`) carries the permissions of its live
+  grants that its owner holds when the token is issued (`Plugin.ClientPermissions`).
 - Each `Handler` capability is also an MCP tool `agents.<name>` for `plugins/mcp`.
 - To push a CIBA approval, listen to `agents.EventGrantRequested`. `Plugin.Receipts` and
   `Plugin.VerifyReceipt` read and check the chain from code.
 - `Input` is checked by a built-in JSON Schema subset: an unsupported keyword fails `polaris.New`, `format`
-  is not checked, `pattern` is RE2.
+  is not checked, `pattern` is RE2. A refusal's `errors` name the JSON Pointer and the rule
+  (`/amount: must be at most 100`, `missing required properties: to`).
+- Input is read as its JSON type: `arguments` and `constraints` are objects (`[]` is refused),
+  `capabilities` is a list, `after` and `limit` are integers. `max` and `min` bound JSON numbers (a
+  numeric string violates them); `in` and `not_in` compare numbers by value (`1` is `1.0`).
+- Times are RFC 3339 in UTC (`2026-11-22T10:00:00Z`), except a receipt's `created_at`, which its
+  hash and signature cover: it keeps the form every receipt was hashed in (`+00:00`), and a verifier
+  hashes it as sent.
 
 ## Example
 

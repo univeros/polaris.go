@@ -35,7 +35,7 @@ output:
         enforced: false
         signals: ["velocity"]
         reasons: ["email: 11 attempts in 600 s (limit 10)"]
-        created_at: "2026-09-11T10:00:00+00:00"
+        created_at: "2026-09-11T10:00:00Z"
     next_cursor: null
 
 errors:

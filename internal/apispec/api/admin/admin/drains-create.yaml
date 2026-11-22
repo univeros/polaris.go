@@ -33,7 +33,7 @@ output:
       status: "active"
       last_delivery_at: null
       last_error: null
-      created_at: "2026-09-11T10:00:00+00:00"
+      created_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: admin_unauthorized }

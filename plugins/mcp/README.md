@@ -41,6 +41,13 @@ http.Handle("/", h) // the MCP endpoint and /.well-known/oauth-protected-resourc
 // in a tool: claims := mcp.Claims(ctx) // sub, scope, client_id, act, …
 ```
 
+`Protect` checks the token locally, so a scope is all it knows. A Polaris permission name in
+`Scopes` is an authorization check as of the token's issue (the oauth plugin grants a permission
+scope only to a subject that holds it). A scope that is not a permission, like `deploy` above
+(`oauth.Config.Scopes`), says only that the client was allowed to ask for it, which with dynamic
+client registration is anyone: decide what the caller may do from a permission scope, or from `sub`
+and `client_id` in `mcp.Claims`.
+
 ## Config
 
 | Field | Default | Purpose |
@@ -87,7 +94,10 @@ route's own refusal comes back as a tool error result carrying its problem.
 
 ## Host integration
 
-- Tool arguments are not schema-checked by the MCP layer: the route's own 422 is the answer.
+- Tool arguments are not schema-checked by the MCP layer: the route's own 422 is the answer. A
+  path or query argument must be a string, a number or a boolean (sent as `true` / `false`); any
+  other value, or a missing path argument, is `-32602` (invalid params). A null query argument is
+  left out. Each path argument is escaped as one path segment.
 - Bodies over `polaris.Config.MaxBodyBytes` (default 1 MiB) get 413.
 - DPoP-bound tokens need a proof; its `htu` is checked against the configured resource, not `Host`,
   so it works behind a proxy.
