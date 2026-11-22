@@ -9,6 +9,17 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-22
+
+The last v0.x feature release before 1.0: the wire speaks plain Go (decisions 64 and 65), and the
+host API gains what everyday programs needed (decision 66). Many entries are **Client-visible**:
+timestamps end in `Z`, empty objects are `{}`, request bodies are typed strictly (422 on a wrong
+JSON type), OpenAPI `operationId`s are the route names, JWT and schema error texts are new, and
+SCIM, agents and OAuth inputs follow their RFCs. Read Changed before upgrading a client. New for
+hosts: `SignIn.OrganizationID`, `Orgs().Invite`, `sqlstore.Store.Conn`/`Tx`/`AfterCommit`/`Close`,
+two-phase event delivery (`Config.TxListeners`), `polaris.DevEnv`, `polaristest.Hasher`,
+`Polaris.Wrap`.
+
 ### Added
 
 - Host API for what the examples had to work around (decision 66):
@@ -518,7 +529,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/univeros/polaris.go/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
