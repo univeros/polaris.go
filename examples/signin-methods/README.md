@@ -20,12 +20,12 @@ from a password, a magic link, an email code or a social sign-in alike.
 ## Run it
 
 ```sh
-go run ./examples/signin-methods 2>&1 | tee polaris.log
+POLARIS_DEV=1 go run ./examples/signin-methods 2>&1 | tee polaris.log
 ```
 
-No setup: SQLite in a temporary directory, keys generated at start (set `APP_KEY`,
-`AUTH_JWT_PRIVATE_KEY`, `AUTH_JWT_PUBLIC_KEY`, `AUTH_ISSUER` to keep them; `ADDR` changes the
-address, default `localhost:8080`). Without SMTP every mail, links and codes included, is written to
+No setup beyond `POLARIS_DEV=1`: SQLite in a temporary directory, keys generated at start by
+`polaris.DevEnv` (set `APP_KEY`, `AUTH_JWT_PRIVATE_KEY`, `AUTH_JWT_PUBLIC_KEY`, `AUTH_ISSUER` to
+keep them; `ADDR` changes the address, default `localhost:8080`). Without SMTP every mail, links and codes included, is written to
 the log, which is why the walkthrough greps `polaris.log`. At start the log also shows a read-only
 operator key (`pak_…`) for sentinel's decisions; a real deployment mints one with
 `polaris admin:key` and never logs it.

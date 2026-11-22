@@ -42,6 +42,9 @@ type Invitation struct {
 	InvitedBy string
 	ExpiresAt time.Time
 	CreatedAt time.Time
+	// Token is the plaintext invitation secret, set only on what Invite returns (the stored
+	// row keeps its hash); never on a listing.
+	Token string
 }
 
 // Invite invites email (normalized: trimmed, ASCII-lowercased) into the organization with
@@ -106,7 +109,7 @@ func (s *Service) Invite(ctx context.Context, actorUserID, organizationID, email
 	s.events.Dispatch(ctx, event.MemberInvited{OrganizationID: organizationID, Email: email, InvitedBy: actorUserID, InviteToken: token})
 	return Invitation{
 		ID: inv.ID, Email: inv.Email, RoleSlugs: slices.Clone(roleSlugs), InvitedBy: inv.InvitedBy,
-		ExpiresAt: inv.ExpiresAt, CreatedAt: inv.CreatedAt,
+		ExpiresAt: inv.ExpiresAt, CreatedAt: inv.CreatedAt, Token: token,
 	}, nil
 }
 

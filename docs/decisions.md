@@ -1311,3 +1311,98 @@ Left open: `polaris_sentinel_decision` keeps the email address of past sign-in a
 erasure. It is keyed by address, not user id, and `event.UserDeleted` does not carry the address
 (the row is already a tombstone when it is dispatched); erasing it needs the address passed along
 or a retention prune, a separate change.
+
+## 66. 2026-11-22 — The host API before v1: org-scoped sessions, invitations, host transactions, dev secrets
+
+Writing the six example programs turned up everyday host tasks the host surface (API.md §1) could
+not do without the plugin SDK, `p.Graph()` or a copied workaround. v1.0.0 freezes that surface, so
+they are closed now. Each change is additive; tests were written first.
+
+- **`SignIn.OrganizationID`.** An in-process session could not be scoped to an organization
+  without an HTTP `POST /auth/switch-org` (the agents example did that against its own server).
+  `Sessions().Issue` with `OrganizationID` checks what the route checks (an active organization,
+  else `ErrNotFound`; an active membership, else `ErrForbidden`) and runs the sign-in and the
+  switch in one transaction, so a refusal opens nothing; the events are the route pair's
+  (`user.logged_in`, `auth.org_switched`). It reuses `identity.SignIn` and
+  `session.SwitchOrganization` unchanged. Rejected: a new `identity.SignIn` taking an
+  organization (another agent is changing identity; the two calls already compose).
+- **`Orgs().Invite(ctx, organizationID, inviterUserID, email, roles...) (Invitation, string,
+  error)`.** Invitations reached a host only through `notify.Mailer` (the b2b test kept a mailer
+  to fish tokens out). It calls `orgs.Service.Invite`, so the rules, the event and the audit are
+  the route's; `orgs.Invitation` gained a `Token` field (the plaintext, set only on what `Invite`
+  returns) so the token need not be scraped from the event. The caller is trusted (no
+  `members.invite` check) but an inviter is required and the escalation guard stays: an
+  invitation never grants more than its inviter holds, from Go as over HTTP. The token is a second
+  return value, not a field of `polaris.Invitation`, so the struct can be logged and encoded
+  without leaking it. The configured mailer still receives `member.invited`, as for the route.
+  Rejected: a system-actor invitation without an inviter (it would bypass the escalation guard and
+  needs a new path in `orgs`).
+- **Package `event` joins §1.** `Config.Listeners` takes `event.Listener`, so §1's "a host needs
+  no other package" was false. Aliasing `Event`, `Listener` and some 40 event types in `polaris`
+  would give every event two names and a listener's type switch two spellings; `event` is small,
+  already stable (§2) and named by `Config`, so it is listed instead. Rejected for now:
+  `Hooks.OnOrgCreated`. `org.created` reaches listeners (after the commit, below), and a host that
+  needs the organization's row in the same transaction creates it with `p.Orgs().Create` inside
+  `db.Tx`; adding a hook field later is not a breaking change.
+- **`sqlstore.Store.Conn(ctx) Conn`.** Hooks could reach the account's transaction only through
+  `Store.Exec` / `FindOne` (not in §1; `Exec` returns no rows). `Conn` returns the transaction ctx
+  carries (a `Store.Tx`, a savepoint of one, `WithTx`'s) or else the pool, as the interface `*sql.DB`
+  and `*sql.Tx` share (`ExecContext`, `QueryContext`, `QueryRowContext`), so a hook writes the
+  host's rows with plain `database/sql`. Statements go to the driver as written: `$1` on PostgreSQL,
+  `?` on MySQL and SQLite (documented on `Conn`). This is the formerly unexported `conner`.
+- **Events wait for the commit of a `Store.Tx`.** Under a host transaction, events (and so the
+  verification and invitation mail the notify listener sends) were dispatched when Polaris's part
+  was done, before the host committed: a rolled-back signup still mailed. Now the default
+  dispatcher is wrapped (`wiring.deferUntilCommit`) so that an event raised inside a
+  `sqlstore.Store.Tx` is queued on that transaction (`Store.AfterCommit`) and dispatched right
+  after the outermost commit, in order, with the ctx it was raised with (which no longer joins the
+  finished transaction, so a listener's writes use the pool); a rollback drops the queue, and a
+  rolled-back savepoint drops what it queued. The wrapper finds `AfterCommit` through `Unwrap`, so
+  `telemetry/otel.Store` keeps it; an adapter without it (memstore) dispatches at once, as before.
+  `Store.Tx` is therefore the host's transaction (`db.Tx(ctx, fn)`, writes through
+  `db.Conn(ctx)`), and the hooks example uses it. `sqlstore.WithTx` (a host's own `*sql.Tx`) is
+  unchanged and documented: Polaris cannot see that commit, so its events go out before it.
+  Polaris's own code dispatches after its transactions return, so outside a host transaction
+  nothing changes for routes or Go calls; a listener that ran inside an enclosing transaction now
+  runs after it, in its own. Rejected: a transactional outbox table (durable delivery is a
+  separate feature; this only stops sending what never committed); wrapping `*sql.Tx` to see
+  `Commit` (a host's ORM owns its transaction type). Delivery is still at-most-once: a crash
+  between the commit and the dispatch loses the events, as a crash after any commit did before.
+  Tests: `TestStoreTxDefersEventsUntilCommit` (no event or mail inside the transaction or after its
+  rollback; both after the commit; failed before: `user.registered` and the mail inside),
+  `TestAfterCommitWaitsForTheOutermostCommit`, `TestConnJoinsTheTransactionCarriedByCtx`,
+  `ExampleStore_Tx`.
+- **`ErrEmailNotVerified`.** `Sessions().Issue` refused an unverified account with a bare
+  `ErrForbidden`. The new sentinel wraps `ErrForbidden`, so `errors.Is` matches both and existing
+  checks keep working; `Issue` documents the rule (`Auth.Flows.RequireVerifiedEmail`, on by
+  default) and the fix (`NewUser.EmailVerified`).
+- **`DevEnv(issuer)` and `EnvDev`.** Five examples carried the same 30-line generator of `APP_KEY`
+  and an RS256 pair. `polaris.DevEnv` sets what `FromEnv` reads and the environment lacks, logs a
+  warning per generated value, and refuses (an error naming the fix, nothing set) unless
+  `POLARIS_DEV=1` is in the environment: a binary that still calls it cannot boot in production on
+  a throwaway `APP_KEY` (which would make encrypted MFA secrets unreadable after a restart) unless
+  someone sets that variable there on purpose. The examples now run with `POLARIS_DEV=1 go run
+  ./examples/<name>`. Rejected: defaulting to development when the variables are missing (the
+  accident this prevents); detecting `go run` from the executable's path (clever, and wrong for
+  `go build` in a dev loop); a `FromEnv` option (its variadic plugins leave no room).
+- **`polaristest.Hasher()`.** A host whose tests call `polaris.New` themselves hashed with the
+  production Argon2id (64 MiB): the examples' `-race` tests took 45–92 s each. `Hasher` is the
+  hasher `polaristest.New` already used (Argon2id at 1 MiB, one pass; the same format), named so
+  `cfg.Hasher = polaristest.Hasher()` reads as test-only; the examples' tests pass it through a
+  `tune` argument of `newServer` and now take 2–8 s.
+- **Small ones.** `Store.Close()` closes the pool. `p.Wrap(h)` applies `Config.Middleware` to a
+  host route that `Protect`, `Require` and `Authenticate` do not wrap (the hooks example wrapped its
+  public signup by hand). SSO offline needs no new affordance: `sso.Config.HTTPClient` (reaching a
+  local IdP; the default reaches public addresses only) and `sso.Config.Domains` (a fake
+  `DomainVerifier`) exist and are now documented in llms.txt as test and laptop settings; a
+  `polaristest` switch that relaxed the SSRF guard or domain proof would be one setting away from
+  production.
+
+API.md §1 lists the new names (`DevEnv`, `EnvDev`, `Polaris.Wrap`, `Invitation`, `Orgs.Invite`,
+`ErrEmailNotVerified`, `Store.Tx`/`Conn`/`AfterCommit`/`Close`, `Conn`, `polaristest.Hasher`, and
+package `event` for listeners); `scripts/api-stable.txt` already covers them (whole packages).
+Security review: `DevEnv` cannot set a secret without the explicit flag and never replaces one
+already set; the invitation token is returned once, as the event carried it, and is not part of
+the loggable struct; `SignIn.OrganizationID` applies the switch route's membership checks and the
+escalation guard still bounds `Invite`. The event deferral changes when listeners run, not what
+they see; the audit listener keeps writing every committed event.

@@ -2,6 +2,7 @@ package polaris
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/identity"
@@ -21,8 +22,12 @@ var (
 	// owner would go, an erased account cannot be re-enabled.
 	ErrConflict = errors.New("polaris: conflict")
 	// ErrForbidden: the account is disabled, its email is unverified while verification is
-	// required, or an authorization rule refuses.
+	// required (also ErrEmailNotVerified), or an authorization rule refuses.
 	ErrForbidden = errors.New("polaris: forbidden")
+	// ErrEmailNotVerified: the account's email is unverified and Auth.Flows.RequireVerifiedEmail
+	// (on by default) refuses it a session. The error also matches ErrForbidden. Verify the
+	// address first (NewUser.EmailVerified, or the verification email's link).
+	ErrEmailNotVerified = fmt.Errorf("polaris: email not verified: %w", ErrForbidden)
 	// ErrInvalidInput: a malformed email or name, an unknown role, a password failing the policy
 	// (errors.As a *PasswordError for the rules it broke), an imported password hash the hasher
 	// cannot verify (also security.ErrUnsupportedHash).
@@ -41,7 +46,7 @@ var kinds = []struct{ from, to error }{
 	{identity.ErrConflict, ErrConflict}, {identity.ErrEmailTaken, ErrConflict}, {orgs.ErrConflict, ErrConflict},
 	{store.ErrDuplicate, ErrConflict},
 	{authz.ErrForbidden, ErrForbidden}, {identity.ErrAccountDisabled, ErrForbidden},
-	{identity.ErrEmailNotVerified, ErrForbidden},
+	{identity.ErrEmailNotVerified, ErrEmailNotVerified}, // which matches ErrForbidden
 	{identity.ErrInvalidPassword, ErrInvalidInput}, {identity.ErrInvalidProfile, ErrInvalidInput},
 	{orgs.ErrInvalid, ErrInvalidInput}, {security.ErrUnsupportedHash, ErrInvalidInput},
 	{session.ErrInvalidGrant, ErrInvalidCredentials}, {identity.ErrInvalidCredentials, ErrInvalidCredentials},

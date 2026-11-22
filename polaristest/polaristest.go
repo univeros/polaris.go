@@ -89,9 +89,17 @@ func WithPathPrefix(prefix string) Option { return func(o *options) { o.prefix =
 // data.
 func WithDB(db *sqlstore.Store) Option { return func(o *options) { o.db = db } }
 
-// WithHasher replaces the cheap test Argon2id (Memory 1 MiB, Time 1, Threads 1), e.g. with
-// security.Argon2id{} to measure production parameters.
+// WithHasher replaces the cheap test Argon2id (Hasher), e.g. with security.Argon2id{} to measure
+// production parameters.
 func WithHasher(h security.PasswordHasher) Option { return func(o *options) { o.hasher = h } }
+
+// Hasher returns the password hasher New boots with: Argon2id at 1 MiB, one pass, one lane,
+// thousands of times cheaper than the production default, so a -race suite that registers and
+// signs in many users stays fast. The hash format is the production one. For a host's tests that
+// build their own polaris.Config instead of calling New:
+//
+//	cfg.Hasher = polaristest.Hasher() // tests only: never in a production Config
+func Hasher() security.PasswordHasher { return security.Argon2id{Memory: 1024, Time: 1, Threads: 1} }
 
 // WithConfig edits the configuration last, before polaris.New: Hooks, Permissions, Middleware,
 // Listeners, anything the other options do not cover.
@@ -126,14 +134,13 @@ func New(t testing.TB, opts ...Option) *Server {
 	}
 	srv := &Server{DB: db, Mailer: &notifytest.Mailer{}, SMS: &notifytest.SMSSender{}, Events: &Events{}}
 	cfg := polaris.Config{
-		Secrets: secrets,
-		Auth:    auth,
-		DB:      db,
-		Mailer:  srv.Mailer,
-		SMS:     srv.SMS,
-		Events:  srv.Events,
-		// Cheap Argon2id: the suite hashes hundreds of passwords; the format is unchanged.
-		Hasher:     security.Argon2id{Memory: 1024, Time: 1, Threads: 1},
+		Secrets:    secrets,
+		Auth:       auth,
+		DB:         db,
+		Mailer:     srv.Mailer,
+		SMS:        srv.SMS,
+		Events:     srv.Events,
+		Hasher:     Hasher(), // the suite hashes hundreds of passwords
 		RateStore:  ratelimit.NewCacheStore(cache.NewMemory(contracttest.NewRateClock()), contracttest.NewRateClock()),
 		PathPrefix: o.prefix,
 		Plugins:    o.plugins,

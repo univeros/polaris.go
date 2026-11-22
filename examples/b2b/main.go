@@ -11,21 +11,16 @@
 // walkthrough: sign up, create an organization, custom roles, an invitation, an organization API
 // key, an OIDC provider with a verified domain, and a SCIM connection.
 //
-//	go run ./examples/b2b
+//	POLARIS_DEV=1 go run ./examples/b2b
 //
-// Zero setup: SQLite in a temporary directory, and APP_KEY, AUTH_JWT_PRIVATE_KEY,
-// AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER generated when the environment lacks them. ADDR (default
+// SQLite in a temporary directory; with POLARIS_DEV=1, polaris.DevEnv generates APP_KEY,
+// AUTH_JWT_PRIVATE_KEY, AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER when the environment lacks them. ADDR (default
 // localhost:8080) is where it listens. Emails (verification, invitations) are written to the log.
 package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,7 +30,6 @@ import (
 	"time"
 
 	polaris "github.com/univeros/polaris.go"
-	"github.com/univeros/polaris.go/notify"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/apikeys"
 	"github.com/univeros/polaris.go/plugins/audit"
@@ -56,7 +50,7 @@ func main() {
 	ctx := context.Background()
 	addr := envOr("ADDR", "localhost:8080")
 	baseURL := "http://" + addr
-	if err := devEnv(baseURL); err != nil {
+	if err := polaris.DevEnv(baseURL); err != nil {
 		log.Fatal(err)
 	}
 	dir, err := os.MkdirTemp("", "polaris-b2b-")
@@ -67,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	h, p, err := newServer(ctx, db, nil)
+	h, p, err := newServer(ctx, db)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,8 +79,8 @@ func main() {
 }
 
 // newServer is the host: Polaris with organizations, the host's permissions, API keys, SSO, SCIM,
-// audit and admin, plus the host's own project routes. mailer nil keeps the logging mailer.
-func newServer(ctx context.Context, db store.Adapter, mailer notify.Mailer) (http.Handler, *polaris.Polaris, error) {
+// audit and admin, plus the host's own project routes.
+func newServer(ctx context.Context, db store.Adapter, tune ...func(*polaris.Config)) (http.Handler, *polaris.Polaris, error) {
 	cfg, err := polaris.FromEnv(db,
 		audit.New(audit.Config{}),     // every event, append-only: GET /audit/organization/{id}
 		admin.New(admin.Config{}),     // the operator API, /admin/*
@@ -104,8 +98,9 @@ func newServer(ctx context.Context, db store.Adapter, mailer notify.Mailer) (htt
 		"owner": {"projects.read", "projects.write"},
 		"admin": {"projects.read", "projects.write"},
 	}
-	if mailer != nil {
-		cfg.Mailer = mailer
+	// tune is the tests': a cheap hasher (polaristest.Hasher).
+	for _, f := range tune {
+		f(&cfg)
 	}
 	p, err := polaris.New(cfg)
 	if err != nil {
@@ -174,44 +169,4 @@ func envOr(name, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-// devEnv sets what polaris.FromEnv reads and the environment lacks, so the example runs with zero
-// setup: a random APP_KEY, a fresh RS256 key pair, AUTH_ISSUER. Tokens signed with a generated key
-// die with the process; in production set the variables (`polaris init` writes them to .env).
-func devEnv(issuer string) error {
-	if os.Getenv("APP_KEY") == "" {
-		b := make([]byte, 32)
-		if _, err := rand.Read(b); err != nil {
-			return err
-		}
-		if err := os.Setenv("APP_KEY", base64.StdEncoding.EncodeToString(b)); err != nil {
-			return err
-		}
-	}
-	if os.Getenv("AUTH_JWT_PRIVATE_KEY") == "" {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			return err
-		}
-		priv, err := x509.MarshalPKCS8PrivateKey(key)
-		if err != nil {
-			return err
-		}
-		pub, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-		if err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PRIVATE_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: priv}))); err != nil {
-			return err
-		}
-		if err := os.Setenv("AUTH_JWT_PUBLIC_KEY", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pub}))); err != nil {
-			return err
-		}
-		log.Print("generated a throwaway JWT key pair (set AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY to keep tokens across restarts)")
-	}
-	if os.Getenv("AUTH_ISSUER") == "" {
-		return os.Setenv("AUTH_ISSUER", issuer)
-	}
-	return nil
 }

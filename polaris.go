@@ -146,6 +146,13 @@ func (p *Polaris) Authenticate(next http.Handler) http.Handler {
 	return p.wrap(p.pipeline.Authenticate(next))
 }
 
+// Wrap applies Config.Middleware to a host handler that is not behind Protect, Require or
+// Authenticate (a health check, a public page, a webhook), so every route of the app sees the same
+// middleware exactly once; Handler, Protect, Require and Authenticate apply it already.
+//
+//	mux.Handle("GET /healthz", p.Wrap(health))
+func (p *Polaris) Wrap(h http.Handler) http.Handler { return p.wrap(h) }
+
 // Graph exposes every service read-only: the plugin SDK, for plugins, CLIs and advanced hosts.
 // An application needs only the methods of Polaris.
 func (p *Polaris) Graph() *wiring.Graph { return p.graph }

@@ -59,16 +59,19 @@ type Config struct {
 	Logger    *slog.Logger    // default: slog.Default()
 	// Events receives every domain event. Default: an in-process event.Bus with core's, the
 	// plugins' and Listeners already subscribed. A host passing its own dispatcher subscribes
-	// Graph.Listeners (which include Listeners) itself.
+	// Graph.Listeners (which include Listeners) itself. An event raised inside a transaction of
+	// DB (sqlstore.Store.Tx) reaches it after that transaction commits, and never if it rolls
+	// back; under sqlstore.WithTx, whose commit Polaris does not see, at once.
 	Events event.Dispatcher
 	// Listeners are the host's own event listeners (telemetry, webhooks), subscribed after core's
-	// and the plugins'.
+	// and the plugins'. Package event names the events (a type switch on event.UserRegistered, …).
 	Listeners []event.Listener
 
 	// Hooks keep the host's own user data and token claims in step with Polaris; see Hooks.
 	Hooks Hooks
 	// Middleware wraps every Polaris handler (Handler and each Protect), outermost first:
-	// Middleware[0] sees the request before anything else (tracing, request ids, recovery).
+	// Middleware[0] sees the request before anything else (tracing, request ids, recovery). A
+	// host route behind none of them gets it through Polaris.Wrap.
 	Middleware []func(http.Handler) http.Handler
 
 	// Permissions are the host's own permission keys and descriptions ("billing.refund": "Refund an
@@ -249,6 +252,7 @@ func (g *Graph) defaults() {
 		g.bus = &event.Bus{}
 		g.events = g.bus
 	}
+	g.events = deferUntilCommit(g.db, g.events)
 }
 
 // pluginPorts merges the ports plugins serve: the first plugin (registration order) providing a

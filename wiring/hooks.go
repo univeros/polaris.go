@@ -14,8 +14,9 @@ import (
 type Hooks struct {
 	// OnUserCreated runs inside the transaction that creates an account, on every path that
 	// creates one (registration, passwordless and social sign-up, SSO and SCIM provisioning,
-	// anonymous guests, Users().Create): write the app's profile row with ctx and it commits or
-	// rolls back with the account. An error aborts the creation (the request answers 500).
+	// anonymous guests, Users().Create): write the app's profile row with ctx (on SQL,
+	// sqlstore.Store.Conn(ctx) is that transaction) and it commits or rolls back with the account.
+	// An error aborts the creation (the request answers 500).
 	OnUserCreated func(ctx context.Context, u User) error
 	// OnUserDeleted runs inside the transaction that erases (anonymizes) or removes an account:
 	// the self-service erase, the admin and SCIM deletes, guest pruning, Users().Delete. An error

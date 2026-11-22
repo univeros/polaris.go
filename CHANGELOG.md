@@ -11,6 +11,17 @@ marked **Breaking**.
 
 ### Added
 
+- Host API for what the examples had to work around (decision 66):
+  `polaris.SignIn.OrganizationID` opens a session in an organization (membership checked; as a
+  sign-in plus `POST /auth/switch-org`); `p.Orgs().Invite` returns the `polaris.Invitation` and its
+  token for the host to deliver; `polaris.ErrEmailNotVerified` (also `ErrForbidden`) names the
+  refusal of `Sessions().Issue` for an unverified email; `p.Wrap(h)` applies `Config.Middleware` to
+  a host route outside `Protect`; `polaris.DevEnv` generates throwaway secrets for local
+  development and refuses to run without `POLARIS_DEV=1`; `polaristest.Hasher()` is the cheap test
+  Argon2id for a host's own `polaris.Config` in tests; `sqlstore.Store.Conn(ctx)` (plain
+  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`.
+  Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
+
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
   tables, it adds the columns and indexes a release declares on an existing table and drops the
   indexes it retires. It never drops a table or a column, never changes a column's type, and is
@@ -31,6 +42,15 @@ marked **Breaking**.
 
 ### Changed
 
+- Events raised inside a `sqlstore.Store.Tx` are dispatched after that transaction commits, and
+  dropped when it rolls back (a rolled-back savepoint drops its own). A host's `db.Tx` around
+  `p.Users().Create` and its own writes no longer sends the verification mail of a signup it then
+  rolls back. Under `sqlstore.WithTx` (the host's own `*sql.Tx`) events still go out before the
+  host commits: Polaris cannot see that commit. Listeners that wrote inside the transaction now
+  write after it, in their own (decision 66).
+- The examples run with `POLARIS_DEV=1 go run ./examples/<name>` (`polaris.DevEnv` replaces each
+  example's copy of a key generator), and their tests use `polaristest.Hasher()`: a `-race` run of
+  each takes seconds instead of 45–90 s.
 - `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
   `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
   an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds

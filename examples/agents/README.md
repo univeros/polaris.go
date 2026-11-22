@@ -17,14 +17,15 @@ runs. Every execution appends a signed, hash-chained receipt.
 ## Run it
 
 ```sh
-go run ./examples/agents           # the owner approves from Go
-go run ./examples/agents -manual   # you approve with curl (step 5 below)
+POLARIS_DEV=1 go run ./examples/agents           # the owner approves from Go
+POLARIS_DEV=1 go run ./examples/agents -manual   # you approve with curl (step 5 below)
 ```
 
 The example needs no setup:
 
 - The database is SQLite in a temporary directory.
-- `APP_KEY` and the JWT key pair are generated at start when the environment lacks them. Set
+- With `POLARIS_DEV=1`, `polaris.DevEnv` generates `APP_KEY` and the JWT key pair at start when
+  the environment lacks them (without it the example refuses to start). Set
   `APP_KEY`, `AUTH_JWT_PRIVATE_KEY`, `AUTH_JWT_PUBLIC_KEY` and `AUTH_ISSUER` (see
   [`examples/minimal`](../minimal/main.go)) to keep tokens across restarts.
 - `ADDR` changes the listen address. The default is `localhost:8080`.
@@ -54,9 +55,9 @@ demo done; Polaris keeps serving on http://localhost:8080 (sign in as ada@exampl
 Each step below is a numbered comment in `runDemo`.
 
 1. **The owner.** `p.Users().Create` creates the owner, `p.Orgs().Create` creates the organization,
-   and `p.Sessions().Issue` signs the owner in. `POST /auth/switch-org` then scopes the session to
-   the organization. A real owner signs up and in over HTTP instead (`/auth/register`,
-   `/auth/login`).
+   and `p.Sessions().Issue` signs the owner in, scoped to the organization (`SignIn.OrganizationID`).
+   A real owner signs up and in over HTTP instead (`/auth/register`, `/auth/login`, then
+   `/auth/switch-org`).
 2. **The host token.** The owner calls `POST /agents/hosts` and gets an enrollment token (`peh_…`)
    for the machine the agent runs on.
 3. **Enrolment.** The agent creates its own key pair with `agent.GenerateKey`. Persist
@@ -93,7 +94,7 @@ Start the server with `-manual`. It stops at step 5 until you approve. The outpu
 with ids shortened.
 
 ```sh
-go run ./examples/agents -manual
+POLARIS_DEV=1 go run ./examples/agents -manual
 B=http://localhost:8080
 J='Content-Type: application/json'
 ```

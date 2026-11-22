@@ -8,11 +8,10 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	polaris "github.com/univeros/polaris.go"
-	"github.com/univeros/polaris.go/notify"
+	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
 )
@@ -24,16 +23,16 @@ func TestTenantFlow(t *testing.T) {
 	for _, name := range []string{"APP_KEY", "AUTH_JWT_PRIVATE_KEY", "AUTH_JWT_PUBLIC_KEY", "AUTH_ISSUER"} {
 		t.Setenv(name, "")
 	}
-	if err := devEnv("http://localhost"); err != nil {
+	t.Setenv(polaris.EnvDev, "1") // DevEnv generates the throwaway secrets
+	if err := polaris.DevEnv("http://localhost"); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sqlstore.Open(ctx, store.SQLite, "file:"+filepath.Join(t.TempDir(), "polaris.db")+"?_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.DB().Close() })
-	mails := &inbox{}
-	h, p, err := newServer(ctx, db, mails)
+	t.Cleanup(func() { _ = db.Close() })
+	h, p, err := newServer(ctx, db, cheapHashing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,17 +40,21 @@ func TestTenantFlow(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := client{t: t, base: srv.URL}
 
-	ada := c.signIn(p, "ada@acme.test")
+	adaID, ada := c.signIn(p, "ada@acme.test")
 	org := c.do("POST", "/orgs", ada, map[string]any{"name": "Acme"}, http.StatusCreated)["data"].(map[string]any)["id"].(string)
-	ada = c.switchOrg(ada, org)
+	ada = c.session(p, adaID, org)
 	c.do("POST", "/orgs/"+org+"/roles", ada, map[string]any{"name": "Viewer", "slug": "viewer", "permission_keys": []string{"org.read", "projects.read"}}, http.StatusCreated)
 	c.do("POST", "/api/projects", ada, map[string]any{"name": "Website relaunch"}, http.StatusCreated)
 
-	// An invited viewer reads but does not write.
-	c.do("POST", "/orgs/"+org+"/invites", ada, map[string]any{"email": "bob@acme.test", "role_slugs": []string{"viewer"}}, http.StatusCreated)
-	bob := c.signIn(p, "bob@acme.test")
-	c.do("POST", "/auth/invites/accept", bob, map[string]any{"token": mails.token(t, "bob@acme.test")}, http.StatusOK)
-	bob = c.switchOrg(bob, org)
+	// An invited viewer reads but does not write. The README invites with curl and reads the
+	// token from the log; from Go the host gets the token to deliver itself.
+	_, invitation, err := p.Orgs().Invite(ctx, org, adaID, "bob@acme.test", "viewer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobID, bob := c.signIn(p, "bob@acme.test")
+	c.do("POST", "/auth/invites/accept", bob, map[string]any{"token": invitation}, http.StatusOK)
+	bob = c.session(p, bobID, org)
 	if got := c.do("GET", "/api/projects", bob, nil, http.StatusOK)["projects"].([]any); len(got) != 1 {
 		t.Errorf("bob sees %v", got)
 	}
@@ -101,44 +104,28 @@ func (c client) do(method, path, bearer string, body any, want int) map[string]a
 	return out
 }
 
-// signIn creates a verified account in process and signs it in over HTTP.
-func (c client) signIn(p *polaris.Polaris, email string) string {
+// signIn creates a verified account in process and signs it in over HTTP; it answers the account
+// id and the access token.
+func (c client) signIn(p *polaris.Polaris, email string) (string, string) {
 	c.t.Helper()
 	const password = "correct horse battery staple"
-	if _, err := p.Users().Create(context.Background(), polaris.NewUser{Email: email, Password: password, EmailVerified: true}); err != nil {
+	u, err := p.Users().Create(context.Background(), polaris.NewUser{Email: email, Password: password, EmailVerified: true})
+	if err != nil {
 		c.t.Fatal(err)
 	}
-	return c.do("POST", "/auth/login", "", map[string]any{"email": email, "password": password}, http.StatusOK)["data"].(map[string]any)["access_token"].(string)
+	return u.ID, c.do("POST", "/auth/login", "", map[string]any{"email": email, "password": password}, http.StatusOK)["data"].(map[string]any)["access_token"].(string)
 }
 
-func (c client) switchOrg(bearer, org string) string {
+// session opens a session in the organization from Go (over HTTP: POST /auth/switch-org).
+func (c client) session(p *polaris.Polaris, userID, org string) string {
 	c.t.Helper()
-	return c.do("POST", "/auth/switch-org", bearer, map[string]any{"organization_id": org}, http.StatusOK)["data"].(map[string]any)["access_token"].(string)
-}
-
-// inbox is a notify.Mailer that keeps the invitation tokens.
-type inbox struct {
-	mu     sync.Mutex
-	tokens map[string]string
-}
-
-func (m *inbox) Send(_ context.Context, to, template string, data map[string]any) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if template == notify.TemplateOrgInvite {
-		if m.tokens == nil {
-			m.tokens = map[string]string{}
-		}
-		m.tokens[to], _ = data["token"].(string)
+	tokens, err := p.Sessions().Issue(context.Background(), polaris.SignIn{UserID: userID, OrganizationID: org})
+	if err != nil {
+		c.t.Fatal(err)
 	}
-	return nil
+	return tokens.AccessToken
 }
 
-func (m *inbox) token(t *testing.T, to string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.tokens[to] == "" {
-		t.Fatalf("no invitation mailed to %s", to)
-	}
-	return m.tokens[to]
-}
+// cheapHashing swaps the production Argon2id for polaristest.Hasher: the same hash format, and a
+// -race run that hashes in milliseconds instead of seconds.
+func cheapHashing(c *polaris.Config) { c.Hasher = polaristest.Hasher() }
