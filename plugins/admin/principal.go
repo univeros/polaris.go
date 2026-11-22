@@ -211,7 +211,7 @@ func AllowlistAllows(allowlist []string, ip string) bool {
 }
 
 // parseEntry reads "address" or "address/bits" as a prefix (a plain address is its own /32 or
-// /128). Zoned addresses are refused, as PHP's inet_pton refuses them.
+// /128). Zoned addresses (fe80::1%eth0) are refused.
 func parseEntry(entry string) (netip.Prefix, bool) {
 	address, bits, hasBits := strings.Cut(entry, "/")
 	addr, err := netip.ParseAddr(address)

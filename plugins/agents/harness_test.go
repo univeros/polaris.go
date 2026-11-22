@@ -27,16 +27,18 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// The environment of upstream's AgentsTestCase (over OAuthTestCase).
+// The environment of the recorded agents flows (over the OAuth provider's).
 const (
-	phpLifecycle = `Polaris\Agents\Tests\Functional\AgentsLifecycleTest`
-	phpTokens    = `Polaris\Agents\Tests\Functional\AgentTokensTest`
-	phpSecurity  = `Polaris\Agents\Tests\Functional\AgentsSecurityTest`
-	password     = "correct horse battery staple"
-	base         = "https://auth.polaris.test"
-	approveURL   = "https://app.polaris.test/agents/approve"
-	location     = "https://host.polaris.test/invite"
-	exchangeType = "urn:ietf:params:oauth:token-type:access_token"
+	// lifecycleFixtures, tokensFixtures and securityFixtures are the recorded fixture sets' file-name
+	// prefixes under internal/apispec/fixtures/agents.
+	lifecycleFixtures = "Polaris.Agents.Tests.Functional.AgentsLifecycleTest"
+	tokensFixtures    = "Polaris.Agents.Tests.Functional.AgentTokensTest"
+	securityFixtures  = "Polaris.Agents.Tests.Functional.AgentsSecurityTest"
+	password          = "correct horse battery staple"
+	base              = "https://auth.polaris.test"
+	approveURL        = "https://app.polaris.test/agents/approve"
+	location          = "https://host.polaris.test/invite"
+	exchangeType      = "urn:ietf:params:oauth:token-type:access_token"
 )
 
 // capabilities are the suite's: one low (auto-approved), one high (step-up), one at a location,
@@ -71,8 +73,8 @@ func capabilities() []agents.Capability {
 	}
 }
 
-// agentsCase is one ported test: a booted server with audit, admin, oauth and agents, and a client
-// replaying the test's fixture.
+// agentsCase is one recorded flow's test: a booted server with audit, admin, oauth and agents,
+// and a client replaying the test's fixture.
 type agentsCase struct {
 	t      testing.TB
 	srv    *polaristest.Server
@@ -88,13 +90,13 @@ func boot(t *testing.T) (*polaristest.Server, *agents.Plugin) {
 	return srv, p
 }
 
-func run(t *testing.T, phpClass string, tests map[string]func(*agentsCase)) {
+func run(t *testing.T, fixtures string, tests map[string]func(*agentsCase)) {
 	t.Helper()
 	dir := contracttest.Fixtures(t, "agents")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			srv, p := boot(t)
-			fx := contracttest.For(t, dir, phpClass, name)
+			fx := contracttest.For(t, dir, fixtures, name)
 			test(&agentsCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx), plugin: p, ctx: context.Background()})
 		})
 	}

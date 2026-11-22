@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	routesClass = `Polaris\Audit\Tests\Functional\AuditRoutesTest`
-	email       = "ada@example.com"
-	password    = "correct horse battery staple"
+	// routesFixtures is the file-name prefix of the recorded fixture set under
+	// internal/apispec/fixtures/audit.
+	routesFixtures = "Polaris.Audit.Tests.Functional.AuditRoutesTest"
+	email          = "ada@example.com"
+	password       = "correct horse battery staple"
 )
 
 type flow struct {
@@ -26,7 +28,7 @@ type flow struct {
 func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{})))
-	fx := contracttest.For(t, contracttest.Fixtures(t, "audit"), routesClass, method)
+	fx := contracttest.For(t, contracttest.Fixtures(t, "audit"), routesFixtures, method)
 	return &flow{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 }
 
@@ -137,7 +139,7 @@ func TestAuditRoutes(t *testing.T) {
 func TestEveryFixtureIsCovered(t *testing.T) {
 	var covered []string
 	for _, m := range []string{"testTheCallersTrailListsTheAuthFlowNewestFirstWithFiltersAndPages", "testTheCatalogIsListedForASession", "testAnOrganizationsTrailNeedsTheActiveOrganizationAndAuditRead"} {
-		covered = append(covered, routesClass+"::"+m)
+		covered = append(covered, routesFixtures+"::"+m)
 	}
 	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "audit"), covered)
 	if err != nil || len(left) > 0 {

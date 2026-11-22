@@ -66,7 +66,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_sso_provider and polaris_sso_domain.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's 20 routes (upstream api/sso).
+// Manifest returns the plugin's 20 routes (declared in internal/apispec/api/sso).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/sso")
 	if err != nil {

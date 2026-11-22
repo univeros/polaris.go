@@ -23,7 +23,7 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Port of upstream's PluginTest: the service through the graph, the recorded providers answering.
+// The unit tests: the service through the graph, the recorded providers answering.
 
 const unitBase = "https://app.example/auth"
 
@@ -764,7 +764,7 @@ func TestCatalogProfiles(t *testing.T) {
 		t.Fatalf("a name fits core's display name: %d", len([]rune(p.Name)))
 	}
 	if str(true) != "1" || str(1.5) != "1.5" || truthy("0") || !truthy([]any{1}) || !truthy(map[string]any{"a": 1}) || truthy(nil) || !truthy(1.0) {
-		t.Fatal("PHP casts")
+		t.Fatal("str and truthy read profile scalars")
 	}
 }
 

@@ -97,7 +97,8 @@ func sent() endpoint.Result {
 	return endpoint.Data(http.StatusAccepted, map[string]any{"status": "sent"})
 }
 
-// text is a field trimmed as PHP's trim(); "" when absent, not a string or blank.
+// text is a field trimmed of space, tab, newline, carriage return, NUL and vertical tab; "" when
+// absent, not a string or blank.
 func text(in *endpoint.Input, field string) string {
 	return strings.Trim(in.String(field), " \t\n\r\x00\x0B")
 }

@@ -305,7 +305,8 @@ func (p *Plugin) verify(ctx context.Context, in *endpoint.Input, _ *token.Token)
 	})
 }
 
-// scalar reads a value as PHP's (string) cast of a scalar.
+// scalar reads a scalar as text: a string as is, a number in its JSON form, true as "1"; false
+// and anything else are "".
 func scalar(v any) string {
 	switch v := v.(type) {
 	case string:
@@ -321,7 +322,7 @@ func scalar(v any) string {
 }
 
 // permissionsOf reads a permission list: absent is empty when allowNil (create); a non-string item
-// becomes "?", which the key service refuses as an unknown permission, as upstream.
+// becomes "?", which the key service refuses as an unknown permission.
 func permissionsOf(v any, allowNil bool) ([]string, bool) {
 	switch v := v.(type) {
 	case nil:

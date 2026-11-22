@@ -270,7 +270,8 @@ func audienceIncludes(aud any, want ...string) bool {
 }
 
 // verifyWithKeySet picks the key the header's kid names (a key without kid is named by its
-// index), as firebase/php-jwt does, and verifies the assertion with a minute of leeway.
+// position in the set), and verifies the assertion with a minute of leeway. A key whose alg
+// differs from the header's is refused.
 func verifyWithKeySet(raw string, header map[string]any, alg string, set []any, now time.Time) (map[string]any, error) {
 	if len(set) == 0 {
 		return nil, errors.New("JWK Set did not contain any keys")
@@ -334,7 +335,8 @@ func (s *clients) keySet(ctx context.Context, c Client) ([]any, error) {
 	return keys, nil
 }
 
-// jwksKeys is the keys member of a JWK Set (a list, or an object as PHP's array), nil without one.
+// jwksKeys is the keys member of a JWK Set, nil without one. A list is taken as is; an object is
+// read as the list of its values in key order.
 func jwksKeys(set map[string]any) []any {
 	switch keys := set["keys"].(type) {
 	case []any:

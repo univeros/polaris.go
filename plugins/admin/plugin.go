@@ -33,7 +33,7 @@ const (
 	AMRImpersonation      = "impersonation"
 )
 
-// Config configures the plugin. It has no options yet: the zero value is upstream's behaviour.
+// Config configures the plugin. It has no options yet.
 type Config struct{}
 
 // Plugin is the admin plugin. Its services exist once polaris.New has run.
@@ -53,7 +53,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_admin_grant and polaris_admin_key.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/admin).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/admin).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/admin")
 	if err != nil {

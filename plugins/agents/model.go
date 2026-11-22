@@ -65,7 +65,8 @@ var (
 	methods = []string{MethodDevice, MethodCIBA, MethodInApp}
 )
 
-// dateAtom is PHP's DATE_ATOM; UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 func atom(t time.Time) string { return t.UTC().Format(dateAtom) }
@@ -107,7 +108,7 @@ func rowInt(r store.Row, col string) *int64 {
 	return &n
 }
 
-// rowJSON decodes a JSON column keeping numbers as json.Number (PHP tells 1 from 1.0).
+// rowJSON decodes a JSON column keeping numbers as json.Number, so 1 and 1.0 stay distinct.
 func rowJSON(r store.Row, col string) any {
 	s, ok := r.NullString(col)
 	if !ok || s == "" {

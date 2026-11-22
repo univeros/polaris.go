@@ -3,8 +3,8 @@
 A local risk engine in front of sign-up, sign-in, password reset and code sends. Signals score each
 attempt (velocity, credential stuffing, IP rules, devices, disposable domains and, with a provider,
 captcha, impossible travel and breached passwords); a policy allows, challenges or blocks. Observe
-mode (the default) records without enforcing, so an instance tunes on its own decisions first. Port
-of `polaris/sentinel`; requires `plugins/admin` (its routes are admin routes; the one
+mode (the default) records without enforcing, so an instance tunes on its own decisions first. It
+requires `plugins/admin` (its routes are admin routes; the one
 plugin-to-plugin import), which in turn requires `plugins/audit`.
 
 ## Install

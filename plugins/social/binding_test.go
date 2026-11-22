@@ -57,7 +57,7 @@ func TestTheBindingCookieMustBeTheFlowsOwnAndHostOnlyOverHTTPS(t *testing.T) {
 	}
 }
 
-// The cookie follows the scheme of BaseURL, as upstream's Binding::https does, never the
+// The cookie follows the scheme of BaseURL, never the
 // connection: behind a TLS-terminating proxy r.TLS is nil, and a SameSite=Lax cookie would not
 // reach Apple's cross-site form_post callback.
 func TestTheBindingCookieFollowsTheBaseURLNotTheConnection(t *testing.T) {

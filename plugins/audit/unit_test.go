@@ -322,24 +322,24 @@ func TestTheHashChainLinksRowsAndVerifiesTamperingAndPruning(t *testing.T) {
 	}
 }
 
-func TestTheHashMatchesPHPsCanonicalForm(t *testing.T) {
+func TestTheHashIsOverTheCanonicalForm(t *testing.T) {
 	e := Event{ID: "id1", Name: UserSignedUp, OccurredAt: at("2026-01-01T00:00:00Z"), ActorType: ActorUser, ActorID: "u1", SubjectID: "u1", Data: map[string]any{}}
 	canonical := `{"actor_id":"u1","actor_type":"user","data":[],"id":"id1","ip":null,"name":"user.signed_up","occurred_at":"2026-01-01T00:00:00+00:00","organization_id":null,"prev_hash":null,"request_id":null,"session_id":null,"subject_id":"u1","user_agent":null}`
 	sum := sha256.Sum256([]byte(canonical))
 	if got := hashOf(e, "[]"); got != hex.EncodeToString(sum[:]) {
 		t.Fatalf("hash %s", got)
 	}
-	// A row PHP wrote keeps its data keys in insertion order; the stored text verifies it.
-	phpData := `{"z":1,"a":"é/x"}`
-	php := e
-	php.stored = phpData
-	php.Data = map[string]any{"z": json.Number("1"), "a": "é/x"}
-	php.Hash = hashOf(e, phpData)
-	if !verifies(php) {
-		t.Fatal("a PHP row does not verify")
+	// A row whose data keys were stored in insertion order (not sorted) verifies over its stored text.
+	insertionOrder := `{"z":1,"a":"é/x"}`
+	unsorted := e
+	unsorted.stored = insertionOrder
+	unsorted.Data = map[string]any{"z": json.Number("1"), "a": "é/x"}
+	unsorted.Hash = hashOf(e, insertionOrder)
+	if !verifies(unsorted) {
+		t.Fatal("a row stored in insertion order does not verify")
 	}
-	if got, _ := phpJSON(map[string]any{"s": "é😀/<"}); got != `{"s":"\u00e9\ud83d\ude00/<"}` {
-		t.Fatalf("php json %s", got)
+	if got, _ := canonicalJSON(map[string]any{"s": "é😀/<"}); got != `{"s":"\u00e9\ud83d\ude00/<"}` {
+		t.Fatalf("canonical json %s", got)
 	}
 }
 

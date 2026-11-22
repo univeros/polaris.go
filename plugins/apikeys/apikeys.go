@@ -46,10 +46,11 @@ const (
 	DefaultMaxPerOwner   = 50
 )
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
-// Config configures the plugin; the zero value is upstream's defaults.
+// Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// Environment is the prefix of keys created without one: EnvLive (default) or EnvTest.
 	Environment string
@@ -105,7 +106,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_api_key.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/api-keys).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/api-keys).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/api-keys")
 	if err != nil {

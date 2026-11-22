@@ -24,7 +24,8 @@ const keyPepperContext = "admin_key"
 
 const keyNameMax = 120
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // ErrInvalid wraps the refusal of a grant or key with an invalid role, scope, name or allowlist.
@@ -87,8 +88,8 @@ func (s *Grants) Grant(ctx context.Context, g Grant) (Grant, error) {
 		return Grant{}, fmt.Errorf("%w: a grant needs a user id and a role (viewer, support, admin or owner)", ErrInvalid)
 	}
 	g.Scope = orInstance(g.Scope)
-	// ponytail: no unique index on user_id (the schema is upstream's), so two concurrent first
-	// grants of one user on Postgres/MySQL can both insert; For then reads either.
+	// ponytail: no unique index on user_id (adding one is a schema migration), so two concurrent
+	// first grants of one user on Postgres/MySQL can both insert; For then reads either.
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		r, err := s.db.FindOne(ctx, TableGrants, store.Criteria{"user_id": g.UserID})
 		if err != nil {
@@ -224,7 +225,8 @@ func (s *Keys) Create(ctx context.Context, k Key) (Key, string, error) {
 	}
 	err = s.db.Insert(ctx, TableKeys, store.Row{
 		"id": k.ID, "name": k.Name, "key_hash": s.pepper.Hash(keyPepperContext, secret), "role": string(k.Role),
-		// PHP's json_encode escapes slashes: the stored text stays byte-identical ("10.0.0.0\/8").
+		// The stored text escapes slashes ("10.0.0.0\/8"), the bytes rows written by earlier releases
+		// hold.
 		"scope": k.Scope, "ip_allowlist": strings.ReplaceAll(allow, "/", `\/`), "expires_at": timeOrNil(k.ExpiresAt),
 		"last_used_at": nil, "created_by": null(k.CreatedBy), "created_at": k.CreatedAt,
 	})
@@ -290,7 +292,7 @@ func hydrateKey(r store.Row) Key {
 	var allow []any
 	if r.JSON("ip_allowlist", &allow) == nil {
 		for _, v := range allow {
-			if s, ok := v.(string); ok { // as upstream: non-string entries are ignored
+			if s, ok := v.(string); ok { // non-string entries are ignored
 				k.IPAllowlist = append(k.IPAllowlist, s)
 			}
 		}

@@ -73,7 +73,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_audit_event, polaris_audit_drain and polaris_audit_activity.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/audit).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/audit).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/audit")
 	if err != nil {

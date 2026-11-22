@@ -39,7 +39,8 @@ const (
 // TableDevices is the table the plugin owns: one row per device and account.
 const TableDevices = "polaris_multi_session_device"
 
-// Models returns polaris_multi_session_device as upstream declares it.
+// Models returns polaris_multi_session_device; its columns are the schema existing databases
+// hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableDevices,
@@ -57,7 +58,7 @@ func Models() []schema.Model {
 	}
 }
 
-// Config configures the plugin; the zero value is upstream's defaults.
+// Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// DisableCookie stops setting the polaris_ms_device cookie; the device then travels in the
 	// X-Polaris-Device header only.
@@ -80,7 +81,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_multi_session_device.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/multi-session).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/multi-session).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/multi-session")
 	if err != nil {

@@ -78,7 +78,7 @@ func TestOverridesWinInOrderAndTheHtmlIsEscaped(t *testing.T) {
 	check(t, templates.Set(ctx, "", "k", "en", Template{}) != nil, "an override needs an organization")
 }
 
-func TestVariablesRenderAsPHPCastsThem(t *testing.T) {
+func TestScalarVariablesRenderAsStrings(t *testing.T) {
 	cases := map[string]any{"1": true, "": false, "3": int64(3), "2.5": 2.5, "0.5": float32(0.5), "42": json.Number("42"), "x": "x"}
 	for want, v := range cases {
 		check(t, scalar(v) == want, "%v => %q", v, scalar(v))

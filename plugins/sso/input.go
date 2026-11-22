@@ -28,7 +28,7 @@ func providerInput(body map[string]any, existing *Provider) (Provider, []string)
 	keep := func(key string) bool { return existing != nil && body[key] == nil }
 	text := func(key, current string) string {
 		if s, ok := body[key].(string); ok {
-			return phpTrim(s)
+			return trimBlank(s)
 		}
 		if existing != nil {
 			return current
@@ -165,8 +165,8 @@ func configOf(typ string, config map[string]any, errs []string) (map[string]any,
 	return clean, errs
 }
 
-// validURL approximates PHP's FILTER_VALIDATE_URL: a scheme, no spaces or controls, and a host
-// for the web schemes.
+// validURL is the URL check the provider routes apply: printable ASCII only (no spaces or
+// controls), a scheme, and a host for the web schemes (an opaque part or a path for the others).
 func validURL(s string) bool {
 	if strings.ContainsFunc(s, func(r rune) bool { return r <= ' ' || r == 0x7f || r > 0x7e }) {
 		return false
@@ -182,7 +182,8 @@ func validURL(s string) bool {
 	return u.Host != "" || u.Opaque != "" || u.Path != ""
 }
 
-// asMap is a JSON object, or an empty one for a JSON list (PHP's array); ok is false otherwise.
+// asMap is a JSON object, or an empty one for a JSON list (a client may send [] for an empty
+// object); ok is false otherwise.
 func asMap(v any) (map[string]any, bool) {
 	switch m := v.(type) {
 	case map[string]any:
@@ -193,7 +194,8 @@ func asMap(v any) (map[string]any, bool) {
 	return map[string]any{}, false
 }
 
-// listOf is a JSON list, or an object's values in key order (PHP's array).
+// listOf is a JSON list, or an object's values in key order (an object is read as the list of
+// its values, so {"0": a, "1": b} is [a, b]).
 func listOf(v any) ([]any, bool) {
 	switch l := v.(type) {
 	case []any:
@@ -227,5 +229,6 @@ func withoutSecret(config map[string]any) map[string]any {
 	return out
 }
 
-// phpTrim is PHP's trim(): spaces, tabs, newlines, carriage returns, NUL and vertical tabs.
-func phpTrim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }
+// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
+// (not the other Unicode spaces strings.TrimSpace strips).
+func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }

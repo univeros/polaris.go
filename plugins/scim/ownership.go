@@ -14,8 +14,8 @@ import (
 // A Polaris account is global, a directory belongs to one organization. A directory therefore
 // changes an account's email, name and global status only when it owns the account: this
 // connection created it and it belongs to no other organization. Every other account is changed
-// through its membership in the connection's organization only (stricter than upstream, which let
-// any organization's directory rename, disable or delete any account by email).
+// through its membership in the connection's organization only, so a directory cannot rename,
+// disable or delete an account it does not own just by naming its email.
 
 // VerifiedDomains is what a directory asks the sso plugin (found as g.Plugin("sso")): whether the
 // organization verified domain. A directory links an existing account to its organization only

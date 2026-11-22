@@ -120,7 +120,7 @@ func parseQuery(in *endpoint.Input) (Query, endpoint.Result, bool) {
 	return q, endpoint.Result{}, true
 }
 
-// positiveInt reads a numeric value (PHP is_numeric, truncated) that is at least 1.
+// positiveInt reads a number or numeric string (fraction truncated) that is at least 1.
 func positiveInt(v any) (int, bool) {
 	var s string
 	switch v := v.(type) {

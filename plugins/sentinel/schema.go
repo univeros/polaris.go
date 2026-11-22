@@ -9,7 +9,7 @@ const (
 	TableDevices   = "polaris_sentinel_device"
 )
 
-// Models returns the three tables as upstream declares them.
+// Models returns the three tables, the columns existing databases hold (a change is a migration).
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableDecisions,
