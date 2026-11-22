@@ -21,8 +21,8 @@ const (
 // managedClaims are owned by the Codec: a caller-supplied value is dropped.
 var managedClaims = map[string]bool{"iss": true, "aud": true, "iat": true, "exp": true, "nbf": true}
 
-// Config configures a Codec. The key formats are upstream's AUTH_JWT_PRIVATE_KEY and
-// AUTH_JWT_PUBLIC_KEY values as they are.
+// Config configures a Codec. The keys are the AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY
+// values as they are.
 type Config struct {
 	// Algorithm is RS256 (the default when empty) or EdDSA.
 	Algorithm Algorithm
@@ -109,7 +109,7 @@ func New(cfg Config) (*Codec, error) {
 	}, nil
 }
 
-// now is the clock at PHP's DateTimeImmutable precision.
+// now is the clock at the microsecond precision of date claims.
 func (c *Codec) now() time.Time { return c.clock.Now().Truncate(time.Microsecond) }
 
 // Issue mints a signed JWT carrying claims. The header is {"typ":"JWT","alg":…,"kid":…};
@@ -244,7 +244,7 @@ func (c Config) String() string { return "token.Config" + c.LogValue().String() 
 // GoString keeps the private key out of %#v output.
 func (c Config) GoString() string { return c.String() }
 
-// checkWindow is lcobucci/jwt's LooseValidAt: iat and nbf at most now+leeway, exp after
+// checkWindow checks the validity window: iat and nbf at most now+leeway, exp after
 // now-leeway; absent claims pass.
 func checkWindow(claims map[string]any, now time.Time, leeway time.Duration) error {
 	if iat, ok := claims["iat"].(time.Time); ok && now.Add(leeway).Before(iat) {
@@ -269,7 +269,7 @@ func permittedFor(claims map[string]any, audience string) bool {
 	return false
 }
 
-// asciiUpper is PHP 8's locale-independent strtoupper.
+// asciiUpper upper-cases ASCII letters only (strings.ToUpper would also map other Unicode).
 func asciiUpper(s string) string {
 	b := []byte(s)
 	for i, c := range b {

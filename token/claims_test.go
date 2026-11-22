@@ -44,7 +44,7 @@ func TestAccessClaimsExtraClaimsRideAlongAndNeverOverrideAStandardOne(t *testing
 	if v, _ := c.Get("sub"); v != "user-1" {
 		t.Fatal("a standard claim wins over an extra of the same name")
 	}
-	// PHP's [...$extra, 'sub' => …] keeps sub where extra put it.
+	// A standard claim an extra already named keeps the extra's position.
 	if names := c.Names(); names[0] != "impersonated_by" || names[1] != "sub" || names[2] != "jti" {
 		t.Fatalf("order = %v", names)
 	}
@@ -74,8 +74,8 @@ func TestClaimsWithIsCopyOnWrite(t *testing.T) {
 	}
 }
 
-// Expectations probed from PHP 8.5's json_encode(…, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE).
-func TestClaimsEncodeLikePHP(t *testing.T) {
+// The expected bytes are the wire form issued tokens already carry.
+func TestClaimsEncodeInClaimOrderWithMinimalEscaping(t *testing.T) {
 	point1, point2 := 0.1, 0.2
 	c := Claims{}.
 		With("s", "a/b\u2028é<>&\x01\x1f\x7f\"\\\b\f").

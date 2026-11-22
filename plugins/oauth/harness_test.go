@@ -27,16 +27,17 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// The environment of upstream's OAuthTestCase.
+// The environment the recorded fixtures were made in. flowFixtures and registrationFixtures are
+// the file-name prefixes of the recorded fixture sets under internal/apispec/fixtures/oauth-provider.
 const (
-	phpFlow     = `Polaris\OAuth\Tests\Functional\OAuthFlowTest`
-	phpRegister = `Polaris\OAuth\Tests\Functional\OAuthRegistrationTest`
-	password    = "correct horse battery staple"
-	base        = "https://auth.polaris.test"
-	consentURL  = "https://app.polaris.test/consent"
-	deviceURL   = "https://app.polaris.test/device"
-	redirectURI = "https://cli.polaris.test/callback"
-	tokenURL    = base + "/oauth2/token"
+	flowFixtures         = "Polaris.OAuth.Tests.Functional.OAuthFlowTest"
+	registrationFixtures = "Polaris.OAuth.Tests.Functional.OAuthRegistrationTest"
+	password             = "correct horse battery staple"
+	base                 = "https://auth.polaris.test"
+	consentURL           = "https://app.polaris.test/consent"
+	deviceURL            = "https://app.polaris.test/device"
+	redirectURI          = "https://cli.polaris.test/callback"
+	tokenURL             = base + "/oauth2/token"
 )
 
 // fakeHTTP answers the published documents by URL (404 otherwise) and records every fetch.
@@ -78,7 +79,7 @@ func (f *fakeHTTP) fetches(u string) int {
 	return n
 }
 
-// oauthCase is one ported test: a booted server with the oauth plugin and a client replaying the
+// oauthCase is one fixture test: a booted server with the oauth plugin and a client replaying the
 // test's fixture.
 type oauthCase struct {
 	t    *testing.T
@@ -99,15 +100,15 @@ func testConfig(fake *fakeHTTP, dynamicRegistration bool) oauth.Config {
 	}
 }
 
-// run runs each test of a PHP class with its own server and fixture.
-func run(t *testing.T, phpClass string, dynamicRegistration bool, tests map[string]func(*oauthCase)) {
+// run runs each test of a fixture set with its own server and fixture.
+func run(t *testing.T, fixtures string, dynamicRegistration bool, tests map[string]func(*oauthCase)) {
 	t.Helper()
 	dir := contracttest.Fixtures(t, "oauth-provider")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			fake := &fakeHTTP{documents: map[string]any{}}
 			srv := boot(t, fake, dynamicRegistration)
-			fx := contracttest.For(t, dir, phpClass, name)
+			fx := contracttest.For(t, dir, fixtures, name)
 			test(&oauthCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx), http: fake,
 				keys: newClientKeys(t), ctx: context.Background()})
 		})
@@ -162,14 +163,14 @@ func (o *oauthCase) client(access, orgID string, fields map[string]any) map[stri
 	return o.data(created)
 }
 
-// grantOwner gives the user the admin role owner on the instance (upstream Grants::grant).
+// grantOwner gives the user the admin role owner on the instance.
 func (o *oauthCase) grantOwner(userID string) {
 	o.t.Helper()
 	_, err := admin.Of(o.srv.Graph()).Grants().Grant(o.ctx, admin.Grant{UserID: userID, Role: admin.RoleOwner})
 	o.must(err)
 }
 
-// boot installs the plugins upstream's OAuthTestCase does: audit, admin, then oauth.
+// boot installs the plugins the fixtures were recorded with: audit, admin, then oauth.
 func boot(t *testing.T, fake *fakeHTTP, dynamicRegistration bool) *polaristest.Server {
 	return polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
 		oauth.New(testConfig(fake, dynamicRegistration))))

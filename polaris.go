@@ -121,6 +121,31 @@ func (p *Polaris) Protect(next http.Handler, permissions ...string) http.Handler
 	return p.wrap(p.pipeline.Protect(next, permissions...))
 }
 
+// Require is Protect in the shape Go routers chain (chi's Use and With, a stdlib middleware
+// chain): Require(permissions...)(next) is Protect(next, permissions...), with the same answers.
+//
+//	r.With(p.Require("invoices.read")).Get("/api/invoices", list) // chi
+//	mux.Handle("GET /api/invoices", p.Require("invoices.read")(list))
+//
+// Behind Authenticate, or another Require or Protect, that found a principal, it checks only the
+// permissions: the credential is verified once per request.
+func (p *Polaris) Require(permissions ...string) func(http.Handler) http.Handler {
+	required := append([]string(nil), permissions...)
+	return func(next http.Handler) http.Handler { return p.Protect(next, required...) }
+}
+
+// Authenticate identifies the caller when there is one, for a route open to everyone (a public
+// page that personalises): a request with no credential reaches next anonymous (PrincipalFrom
+// reports false), a request with a valid one reaches it with its principal. A credential that
+// does not verify, is expired, revoked or denylisted is answered 401, as Protect answers it: a
+// bad token is never downgraded to anonymous. An Authorization header with another scheme than
+// Bearer or DPoP (a proxy's Basic credentials) is not a Polaris credential and passes anonymous.
+//
+// It is middleware as it stands: r.Use(p.Authenticate) (chi), or p.Authenticate(next).
+func (p *Polaris) Authenticate(next http.Handler) http.Handler {
+	return p.wrap(p.pipeline.Authenticate(next))
+}
+
 // Graph exposes every service read-only: the plugin SDK, for plugins, CLIs and advanced hosts.
 // An application needs only the methods of Polaris.
 func (p *Polaris) Graph() *wiring.Graph { return p.graph }

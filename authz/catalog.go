@@ -81,7 +81,7 @@ func NewCatalog(contributions ...map[string]string) Catalog {
 	return Catalog{contributions: slices.Clone(contributions)}
 }
 
-// Permissions returns the full catalog: core permissions in upstream order, then contributed keys
+// Permissions returns the full catalog: core permissions in their fixed order, then contributed keys
 // (sorted within each contribution, since Go maps have no order).
 func (c Catalog) Permissions() []Permission {
 	out := slices.Clone(corePermissions)

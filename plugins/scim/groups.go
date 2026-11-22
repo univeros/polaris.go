@@ -143,7 +143,7 @@ func (d *directory) applyGroupOp(ctx context.Context, conn Connection, role *mod
 		role.Name = name
 	}
 	if v, ok := op.scalar("externalId").(string); ok {
-		if err := d.resources.setExternalID(ctx, conn, KindGroup, role.ID, phpTrim(v)); err != nil {
+		if err := d.resources.setExternalID(ctx, conn, KindGroup, role.ID, trimBlank(v)); err != nil {
 			return err
 		}
 	}
@@ -305,7 +305,7 @@ func memberIDs(raw any) ([]string, error) {
 	list, ok := raw.([]any)
 	if !ok {
 		if obj, isObj := raw.(map[string]any); isObj && len(obj) == 0 {
-			return nil, nil // PHP cannot tell {} from []
+			return nil, nil // an empty object is read as the empty list
 		}
 		return nil, bad
 	}
@@ -326,14 +326,14 @@ func memberIDs(raw any) ([]string, error) {
 
 func groupName(raw any) (string, error) {
 	name, _ := raw.(string)
-	name = phpTrim(name)
+	name = trimBlank(name)
 	if name == "" || utf8.RuneCountInString(name) > 120 {
 		return "", invalid("displayName must be 1 to 120 characters.", TypeInvalidValue)
 	}
 	return name, nil
 }
 
-// slug is upstream's: runs of anything but ASCII letters and digits become "-", trimmed,
+// slug is a group's role slug: runs of anything but ASCII letters and digits become "-", trimmed,
 // lower-cased, at most 64 bytes; "group" when nothing is left.
 func slug(name string) string {
 	s := strings.ToLower(strings.Trim(nonSlug.ReplaceAllString(name, "-"), "-"))

@@ -17,8 +17,8 @@ const (
 	encrypterKeyContext      = "polaris:encrypter:mfa"
 )
 
-// XChaCha20Poly1305 is the at-rest Encrypter, byte-compatible with upstream's SodiumEncrypter
-// (libsodium's crypto_aead_xchacha20poly1305_ietf).
+// XChaCha20Poly1305 is the at-rest Encrypter (libsodium's crypto_aead_xchacha20poly1305_ietf);
+// ciphertexts stored by earlier releases keep decrypting.
 //
 // The key is HKDF-SHA256(appKey, 32 bytes, info "polaris:encrypter:mfa", empty salt); the
 // additional data is the version byte 0x01; a payload is
@@ -59,10 +59,10 @@ func (e *XChaCha20Poly1305) Encrypt(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(out), nil
 }
 
-// Decrypt opens a payload made by Encrypt (here or upstream). It fails with ErrDecrypt when
+// Decrypt opens a payload made by Encrypt, in this or an earlier release. It fails with ErrDecrypt when
 // the payload is malformed, tampered with, or sealed under another key.
 func (e *XChaCha20Poly1305) Decrypt(payload string) (string, error) {
-	raw, ok := phpBase64DecodeStrict(payload)
+	raw, ok := decodeBase64Lenient(payload)
 	minimum := 1 + chacha20poly1305.NonceSizeX + chacha20poly1305.Overhead
 	if !ok || len(raw) < minimum || raw[0] != encrypterVersion {
 		return "", fmt.Errorf("%w: the encrypted payload is malformed", ErrDecrypt)
@@ -84,10 +84,10 @@ func (*XChaCha20Poly1305) String() string { return redacted.String() }
 // GoString keeps the key out of %#v output.
 func (*XChaCha20Poly1305) GoString() string { return redacted.String() }
 
-// phpBase64DecodeStrict is PHP's base64_decode($s, true): standard alphabet, spaces, tabs,
+// decodeBase64Lenient decodes standard base64 as stored payloads may hold it: spaces, tabs,
 // CR and LF skipped, padding optional but, when present, exactly right and final; non-zero
 // trailing bits accepted.
-func phpBase64DecodeStrict(s string) ([]byte, bool) {
+func decodeBase64Lenient(s string) ([]byte, bool) {
 	clean := make([]byte, 0, len(s))
 	padding := 0
 	for i := 0; i < len(s); i++ {

@@ -134,7 +134,7 @@ func (s *Service) ListOrganizations(ctx context.Context, userID string) ([]model
 // UpdateOrganization renames org (as read by the caller) and dispatches
 // event.OrganizationUpdated. The name is trimmed; empty or over 160 characters is ErrInvalid.
 func (s *Service) UpdateOrganization(ctx context.Context, org model.Organization, name, actorUserID string) (model.Organization, error) {
-	name = phpTrim(name)
+	name = trimEdges(name)
 	if name == "" || utf8.RuneCountInString(name) > maxOrgName {
 		return model.Organization{}, refuse(ErrInvalid, MsgOrgName)
 	}
@@ -148,7 +148,7 @@ func (s *Service) UpdateOrganization(ctx context.Context, org model.Organization
 	return updated, nil
 }
 
-// DeleteOrganization soft-deletes org (docs/auth/rbac.md §6): status suspended, which strips
+// DeleteOrganization soft-deletes org: status suspended, which strips
 // every member's authority in it, hides it from listings and blocks switching into it; rows are
 // purged later by retention tooling. Every member's sessions scoped to it are revoked (reason
 // admin), so their refresh tokens stop minting empty-authority tokens. It dispatches

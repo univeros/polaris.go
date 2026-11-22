@@ -93,9 +93,9 @@ func TestArgon2idRejectsMemoryBelowEightKiBPerLane(t *testing.T) {
 	}
 }
 
-// PHP's password_needs_rehash reads the parameters with sscanf("%lld"), so leading zeros
+// NeedsRehash reads each parameter as a signed decimal (scanArgon2Params), so leading zeros
 // and whitespace still compare equal, and a missing field compares as 0.
-func TestArgon2idNeedsRehashFollowsSscanf(t *testing.T) {
+func TestArgon2idNeedsRehashReadsParamsLeniently(t *testing.T) {
 	h := Argon2id{}
 	for hash, want := range map[string]bool{
 		"$argon2id$v=19$m=065536,t=4,p=1$x$y": false,
@@ -120,7 +120,7 @@ func TestArgon2idVerifyRejectsMalformedPHC(t *testing.T) {
 	if !h.Verify("x", hash) {
 		t.Fatal("valid hash rejected")
 	}
-	// Each mutation is one PHP's password_verify (libargon2) rejects too.
+	// Each mutation is one libargon2's verifier rejects too.
 	for _, bad := range []string{
 		strings.Replace(hash, "m=8,", "m=08,", 1),
 		strings.Replace(hash, "$v=19", "", 1),
@@ -148,18 +148,18 @@ func TestArgon2idVerifyRejectsMalformedPHC(t *testing.T) {
 }
 
 func TestArgon2idVerifiesArgon2iAndBcrypt(t *testing.T) {
-	// $argon2i$ made by PHP 8.5 password_hash("x", PASSWORD_ARGON2I, m=8,t=1,p=1).
+	// A recorded $argon2i$ hash of "x" (m=8,t=1,p=1), as earlier releases may have stored.
 	if !(Argon2id{}).Verify("x", "$argon2i$v=19$m=8,t=1,p=1$dEtlNWhTRm5ObTRYZElQYQ$uEPcootO282FcqCsbkCMSSw5mDUS1xNQuqEFslOK2Ws") {
 		t.Fatal("argon2i hash rejected")
 	}
 	b, _ := bcrypt.GenerateFromPassword([]byte(strings.Repeat("a", 72)), bcrypt.MinCost)
-	php := "$2y$" + string(b[4:])
+	y2 := "$2y$" + string(b[4:])
 	for pw, want := range map[string]bool{
 		strings.Repeat("a", 72):       true,
 		strings.Repeat("a", 72) + "b": true, // crypt_blowfish reads 72 bytes
 		strings.Repeat("a", 71):       false,
 	} {
-		if got := (Argon2id{}).Verify(pw, php); got != want {
+		if got := (Argon2id{}).Verify(pw, y2); got != want {
 			t.Errorf("bcrypt Verify(len %d) = %v", len(pw), got)
 		}
 	}
@@ -168,6 +168,6 @@ func TestArgon2idVerifiesArgon2iAndBcrypt(t *testing.T) {
 	}
 	nul, _ := bcrypt.GenerateFromPassword([]byte("x"), bcrypt.MinCost)
 	if !(Argon2id{}).Verify("x\x00tail", string(nul)) {
-		t.Fatal("crypt_blowfish stops at NUL; PHP verifies this")
+		t.Fatal("crypt_blowfish stops at NUL; the hash must verify")
 	}
 }

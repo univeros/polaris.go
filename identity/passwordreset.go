@@ -20,9 +20,9 @@ const (
 
 // ForgotPassword opens a reset challenge for a known, active account, superseding the outstanding
 // ones, and dispatches event.PasswordResetRequested carrying the plaintext token for the mailer
-// (docs/auth/flows.md §8). For anyone else it does nothing: the caller answers the same generic
+// For anyone else it does nothing: the caller answers the same generic
 // 202 either way. (The known path does a little more work; the forgot rate limit covers that
-// residual delta, as upstream.)
+// residual delta.)
 func (s *Service) ForgotPassword(ctx context.Context, email string, client token.ClientContext) error {
 	user, err := s.repos.Users.ByEmail(ctx, NormalizeEmail(email))
 	if errors.Is(err, repository.ErrNotFound) {

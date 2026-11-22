@@ -2,8 +2,8 @@ package observe
 
 import "testing"
 
-// The expectations are PHP 8's json_encode output with default flags.
-func TestPHPJSONMatchesJSONEncode(t *testing.T) {
+// The expectations are the stored metadata bytes earlier releases wrote.
+func TestMetadataJSONEscapesSlashesAndNonASCII(t *testing.T) {
 	for _, tc := range []struct {
 		fields []field
 		want   string
@@ -14,13 +14,13 @@ func TestPHPJSONMatchesJSONEncode(t *testing.T) {
 		{[]field{{"u", "\u2028<>&'\ufffd"}}, `{"u":"\u2028<>&'\ufffd"}`},
 		{[]field{{"s", (*string)(nil)}, {"p", ptr("x")}, {"c", (*int)(nil)}, {"d", ptr(0)}}, `{"s":null,"p":"x","c":null,"d":0}`},
 		{[]field{{"l", []string(nil)}, {"m", []string{"a", "b/c"}}}, `{"l":[],"m":["a","b\/c"]}`},
-		// Invalid UTF-8 anywhere: PHP throws, upstream writes "{}".
+		// Invalid UTF-8 anywhere: the whole blob is "{}".
 		{[]field{{"x", "\xff"}}, `{}`},
 		{[]field{{"\xed\xa0\x80", "lone surrogate"}}, `{}`},
 		{[]field{{"l", []string{"ok", "\xc3"}}}, `{}`},
 	} {
-		if got := string(phpJSON(tc.fields)); got != tc.want {
-			t.Errorf("phpJSON(%q) = %s; want %s", tc.fields, got, tc.want)
+		if got := string(metadataJSON(tc.fields)); got != tc.want {
+			t.Errorf("metadataJSON(%q) = %s; want %s", tc.fields, got, tc.want)
 		}
 	}
 }

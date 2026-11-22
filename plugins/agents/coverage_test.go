@@ -13,13 +13,13 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Every agents fixture has a Go test (port of ContractCoverageTest).
+// Every agents fixture has a Go test.
 func TestEveryFixtureIsReplayed(t *testing.T) {
 	var covered []string
 	for class, tests := range map[string][]string{
-		phpLifecycle: {"testRegisterAndEnrollAgentsAndHosts", "testGrantsAreApprovedByEachMethodOrByPolicy", "testExecutionBudgetsReceiptsAndTheKillSwitch"},
-		phpTokens:    {"testADelegatedAgentActsForTheUserThroughTokenExchange", "testAnAutonomousAgentActsAsItsOwnerWithinItsGrants", "testALocationCapabilityIsReachedOnlyThroughTheRequestMiddleware"},
-		phpSecurity: {"testAnotherUsersTokenNamingAnAgentIsRefusedEverywhere", "testAnAgentsClientIsNotManageableThroughTheOrganizationRoutes",
+		lifecycleFixtures: {"testRegisterAndEnrollAgentsAndHosts", "testGrantsAreApprovedByEachMethodOrByPolicy", "testExecutionBudgetsReceiptsAndTheKillSwitch"},
+		tokensFixtures:    {"testADelegatedAgentActsForTheUserThroughTokenExchange", "testAnAutonomousAgentActsAsItsOwnerWithinItsGrants", "testALocationCapabilityIsReachedOnlyThroughTheRequestMiddleware"},
+		securityFixtures: {"testAnotherUsersTokenNamingAnAgentIsRefusedEverywhere", "testAnAgentsClientIsNotManageableThroughTheOrganizationRoutes",
 			"testEverySpellingOfALocationIsGuardedAndABoundMiddlewareGuardsItsRoute", "testTheAskerCannotChooseItsAutoApprovalBudget"},
 	} {
 		for _, test := range tests {

@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of MembershipEndpointsTest: the member-management endpoints and their invariants (no
+// Replays the MembershipEndpointsTest fixtures: the member-management endpoints and their invariants (no
 // privilege escalation, owners protected from non-owners, the last owner kept). Members beyond the
 // creator are seeded directly.
 func TestMembershipEndpoints(t *testing.T) {

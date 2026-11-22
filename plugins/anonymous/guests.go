@@ -192,7 +192,7 @@ func (s *Guests) Prune(ctx context.Context) (int, error) {
 	return pruned, nil
 }
 
-// optional maps "" (no value) to nil, as upstream's nullable strings.
+// optional maps "" (no value) to nil, so an absent string is written as null.
 func optional(v string) *string {
 	if v == "" {
 		return nil

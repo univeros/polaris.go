@@ -8,7 +8,7 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Request-scoped values the pipeline sets before an endpoint runs (upstream's request attributes).
+// Request-scoped values the pipeline sets before an endpoint runs.
 type ctxKey int
 
 const (

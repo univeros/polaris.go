@@ -34,7 +34,7 @@ type Actor struct {
 	Act      *Actor `json:"act,omitempty"`
 }
 
-// claims renders a in upstream's member order.
+// claims renders a in the fixed member order the issued tokens carry.
 func (a *Actor) claims() token.Claims {
 	c := token.Claims{}.With("sub", a.Sub).With("client_id", a.ClientID)
 	if a.Act != nil {

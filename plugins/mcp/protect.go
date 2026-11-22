@@ -20,6 +20,7 @@ import (
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/jwtverify"
 	"github.com/univeros/polaris.go/wiring"
 )
 
@@ -80,7 +81,7 @@ type ProtectedResource struct {
 	supported    []string
 	name         string
 	legacy       bool
-	verifier     *verifier
+	verifier     *jwtverify.Verifier
 	dpop         *dpopProofs
 }
 
@@ -170,11 +171,12 @@ func NewProtectedResource(cfg ProtectConfig) (*ProtectedResource, error) {
 		supported:   cfg.ScopesSupported,
 		name:        cfg.ResourceName,
 		legacy:      cfg.AllowLegacy,
-		verifier: &verifier{
-			issuer:    cfg.Issuer,
-			audiences: append([]string{cfg.Resource}, cfg.Audiences...),
-			clock:     clk,
-			keys:      keys,
+		verifier: &jwtverify.Verifier{
+			Issuer:     cfg.Issuer,
+			Audiences:  append([]string{cfg.Resource}, cfg.Audiences...),
+			Algorithms: Algorithms,
+			Clock:      clk,
+			Keys:       keys,
 		},
 		dpop: &dpopProofs{cache: store, clock: clk},
 	}
@@ -204,7 +206,8 @@ func NewProtectedResource(cfg ProtectConfig) (*ProtectedResource, error) {
 		if logger == nil {
 			logger = slog.Default()
 		}
-		pr.verifier.jwks = &jwks{url: cfg.JWKSURL, client: client, ttl: ttl, clock: clk, log: logger.Warn}
+		pr.verifier.JWKS = &jwtverify.JWKS{URL: cfg.JWKSURL, Client: client, TTL: ttl, Clock: clk,
+			Log: func(msg string, args ...any) { logger.Warn("polaris mcp: "+msg, args...) }}
 	}
 	return pr, nil
 }
@@ -246,7 +249,7 @@ func (p *ProtectedResource) MetadataURL() string { return p.metadataURL }
 func (p *ProtectedResource) Metadata() map[string]any {
 	doc := map[string]any{
 		"resource":                          p.resource,
-		"authorization_servers":             []string{p.verifier.issuer},
+		"authorization_servers":             []string{p.verifier.Issuer},
 		"scopes_supported":                  p.supported,
 		"bearer_methods_supported":          []string{"header"},
 		"dpop_signing_alg_values_supported": Algorithms,
@@ -313,7 +316,8 @@ func (e *refusal) write(w http.ResponseWriter) {
 	writeJSON(w, e.status, "application/problem+json", body, h)
 }
 
-// title is PHP's ucwords(str_replace('_', ' ', name)).
+// title turns a snake_case name into words with their first letter upper-cased:
+// "insufficient_scope" is "Insufficient Scope".
 func title(name string) string {
 	words := strings.Split(name, "_")
 	for i, w := range words {
@@ -382,7 +386,7 @@ func (p *ProtectedResource) authenticate(r *http.Request) (map[string]any, *refu
 			status: http.StatusUnauthorized, challenge: p.challenge("", "", "")}
 	}
 	scheme, raw := m[1], m[2]
-	claims, err := p.verifier.verify(r.Context(), raw)
+	claims, err := p.verifier.Verify(r.Context(), raw)
 	if err == nil {
 		err = p.assertBinding(r, scheme, raw, claims)
 	}
@@ -442,23 +446,6 @@ func (p *ProtectedResource) assertBinding(r *http.Request, scheme, raw string, c
 		return nil
 	}
 	return invalid("The DPoP proof is not for the key the token is bound to.")
-}
-
-// scopesOf reads a scope claim: a space-separated string or a list.
-func scopesOf(v any) []string {
-	switch s := v.(type) {
-	case string:
-		return strings.Fields(s)
-	case []any:
-		out := make([]string, 0, len(s))
-		for _, item := range s {
-			if str, ok := item.(string); ok {
-				out = append(out, str)
-			}
-		}
-		return out
-	}
-	return nil
 }
 
 func (p *ProtectedResource) challenge(errCode, description, scope string) string {

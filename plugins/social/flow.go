@@ -94,8 +94,8 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 	return started{URL: prov.authorizationURL(callback, state, scopes, challenge, entry.Nonce), State: state, binding: entry.Binding}, nil
 }
 
-// proxySignature signs random.payload under the pepper the deployments share (as upstream: the
-// base64url of the hex digest).
+// proxySignature signs random.payload under the pepper the deployments share: the base64url of
+// the hex digest, the form every deployment behind the proxy must produce alike.
 func (p *Plugin) proxySignature(signed string) string {
 	return b64([]byte(p.g.Pepper().Hash(proxyContext, signed)))
 }

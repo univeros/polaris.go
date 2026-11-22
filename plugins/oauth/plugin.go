@@ -63,7 +63,7 @@ func (p *Plugin) ID() string { return ID }
 // Schema declares the plugin's six tables.
 func (p *Plugin) Schema() []schema.Model { return models() }
 
-// Manifest is the plugin's route specs, mirrored from upstream.
+// Manifest is the plugin's route specs (declared in internal/apispec/api/oauth-provider).
 func (p *Plugin) Manifest() fs.FS {
 	dir, err := fs.Sub(apispec.API, "api/oauth-provider")
 	if err != nil {

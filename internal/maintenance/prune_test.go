@@ -94,7 +94,6 @@ func ids(t *testing.T, db store.Adapter, table string) []string {
 
 func sorted(s ...string) []string { slices.Sort(s); return s }
 
-// Port of PruneExpiredServiceTest::testPrunesDeadRowsAndKeepsLiveOnes.
 func TestPrunesDeadRowsAndKeepsLiveOnes(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		seedOTP(t, db, "2026-06-10 12:00:00", "2026-06-10 13:00:00")
@@ -143,7 +142,6 @@ func TestPrunesDeadRowsAndKeepsLiveOnes(t *testing.T) {
 	})
 }
 
-// Port of testASecondRunIsANoOp.
 func TestASecondRunIsANoOp(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		seedOTP(t, db, "2026-06-10 12:00:00", "2026-06-10 13:00:00")

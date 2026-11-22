@@ -69,7 +69,8 @@ func New(cfg Config) *Plugin { return &Plugin{cfg: cfg} }
 // ID implements wiring.Plugin.
 func (*Plugin) ID() string { return ID }
 
-// Manifest returns the plugin's routes (upstream api/mcp): POST /mcp and its RFC 9728 metadata.
+// Manifest returns the plugin's routes (declared in internal/apispec/api/mcp): POST /mcp and its
+// RFC 9728 metadata.
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/mcp")
 	if err != nil {

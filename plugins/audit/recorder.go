@@ -90,7 +90,7 @@ func list(s []string) []string {
 	return s
 }
 
-// mapCore maps a core event as upstream's Recorder does.
+// mapCore maps a core event to its audit row: the catalog name, actor, subject and data.
 func mapCore(ev event.Event) (Event, bool) {
 	var e Event
 	switch v := ev.(type) {

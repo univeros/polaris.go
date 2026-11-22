@@ -23,7 +23,7 @@ const (
 var whitespace = regexp.MustCompile(`\s+`)
 
 // scopes is the vocabulary: the OpenID scopes, the permission catalog, the host's extras, in that
-// order (a later description of a known name replaces it in place, as PHP's array spread does).
+// order (a later description of a known name replaces the earlier one and keeps its position).
 type scopes struct {
 	names       []string
 	description map[string]string
@@ -119,7 +119,8 @@ func words(v string) []string {
 	return whitespace.Split(v, -1)
 }
 
-// openIDClaims are the claims sc allows about u, in upstream's order.
+// openIDClaims are the claims sc allows about u, in the fixed order the ID token and userinfo
+// responses list them.
 func openIDClaims(u model.User, sc []string) token.Claims {
 	c := token.Claims{}
 	if slices.Contains(sc, ScopeEmail) {

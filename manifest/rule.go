@@ -13,7 +13,7 @@ import (
 // them.
 var RuleNames = []string{"required", "optional", "string", "email", "max", "in", "regex", "password_policy", "e164", "suspended"}
 
-// e164 is upstream's pattern, with PCRE's "$" (a final newline passes).
+// e164 is /^\+[1-9]\d{1,14}$/ with PCRE's "$" (a final newline passes).
 var e164 = func() *regexp.Regexp {
 	re, err := compilePCRE(`/^\+[1-9]\d{1,14}$/`)
 	if err != nil {
@@ -109,7 +109,7 @@ func (r Rule) check(field string, present bool, value any) (string, bool) {
 	case "email":
 		return field + " must be a valid email address.", isString && IsEmail(s)
 	case "max":
-		limit := phpInt(r.arg)
+		limit := leadingInt(r.arg)
 		return fmt.Sprintf("%s must be at most %d characters.", field, limit), isString && utf8.RuneCountInString(s) <= limit
 	case "in":
 		return fmt.Sprintf("%s must be one of %s.", field, r.arg), isString && slices.Contains(strings.Split(r.arg, ","), s)
@@ -121,8 +121,9 @@ func (r Rule) check(field string, present bool, value any) (string, bool) {
 	return "", true
 }
 
-// phpInt is PHP's (int) cast of a string: the leading integer, 0 when there is none.
-func phpInt(s string) int {
+// leadingInt is the integer s starts with (after ASCII whitespace and an optional sign), 0 when
+// there is none: "max:10abc" limits to 10.
+func leadingInt(s string) int {
 	s = strings.TrimLeft(s, " \t\n\r\v\f")
 	n, sign, i := 0, 1, 0
 	if i < len(s) && (s[i] == '+' || s[i] == '-') {
@@ -137,7 +138,7 @@ func phpInt(s string) int {
 	return sign * n
 }
 
-// compilePCRE compiles a PHP preg pattern ("/^[a-z]+$/i") with Go's regexp: the delimiters and
+// compilePCRE compiles a delimited PCRE-style pattern ("/^[a-z]+$/i") with Go's regexp: the delimiters and
 // the i, m, s, U, u and D modifiers are honoured, and without m or D a "$" also matches before a
 // final newline, as in PCRE. Constructs RE2 lacks (lookaround, backreferences) fail to compile.
 func compilePCRE(pattern string) (*regexp.Regexp, error) {

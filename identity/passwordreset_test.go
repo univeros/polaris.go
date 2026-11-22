@@ -1,6 +1,6 @@
 package identity
 
-// Service-level port of tests/Functional/PasswordEndpointsTest (PasswordResetService).
+// The password reset service (the password endpoints, service side).
 
 import (
 	"errors"

@@ -24,8 +24,10 @@ const (
 	operator = "operator@example.com"
 )
 
-// flow is upstream's AdminTestCase: a server with the audit and admin plugins, replaying the
-// recorded fixture of one PHP test.
+// fixturePrefix starts the file name of every recorded fixture under internal/apispec/fixtures/admin.
+const fixturePrefix = "Polaris.Admin.Tests.Functional."
+
+// flow is a server with the audit and admin plugins, replaying the recorded fixture of one test.
 type flow struct {
 	t     *testing.T
 	srv   *polaristest.Server
@@ -33,11 +35,11 @@ type flow struct {
 	admin *admin.Plugin
 }
 
-func newFlow(t *testing.T, class, method string) *flow {
+func newFlow(t *testing.T, suite, test string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), f.admin))
-	fixture := contracttest.For(t, contracttest.Fixtures(t, "admin"), `Polaris\Admin\Tests\Functional\`+class, method)
+	fixture := contracttest.For(t, contracttest.Fixtures(t, "admin"), fixturePrefix+suite, test)
 	f.c = contracttest.NewClient(t, f.srv.Handler(), fixture)
 	return f
 }

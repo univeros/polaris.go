@@ -14,7 +14,7 @@ import (
 	"github.com/univeros/polaris.go/manifest"
 )
 
-// router matches a request against the manifest as upstream does: routes in load order, the first
+// router matches a request against the manifest: routes in load order, the first
 // whose path and method match wins, a {param} segment binds [^/]+ of the raw (escaped) path.
 type router struct {
 	prefix string

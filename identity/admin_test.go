@@ -1,6 +1,6 @@
 package identity
 
-// Service-level port of tests/Functional/UserAdminEndpointsTest (UserAdminService). Route-level
+// The user administration service (the users endpoints, service side). Route-level
 // authorization (users.manage on disable/enable, authentication) belongs to the pipeline.
 
 import (

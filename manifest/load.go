@@ -38,7 +38,7 @@ func (m *Manifest) Named(name string) (*Route, bool) {
 }
 
 // Load reads every *.yaml spec under each directory: core's api/ first, then each plugin's, in
-// registration order (for the embedded upstream manifests, fs.Sub(apispec.API, "api/core"), then
+// registration order (for the embedded manifests, fs.Sub(apispec.API, "api/core"), then
 // fs.Sub(apispec.API, "api/<package>")). A spec in a later directory belongs to the plugin named by
 // its first path segment ("audit/me.yaml" is plugin "audit").
 //
@@ -84,7 +84,7 @@ func specFiles(dir fs.FS) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("manifest: reading spec directory: %w", err)
 	}
-	slices.Sort(files) // whole paths, as upstream sorts them: "a-b.yaml" before "a/b.yaml"
+	slices.Sort(files) // whole paths, byte order: "a-b.yaml" before "a/b.yaml"
 	return files, nil
 }
 
@@ -168,7 +168,7 @@ func parse(document any, file string) (*Route, error) {
 	output, _ := asMap(get(doc, "output"))
 
 	r := &Route{File: file, Name: routeName(file)}
-	// Checked in upstream's order, so a spec with several faults reports the same one.
+	// Checked in a fixed order, so a spec with several faults always reports the same one.
 	method, err := required(endpoint, "method", file)
 	if err != nil {
 		return nil, err
@@ -231,8 +231,7 @@ func parse(document any, file string) (*Route, error) {
 	return r, nil
 }
 
-// routeName is "polaris." and the file's path without .yaml, slashes as dots, as the upstream
-// framework adapters name their routes.
+// routeName is "polaris." and the file's path without .yaml, slashes as dots.
 func routeName(file string) string {
 	return "polaris." + strings.ReplaceAll(strings.TrimSuffix(file, ".yaml"), "/", ".")
 }
@@ -242,7 +241,8 @@ func get(o Object, key string) any {
 	return v
 }
 
-// asMap reports whether v is a YAML collection (PHP's is_array), giving its keys when it is a mapping.
+// asMap reports whether v is a YAML collection (a mapping or a list), giving its keys when it is a
+// mapping.
 func asMap(v any) (Object, bool) {
 	switch v := v.(type) {
 	case Object:
@@ -269,7 +269,7 @@ func required(section Object, key, file string) (string, error) {
 	return s, nil
 }
 
-// values is a YAML collection's values (PHP's array_values); nothing for a scalar.
+// values is a YAML collection's values in order; nothing for a scalar.
 func values(v any) []any {
 	switch v := v.(type) {
 	case []any:
@@ -294,7 +294,8 @@ func stringList(v any) []string {
 	return out
 }
 
-// scalarString converts a YAML scalar to a string as PHP's (string) cast does.
+// scalarString converts a YAML scalar to its string form (true "1", false and null "",
+// a float in %G form with 14 significant digits).
 func scalarString(v any) string {
 	switch v := v.(type) {
 	case string:
@@ -314,7 +315,7 @@ func scalarString(v any) string {
 	return fmt.Sprint(v)
 }
 
-// debugString names a value the way upstream's error messages do: scalars as text, others by type.
+// debugString names a value in an error message: scalars as text, others by type.
 func debugString(v any) string {
 	switch v.(type) {
 	case Object, []any:
@@ -323,7 +324,8 @@ func debugString(v any) string {
 	return scalarString(v)
 }
 
-// truthy is PHP's (bool) cast of a YAML value.
+// truthy is a YAML value as a lenient boolean: null, false, 0, "", "0" and empty collections are
+// false.
 func truthy(v any) bool {
 	switch v := v.(type) {
 	case nil:

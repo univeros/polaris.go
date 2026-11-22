@@ -60,7 +60,7 @@ func metadata(t *testing.T, e model.AuditLogEntry) map[string]any {
 	return m
 }
 
-// wantMeta checks e's metadata is exactly want (PHP's JSON escaping) or, on PostgreSQL and MySQL
+// wantMeta checks e's metadata is exactly want (metadataJSON's escaping) or, on PostgreSQL and MySQL
 // (which store JSON parsed and hand back their own form), an equal JSON value.
 func wantMeta(t *testing.T, e model.AuditLogEntry, want string) {
 	t.Helper()
@@ -85,7 +85,6 @@ func str(p *string) string {
 	return *p
 }
 
-// Port of AuditLogListenerTest::testRecordsEventNameActorAndMetadata.
 func TestRecordsEventNameActorAndMetadata(t *testing.T) {
 	auditBackends(t, func(t *testing.T, listen event.Listener, rows func() []model.AuditLogEntry) {
 		listen(ctx, event.UserLoggedIn{UserID: "user-1", SessionID: "session-9", IP: ptr("203.0.113.7"), UserAgent: ptr("Browser/1.0"), AMR: []string{"pwd", "otp"}})
@@ -102,8 +101,8 @@ func TestRecordsEventNameActorAndMetadata(t *testing.T) {
 	})
 }
 
-// Port of testRecordsLoginFailureReasonAndLockExpiry, testRecordsSessionRevocationScaleAndReason
-// and testRecordsMfaFactorContext.
+// TestRecordsIdentityAndMFAContext covers login failures (reason, lock expiry), session
+// revocations (scale, reason) and MFA factor context.
 func TestRecordsIdentityAndMFAContext(t *testing.T) {
 	auditBackends(t, func(t *testing.T, listen event.Listener, rows func() []model.AuditLogEntry) {
 		until := time.Date(2026, 6, 10, 12, 15, 0, 0, time.UTC)
@@ -140,8 +139,8 @@ func TestRecordsIdentityAndMFAContext(t *testing.T) {
 	})
 }
 
-// Port of testRecordsOrgAndRoleLifecycleEvents, testRecordsOrgContextAndAdminActor and
-// testRecordsMembershipManagementEvents.
+// TestRecordsOrganizationContextAndActors covers organization and role lifecycle, organization
+// context with an admin actor, and membership management events.
 func TestRecordsOrganizationContextAndActors(t *testing.T) {
 	auditBackends(t, func(t *testing.T, listen event.Listener, rows func() []model.AuditLogEntry) {
 		listen(ctx, event.OrganizationSwitched{UserID: "user-1", FromOrganizationID: ptr("org-1"), ToOrganizationID: "org-2"})
@@ -186,7 +185,6 @@ func TestRecordsOrganizationContextAndActors(t *testing.T) {
 	})
 }
 
-// Port of testSecretCarryingEventsNeverLeakTheirTokens.
 func TestSecretCarryingEventsNeverLeakTheirTokens(t *testing.T) {
 	auditBackends(t, func(t *testing.T, listen event.Listener, rows func() []model.AuditLogEntry) {
 		listen(ctx, event.UserRegistered{UserID: "user-1", Email: "new@example.com", VerificationToken: "verification-secret-token"})
@@ -256,7 +254,6 @@ func (brokenWriter) Insert(context.Context, model.AuditLogEntry) error {
 	return errors.New("database is down")
 }
 
-// Port of testAFailedAuditWriteIsSwallowedNotPropagated.
 func TestAFailedAuditWriteIsLoggedAndSwallowed(t *testing.T) {
 	var buf bytes.Buffer
 	listen := AuditLog(brokenWriter{}, nil, slog.New(slog.NewTextHandler(&buf, nil)))

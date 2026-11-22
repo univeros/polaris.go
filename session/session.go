@@ -65,7 +65,7 @@ type Config struct {
 	Access     Issuer            // mints access JWTs: the access-token *token.Codec
 	Principals PrincipalResolver // authz.Principals in production
 	// Denylist receives the per-user watermark of RevokeAll; pass the instance the denylist
-	// middleware reads. It is written whether or not the denylist check is enabled, as upstream.
+	// middleware reads. It is written whether or not the denylist check is enabled.
 	Denylist *Denylist
 	// Auth supplies AccessToken.TTL and the RefreshToken settings; start from config.Defaults().
 	Auth   config.Auth

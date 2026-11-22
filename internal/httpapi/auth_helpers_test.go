@@ -15,10 +15,11 @@ const (
 	authEmail       = "ada@example.com"
 	authPassword    = "correct horse battery staple"
 	authNewPassword = "an entirely different passphrase"
-	authPHPNS       = `Polaris\Tests\Functional\`
+	// coreSuite is the namespace of the recorded core test names the fixture files are keyed by.
+	coreSuite = `Polaris\Tests\Functional\`
 )
 
-// authCase boots a server and a client replaying the fixture of the PHP test class::method.
+// authCase boots a server and a client replaying the fixture of the recorded test class::method.
 type authCase struct {
 	t   *testing.T
 	srv *polaristest.Server
@@ -28,7 +29,7 @@ type authCase struct {
 func authNew(t *testing.T, class, method string, opts ...polaristest.Option) *authCase {
 	t.Helper()
 	srv := polaristest.New(t, opts...)
-	fx := contracttest.For(t, contracttest.Fixtures(t, "core"), authPHPNS+class, method)
+	fx := contracttest.For(t, contracttest.Fixtures(t, "core"), coreSuite+class, method)
 	return &authCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 }
 
@@ -84,7 +85,7 @@ func (a *authCase) user(email string) model.User {
 	return u
 }
 
-// updateUser applies edit to the stored user, as the PHP tests persist through the unit of work.
+// updateUser applies edit to the stored user directly in the database.
 func (a *authCase) updateUser(email string, edit func(u *model.User)) {
 	a.t.Helper()
 	before := a.user(email)

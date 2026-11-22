@@ -82,16 +82,16 @@ func (h HIBP) query(ctx context.Context, prefix, suffix string) (bool, error) {
 func rangeListsSuffix(body, suffix string) bool {
 	for _, line := range strings.Split(body, "\n") {
 		name, count, _ := strings.Cut(strings.ReplaceAll(line, "\r", ""), ":")
-		if name == suffix && phpIntval(count) > 0 {
+		if name == suffix && leadingInt(count) > 0 {
 			return true
 		}
 	}
 	return false
 }
 
-// phpIntval is PHP's (int) cast of a string: leading whitespace, optional sign, then the
-// leading digits; anything else reads as 0.
-func phpIntval(s string) int64 {
+// leadingInt reads the integer a string starts with: leading whitespace, optional sign, then
+// the leading digits; anything else reads as 0, and overflow saturates.
+func leadingInt(s string) int64 {
 	s = strings.TrimLeft(s, " \t\n\r\v\f")
 	n, sign := int64(0), int64(1)
 	if s != "" && (s[0] == '+' || s[0] == '-') {
@@ -102,7 +102,7 @@ func phpIntval(s string) int64 {
 	}
 	for i := 0; i < len(s) && s[i] >= '0' && s[i] <= '9'; i++ {
 		if n > (1<<63-1)/10 {
-			return sign * (1<<63 - 1) // PHP saturates on overflow
+			return sign * (1<<63 - 1) // saturate on overflow
 		}
 		n = n*10 + int64(s[i]-'0')
 	}

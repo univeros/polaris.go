@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of UserAdminEndpointsTest: GET/PATCH/DELETE /users/{id} (self or admin) and
+// Replays the UserAdminEndpointsTest fixtures: GET/PATCH/DELETE /users/{id} (self or admin) and
 // POST /users/{id}/disable|enable (users.manage, held only by superadmins). Disabling revokes the
 // target's sessions and blocks login; deletion anonymizes the account, keeping a tombstone row.
 func TestUserAdminEndpoints(t *testing.T) {

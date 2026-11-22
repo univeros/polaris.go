@@ -24,7 +24,7 @@ const (
 	AccessTokenType = "urn:ietf:params:oauth:token-type:access_token"
 )
 
-// The routes the SDK calls, under the mount (upstream's generated Routes).
+// The routes the SDK calls, under the mount.
 const (
 	pathRegister     = "/agents/register"
 	pathEnroll       = "/agents/enroll"

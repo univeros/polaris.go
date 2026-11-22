@@ -11,9 +11,8 @@ import (
 	"github.com/univeros/polaris.go/agent"
 )
 
-// TestWalkthrough is upstream's tests/Functional/WalkthroughTest against a real Polaris server
-// (PHP today; the Go server once plugins/agents is ported, when it will boot one with polaristest
-// instead). It runs when these are set, and is skipped otherwise:
+// TestWalkthrough walks the SDK through register, grants, execution and receipts against a real
+// Polaris server. It runs when these are set, and is skipped otherwise:
 //
 //	POLARIS_AGENT_SERVER      where Polaris is mounted, e.g. https://app.example.com/auth
 //	POLARIS_ENROLLMENT_TOKEN  a host's peh_ token (POST /agents/hosts)

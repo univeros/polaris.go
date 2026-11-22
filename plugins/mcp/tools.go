@@ -103,10 +103,10 @@ func outputSchema(rt *manifest.Route, op manifest.Object) manifest.Object {
 	}
 }
 
-// nullable is an example-typed schema as a tool may promise it (upstream ToolSchema::nullable):
-// a result is validated against its output schema, and an example cannot show which fields may be
-// null (display_name of GET /auth/me). Every scalar type also admits null, a "null" type is
-// untyped, objects, arrays and oneOf recurse; anything else is returned as is.
+// nullable is an example-typed schema as a tool may promise it: a result is validated against
+// its output schema, and an example cannot show which fields may be null (display_name of
+// GET /auth/me). Every scalar type also admits null, a "null" type is untyped, objects, arrays
+// and oneOf recurse; anything else is returned as is.
 func nullable(v any) any {
 	s, ok := v.(manifest.Object)
 	if !ok {
@@ -217,8 +217,8 @@ func (p *Plugin) lists(rt *manifest.Route, c caller, allows func(...string) bool
 	probe := *rt
 	if rt.Plugin != "" && strings.HasPrefix(rt.Path, orgRoute) {
 		// A plugin's organization route is authorized against the organization in its path,
-		// which the listing does not know: it is listed as a permissionless route would be (as
-		// upstream lists it), and the call itself is authorized by the route.
+		// which the listing does not know: it is listed as a permissionless route would be, and the
+		// call itself is authorized by the route.
 		probe.RequiresPermissions = nil
 	}
 	return !pipeline.DeniesDelegate(&probe, c.token) && allows(probe.RequiresPermissions...)

@@ -740,6 +740,142 @@ What a client reads from the server said "Polaris for PHP" (#53 follow-up). Brea
   (tests, a `replace`). Nothing to bump at release time.
 - The MCP and agents contract fixtures and the OpenAPI goldens are edited to match.
 
+## 55. 2026-11-22 — Host middleware, optional authentication, and `verify` for other services
+
+Two things a Go service needs were missing from the host surface: middleware in the shape routers
+chain, with optional authentication, and a way for another service, without the auth database, to
+accept Polaris tokens.
+
+- `p.Require(permissions...)` is `func(http.Handler) http.Handler`, exactly `Protect(next,
+  permissions...)`. `p.Authenticate(next)` is Protect without permissions for a route open to
+  everyone: no credential passes anonymous (`PrincipalFrom` reports false); a credential that does
+  not verify, a resolver's refusal, a denylisted token, or a Bearer/DPoP header no resolver took is
+  401, never downgraded to anonymous. Another scheme (a proxy's Basic credentials) is not a Polaris
+  credential and passes anonymous. `Protect` is unchanged.
+- A guard behind another guard that found a principal checks only its permissions
+  (`pipeline.Protect`/`Authenticate` mark the request): `r.Use(p.Authenticate)` plus
+  `r.With(p.Require("x"))` resolves the bearer and runs plugin middleware once per request, where
+  nested Protects used to repeat them (an API key's rate limit was counted twice). Config.Middleware
+  still wraps each guard.
+- `polaris.RequireKind(kinds...)` and `polaris.RequireOrganization` read only what the principal
+  already carries (no query): 401 without a principal, 403 otherwise. A step-up requirement was
+  left out: it needs the pipeline's step-up check plumbed to host routes; no policy language.
+- New package `verify` (stable, API.md §1): `New(Config)`, `Verifier.Verify(ctx, raw)`,
+  `Verifier.Require(scopes...)`, `ClaimsFrom`, `Claims`, `ErrInvalidToken`, `ErrUnavailable`. It
+  accepts session JWTs (typ JWT) and the oauth plugin's at+jwt tokens, RS256 or EdDSA only, and
+  answers like the host (401 / 403 with the RFC 6750 challenge) plus 503 when the issuer's keys
+  cannot be read, so an outage does not look like a bad token. With no `Audiences` it accepts only
+  tokens without an aud (session tokens while AUTH_AUDIENCE is unset), the rule `token.Codec.Parse`
+  applies; OAuth tokens need the service's resource in `Audiences`. A missing typ is refused (Polaris
+  always writes one).
+- Its documented limit: no revocation, denylist, disabled users, suspended memberships, agent kill
+  switch or permission changes until the token expires; `Claims.Scopes` are the permissions at
+  issue. The access token lifetime (AUTH_ACCESS_TOKEN_TTL, 15 min by default) bounds it; actions
+  that must see a revocation at once go through the host's `Protect`.
+- The verifier is shared, not duplicated: `plugins/mcp`'s token verifier and JWK Set cache moved to
+  `internal/jwtverify` unchanged but for three settings: the algorithm allow-list, a typ-required
+  switch, and the no-audience rule above (mcp keeps its list, accepts an absent typ, and always has
+  its Resource as an audience; its refusal messages are the same). `mcp.Protect`'s tests and fixtures pass
+  unchanged; `mcp.MinJWKSRefetch` and `mcp.DefaultJWKSTTL` are the shared constants.
+- `verify` fetches the JWK Set with `netguard.NoRedirects(cfg.HTTPClient)`, as `oauth` and `sso`
+  do: by default public addresses only, never a redirect; a host with an issuer on a private
+  network passes its own client. `mcp.Protect` keeps its own default client (its behaviour is
+  unchanged).
+
+Security review (rule 6): no check is weakened. `verify` adds checks over the moved verifier (an
+RS256/EdDSA allow-list before any key lookup, typ required, aud refused when none is configured,
+cnf-bound tokens refused because accepting them without the proof would make a DPoP token a bearer
+one). Keys come only from the configured https URL, are bounded to 64 KiB, cached for a TTL and
+never used past it; an unknown kid refetches at most once a minute, so a forged kid is no fetch
+amplifier. alg none, HS256 keyed with the public key, ES256 under an RSA kid and an RS256 token
+naming the Ed25519 kid are tested refusals; `FuzzVerify` covers arbitrary headers and claims signed
+with the issuer's key. Optional authentication shares Protect's chain (resolvers, plugin middleware,
+denylist), so the only new branch is "no credential at all", which carries no principal. An OpenID
+ID token is typ JWT, signed by the same key, with aud its client_id, so `verify` accepts a typ JWT
+token only when it carries the `roles` list every session access token carries (empty when the
+user has no role) and an ID token never does: a positive session marker, not a deny-list of ID
+token claims an ID token may lack. `mcp.Protect` keeps accepting typ JWT without that marker for
+now (its behaviour is not changed here), so a resource whose audience equals a client_id accepts
+that client's ID tokens there.
+
+## 56. 2026-11-22 — Import users with their password hashes
+
+Adopting Polaris should not mean a password reset for every existing user. A host can now bring
+accounts with the hash another system stored, and the first sign-in upgrades each one.
+
+- `p.Users().Import(ctx, polaris.ImportedUser{...})`, a method of its own rather than a
+  `PasswordHash` field on `NewUser`: `Create` keeps one meaning (Polaris hashes a password under the
+  policy, verification email out), and an import has different rules (no policy, no hashing, no
+  email; `CreatedAt` and `Disabled` kept). It goes through `identity.InsertUser`, so
+  `Hooks.OnUserCreated` runs in the account's transaction and `user.registered` is dispatched
+  (without a verification token, so the mailer sends nothing); it joins the host's
+  `sqlstore.WithTx`, so a migration is all or nothing. No HTTP route: it is for a trusted caller in
+  process. The contract fixtures are unchanged.
+- The hash must pass `security.HashChecker.CheckHash`, a new optional interface of the
+  `PasswordHasher` port (`security.Argon2id` implements it). A configured hasher without it refuses
+  imports with an error naming the fix, rather than storing a hash nobody could sign in with. A
+  refused hash is `polaris.ErrInvalidInput` and `security.ErrUnsupportedHash`; the message lists
+  `security.SupportedHashFormats`.
+- `security.Argon2id.Verify` also verifies Django `pbkdf2_sha256$` and `scrypt$`, passlib
+  `$pbkdf2-sha256$`, `$pbkdf2-sha512$` and `$scrypt$` (standard or passlib base64), and Firebase's
+  modified scrypt as `$firebase-scrypt$ln=,r=,sep=,key=$salt$hash` (the project's hash parameters
+  and the exported values, so each row describes itself). PBKDF2 uses stdlib `crypto/pbkdf2`,
+  scrypt `golang.org/x/crypto/scrypt` (already required); no new dependency. Bcrypt, Argon2id and
+  Argon2i verify exactly as before. Known-answer vectors from Django's and passlib's test suites,
+  RFC 7914 §11–12 and the `firebase/scrypt` README are in `testdata/vectors/imported-hashes.json`.
+  Not supported: Django `pbkdf2_sha1$` and `argon2$`, passlib `$pbkdf2$` (SHA-1), PHC-style
+  `i=,l=` PBKDF2 parameters, scrypt `$7$`; Cognito exports no hashes at all. A host keeps an exotic
+  scheme by wrapping `Argon2id` as `Config.Hasher` (its own `Verify` and `CheckHash` for the
+  prefix); `ExampleHashChecker` shows it.
+
+Security review (rule 6):
+
+- Verify only. Polaris never creates these formats; `NeedsRehash` is true for every one of them,
+  so `Login` stores an Argon2id hash under the configured parameters on the first correct
+  password, and the legacy string is gone.
+- A hash string is data from the database, so its costs are bounded before any work: PBKDF2
+  iterations 1,000 (RFC 8018 §4.2) to 5,000,000; scrypt memory 128·r·N from 1 MiB to 256 MiB,
+  p ≤ 16 and 128·r·N·p ≤ 1 GiB; salts 4 to 256 bytes (4 is RFC 7914's own "NaCl"; refusing
+  shorter catches truncated rows); stored hashes 16 to 64 bytes; strings at most 1,024
+  characters. Out of bounds never verifies (and never runs the KDF); the parsers take strict
+  decimals (no sign, no leading zero) and reject trailing fields. `FuzzCheckHash` covers them.
+- Imports are stricter than `Verify` for the formats `Verify` already read: bcrypt cost at most 16,
+  Argon2 memory at most 1 GiB and memory × passes at most 4 GiB. `Verify` itself keeps reading every
+  bcrypt and Argon2 hash it read before (rule 5), so an existing row with an absurd cost still costs
+  what it did; bounding that is a separate change.
+- Comparisons are `crypto/subtle.ConstantTimeCompare` of the derived bytes (bcrypt compares inside
+  `x/crypto/bcrypt`, as before). The Firebase scheme compares the signer key encrypted under the
+  derived key, as Firebase does.
+- Timing: `Login` still runs exactly one verify per attempt, but a not-yet-upgraded user's verify
+  runs at the imported hash's cost, not the configured Argon2id's, so the response time can tell an
+  imported account from an unknown email until that user signs in once. This is the same exposure
+  an Argon2id hash with older parameters already had.
+- The Firebase signer key sits in each Firebase row's hash string. A database reader can then test
+  guesses against those rows offline, as with any stored hash; without the key the rows could not
+  be verified at all. The rows disappear as their users sign in; a host that does not accept this
+  imports Firebase users without a hash and has them reset.
+
+## 58. 2026-11-22 — The code reads as Go, not as a port
+
+Outside `plugins/`, comments, private identifiers, test names and test-data file names no longer
+describe the code by reference to the PHP project (#53). Each comment now states the format or rule
+in its own terms and, where a format is unusual, why: stored data, issued tokens and recorded
+vectors from earlier releases must keep reading (rule 5). References to documents that do not exist
+here (`docs/auth/*`, `docs/cookie-mode`, "spec §N") are removed or described inline.
+
+- Renamed (all unexported or test names; no stable API changed): `internal/observe/phpjson.go` is
+  `metadatajson.go` (`phpJSON` is `metadataJSON`), `agent/testdata/php-receipts.json` is
+  `receipt-chains.json`, and the `php*`/`*PHP*`/`*Upstream*`/`*Otphp*`/`*Lcobucci*` helpers and tests
+  in `token`, `security`, `identity`, `orgs`, `manifest`, `cli`, `internal/contracttest` and
+  `internal/httpapi` take names that describe the behaviour (`encodeOrderedObject`, `asList`,
+  `decodeBase64Lenient`, `leadingInt`, `trimSet`, …).
+- No behaviour changed: no byte the server emits, stores or accepts, no fixture, no golden, no vector.
+- Kept on purpose: the `domain.class` values (`Polaris\Http\…`) in the route specs and the exported
+  manifest goldens, which clients read; the recorded test names (`Polaris\Tests\Functional\…`) that
+  key the contract fixtures; the `"generator": "php"` field of the known-answer vectors, which the
+  vector tests check; the `cache.ErrInvalidKey` error text naming PSR-16, which hosts may match; the
+  501 text "This endpoint is not ported yet."; and the history sentence in `AGENT.md`.
+
 ## 57. 2026-11-22 — plugins/ui: server-rendered sign-in pages
 
 Polaris was a JSON API only: a Go team wrote every screen before a user could sign in, and

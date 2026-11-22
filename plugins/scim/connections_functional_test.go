@@ -18,9 +18,9 @@ import (
 
 func TestEveryScimFixtureHasAGoTest(t *testing.T) {
 	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "scim"), []string{
-		classes + "ScimConnectionsTest::testAnOrganizationCreatesRotatesAndDecommissionsItsConnections",
-		classes + "ScimConnectionsTest::testTheOperatorsSeeEveryOrganizationsConnections",
-		classes + "ScimProvisioningTest::testADirectoryProvisionsUsersAndGroups",
+		fixturePrefix + "ScimConnectionsTest::testAnOrganizationCreatesRotatesAndDecommissionsItsConnections",
+		fixturePrefix + "ScimConnectionsTest::testTheOperatorsSeeEveryOrganizationsConnections",
+		fixturePrefix + "ScimProvisioningTest::testADirectoryProvisionsUsersAndGroups",
 	})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("uncovered fixtures %v (%v)", missing, err)
@@ -99,8 +99,8 @@ func TestScimConnections(t *testing.T) {
 	})
 }
 
-// Stricter than upstream: core enforces the routes' org.update, so a plain member of the active
-// organization cannot manage its connections (upstream only checked the active organization).
+// Core enforces the routes' org.update, so a plain member of the active organization cannot
+// manage its connections: being in the organization is not enough.
 func TestAMemberWithoutOrgUpdateCannotManageConnections(t *testing.T) {
 	f := &flow{t: t, admin: admin.New(admin.Config{}), trail: audit.New(audit.Config{})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, scim.New(scim.Config{BaseURL: base})))

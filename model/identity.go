@@ -94,8 +94,8 @@ type AuditLogEntry struct {
 	Event          string
 	IP             *string
 	UserAgent      *string
-	// Metadata is stored verbatim. PHP writes json_encode($metadata) with default flags: keys in
-	// insertion order, "\/" and \uXXXX escapes, and "[]" for no metadata (nil is written as "[]").
+	// Metadata is stored verbatim, as the audit writer encodes it: keys in insertion order, "/"
+	// escaped as "\/", non-ASCII as \uXXXX, and "[]" for no metadata (nil is written as "[]").
 	Metadata  json.RawMessage
 	CreatedAt time.Time
 }

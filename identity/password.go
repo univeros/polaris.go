@@ -37,11 +37,11 @@ func (p PasswordPolicy) enforce(ctx context.Context, password string) error {
 }
 
 // NormalizeEmail canonicalizes an email so one address always maps to one stored value and one
-// lookup key: surrounding whitespace trimmed, ASCII letters lowercased. It matches upstream's
-// strtolower(trim()) byte for byte (non-ASCII letters are kept as they are), because the result
-// is stored and shared with PHP instances.
+// lookup key: surrounding whitespace trimmed, ASCII letters lowercased, every other byte (non-ASCII letters included) kept as it
+// is. The result is stored, so it must stay byte for byte what earlier releases stored for the
+// same input.
 func NormalizeEmail(email string) string {
-	b := []byte(strings.Trim(email, phpTrimSet)) // bytes, not runes: invalid UTF-8 survives
+	b := []byte(strings.Trim(email, trimSet)) // bytes, not runes: invalid UTF-8 survives
 	for i, c := range b {
 		if 'A' <= c && c <= 'Z' {
 			b[i] = c + ('a' - 'A')
@@ -50,5 +50,7 @@ func NormalizeEmail(email string) string {
 	return string(b)
 }
 
-// phpTrimSet is what PHP's trim() strips by default (not Unicode spaces, as strings.TrimSpace).
-const phpTrimSet = " \t\n\r\x00\x0B"
+// trimSet is the edge characters stripped from emails and names: space, tab, LF, CR, NUL and
+// vertical tab. Not strings.TrimSpace: it would also strip form feed and Unicode spaces, changing
+// stored values.
+const trimSet = " \t\n\r\x00\x0B"

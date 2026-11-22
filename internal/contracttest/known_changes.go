@@ -1,8 +1,7 @@
 package contracttest
 
-// knownChanges are the recorded 1.0 responses the extraction deliberately changed, ported
-// verbatim from tests/Contract/KnownChanges.php (each documented upstream in
-// docs/extraction/behaviour-changes.md). The key is the PHP test name, the step is 1-based, and
+// knownChanges are the recorded 1.0 responses that were later changed on purpose (each a fix that
+// a client sees). The key is the recorded test name (`Class::method`), the step is 1-based, and
 // the value is the expected response already normalized: the replay compares against it instead
 // of the recording.
 var knownChanges = map[string]map[int]normalized{

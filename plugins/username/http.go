@@ -31,7 +31,7 @@ func (p *Plugin) fail(ctx context.Context, op string, err error) endpoint.Result
 func (p *Plugin) signIn(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	identifier, _ := in.Value("username").(string)
 	password, _ := in.Value("password").(string)
-	if identifier = trim(identifier); identifier == "" || password == "" {
+	if identifier = trimBlank(identifier); identifier == "" || password == "" {
 		return endpoint.Problem(http.StatusUnprocessableEntity, "username/invalid_input", "Invalid input", "A username (or email) and a password are required.", nil)
 	}
 	email, err := p.email(ctx, identifier)

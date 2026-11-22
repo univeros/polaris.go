@@ -11,7 +11,7 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Port of InvitationEndpointsTest: POST/GET /orgs/{id}/invites, DELETE /orgs/{id}/invites/{inviteId}
+// Replays the InvitationEndpointsTest fixtures: POST/GET /orgs/{id}/invites, DELETE /orgs/{id}/invites/{inviteId}
 // and POST /auth/invites/accept. The token travels only on the member.invited event; acceptance
 // enforces the email match and grants exactly the invited roles; inviting refuses active members
 // and escalation.

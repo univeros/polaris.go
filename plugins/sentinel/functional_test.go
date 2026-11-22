@@ -23,6 +23,9 @@ const (
 	operator = "operator@example.com"
 	clientIP = "203.0.113.7"
 	deviceID = "device-of-the-fixtures"
+	// fixturePrefix starts the file name of every recorded fixture under
+	// internal/apispec/fixtures/sentinel.
+	fixturePrefix = "Polaris.Sentinel.Tests.Functional."
 )
 
 // goodToken is a captcha verifier accepting the token "good".
@@ -30,7 +33,7 @@ type goodToken struct{}
 
 func (goodToken) Verify(_ context.Context, token, _ string) bool { return token == "good" }
 
-// flow is upstream's SentinelTestCase: audit, admin and the sentinel under the pipeline, every
+// flow is audit, admin and the sentinel under the pipeline, every
 // request from clientIP with the device cookie (so no Set-Cookie lands in a fixture).
 type flow struct {
 	t     *testing.T
@@ -39,7 +42,7 @@ type flow struct {
 	admin *admin.Plugin
 }
 
-func newFlow(t *testing.T, cfg sentinel.Config, class, method string) *flow {
+func newFlow(t *testing.T, cfg sentinel.Config, suite, test string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{})}
 	// Counters on a frozen clock: polaristest runs on the system clock, and a test crossing a
@@ -48,7 +51,7 @@ func newFlow(t *testing.T, cfg sentinel.Config, class, method string) *flow {
 	frozen := clock.NewFrozen(time.Now())
 	cfg.Counters = sentinel.NewCacheCounters(cache.NewMemory(frozen), frozen)
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), f.admin, sentinel.New(cfg)))
-	fx := contracttest.For(t, contracttest.Fixtures(t, "sentinel"), `Polaris\Sentinel\Tests\Functional\`+class, method)
+	fx := contracttest.For(t, contracttest.Fixtures(t, "sentinel"), fixturePrefix+suite, test)
 	f.c = contracttest.NewClient(t, f.srv.Handler(), fx)
 	return f
 }
@@ -259,9 +262,9 @@ func TestSentinelObserve(t *testing.T) {
 
 func TestEverySentinelFixtureHasAGoTest(t *testing.T) {
 	uncovered, err := contracttest.Uncovered(contracttest.Fixtures(t, "sentinel"), []string{
-		`Polaris\Sentinel\Tests\Functional\SentinelEnforceTest::testAttemptsAreBlockedChallengedAndCleared`,
-		`Polaris\Sentinel\Tests\Functional\SentinelObserveTest::testDecisionsAreRecordedNotEnforcedAndListedForOperators`,
-		`Polaris\Sentinel\Tests\Functional\SentinelObserveTest::testIpRulesNeedAnOwnerAndUnblockASupportRole`,
+		fixturePrefix + "SentinelEnforceTest::testAttemptsAreBlockedChallengedAndCleared",
+		fixturePrefix + "SentinelObserveTest::testDecisionsAreRecordedNotEnforcedAndListedForOperators",
+		fixturePrefix + "SentinelObserveTest::testIpRulesNeedAnOwnerAndUnblockASupportRole",
 	})
 	if err != nil || len(uncovered) > 0 {
 		t.Fatalf("uncovered %v %v", uncovered, err)

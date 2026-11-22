@@ -81,7 +81,7 @@ func (d *dpopProofs) thumbprint(ctx context.Context, proof, method, url, accessT
 }
 
 // claim records key; false when it was already recorded. Add is atomic across replicas sharing
-// the cache (upstream: get then set).
+// the cache, so two replicas cannot both accept one proof (a get then set could).
 func (d *dpopProofs) claim(ctx context.Context, key string) (bool, error) {
 	return d.cache.Add(ctx, key, []byte("1"), 2*dpopMaxAge*time.Second)
 }

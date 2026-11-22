@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	flowClass = `Polaris\MultiSession\Tests\Functional\MultiSessionFlowTest`
-	password  = "correct horse battery staple"
+	// flowFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/multi-session.
+	flowFixtures = "Polaris.MultiSession.Tests.Functional.MultiSessionFlowTest"
+	password     = "correct horse battery staple"
 )
 
 func data(t *testing.T, resp *http.Response) map[string]any {
@@ -63,7 +64,7 @@ func register(c *contracttest.Client, srv *polaristest.Server, email string) {
 func TestMultiSessionFlow(t *testing.T) {
 	t.Run("testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime", func(t *testing.T) {
 		srv := polaristest.New(t, polaristest.WithPlugins(multisession.New(multisession.Config{DisableCookie: true})))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "multi-session"), flowClass, "testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "multi-session"), flowFixtures, "testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"))
 		register(c, srv, "ada@example.com")
 		register(c, srv, "grace@example.com")
 
@@ -116,7 +117,7 @@ func TestMultiSessionFlow(t *testing.T) {
 	})
 }
 
-// Port of CookieModeTest::testSignInsAreRecordedAgainstTheDeviceAndTheSwitchSetsTheCookie: the
+// In cookie mode, sign-ins are recorded against the device and a switch sets the cookie: the
 // device middleware runs inside cookie delivery, so it sees the body-mode response.
 func TestCookieMode(t *testing.T) {
 	t.Run("testSignInsAreRecordedAgainstTheDeviceAndTheSwitchSetsTheCookie", func(t *testing.T) {
@@ -171,7 +172,7 @@ func TestCookieMode(t *testing.T) {
 
 func TestEveryFixtureHasAGoTest(t *testing.T) {
 	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "multi-session"),
-		[]string{flowClass + "::testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"})
+		[]string{flowFixtures + "::testTwoAccountsOnOneDeviceSwitchAndSignOutOneAtATime"})
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

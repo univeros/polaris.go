@@ -35,7 +35,8 @@ type Cache interface {
 	Add(ctx context.Context, key string, value []byte, ttl time.Duration) (added bool, err error)
 }
 
-// ErrInvalidKey reports an empty key or one with a character PSR-16 reserves ({}()/\@:).
+// ErrInvalidKey reports an empty key or one with a reserved character ({}()/\@:), kept out so a key
+// is valid on every backend.
 var ErrInvalidKey = errors.New("cache: invalid key")
 
 const reservedKeyChars = `{}()/\@:`
@@ -47,7 +48,7 @@ func ValidateKey(key string) error {
 		return fmt.Errorf("%w: a cache key must be a non-empty string", ErrInvalidKey)
 	}
 	if strings.ContainsAny(key, reservedKeyChars) {
-		return fmt.Errorf("%w: %q contains a character reserved by PSR-16 (%s)", ErrInvalidKey, key, reservedKeyChars)
+		return fmt.Errorf("%w: %q contains a reserved character (%s)", ErrInvalidKey, key, reservedKeyChars)
 	}
 	return nil
 }

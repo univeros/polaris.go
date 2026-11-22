@@ -12,6 +12,6 @@
 //	p, err := polaris.New(polaris.Config{Secrets: secrets, Auth: auth, DB: db,
 //		Plugins: []polaris.Plugin{oauth.New(oauth.Config{ConsentURL: "https://app.example/consent"})}})
 //
-// Other plugins (polaris/agents) reach it with g.Plugin(oauth.ID).(*oauth.Plugin) and use its
+// Other plugins (plugins/agents) reach it with g.Plugin(oauth.ID).(*oauth.Plugin) and use its
 // client, token and DPoP methods.
 package oauth

@@ -26,7 +26,6 @@ func (failingStore) Hit(context.Context, string, int, time.Duration) (ratelimit.
 	return ratelimit.Result{}, errors.New("cache down")
 }
 
-// RouterTest::testRateLimiterAnswers429WithTheHeadersOf10
 func TestRateLimiterAnswers429WithTheHeadersOf10(t *testing.T) {
 	core, _ := manifests(t)
 	o := options(t, core)
@@ -130,7 +129,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 }
 
 // The per-IP limiter wraps the per-user one: on a route with both, the outer (per-IP) headers win,
-// and an inner 429 still carries the outer headers, as upstream's response decoration does.
+// and an inner 429 still carries the outer headers.
 func TestOuterLimiterHeadersWin(t *testing.T) {
 	core, _ := manifests(t)
 	o := options(t, core)

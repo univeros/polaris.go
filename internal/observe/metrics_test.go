@@ -26,7 +26,6 @@ func (r *recordingMetrics) Counter(_ context.Context, name string, value float64
 	r.points = append(r.points, point{name, value, attributes})
 }
 
-// Port of MetricsListenerTest.
 func TestMetricsCountsCoreEventsByName(t *testing.T) {
 	m := &recordingMetrics{}
 	listen := Metrics(m)

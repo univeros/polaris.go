@@ -22,7 +22,6 @@ func mustRules(t *testing.T, texts ...string) []Rule {
 	return rules
 }
 
-// Port of RulesTest::testParsesEveryRuleFormTheSpecsUse.
 func TestParseRuleEveryFormTheSpecsUse(t *testing.T) {
 	for _, text := range []string{"required", "optional", "string", "email", "max:320", "in:recovery,totp", "regex:/^[a-z0-9-]+$/", "password_policy", "e164", "suspended"} {
 		rule, err := ParseRule(text)
@@ -55,7 +54,6 @@ func TestParseRuleEveryFormTheSpecsUse(t *testing.T) {
 	}
 }
 
-// Port of RulesTest::testEvaluatesRulesAgainstData.
 func TestValidateEvaluatesRulesAgainstData(t *testing.T) {
 	fields := []Field{
 		{Name: "email", Type: "string", Rules: mustRules(t, "required", "email", "max:320")},
@@ -119,7 +117,7 @@ func TestValidateValueKinds(t *testing.T) {
 		{[]string{"regex:/^[a-z]+$/i"}, "ABC", ""},
 		{[]string{"regex:#^a/b$#"}, "a/b", ""},
 		{[]string{"regex:/^[a-z]+$/"}, true, "f has an invalid format."},
-		{[]string{"e164"}, "+15551234567\n", ""}, // upstream pattern has no D modifier
+		{[]string{"e164"}, "+15551234567\n", ""}, // the pattern has no D modifier
 		{[]string{"e164"}, "+0555", "f must be an E.164 phone number."},
 		{[]string{"email"}, float64(1), "f must be a valid email address."},
 		{[]string{"password_policy", "suspended", "optional"}, "x", ""},
@@ -150,7 +148,7 @@ func TestParseRuleRegexDelimiters(t *testing.T) {
 }
 
 // TestIsEmail replays testdata/manifest/email.tsv: each line is a JSON string and T or F, the
-// result of PHP's filter_var($email, FILTER_VALIDATE_EMAIL) on it.
+// expected verdict (the known-answer set the email rule must keep).
 func TestIsEmail(t *testing.T) {
 	data, err := os.ReadFile("../testdata/manifest/email.tsv")
 	if err != nil {
@@ -163,7 +161,7 @@ func TestIsEmail(t *testing.T) {
 			t.Fatalf("%s: %v", line, err)
 		}
 		if got := IsEmail(email); got != (verdict == "T") {
-			t.Errorf("IsEmail(%s) = %v, PHP says %s", quoted, got, verdict)
+			t.Errorf("IsEmail(%s) = %v, want %s", quoted, got, verdict)
 		}
 	}
 }

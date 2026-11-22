@@ -14,10 +14,10 @@ import (
 	"unicode/utf8"
 )
 
-// dateClaims are the registered claims lcobucci/jwt turns into instants.
+// dateClaims are the registered claims the decoder turns into instants.
 var dateClaims = [...]string{"iat", "nbf", "exp"}
 
-// segments is a compact JWS split the way lcobucci/jwt's Parser does it.
+// segments is a compact JWS split into its decoded header, claims and signature.
 type segments struct {
 	header, claims map[string]any
 	signingInput   string
@@ -57,8 +57,7 @@ func splitToken(raw string) (*segments, error) {
 	}, nil
 }
 
-// decodeSegment is sodium_base642bin(URLSAFE_NO_PADDING): no padding, no whitespace, zero
-// trailing bits.
+// decodeSegment is strict unpadded base64url: no padding, no whitespace, zero trailing bits.
 func decodeSegment(s string) ([]byte, error) {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -69,14 +68,14 @@ func decodeSegment(s string) ([]byte, error) {
 	return base64.RawURLEncoding.Strict().DecodeString(s)
 }
 
-// decodeObject is json_decode($json, true) for a top-level object: integers that fit int64
-// become int64, other numbers float64, objects map[string]any, arrays []any. Malformed UTF-8
-// and empty keys are rejected, as lcobucci/jwt does.
+// decodeObject decodes a top-level JSON object: integers that fit int64 become int64, other
+// numbers float64, objects map[string]any, arrays []any. Malformed UTF-8, an empty key, a
+// nesting deeper than maxJSONDepth and an unpaired surrogate escape are rejected.
 func decodeObject(data []byte) (map[string]any, error) {
 	if !utf8.Valid(data) {
 		return nil, fmt.Errorf("malformed UTF-8")
 	}
-	if err := phpJSONLimits(data); err != nil {
+	if err := checkJSONLimits(data); err != nil {
 		return nil, err
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
@@ -95,16 +94,16 @@ func decodeObject(data []byte) (map[string]any, error) {
 	if _, empty := obj[""]; empty {
 		return nil, fmt.Errorf("empty key")
 	}
-	return phpValue(obj).(map[string]any), nil
+	return normalizeNumbers(obj).(map[string]any), nil
 }
 
-// phpMaxDepth is json_decode's default depth: 512 nested containers already fail.
-const phpMaxDepth = 512
+// maxJSONDepth is the nesting limit of a token's JSON: 512 nested containers already fail.
+const maxJSONDepth = 512
 
-// phpJSONLimits applies the two json_decode rules encoding/json lacks: the nesting depth
-// limit and the refusal of unpaired UTF-16 surrogate escapes (Go would turn them into U+FFFD).
-// Syntax errors are left to encoding/json.
-func phpJSONLimits(data []byte) error {
+// checkJSONLimits applies the two rules encoding/json lacks: the nesting depth limit and the
+// refusal of unpaired UTF-16 surrogate escapes (Go would turn them into U+FFFD). Syntax errors
+// are left to encoding/json.
+func checkJSONLimits(data []byte) error {
 	depth, inString := 0, false
 	for i := 0; i < len(data); i++ {
 		c := data[i]
@@ -113,7 +112,7 @@ func phpJSONLimits(data []byte) error {
 			case '"':
 				inString = true
 			case '{', '[':
-				if depth++; depth >= phpMaxDepth {
+				if depth++; depth >= maxJSONDepth {
 					return fmt.Errorf("maximum stack depth exceeded")
 				}
 			case '}', ']':
@@ -152,30 +151,33 @@ func hex4(data []byte, at int) (rune, bool) {
 	return rune(n), err == nil
 }
 
-func phpValue(v any) any {
+// normalizeNumbers replaces every json.Number in v, in place, by parseNumber's value.
+func normalizeNumbers(v any) any {
 	switch v := v.(type) {
 	case json.Number:
-		return phpNumber(string(v))
+		return parseNumber(string(v))
 	case map[string]any:
 		for k, e := range v {
-			v[k] = phpValue(e)
+			v[k] = normalizeNumbers(e)
 		}
 	case []any:
 		for i, e := range v {
-			v[i] = phpValue(e)
+			v[i] = normalizeNumbers(e)
 		}
 	}
 	return v
 }
 
-func phpNumber(s string) any {
+// parseNumber reads a JSON number: an int64 when it has no fraction or exponent and fits,
+// otherwise a float64 (±Inf when out of range).
+func parseNumber(s string) any {
 	if !strings.ContainsAny(s, ".eE") {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 			return n
 		}
 	}
 	f, err := strconv.ParseFloat(s, 64)
-	if err != nil { // out of range: PHP yields ±INF
+	if err != nil { // out of range: read as ±Inf
 		if strings.HasPrefix(s, "-") {
 			return math.Inf(-1)
 		}
@@ -184,11 +186,11 @@ func phpNumber(s string) any {
 	return f
 }
 
-// normalizeRegistered applies lcobucci/jwt's claim conversions: aud becomes a list
-// ((array) cast) and iat/nbf/exp become instants.
+// normalizeRegistered converts the registered claims: aud becomes a list (asList) and
+// iat/nbf/exp become instants.
 func normalizeRegistered(claims map[string]any) error {
 	if aud, ok := claims["aud"]; ok {
-		claims["aud"] = phpArrayCast(aud)
+		claims["aud"] = asList(aud)
 	}
 	for _, name := range dateClaims {
 		v, ok := claims[name]
@@ -204,9 +206,9 @@ func normalizeRegistered(claims map[string]any) error {
 	return nil
 }
 
-// phpArrayCast is PHP's (array) cast as far as membership is concerned: null is empty, a
-// scalar is a one-element list, an object contributes its values.
-func phpArrayCast(v any) []any {
+// asList reads a claim as a list for membership checks: null is empty, a scalar is a
+// one-element list, an array is itself, an object contributes its values.
+func asList(v any) []any {
 	switch v := v.(type) {
 	case nil:
 		return []any{}
@@ -223,16 +225,17 @@ func phpArrayCast(v any) []any {
 	}
 }
 
-// phpNumeric is PHP 8's is_numeric for strings.
-var phpNumeric = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
+// numericString matches a numeric string: optional surrounding ASCII whitespace, an optional
+// sign, digits with an optional fraction (or a bare fraction) and an optional exponent.
+var numericString = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
 
 // maxUnixSeconds bounds date claims well inside time.Time's range (year ~292 billion), so
-// comparisons never wrap; a far-future iat or nbf is then refused as "in the future" would be
-// upstream, and a far-future exp is refused rather than trusted.
+// comparisons never wrap; a far-future iat or nbf is then refused as it would be anyway (it is
+// in the future), and a far-future exp is refused rather than trusted.
 const maxUnixSeconds = 1 << 62
 
-// toInstant is lcobucci/jwt's Parser::convertDate: an int, float or numeric string,
-// formatted with six decimals and read back as "U.u".
+// toInstant reads a date claim: an int, float or numeric string, formatted with six decimals
+// and read back as seconds.microseconds.
 func toInstant(v any) (time.Time, error) {
 	var f float64
 	switch v := v.(type) {
@@ -244,7 +247,7 @@ func toInstant(v any) (time.Time, error) {
 	case float64:
 		f = v
 	case string:
-		if !phpNumeric.MatchString(v) {
+		if !numericString.MatchString(v) {
 			return time.Time{}, fmt.Errorf("not numeric")
 		}
 		parsed, err := strconv.ParseFloat(strings.Trim(v, " \t\n\r\v\f"), 64)
@@ -267,12 +270,12 @@ func toInstant(v any) (time.Time, error) {
 	if err1 != nil || err2 != nil {
 		return time.Time{}, fmt.Errorf("out of range")
 	}
-	// "U.u" adds the microseconds to the (signed) seconds, as PHP does.
+	// The microseconds are added to the (signed) whole seconds, so -1.5 reads as -1 s + 500000 µs = -0.5 s.
 	return time.Unix(sec, usec*int64(time.Microsecond)).UTC(), nil
 }
 
-// encodeInstant is lcobucci/jwt's MicrosecondBasedDateConversion: whole seconds as an
-// integer, otherwise the float of "U.u".
+// encodeInstant writes a date claim: whole seconds as an integer, otherwise the float
+// seconds.microseconds.
 func encodeInstant(t time.Time) any {
 	sec, usec := t.Unix(), t.Nanosecond()/int(time.Microsecond)
 	if usec == 0 {

@@ -24,7 +24,7 @@ type LoginResult struct {
 	MFA           *MFAChallenge
 }
 
-// MFAChallenge is the mfa_required outcome of a login (upstream MfaChallengeResult).
+// MFAChallenge is the mfa_required outcome of a login.
 type MFAChallenge struct {
 	// Ticket is the login_mfa JWT (mfa_token on the wire).
 	Ticket string
@@ -33,7 +33,7 @@ type MFAChallenge struct {
 	Factors []model.MFAFactor
 }
 
-// Login checks a password and opens a session (docs/auth/flows.md §3, §10), or returns an MFA
+// Login checks a password and opens a session, or returns an MFA
 // challenge when the user has a confirmed factor.
 //
 // An unknown email, a wrong password and a locked account all return ErrInvalidCredentials after
@@ -174,13 +174,13 @@ func (s *Service) recordFailure(ctx context.Context, user model.User, now time.T
 			return fmt.Errorf("identity: login: %w", err)
 		}
 		if (user.LockedUntil != nil && user.LockedUntil.After(now)) || user.Status == model.UserStatusDisabled {
-			return nil // as upstream: a live lock is not extended, a disabled account is left alone
+			return nil // a live lock is not extended, a disabled account is left alone
 		}
 	}
 }
 
-// failed returns user after one more failure (upstream's sequential rule) and whether that
-// failure locks the account.
+// failed returns user after one more failure and whether that failure locks the account: the
+// count reaching Lockout.MaxAttempts locks it for Lockout.Duration.
 func (s *Service) failed(user model.User, now time.Time) (model.User, bool) {
 	next := user
 	// A stale streak (an expired lock, or a last failure older than the window) starts over, so

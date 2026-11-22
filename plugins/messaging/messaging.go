@@ -38,7 +38,7 @@ import (
 const ID = "messaging"
 
 // Config configures the plugin; the zero value logs every message (the development default) under
-// upstream's policy.
+// the default caps and fallback.
 type Config struct {
 	// Email and SMS are the main channels of each kind; Channels are more, tried after them in
 	// order (any kind). With none at all every message goes to the log.
@@ -163,8 +163,8 @@ func Of(g *wiring.Graph) *Plugin {
 }
 
 // SendTemplate sends one template to a recipient, essential (no quiet mode), to check a channel
-// and a template: upstream's "polaris messaging:send <to> <template> --vars=… --locale=…" until
-// cmd/polaris exists. The kind is the template's prefix (sms.* is an SMS, anything else an email);
+// and a template from an operator's tool (a "send <to> <template> --vars=… --locale=…" command).
+// The kind is the template's prefix (sms.* is an SMS, anything else an email);
 // varsJSON is a JSON object ("" for none); locale "" means the default.
 func (p *Plugin) SendTemplate(ctx context.Context, to, template, varsJSON, locale string) (Receipt, error) {
 	var vars map[string]any

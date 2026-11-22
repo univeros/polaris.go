@@ -27,8 +27,8 @@ import (
 	dsig "github.com/russellhaering/goxmldsig"
 )
 
-// testIdP is upstream's TestIdp: a self-signed certificate made once per process, signed responses
-// and logout requests built for a service provider.
+// testIdP is a SAML identity provider for the tests: a self-signed certificate made once per
+// process, signed responses and logout requests built for a service provider.
 type testIdP struct {
 	key  *rsa.PrivateKey
 	cert *x509.Certificate
@@ -84,7 +84,7 @@ func (i *testIdP) certificatePEM() string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: i.cert.Raw}))
 }
 
-// responseOptions are upstream's: every zero value is the honest default.
+// responseOptions shape a test response: every zero value is the honest default.
 type responseOptions struct {
 	issuer, audience, destination, inResponseTo, assertionID string
 	notOnOrAfter, notBefore                                  *time.Duration
@@ -175,7 +175,8 @@ func (i *testIdP) response(t testing.TB, spEntityID, acs, nameID string, o respo
 	return base64.StdEncoding.EncodeToString([]byte(xml))
 }
 
-// sign adds an enveloped signature to the root, right after its Issuer (php-saml's addSign).
+// sign adds an enveloped signature to the root, right after its Issuer, where SAML 2.0 places the
+// ds:Signature.
 func (i *testIdP) sign(t testing.TB, xml string, key *rsa.PrivateKey) string {
 	t.Helper()
 	doc := etree.NewDocument()

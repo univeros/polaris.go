@@ -63,7 +63,7 @@ func (s *CacheCounters) read(ctx context.Context, key string) (int, error) {
 func (s *CacheCounters) Increment(ctx context.Context, key string, window time.Duration) (int, error) {
 	b, mu := s.bucket(key, window)
 	// ponytail: per-process striped lock, as ratelimit.CacheStore; across replicas a shared cache
-	// can lose concurrent increments (as upstream). Implement CounterStore on INCR for exact counts.
+	// can lose concurrent increments. Implement CounterStore on INCR for exact counts.
 	mu.Lock()
 	defer mu.Unlock()
 	n, err := s.read(ctx, b)

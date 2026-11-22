@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Mint and VerifyJWT port packages/oauth-provider/src/Jwt.php (mint, verify).
+// Mint and VerifyJWT: the OAuth provider's non-session JWTs.
 
 func withPrevious(t *testing.T) func(*Config) {
 	k := loadKeys(t)
@@ -149,7 +149,7 @@ func TestVerifyJWTSelectsTheKeyByKid(t *testing.T) {
 	if _, err := current.VerifyJWT(mustMint(t, oldSigner, Claims{}, exp), 0); err == nil {
 		t.Fatal("previous kid accepted without a rotation configured")
 	}
-	// Session tokens keep verifying with the active key only (docs/auth/key-rotation.md).
+	// Session tokens keep verifying with the active key only.
 	if _, err := verifier.Parse(mustIssue(t, oldSigner, mustClaims(t, AccessClaims{Subject: "u", ID: "j"}))); err == nil {
 		t.Fatal("Parse accepted a previous-key session token")
 	}
@@ -184,7 +184,7 @@ func (f fixedClock) Now() time.Time { return time.Time(f) }
 
 func fixedAt(t time.Time) fixedClock { return fixedClock(t) }
 
-// Sign ports the agents receipt signature (packages/agents/src/Receipts.php sign()).
+// Sign is the agents receipt signature.
 func TestSignReceiptLayout(t *testing.T) {
 	clk := at(t, "2026-06-07 12:00:00")
 	c := newCodec(t, testConfig(t, clk))

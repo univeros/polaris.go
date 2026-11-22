@@ -25,7 +25,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// Port of upstream's PluginTest and the mcp CookieModeTest.
+// The plugin through the graph: tool providers, schemas, stdio, and dispatch in body mode.
 
 // stub is a plugin adding one tool through wiring.ToolProvider.
 type stub struct{}
@@ -340,7 +340,7 @@ func TestTheSchemaResourceComesFromTheHost(t *testing.T) {
 
 // A tool call has no cookie jar, so the dispatch runs in body mode whatever the host's token
 // delivery: the login tool answers the refresh token in its body, even over http and without the
-// CSRF header the route would demand (upstream CookieModeTest).
+// CSRF header the route would demand in cookie mode.
 func TestTheLoginToolAnswersTheRefreshTokenInItsBody(t *testing.T) {
 	srv := polaristest.New(t,
 		polaristest.WithAuth(func(a *config.Auth) { a.Flows.TokenDelivery = config.DeliveryCookie }),

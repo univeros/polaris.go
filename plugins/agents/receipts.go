@@ -145,8 +145,9 @@ func sha256Hex(s string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// canonicalJSON is upstream's canonical JSON: keys sorted at every level, slashes unescaped,
-// non-ASCII as \uXXXX, an empty object as [] (PHP's json_encode of a sorted array).
+// canonicalJSON is the receipts' canonical JSON: keys sorted at every level, slashes unescaped,
+// non-ASCII as \uXXXX, an empty object as []. Receipt hashes are computed over these bytes, so
+// they must stay identical for the chains recorded by earlier releases to keep verifying.
 func canonicalJSON(v any) string {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
@@ -172,6 +173,7 @@ func canonicalJSON(v any) string {
 	return string(out)
 }
 
+// emptyAsList maps empty objects to empty lists at any depth: the canonical form writes both as [].
 func emptyAsList(v any) any {
 	switch v := v.(type) {
 	case map[string]any:

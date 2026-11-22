@@ -5,8 +5,8 @@ Polaris itself as an MCP server: `POST /mcp` (the 2026-07-28 stateless profile) 
 `mcp.ServeStdio` for local coding agents. Every route the caller may call is a tool named after it
 (`polaris.auth.me`, `polaris.orgs.members.list`), run in-process through the same pipeline and
 authorization; `plugins/agents` adds one tool per capability. `mcp.Protect` guards your own Go MCP
-server with Polaris-issued tokens, in-process or against a remote issuer, without the plugin. Port of
-`polaris/mcp`; register `plugins/oauth` with `Audiences: []string{BaseURL + "/mcp"}` so its tokens
+server with Polaris-issued tokens, in-process or against a remote issuer, without the plugin.
+Register `plugins/oauth` with `Audiences: []string{BaseURL + "/mcp"}` so its tokens
 reach `/mcp`.
 
 ## Install

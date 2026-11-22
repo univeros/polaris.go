@@ -17,8 +17,9 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// phpTrimSet is what PHP's trim() strips.
-const phpTrimSet = " \t\n\r\x00\x0B"
+// blankSet is the bytes a name is trimmed of: space, tab, newline, carriage return, NUL and
+// vertical tab (not the other Unicode spaces).
+const blankSet = " \t\n\r\x00\x0B"
 
 const msgBadScope = `scope must be "instance" or an organization id.`
 
@@ -159,7 +160,7 @@ func (p *Plugin) createKey(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if !ok {
 		return res
 	}
-	name := strings.Trim(in.String("name"), phpTrimSet)
+	name := strings.Trim(in.String("name"), blankSet)
 	if name == "" || utf8.RuneCountInString(name) > keyNameMax {
 		return Invalid("name must be 1 to 120 characters.")
 	}

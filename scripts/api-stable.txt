@@ -16,6 +16,7 @@ polaristest
 agent
 cli
 telemetry/otel
+verify
 plugins/*
 model
 schema
@@ -23,6 +24,8 @@ notify/notifytest
 
 # Host-implemented interfaces (API.md §1).
 security.PasswordHasher
+security.HashChecker
+security.ErrUnsupportedHash
 security.BreachedPasswordCheck
 notify.Mailer
 notify.SMSSender

@@ -233,6 +233,96 @@ func TestProtect(t *testing.T) {
 	(&Pipeline{}).Protect(host, "x")
 }
 
+// Authenticate lets an anonymous request through and refuses a credential that does not verify.
+func TestAuthenticate(t *testing.T) {
+	core, _ := manifests(t)
+	host := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		who := "anonymous"
+		if tok := endpoint.Token(r.Context()); tok != nil {
+			who = tok.Subject()
+		}
+		_, _ = w.Write([]byte(who))
+	})
+	o := options(t, core)
+	o.Gate = stubGate{grants: grants{"invoices.read"}}
+	p := newPipeline(t, o)
+	tok := issue(t, "user-1", nil)
+	req := func(authorization string) *http.Request {
+		r := httptest.NewRequest("GET", "/api/home", nil)
+		if authorization != "" {
+			r.Header.Set("Authorization", authorization)
+		}
+		return r
+	}
+	for _, c := range []struct {
+		authorization string
+		code          int
+		body          string
+	}{
+		{"", 200, "anonymous"},
+		{"Basic YWRhOnB3", 200, "anonymous"}, // not a Polaris credential (a proxy's basic auth)
+		{"Bearer " + tok.Raw(), 200, "user-1"},
+		{"bearer " + tok.Raw(), 200, "user-1"},
+		{"Bearer not-a-token", 401, ""},
+		{"Bearer ", 401, ""},
+		{"DPoP " + tok.Raw(), 401, ""}, // a token scheme no resolver took
+	} {
+		w := serve(p.Authenticate(host), req(c.authorization))
+		if w.Code != c.code || c.code == 200 && w.Body.String() != c.body || c.code == 401 && w.Header().Get("WWW-Authenticate") != "Bearer" {
+			t.Errorf("%q: %d %q", c.authorization, w.Code, w.Body)
+		}
+	}
+
+	o.Auth.AccessToken.Denylist = true
+	o.Denylist = stubDenylist{revoked: true}
+	if w := serve(newPipeline(t, o).Authenticate(host), req("Bearer "+tok.Raw())); w.Code != 401 || !strings.Contains(w.Body.String(), "session_ended") {
+		t.Fatalf("a denylisted token is refused, not downgraded: %d %q", w.Code, w.Body)
+	}
+	o.Auth.AccessToken.Denylist = false
+	o.BearerResolvers = []BearerResolver{resolverFunc(func(*http.Request) (*token.Token, error) { return nil, errors.New("revoked key") })}
+	if w := serve(newPipeline(t, o).Authenticate(host), req("")); w.Code != 401 {
+		t.Fatalf("a resolver's refusal is a 401: %d", w.Code)
+	}
+}
+
+// A guard behind another guard reuses its principal: the bearer is resolved and the plugin
+// middleware runs once per request.
+func TestNestedGuardsAuthenticateOnce(t *testing.T) {
+	core, _ := manifests(t)
+	o := options(t, core)
+	o.Gate = stubGate{grants: grants{"invoices.read"}}
+	resolved, plugin := 0, 0
+	tok := issue(t, "user-1", nil)
+	o.BearerResolvers = []BearerResolver{resolverFunc(func(r *http.Request) (*token.Token, error) {
+		if r.Header.Get("Authorization") == "" {
+			return nil, nil
+		}
+		resolved++
+		return tok, nil
+	})}
+	o.PluginMiddleware = []func(http.Handler) http.Handler{func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { plugin++; next.ServeHTTP(w, r) })
+	}}
+	p := newPipeline(t, o)
+	ok := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	authed := httptest.NewRequest("GET", "/api", nil)
+	authed.Header.Set("Authorization", "Bearer x")
+	for _, c := range []struct {
+		h    http.Handler
+		r    *http.Request
+		code int
+	}{
+		{p.Authenticate(p.Protect(ok, "invoices.read")), authed, 200},
+		{p.Protect(p.Protect(ok, "invoices.write")), authed, 403},
+		{p.Authenticate(p.Protect(ok)), httptest.NewRequest("GET", "/api", nil), 401}, // anonymous, then required
+	} {
+		resolved, plugin = 0, 0
+		if w := serve(c.h, c.r); w.Code != c.code || resolved > 1 || plugin > 2 || c.code != 401 && plugin != 1 {
+			t.Errorf("%d (want %d), resolved %d, plugin middleware %d", w.Code, c.code, resolved, plugin)
+		}
+	}
+}
+
 func TestNewReportsEveryProblem(t *testing.T) {
 	core, _ := manifests(t)
 	o := options(t, core)

@@ -98,13 +98,13 @@ func TestNoBreachCheck(t *testing.T) {
 	}
 }
 
-func TestPHPIntval(t *testing.T) {
+func TestLeadingInt(t *testing.T) {
 	for in, want := range map[string]int64{
 		"42": 42, " 42": 42, "42abc": 42, "abc": 0, "": 0, "-3": -3, "+7": 7,
 		"99999999999999999999": 1<<63 - 1,
 	} {
-		if got := phpIntval(in); got != want {
-			t.Errorf("phpIntval(%q) = %d, want %d", in, got, want)
+		if got := leadingInt(in); got != want {
+			t.Errorf("leadingInt(%q) = %d, want %d", in, got, want)
 		}
 	}
 }

@@ -58,7 +58,7 @@ const (
 // QuietWindow is how long after a challenge or a block a recipient gets no non-essential email.
 const QuietWindow = time.Hour
 
-// Config configures the plugin; the zero value is upstream's defaults (observe mode, the local
+// Config configures the plugin; the zero value is the defaults (observe mode, the local
 // signals, the bundled disposable-domain list).
 type Config struct {
 	// Mode is Observe (default) or Enforce.
@@ -119,7 +119,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_sentinel_decision, polaris_sentinel_ip_rule and polaris_sentinel_device.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/sentinel).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/sentinel).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/sentinel")
 	if err != nil {
@@ -310,8 +310,9 @@ func (p *Plugin) QuietFor(ctx context.Context, kind, recipient string) bool {
 
 // RefreshDomainList fetches a disposable-domain list (one domain per line, # comments) from url
 // and writes it to the file to ("" means Config.DisposableListFile), deduplicated and
-// lower-cased; it answers the number of domains. Upstream's "polaris sentinel:lists" until
-// cmd/polaris exists. The running process keeps its list; the file is read at the next start.
+// lower-cased; it answers the number of domains. Run it from a scheduled job or a deploy step
+// (the CLI has no command for it). The running process keeps its list; the file is read at the
+// next start.
 func (p *Plugin) RefreshDomainList(ctx context.Context, url, to string) (int, error) {
 	if url == "" {
 		return 0, errors.New("sentinel: pass a URL: the list has no default source")

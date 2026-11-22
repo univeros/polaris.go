@@ -11,7 +11,7 @@ import (
 // some items is optional and a key null in some is nullable; a value null wherever it appears is a
 // nullable string; an empty array has untyped items.
 //
-// The zero value is the untyped schema (encoded [], as upstream does).
+// The zero value is the untyped schema (encoded [], as the exported documents hold it).
 type jsonSchema struct {
 	types      []string // "object", "array" or the scalar types; empty when untyped
 	properties []property
@@ -43,7 +43,7 @@ func exampleSchema(value any) jsonSchema {
 func infer(value any) jsonSchema {
 	switch v := value.(type) {
 	case Object:
-		if len(v) == 0 { // upstream cannot tell {} from []
+		if len(v) == 0 { // an empty mapping is an empty list (see Object)
 			return inferList(nil)
 		}
 		s := jsonSchema{types: []string{"object"}}
@@ -167,7 +167,7 @@ func (s jsonSchema) object() Object {
 	return o
 }
 
-// MarshalJSON encodes the schema as upstream does.
+// MarshalJSON encodes the schema in the exported documents' form.
 func (s jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.object())
 }
