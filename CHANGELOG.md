@@ -9,6 +9,25 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Security
+
+- MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
+  factors. After an email code or magic link to an address (or an SMS code to a phone), the
+  `mfa_required` envelope lists only factors that do not deliver there, and the `mfa_token` is
+  bound to the factors it lists: `/auth/mfa/challenge` and `/auth/mfa/verify` answer 404 for
+  another factor (recovery codes still work). A user whose only factor delivers there gets 403
+  `passwordless/mfa_same_channel` and signs in with the password, or adds a factor. The passkey
+  sign-in, which already left its own passkey out of the list, now has the same enforcement
+  (decision 61).
+- `plugins/passwordless`: email security scanners can no longer spend magic links; opening the
+  link spends nothing (see Changed) (decision 61).
+- `plugins/social`: two concurrent unlinks can no longer remove an account's last way to sign in;
+  the check and the delete are one transaction with the user's row locked (decision 61).
+- `plugins/anonymous`: a guest conversion is one transaction. Before, if ending the guest failed
+  after `OnConvert` ran, the conversion stayed recorded, the guest's sessions stayed live and a
+  retry answered `not_a_guest`; now any failure leaves the guest as it was and a retry converts it
+  (decision 61).
+
 ### Added
 
 - `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
@@ -17,6 +36,23 @@ marked **Breaking**.
   safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
   (decision 63).
 - Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
+- For plugin authors: `endpoint.WithMFATicketFactors` and `endpoint.MFATicketAllows`,
+  `pipeline.MFATicketFactors`, `session.MFATickets.IssueFor` / `AuthenticateFactors`,
+  `passwordless.RouteMagicLinkConfirm`, `passwordless.KindMFASameChannel` /
+  `ErrMFASameChannel`. `mfa.Tickets` (not in the stable API) has `IssueFor` instead of `Issue`, and
+  `mfa_factors` joined the reserved claim names (`session.ReservedClaim`).
+
+### Fixed
+
+- Erasing a user (`Users().Delete`, the self-service and admin erase, SCIM delete, guest pruning)
+  now deletes every plugin row keyed to it: usernames, verified phones and pending passwordless
+  codes and links, multi-session and sentinel device records, operator grants, OAuth authorization
+  codes, device codes and CIBA requests, SCIM provenance and user mappings, the guest row and the
+  audit activity row. Client-visible: `GET /admin/users/{id}` of an erased user answers
+  `last_active_at: null` (decision 61).
+- The anonymous README said conversion ends the guest's sessions without saying that, with
+  `AUTH_ACCESS_TOKEN_DENYLIST` off, the guest's access token answers until it expires (as every
+  revoked session's does). It now says so; `config.AccessToken.Denylist` documents the window.
 
 ### Changed
 
@@ -24,6 +60,14 @@ marked **Breaking**.
   `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
   an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
   the same lines (decision 63).
+- **Client-visible:** `GET /magic-link/verify` answers an HTML page (no JavaScript) with one "Sign
+  in" button instead of the 302; the button posts to the new `POST /magic-link/verify`, which
+  spends the link and answers the 302 with the hand-off code as before. The emailed link,
+  `/magic-link/exchange` and the codes are unchanged. A front end that fetched the link itself
+  and expected the redirect must now POST to it (decision 61).
+- `anonymous.Config.OnConvert` runs inside the conversion's transaction (like
+  `Hooks.OnUserCreated`): write through `ctx` and the move commits or rolls back with the
+  conversion. A hook that writes elsewhere may run again on a retry; keep it idempotent.
 
 ## [0.4.1] - 2026-11-22
 

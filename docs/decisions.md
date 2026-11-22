@@ -1039,3 +1039,103 @@ plugin per dialect in `testdata/ddl`, like core's). Lint: revive's `exported` ru
 exported name without a doc comment (its "X …" wording check is not enforced: the event types
 read "UserLoggedIn: …"). Security review: no security-critical package changes; `Migrate` runs
 DDL built from the compiled-in schema only, quoting every identifier, never from input.
+
+## 61. 2026-11-22 — Account lifecycle: guest conversion, erasure, one-channel MFA, magic links
+
+Closes the account-lifecycle items decisions 33 and 35 left open (docs/v1.md §4.3).
+
+- **anonymous: conversion is one transaction.** `Guests.Convert` used to claim the guest row, run
+  `OnConvert`, then end the guest in a second transaction: when ending failed the conversion stayed
+  recorded, the guest's sessions stayed live and a retry answered `not_a_guest`. Now claiming the
+  row, `OnConvert`, disabling the guest and revoking its sessions are one transaction; any failure
+  rolls all of it back (500, the guest keeps its session and can retry). `OnConvert` runs with the
+  transaction in its ctx, as `Hooks.OnUserCreated` does: a host that writes through ctx moves its
+  data atomically with the conversion; a write outside it is not undone by a later failure, and
+  the retry runs the hook again (documented: keep such a hook idempotent). The session revocation
+  runs last because its denylist watermark is in the cache, which a rollback cannot undo.
+  Security review: a guest is never reported converted while it can still refresh; concurrent
+  conversions still run the hook once (the claim is the transaction's first write, so a second
+  conversion waits on it and then finds the row claimed). Tests:
+  `TestAConversionWhoseEndingFailsConvertsNothingAndCanBeRetried` (failed before: the conversion
+  stayed recorded with the guest live), `TestConcurrentConversionsConvertOnce`.
+- **The converted guest's access token on `/auth/me`.** Diagnosed as the stateless access-token
+  window, not a missing check: conversion revokes the guest's refresh tokens and watermarks the
+  denylist, so with `AUTH_ACCESS_TOKEN_DENYLIST` on the token answers 401 at once; with it off,
+  every access token (a logged-out session's, a disabled or erased user's) answers until it
+  expires, by design, while a disabled user resolves no permission. `/auth/me` answering
+  `"status":"disabled"` is that window. Nothing in core changes; the anonymous README and package
+  doc said "ends the guest's sessions" without the window and now state it, and
+  `config.AccessToken.Denylist` documents it. Test:
+  `TestAConvertedGuestsAccessTokenEndsWithTheDenylist`
+  (both settings; passed before, it pins the diagnosis).
+- **Erasure removes every plugin row keyed to the user.** Through the existing mechanism (each
+  plugin's `event.UserDeleted` listener; a new `internal/maintenance.EraseOnUserDeleted` deletes a
+  plugin's listed rows and logs a failure, as the other plugins' erasures do). Newly deleted on
+  erasure: usernames, verified phones and pending passwordless secrets, multi-session and sentinel
+  device records, operator grants, OAuth authorization codes, device codes and CIBA requests (the
+  consents and tokens already went), SCIM membership provenance and user mappings, the guest row,
+  and the audit activity row. Kept, as attribution to the anonymized tombstone id (the audit trail
+  keeps it too): `created_by` / `granted_by` / `decided_by` on configuration and approvals, the
+  audit events' subject and actor, and a guest row's `converted_user_id`. Client-visible: after an
+  erasure `GET /admin/users/{id}` answers `last_active_at: null` (the admin users fixture is edited at that
+  one step). Guard: `TestErasureRemovesEveryPluginRowOfTheUser` boots every plugin, seeds a row
+  naming the user in every plugin table with a user column (`*user_id`, `*_by`, `owner_id`,
+  `subject_id`, `actor_id`, `local_id`), erases the user and fails on any row left that is not in
+  its retained list; a new table with a user column fails it until covered or listed with a reason
+  (failed before: 13 plugin tables kept the erased user's rows). Security review: deletes only
+  rows naming the erased id; the listeners run after the erasure commits, so a failure is logged
+  and leaves rows behind (as for the plugins that already erased this way), never a half-erased
+  account.
+- **MFA: one channel is one factor.** A passwordless sign-in by email code or magic link proves the
+  mailbox; an email MFA factor on the same address (an SMS factor on the phone a phone sign-in
+  used) proves nothing more, yet it satisfied the gate. Now the passwordless gate offers only the
+  factors that do not deliver where the sign-in's code went (addresses compared case-insensitively),
+  and answers 403 `passwordless/mfa_same_channel` when none is left (the user signs in with the
+  password, or adds another factor). Offering fewer factors is not enough, since the ticket let the
+  client name any factor of the user: `mfa.Service.BeginLogin` now binds the `login_mfa` ticket to
+  the factors it lists (claim `mfa_factors`, added to the reserved claim names), and
+  `/auth/mfa/challenge` and `/auth/mfa/verify` answer 404 (as for an unknown factor) for another
+  one; recovery codes still complete it. Core's password login issues an unrestricted ticket as
+  before, and a ticket without the claim (issued before the upgrade) stays unrestricted. The
+  passkey sign-in, which already left its own passkey out of the list, gets the enforcement it
+  lacked. Plumbing, all additive: `session.MFATickets.IssueFor` / `AuthenticateFactors`,
+  `pipeline.MFATicketFactors` (an optional interface the pipeline checks on its `MFATickets`),
+  `endpoint.WithMFATicketFactors` / `MFATicketAllows`; `mfa.Tickets` (not stable) now has
+  `IssueFor` instead of `Issue`. Security review: the restriction is inside the signed ticket, so a
+  client cannot widen it; an unparsable claim fails the ticket. Tests:
+  `AFactorOnTheSignInsChannelIsNotASecondFactor` (email code, magic link, phone; failed before:
+  the same-address factor was offered), `TestTheMFATicketTakesOnlyTheFactorsItOffered` (HTTP:
+  challenge and verify refuse the left-out factor; failed before), `TestMFATickets`,
+  `TestBeginLoginMintsATicketAndMasksFactorViews`,
+  `TestMFATicketAllowsOnlyTheFactorsItWasRestrictedTo`.
+- **Magic links: opening one spends nothing.** Email security scanners follow links with GET and
+  spent the one-time token before the user clicked. `GET /magic-link/verify` now checks the token
+  without spending it and answers a static HTML page (no JavaScript; `Cache-Control: no-store`,
+  `Referrer-Policy: no-referrer`, `default-src 'none'; form-action 'self'; frame-ancestors 'none'`)
+  whose one button posts back to the same URL; the new `POST /magic-link/verify`
+  (`polaris.passwordless.magic-link-confirm`) spends it and answers the 302 the GET used to. An
+  unknown, used or expired token still answers the 422 problem on both. The emailed link, the
+  hand-off code and `/magic-link/exchange` are unchanged, so API clients that only send and
+  exchange keep working; a client that fetched the link itself and expected the 302 must POST.
+  **Client-visible:** the GET answers 200 HTML; the magic-link contract fixture is re-recorded and
+  the manifest goldens regenerated (227 routes). `plugins/ui` is not involved: the page is the
+  plugin's own, fixed bytes. Security review: the page carries no per-link value (the token stays
+  in the URL the browser posts to), so it cannot leak it beyond what the link already does; a
+  scanner that also submits forms would still spend the link (none known to do so by default).
+  Tests: `testAMagicLinkSignsUpRedirectsWithACodeAndExchangesItOnce` (two GETs spend nothing, the
+  POST signs in once; failed before: the first GET answered 302), `Example`,
+  `examples/signin-methods`.
+- **social: unlinking the last credential is one transaction.** `unlink` read the user and its
+  accounts and then deleted, so two concurrent unlinks of an account's two providers (no password)
+  both passed the check and left no way to sign in. Now the check and the delete are one
+  transaction that first locks the user's row with a no-op update (the pattern of
+  `orgs.KeepOwner`): row locks on PostgreSQL and MySQL, the write lock on SQLite. A password
+  dropped meanwhile (passwordless pre-hijacking cleanup) updates the same row, so it serializes
+  with an unlink too. Test: `TestConcurrentUnlinksNeverRemoveTheLastCredential` (ten rounds of two
+  concurrent unlinks; failed before: both succeeded), run on SQLite, PostgreSQL and MySQL by the
+  matrix.
+
+Left open: `polaris_sentinel_decision` keeps the email address of past sign-in attempts after an
+erasure. It is keyed by address, not user id, and `event.UserDeleted` does not carry the address
+(the row is already a tombstone when it is dispatched); erasing it needs the address passed along
+or a retention prune, a separate change.

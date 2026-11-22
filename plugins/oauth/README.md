@@ -85,6 +85,8 @@ active organization) and `…/oauth/not_found` (404). In Go, match `*oauth.Error
 
 ## Host integration
 
+- Erasing a user deletes its consents, tokens, authorization codes, device codes and CIBA
+  requests (`event.UserDeleted`).
 - In a handler behind `p.Protect`: `who, _ := polaris.PrincipalFrom(r.Context())` — `who.Kind` is
   `polaris.KindOAuthClient` (`KindAgent` for an agent's token), `who.ClientID` the client,
   `who.UserID` the user it acts for (`""` for client credentials), `who.Permissions` the scopes
