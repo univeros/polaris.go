@@ -139,31 +139,37 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 		if minted {
 			e.ID = repository.NewID()
 		}
-		// The first statement takes the lock until commit: the row's lock on PostgreSQL and MySQL,
-		// the database's write lock on SQLite (taken first, its busy timeout waits for it). Every
-		// read after it sees the previous holder's row.
-		if err := s.lockChain(ctx, e.ID); err != nil {
-			return err
+		// The first statement takes the chain's lock until commit: the row's lock on PostgreSQL and
+		// MySQL, the database's write lock on SQLite (taken first, its busy timeout waits for it).
+		n, err := s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"locked_by": e.ID})
+		if err == nil && n == 0 {
+			s.headReady = false
+			err = fmt.Errorf("the %s row is missing", TableChain)
 		}
-		tip, err := s.newest(ctx)
 		if err != nil {
 			return err
 		}
-		if minted && tip != nil && e.ID <= tip.String("id") {
+		// The tip is read from the row this transaction just updated, never from a snapshot: on
+		// MySQL's REPEATABLE READ a transaction that already read (a host's, sqlstore.WithTx)
+		// would see the events table as it was before the lock.
+		head, err := s.db.FindOne(ctx, TableChain, store.Criteria{"id": chainHead})
+		if err != nil {
+			return err
+		}
+		tipID := head.String("last_id")
+		if minted && tipID != "" && e.ID <= tipID {
 			// Another process's clock is ahead, or minted in the same millisecond: sort after it.
-			if e.ID, err = after(tip.String("id")); err != nil {
-				return err
-			}
-			if err := s.lockChain(ctx, e.ID); err != nil {
+			if e.ID, err = after(tipID); err != nil {
 				return err
 			}
 		}
-		e.PrevHash = ""
-		if tip != nil {
-			e.PrevHash = tip.String("hash")
-		}
+		e.PrevHash = head.String("last_hash")
 		e.Hash = hashOf(e, data)
-		return s.db.Insert(ctx, TableEvents, row(e))
+		if err := s.db.Insert(ctx, TableEvents, row(e)); err != nil {
+			return err
+		}
+		_, err = s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"last_id": e.ID, "last_hash": e.Hash})
+		return err
 	})
 	if err != nil {
 		return Event{}, fmt.Errorf("audit: append to the hash chain: %w", err)
@@ -171,27 +177,33 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 	return e, nil
 }
 
-// ensureHead inserts the polaris_audit_chain row once; another process inserting it first is fine.
+// ensureHead inserts the polaris_audit_chain row once, seeded with the newest event, so a chain
+// written before the table existed continues from it. No chained write appends before the row
+// exists, so the seed is the tip whatever snapshot reads it; when another process inserted the row
+// first, the duplicate is ignored. It runs in a savepoint inside a caller's transaction, so the
+// duplicate does not abort that transaction on PostgreSQL.
 func (s *Store) ensureHead(ctx context.Context) error {
 	if s.headReady {
 		return nil
 	}
-	err := s.db.Insert(ctx, TableChain, store.Row{"id": chainHead, "last_id": ""})
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		// The insert comes first, a write taking the lock (on SQLite a read first could not
+		// upgrade to the write lock while another writer holds it).
+		if err := s.db.Insert(ctx, TableChain, store.Row{"id": chainHead, "last_id": "", "last_hash": "", "locked_by": ""}); err != nil {
+			return err
+		}
+		tip, err := s.newest(ctx)
+		if err != nil || tip == nil {
+			return err
+		}
+		_, err = s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"last_id": tip.String("id"), "last_hash": tip.String("hash")})
+		return err
+	})
 	if err != nil && !errors.Is(err, store.ErrDuplicate) {
 		return fmt.Errorf("audit: create the hash chain's lock row (run Migrate to create %s): %w", TableChain, err)
 	}
 	s.headReady = true
 	return nil
-}
-
-// lockChain updates the polaris_audit_chain row to lastID, taking its lock.
-func (s *Store) lockChain(ctx context.Context, lastID string) error {
-	n, err := s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"last_id": lastID})
-	if err == nil && n == 0 {
-		s.headReady = false
-		err = fmt.Errorf("the %s row is missing", TableChain)
-	}
-	return err
 }
 
 // newest is the newest event row, nil when there is none.

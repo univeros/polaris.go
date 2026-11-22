@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -49,19 +50,47 @@ func twoProcesses(t *testing.T, d store.Dialect) (store.Adapter, store.Adapter) 
 }
 
 func TestTheChainStaysLinearWithWritersInSeparateProcesses(t *testing.T) {
+	concurrentWriters(t, "", func(_ store.Adapter, s *Store, e Event) error {
+		_, err := s.Write(ctx, e)
+		return err
+	})
+}
+
+// An event recorded inside the host's transaction (sqlstore.WithTx, events dispatched before the
+// host commits) appends inside a transaction that has already read: on MySQL's REPEATABLE READ
+// its snapshot predates the chain's lock.
+func TestTheChainStaysLinearWhenWritersAppendInsideATransactionThatAlreadyRead(t *testing.T) {
+	// SQLite is left out: a transaction that already read cannot take the write lock while another
+	// writer holds it (SQLITE_BUSY fails the host's transaction), so nothing forks there.
+	concurrentWriters(t, store.SQLite, func(db store.Adapter, s *Store, e Event) error {
+		return db.Tx(ctx, func(ctx context.Context) error {
+			if _, err := db.FindMany(ctx, TableEvents, store.Criteria{}, store.Query{Limit: 1}); err != nil {
+				return err
+			}
+			time.Sleep(time.Millisecond) // let the other writers move the chain past the snapshot
+			_, err := s.Write(ctx, e)
+			return err
+		})
+	})
+}
+
+func concurrentWriters(t *testing.T, skip store.Dialect, write func(db store.Adapter, s *Store, e Event) error) {
 	for _, b := range storetest.Backends() {
+		if b.Dialect == skip {
+			continue
+		}
 		t.Run(b.Name, func(t *testing.T) {
 			one, two := twoProcesses(t, b.Dialect)
+			dbs := []store.Adapter{one, two}
 			stores := []*Store{NewStore(one, true), NewStore(two, true)}
 			const writers, writes = 8, 15
 			var wg sync.WaitGroup
 			errs := make(chan error, 2*writers*writes)
-			for _, s := range stores {
+			for n, s := range stores {
 				for w := range writers {
 					wg.Go(func() {
 						for i := range writes {
-							_, err := s.Write(ctx, signedIn(fmt.Sprintf("u%d", w), time.Now(), ""))
-							if err != nil {
+							if err := write(dbs[n], s, signedIn(fmt.Sprintf("u%d", w), time.Now(), "")); err != nil {
 								errs <- fmt.Errorf("write %d: %w", i, err)
 							}
 						}
@@ -159,4 +188,28 @@ func first(s []string) string {
 		return ""
 	}
 	return s[0]
+}
+
+// The tip lives on the lock row, so pruning the newest event leaves the next row linked to the
+// pruned one; the pruning checkpoint names it and Verify accepts the gap.
+func TestPruningTheNewestEventKeepsTheChainVerifying(t *testing.T) {
+	db := memstore.New(Models()...)
+	p := chainPlugin(t, db, Retention{Default: "P7Y", Names: map[string]string{SessionSignedIn: "P1D"}}, at("2026-09-11T10:00:00Z"))
+	for _, e := range []Event{
+		{Name: UserSignedUp, OccurredAt: at("2026-09-01T00:00:00Z"), ActorType: ActorUser, ActorID: "u1", SubjectID: "u1"},
+		signedIn("u1", at("2026-09-02T00:00:00Z"), ""),
+	} {
+		if _, err := p.store.Write(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, err := p.Prune(ctx); err != nil || n != 1 {
+		t.Fatalf("pruned %d %v", n, err)
+	}
+	if _, err := p.store.Write(ctx, signedIn("u1", at("2026-09-11T09:00:00Z"), "")); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := p.Verify(ctx); err != nil || r.Rows != 3 || !r.Intact() {
+		t.Fatalf("verify %+v %v", r, err)
+	}
 }

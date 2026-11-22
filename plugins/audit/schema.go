@@ -51,11 +51,14 @@ func Models() []schema.Model {
 			schema.StringField("userId", 36).AsPrimary(),
 			schema.DateTimeField("lastActiveAt"),
 		),
-		// One row, the hash chain's lock: every chained write updates it first, so writers in
-		// separate processes append one at a time. lastId is the newest chained event.
+		// One row, the hash chain's lock and tip: every chained write updates it first (lockedBy),
+		// so writers in separate processes append one at a time, reads the tip from it and moves
+		// it to the row it inserted (lastId, lastHash).
 		schema.Table(TableChain,
 			schema.StringField("id", 16).AsPrimary(),
 			schema.StringField("lastId", 36),
+			schema.StringField("lastHash", 64),
+			schema.StringField("lockedBy", 36),
 		),
 	}
 }

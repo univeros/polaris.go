@@ -52,5 +52,7 @@ CREATE TABLE "polaris_audit_activity" (
 CREATE TABLE "polaris_audit_chain" (
     "id" VARCHAR(16) NOT NULL,
     "last_id" VARCHAR(36) NOT NULL,
+    "last_hash" VARCHAR(64) NOT NULL,
+    "locked_by" VARCHAR(36) NOT NULL,
     PRIMARY KEY ("id")
 );

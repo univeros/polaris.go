@@ -61,7 +61,8 @@ Uses core's `audit.read`.
   the hash chain (`polaris audit:verify`).
 - With `HashChain` on, every replica appends to one chain: each write first takes the lock row in
   `polaris_audit_chain` (a row lock on PostgreSQL and MySQL, the write lock on SQLite), so writers in
-  separate processes append one at a time and never fork it. Run `Migrate` after upgrading to create
+  separate processes append one at a time and never fork it, also inside your own transaction
+  (`sqlstore.WithTx`), where the lock is held until you commit. Run `Migrate` after upgrading to create
   that table; until then chained writes fail with an error naming it. SQLite needs a busy timeout
   (`_pragma=busy_timeout(5000)`) for concurrent writers to wait rather than fail.
 - Organizations' drains are managed through `Plugin.Drains()` and the `/admin` routes of

@@ -996,28 +996,45 @@ Three items decisions 21, 25 and 27 left open (docs/v1.md 4.3), closed.
   reported breaks in an untampered table (a test with 2 handles x 8 writers x 15 writes forked it
   on memstore, SQLite, PostgreSQL and MySQL; on SQLite writes also failed with SQLITE_BUSY: 96 of
   240 in one run). Now every chained write runs in one transaction whose first statement updates the
-  single row of a new table, `polaris_audit_chain` (id, last_id). That row is the chain's lock on
-  every dialect: a row lock held to commit on PostgreSQL and MySQL; on SQLite the database write
-  lock, taken by the transaction's first statement, so the busy timeout waits for it instead of
-  failing a reader that tries to upgrade. After the lock the write reads the newest row (every
-  statement after the lock sees the previous holder's commit; on MySQL's REPEATABLE READ the
-  snapshot is taken at that first plain read, after the lock), links to its hash and, when its
-  freshly minted UUID v7 does not sort after the newest id (another replica's clock ahead, the same
-  millisecond), takes the next UUID after it (random tail + 1, version and variant kept), so id
-  order stays chain order. An id the caller set is kept as before. Alternatives rejected: a unique
+  single row of a new table, `polaris_audit_chain` (id, last_id, last_hash, locked_by). That row
+  is the chain's lock and holds its tip. The lock: a row lock held to commit on PostgreSQL and
+  MySQL; on SQLite the database write lock, taken by the transaction's first statement, so the busy
+  timeout waits for it instead of failing a reader that tries to upgrade. The tip: after its lock
+  UPDATE the write reads last_id / last_hash from that same row, links to them, inserts the event
+  and moves the tip to it in the same transaction. Reading the tip from the events table instead
+  depended on snapshot timing: audit events are recorded with the caller's ctx, and a host's
+  transaction (`sqlstore.WithTx`, events dispatched before the host commits) nests the write as a
+  savepoint; on MySQL's REPEATABLE READ a transaction that had already read keeps a snapshot from
+  before the lock, so the newest row it saw was stale and the chain forked again (239 breaks in
+  240 rows in the test below). A row the transaction just updated is read as its own version, built
+  on the latest commit (InnoDB's UPDATE is a current read), on every dialect. When the freshly
+  minted UUID v7 does not sort after last_id (another replica's clock ahead, the same
+  millisecond), the write takes the next UUID after it (random tail + 1, version and variant kept),
+  so id order stays chain order. An id the caller set is kept as before. With the tip on the lock
+  row, pruning the newest event leaves the next row linked to the pruned one; the `audit.pruned`
+  checkpoint names that hash, so `Verify` accepts it. Alternatives rejected: a unique
   index on `prev_hash` (the first row's prev_hash is NULL, so two first rows still fork; a chain
   re-started after the chain was off would collide with the first one; it also needed the index
   added to existing tables); advisory locks (different per dialect, none on SQLite).
-  **Upgrade:** `Migrate` creates the table (a missing table, nothing altered); the lock row is inserted by the first chained write (a concurrent insert by another replica is a
-  duplicate and ignored). Rows, hashes and `Verify` are unchanged: existing chains keep verifying
-  and the next write links to their newest row. A host that upgrades without running `Migrate`
+  **Upgrade:** `Migrate` creates the table (a missing table, nothing altered); the first chained
+  write inserts the lock row (the insert first, then the seed: the newest event's id and hash, in
+  a savepoint so a duplicate from another replica neither fails nor aborts a host's PostgreSQL
+  transaction). No chained write appends before the row exists, so the seed is the tip whatever
+  snapshot reads it. Rows, hashes and `Verify` are unchanged: existing chains keep verifying and
+  the next write links to their newest row. A host that upgrades without running `Migrate`
   gets chained writes failing with an error naming the table and `Migrate` (logged by the recorder,
   the operation itself is not failed), not a silently forkable chain.
   Security review: tamper evidence only gains; no hash input changed (`hashOf` untouched, the
   canonical-form test still pins it). The lock serializes chained writes across the deployment:
-  throughput is one chained write at a time per database, as it was per process. Tests:
+  throughput is one chained write at a time per database, as it was per process, and an event
+  recorded inside a host's transaction holds the lock until the host commits. Tests:
   `TestTheChainStaysLinearWithWritersInSeparateProcesses` (memory, SQLite with two pools on one
-  file, PostgreSQL and MySQL with two stores), `TestAChainFromBeforeTheLockTableKeepsVerifyingAfterMigrate`,
+  file, PostgreSQL and MySQL with two stores), `TestTheChainStaysLinearWhenWritersAppendInsideATransactionThatAlreadyRead`
+  (each write inside an outer transaction that read `polaris_audit_event` first; memory,
+  PostgreSQL, MySQL: SQLite cannot upgrade such a transaction to a writer while another writes, so
+  the host's transaction fails with SQLITE_BUSY and nothing forks),
+  `TestAChainFromBeforeTheLockTableKeepsVerifyingAfterMigrate`,
+  `TestPruningTheNewestEventKeepsTheChainVerifying`,
   `TestAChainedWriteWithoutTheLockTableNamesTheFix`, `TestAfterSortsRightAfterAUUID`.
 - **Admin: one grant per user under concurrent first grants (#25).** `polaris_admin_grant.user_id`
   is unique (`polaris_admin_grant_user_unique`, replacing the plain `polaris_admin_grant_user_index`).
