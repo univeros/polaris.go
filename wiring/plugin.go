@@ -103,3 +103,10 @@ type PortsProvider interface{ Ports() Ports }
 type HandlerProvider interface {
 	Handler(g *Graph) (prefix string, h http.Handler)
 }
+
+// Seeder writes the rows a plugin needs before any request arrives (a lock row, a default
+// record). Polaris.Migrate calls Seed after the schema is up to date, outside any transaction, on
+// every boot: it must be idempotent and safe on replicas booting together.
+type Seeder interface {
+	Seed(ctx context.Context) error
+}
