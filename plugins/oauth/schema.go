@@ -35,7 +35,8 @@ func models() []schema.Model {
 		schema.Table(TableConsents,
 			str("id", 36).AsPrimary(), str("userId", 36), clientID, nullable(str("organizationId", 36)),
 			schema.JSONField("scopes"), schema.DateTimeField("grantedAt"), schema.DateTimeField("updatedAt"),
-		).Unique([]string{"user_id", "client_id"}, "polaris_oauth_consent_unique"),
+		).Unique([]string{"user_id", "client_id", "organization_id"}, "polaris_oauth_consent_org_unique").
+			DropIndex("polaris_oauth_consent_unique"), // v0.6.0 and earlier: one consent per user and client
 		schema.Table(TableCodes,
 			str("id", 36).AsPrimary(), str("codeHash", 128), clientID, str("userId", 36),
 			nullable(str("organizationId", 36)), schema.JSONField("scopes"), str("redirectUri", 2048),

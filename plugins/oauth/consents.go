@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Consent is a user's consent to a client: the scopes granted so far.
+// Consent is a user's consent to a client in an organization: the scopes granted so far.
 type Consent struct {
 	ID, UserID, ClientID, OrganizationID string
 	Scopes                               []string
@@ -34,15 +34,17 @@ func consentFromRow(r store.Row) Consent {
 	return c
 }
 
-// consents keeps one row per user and client; a request within the scopes needs no screen, a
-// wider one asks again.
+// consents keeps one row per user, client and organization ("" outside any): what a user grants
+// a client while acting in one organization says nothing about another, where the same scopes
+// reach other data. A request within the scopes needs no screen, a wider one asks again. A row
+// written before decision 75 (one per user and client) counts for the organization it names.
 type consents struct {
 	db    store.Adapter
 	clock clock.Clock
 }
 
-func (s *consents) find(ctx context.Context, userID, clientID string) (*Consent, error) {
-	row, err := s.db.FindOne(ctx, TableConsents, store.Criteria{"user_id": userID, "client_id": clientID})
+func (s *consents) find(ctx context.Context, userID, clientID, organizationID string) (*Consent, error) {
+	row, err := s.db.FindOne(ctx, TableConsents, store.Criteria{"user_id": userID, "client_id": clientID, "organization_id": null(organizationID)})
 	if err != nil || row == nil {
 		return nil, err
 	}
@@ -50,8 +52,8 @@ func (s *consents) find(ctx context.Context, userID, clientID string) (*Consent,
 	return &c, nil
 }
 
-func (s *consents) covers(ctx context.Context, userID, clientID string, scopes []string) (bool, error) {
-	c, err := s.find(ctx, userID, clientID)
+func (s *consents) covers(ctx context.Context, userID, clientID, organizationID string, scopes []string) (bool, error) {
+	c, err := s.find(ctx, userID, clientID, organizationID)
 	if err != nil || c == nil {
 		return false, err
 	}
@@ -63,10 +65,10 @@ func (s *consents) covers(ctx context.Context, userID, clientID string, scopes [
 	return true, nil
 }
 
-// grant records scopes, merged with what the user granted the client before.
+// grant records scopes, merged with what the user granted the client in the organization before.
 func (s *consents) grant(ctx context.Context, userID, clientID, organizationID string, scopes []string) error {
 	now := s.clock.Now()
-	existing, err := s.find(ctx, userID, clientID)
+	existing, err := s.find(ctx, userID, clientID, organizationID)
 	if err != nil {
 		return err
 	}
@@ -84,12 +86,7 @@ func (s *consents) grant(ctx context.Context, userID, clientID, organizationID s
 	if err != nil {
 		return err
 	}
-	org := existing.OrganizationID
-	if organizationID != "" {
-		org = organizationID
-	}
-	_, err = s.db.Update(ctx, TableConsents, store.Criteria{"id": existing.ID},
-		store.Data{"scopes": value, "organization_id": null(org), "updated_at": now})
+	_, err = s.db.Update(ctx, TableConsents, store.Criteria{"id": existing.ID}, store.Data{"scopes": value, "updated_at": now})
 	return err
 }
 

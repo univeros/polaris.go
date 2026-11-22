@@ -6,6 +6,7 @@ import (
 	"github.com/univeros/polaris.go/internal/netguard"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -54,7 +55,9 @@ type Config struct {
 	DPoP DPoPMode
 	// Scopes are extra scopes (name → description) beyond the permission catalog and the OpenID ones.
 	Scopes map[string]string
-	// TrustedClients are client ids whose users are not asked for consent.
+	// TrustedClients are client ids an operator trusts as it does a client registered trusted:
+	// their users are not asked for consent, they may exchange and introspect other clients'
+	// tokens, and their organization cannot change where they redirect or how they authenticate.
 	TrustedClients []string
 	// Operators resolves who calls the /admin/oauth routes (the admin plugin's grants and API
 	// keys): nil, nil for nobody. Default: a session whose user holds the superadmin role is an
@@ -77,6 +80,12 @@ type settings struct {
 	trustedClients, audiences                          []string
 	httpClient                                         *http.Client
 	operators                                          func(r *http.Request) (*Operator, error)
+}
+
+// trusts reports whether an operator trusted the client: registered trusted, or listed in
+// Config.TrustedClients.
+func (s settings) trusts(c Client) bool {
+	return c.Trusted || slices.Contains(s.trustedClients, c.ClientID)
 }
 
 var (

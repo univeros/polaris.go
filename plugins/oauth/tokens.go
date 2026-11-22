@@ -166,28 +166,43 @@ type ClientAuthority interface {
 	ClientPermissions(ctx context.Context, clientID string) (permissions []string, owned bool, err error)
 }
 
+// ClientGrantWindows is implemented by a ClientAuthority whose clients hold permissions for a
+// time (plugins/agents: a grant with expires_at). The provider asks it for every token of such a
+// client that would carry a permission scope, the client's own and the ones it acts for a user
+// with: a service that checks tokens without the database reads the scope until the token
+// expires, so the token must not outlive the grant.
+type ClientGrantWindows interface {
+	// ClientPermissionsUntil returns the permissions the client's grants cover now and when each
+	// stops being covered (the zero time: no end); owned is false when the client is not this
+	// plugin's.
+	ClientPermissionsUntil(ctx context.Context, clientID string) (until map[string]time.Time, owned bool, err error)
+}
+
 // held narrows a grant's scopes to what its subject may carry: a permission scope stays only if
 // the subject holds the permission now. A user holds what their roles grant in the grant's
 // organization. A client acting as itself holds what the plugin that owns it says
 // (ClientAuthority), else only the permissions an operator listed in the scopes of a client
 // marked trusted. Every other scope passes. A scope in a token is read by services that cannot
-// ask the database (package verify, mcp.Protect), so it must never exceed the subject's authority.
-func (t *tokens) held(ctx context.Context, c Client, g Grant) ([]string, error) {
+// ask the database (package verify, mcp.Protect), so it must never exceed the subject's authority,
+// nor outlast it: for a client whose owner grants permissions for a time (ClientGrantWindows), a
+// permission scope also needs a grant covering it now, and notAfter is when the first of the
+// kept ones ends (zero: no end).
+func (t *tokens) held(ctx context.Context, c Client, g Grant) (scopes []string, notAfter time.Time, err error) {
 	if len(t.scopes.permissions(g.Scopes)) == 0 {
-		return g.Scopes, nil
+		return g.Scopes, notAfter, nil
 	}
 	holds := func(name string) bool { return c.Trusted && slices.Contains(c.Scopes, name) }
 	if g.UserID != "" {
 		a, err := t.authority(ctx, g.UserID, g.OrganizationID)
 		if err != nil {
-			return nil, err
+			return nil, notAfter, err
 		}
 		holds = func(name string) bool { return a.Allows(name) }
 	} else {
 		for _, owner := range t.owners {
 			permissions, owned, err := owner.ClientPermissions(ctx, c.ClientID)
 			if err != nil {
-				return nil, err
+				return nil, notAfter, err
 			}
 			if owned {
 				holds = func(name string) bool { return slices.Contains(permissions, name) }
@@ -195,13 +210,32 @@ func (t *tokens) held(ctx context.Context, c Client, g Grant) ([]string, error) 
 			}
 		}
 	}
-	out := []string{}
-	for _, name := range g.Scopes {
-		if !t.scopes.permission[name] || holds(name) {
-			out = append(out, name)
+	var until map[string]time.Time
+	windowed := false
+	for _, owner := range t.owners {
+		if w, ok := owner.(ClientGrantWindows); ok && !windowed {
+			if until, windowed, err = w.ClientPermissionsUntil(ctx, c.ClientID); err != nil {
+				return nil, notAfter, err
+			}
 		}
 	}
-	return out, nil
+	now := t.clock.Now()
+	out := []string{}
+	for _, name := range g.Scopes {
+		if !t.scopes.permission[name] {
+			out = append(out, name)
+			continue
+		}
+		end, covered := until[name]
+		if !holds(name) || (windowed && (!covered || (!end.IsZero() && !end.After(now)))) {
+			continue
+		}
+		out = append(out, name)
+		if !end.IsZero() && (notAfter.IsZero() || end.Before(notAfter)) {
+			notAfter = end
+		}
+	}
+	return out, notAfter, nil
 }
 
 // issue mints the token response for a grant: the access token, a refresh token when a user is
@@ -215,9 +249,12 @@ func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, e
 	if g.FamilyID == "" && refreshable {
 		g.FamilyID = repository.NewID()
 	}
-	held, err := t.held(ctx, c, g)
+	held, notAfter, err := t.held(ctx, c, g)
 	if err != nil {
 		return TokenResponse{}, err
+	}
+	if !notAfter.IsZero() && notAfter.Before(expiresAt) {
+		expiresAt = notAfter
 	}
 	access := record{
 		ID: repository.NewID(), Kind: kindAccess, ClientID: c.ClientID, UserID: g.UserID,
@@ -253,7 +290,7 @@ func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, e
 	if err != nil {
 		return TokenResponse{}, err
 	}
-	resp := TokenResponse{AccessToken: jwt, TokenType: tokenType(g.DPoPJKT), ExpiresIn: t.settings.accessTTL, Scope: scope}
+	resp := TokenResponse{AccessToken: jwt, TokenType: tokenType(g.DPoPJKT), ExpiresIn: int(expiresAt.Sub(now) / time.Second), Scope: scope}
 	if refreshable {
 		if resp.RefreshToken, err = t.mintRefresh(ctx, c, g, now); err != nil {
 			return TokenResponse{}, err

@@ -22,7 +22,9 @@ input:
 domain:
   description: >
     RFC 7662, for an authenticated client: active false, or active true with client_id, token_type,
-    scope, sub, iss, iat, exp, jti, and aud, org, cnf, act when the token carries them.
+    scope, sub, iss, iat, exp, jti, and aud, org, cnf, act when the token carries them. A client
+    reads the tokens issued to it or whose audience names it, and a client an operator trusted
+    reads any; another client's token answers active false.
 
 output:
   status: 200

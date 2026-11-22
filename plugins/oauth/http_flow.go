@@ -57,7 +57,7 @@ func (p *Plugin) serveDecision(ctx context.Context, in *endpoint.Input) endpoint
 	}
 	approve := true
 	if v := in.Value("approve"); v == nil {
-		needs, err := p.authorization.needsConsent(ctx, req, c, userID)
+		needs, err := p.authorization.needsConsent(ctx, req, c, userID, org)
 		if err != nil {
 			return p.fail(ctx, err)
 		}
@@ -125,7 +125,10 @@ func (p *Plugin) serveRevoke(ctx context.Context, in *endpoint.Input) endpoint.R
 	return noStore(endpoint.Data(http.StatusOK, map[string]any{"status": "revoked"}))
 }
 
-// serveIntrospect is POST /oauth2/introspect (RFC 7662), for clients that authenticate.
+// serveIntrospect is POST /oauth2/introspect (RFC 7662), for clients that authenticate. A client
+// reads the tokens issued to it and the tokens whose audience names it; a client an operator
+// trusted (a resource server) reads any. To anyone else a token is not active (RFC 7662 §4), so
+// a client learns nothing about another client's users.
 func (p *Plugin) serveIntrospect(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	c, err := p.authenticated(ctx, in, "/oauth2/introspect")
 	if err != nil {
@@ -141,6 +144,9 @@ func (p *Plugin) serveIntrospect(ctx context.Context, in *endpoint.Input) endpoi
 	out, err := p.tokens.introspect(ctx, raw)
 	if err != nil {
 		return p.fail(ctx, err)
+	}
+	if out["client_id"] != c.ClientID && out["aud"] != c.ClientID && !p.settings.trusts(*c) {
+		out = map[string]any{"active": false}
 	}
 	return noStore(endpoint.JSON(http.StatusOK, out))
 }

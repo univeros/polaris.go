@@ -2484,3 +2484,107 @@ state); `wiring.Identity` gains `ChangeEmail` (a sealed interface, API.md §2). 
 
 Left open: `docs/v1.md` row 4.2 is the owner's. Accounts a directory or a provider created
 verified before this release are not re-examined (above).
+
+## 75. 2026-11-22 — OAuth boundaries: trusted clients, token exchange, DPoP origin, introspection, consent, grant windows
+
+Six findings of the security review before 1.0 in `plugins/oauth`, each reproduced by a failing
+test before its fix (`plugins/oauth/boundaries_test.go`, through HTTP, unless noted). Each is
+client-visible; the changelog lists what a client sees.
+
+- **An organization cannot change what an operator trusted.** A client registered `trusted` (or
+  listed in `Config.TrustedClients`) gets its code without a consent screen, and decision 69 made
+  its `scopes` its own authority. The organization's route (`PATCH
+  /orgs/{id}/oauth/clients/{clientId}`, `org.update`) guarded only `scopes`: an organization admin
+  could change `redirect_uris`, `type` and `token_endpoint_auth_method`, or add `jwks` and
+  `client_credentials`, on a client that stayed trusted. Now `clients.apply`, which every update
+  goes through, compares the client before and after when the caller may not trust
+  (`sameRegistration`): `type`, `redirect_uris`, `grant_types`, `scopes`,
+  `token_endpoint_auth_method`, `jwks`, `jwks_uri`, `client_uri` and `dpop_bound_access_tokens`
+  must be unchanged, else 400 `invalid_client_metadata`. `name`, `logo_uri`, `policy_uri`,
+  `tos_uri` and `disabled` stay the organization's (stopping a client is never an escalation), and
+  re-sending the registered values is accepted. `settings.trusts` is the one definition of
+  "operator-trusted" (the row's flag or the host's list), used here, by the consent skip, the
+  exchange and introspection. Tests: `TestAnOrganizationCannotRepointATrustedClient`,
+  `TestOnlyAnOperatorRepointsAClientTheHostTrusts` (in process: the host's list cannot name a
+  client before it exists).
+  Security note: the guard is a comparison of the whole protocol identity rather than a list of
+  refused keys, so a field added to `Client` later is one line in `sameRegistration` and a key
+  spelled another way (`scope`, a null) cannot slip past it. There is no operator update route;
+  an operator changes a trusted client with `UpdateClient(…, true)` or re-registers it.
+- **A token exchange stays within the subject's client and audience (RFC 8693, RFC 8707).**
+  `exchange` accepted any live `at+jwt` as the subject, whoever it was issued to and for, and
+  minted the new token for the `resource` asked, the issuer when none: a token restricted to
+  `aud=https://rs1…` became, in the hands of any client with the exchange grant, a token this
+  server and every `verify` / `mcp.Protect` service accepts. Now (`Plugin.subject`,
+  `Plugin.target`): a provider token is a subject or an actor only for the client it was issued
+  to, a client its `aud` names, or a trusted client (`invalid_grant` otherwise); the new token's
+  audience is the subject's when no `resource` is asked; another `resource` is accepted from a
+  subject that was for this server (a session, `aud` the issuer or one of `Config.Audiences`:
+  narrowing), from a trusted client, or, away from this server, from the authenticated client the
+  subject's `aud` names (`invalid_target` otherwise). The ownership rule alone is not enough, which
+  is why the audience rule does not depend on it: a public client (an agent's) authenticates with
+  nothing, so "its own token" proves only possession.
+  A session token was accepted after `Parse` alone. An exchanged token lives an access-token
+  lifetime with `amr: ["oauth"]`, so it outlived a logout and dropped the marks of a session that
+  is not the account holder's. Now (`Plugin.sessionSubject`): an impersonation token
+  (`impersonated_by`) and an organization-bound session (decision 68, `OrganizationBound`) are
+  refused, as is a session whose user logged out everywhere (the denylist's watermark, read
+  whether or not `AUTH_ACCESS_TOKEN_DENYLIST` makes the pipeline enforce it) or whose own session
+  (`sid`) is no longer live. Refusing is the choice over carrying the marks into the token: no
+  consumer of an `at+jwt` reads them, and a bound or impersonated principal has no business
+  delegating the account. Tests: `TestAnExchangeStaysWithinTheSubjectsClientAndAudience`,
+  `TestAnExchangeRefusesASessionThatEndedOrIsNotTheUsersOwn`. One recorded fixture is re-recorded
+  (`OAuthFlowTest::testDpopBindsTokensToTheClientsKeyAndRefusesAReplayedProof`): its last steps
+  exchanged a DPoP-bound token through a second client; the client now exchanges its own token,
+  and the refusal it pins is the proof of another key.
+  Security note: the checks are in the two functions every exchange goes through (the token
+  endpoint and `Plugin.Exchange`); scopes are still narrowed and bounded by `tokens.issue`
+  (decision 69); the DPoP binding of the subject is still required. `plugins/agents` exchanges
+  a session for this server and is unaffected. Not done: a registry of resource servers (which
+  client is `https://rs1…`). A resource server that exchanges or introspects tokens issued to
+  other clients is registered `trusted` by an operator; a self-declared resource would be an
+  authority an organization could claim.
+- **A DPoP proof is for this server's URL.** `htu` was compared with a URL built from the
+  request's `Host` header (and its TLS state), which the caller chooses: a proof made for another
+  server verified here when replayed with that server's name. `ownURL` now builds it from the
+  origin of the configured base URL and the path the client sent, as `plugins/agents` does for a
+  request JWT's `aud` (decision 69). Test: `TestADPoPProofIsForTheConfiguredOrigin`. Security
+  note: one function serves the token endpoint, the bearer resolver and `Plugin.VerifyDPoP`;
+  method, `ath`, `iat` window and single use are unchanged. A deployment that clients reach under
+  a name other than `BaseURL` was already advertising the wrong endpoints; it sets `BaseURL`.
+- **Introspection answers the token's own client.** Any confidential client could introspect any
+  token and read its user, organization and scopes. `serveIntrospect` now answers
+  `{"active": false}` (RFC 7662 §4) unless the token was issued to the caller, its `aud` is the
+  caller's client id, or the caller is trusted. Test: `TestIntrospectionAnswersTheTokensOwnClient`.
+  Security note: the refusal is the same body as an unknown token, so it is not an oracle for
+  whether a token is live.
+- **A consent counts in its organization.** `polaris_oauth_consent` held one row per user and
+  client, so scopes approved while acting in one organization were granted silently in another,
+  where the same permission scopes reach other data. Consent is now keyed by user, client and
+  organization (NULL outside any); `needsConsent` and `grant` take the session's organization.
+  Stored data (rule 5): the unique index `polaris_oauth_consent_unique (user_id, client_id)` is
+  replaced by `polaris_oauth_consent_org_unique (user_id, client_id, organization_id)` through the
+  schema DSL (`DropIndex`, decision 63; `TestMigrateUpgradesEveryReleasedSchema` covers it, DDL
+  goldens regenerated). An existing row keeps its `organization_id` (the organization of the
+  user's latest approval) and counts for that organization only; its scopes may include ones
+  approved elsewhere before, which is the most an old row can say, and no row is rewritten or
+  deleted. `DELETE /oauth2/consents/{clientId}` removes the client's consents in every
+  organization. Test: `TestAConsentCountsInItsOrganizationOnly`. Security note: the lookup fails
+  closed (no row for the organization: ask); a NULL organization is its own key, never a wildcard.
+- **A token ends with the grant behind its permission scopes.** Decision 69 bounded a user's
+  token by the user's authority and left the agent's part to the client's `scopes`, which
+  `plugins/agents` re-syncs when a grant changes but not when a windowed grant (`expires_at`)
+  runs out; and a token minted inside the window kept the scope for its full lifetime. The host
+  was not affected (the agent principal is intersected with live grants on every request); a
+  service checking the JWT alone was. New optional interface `oauth.ClientGrantWindows`
+  (`ClientPermissionsUntil`), beside `ClientAuthority`: for a client whose owner implements it,
+  `tokens.held` keeps a permission scope only when a grant covers it now, and `tokens.issue` ends
+  the access token no later than the first such grant (`expires_in` follows). `plugins/agents`
+  implements it (`windows.go`: per permission, the latest end among the live grants requiring
+  it). Tests: `TestATokenEndsWithTheGrantBehindItsScopes` (a plugin double),
+  `TestADelegatedTokenEndsWithTheGrantsWindow` (`plugins/agents`). Security note: the bound is in
+  the function that mints every access token; a refresh is bounded again; without an owner
+  implementing the interface nothing changes. Additive Go API (`make apicheck` clean).
+
+Verified with `make qa`, `make apicheck BASE=origin/main` and `scripts/test-db-matrix.sh
+./plugins/oauth/...` (PostgreSQL, MySQL). Fuzz targets unchanged and passing.

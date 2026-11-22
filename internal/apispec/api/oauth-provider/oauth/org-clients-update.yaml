@@ -28,8 +28,12 @@ input:
 
 domain:
   description: >
-    A field left out keeps its value; disabled true stops the client at the token endpoint. Recorded as
-    oauth.client_updated with what changed.
+    A field left out keeps its value; disabled true stops the client at the token endpoint. On a
+    client an operator trusted (trusted true, or listed in the server's trusted clients) only name,
+    logo_uri, policy_uri, tos_uri and disabled change here: a different type, redirect_uris,
+    grant_types, scopes, token_endpoint_auth_method, jwks, jwks_uri, client_uri or
+    dpop_bound_access_tokens answers 400 invalid_client_metadata. Recorded as oauth.client_updated
+    with what changed.
 
 output:
   status: 200

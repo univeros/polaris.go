@@ -3,6 +3,7 @@ package oauth
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -106,7 +107,7 @@ func (p *Plugin) assertBinding(r *http.Request, scheme, raw, boundJKT string) er
 	if !dpopScheme || p.settings.dpop == DPoPOff {
 		return errResolve("a DPoP-bound token is presented with the DPoP scheme and a proof")
 	}
-	jkt, err := p.dpop.verify(r.Context(), r.Header.Get(DPoPHeader), r.Method, requestURL(r), raw)
+	jkt, err := p.dpop.verify(r.Context(), r.Header.Get(DPoPHeader), r.Method, ownURL(p.settings.baseURL, r), raw)
 	if err != nil {
 		return err
 	}
@@ -116,17 +117,19 @@ func (p *Plugin) assertBinding(r *http.Request, scheme, raw, boundJKT string) er
 	return nil
 }
 
-// requestURL is the URL the client called, as a DPoP proof's htu names it. Behind a
-// TLS-terminating proxy the host must set r.TLS for the scheme to read https.
-func requestURL(r *http.Request) string {
-	if r.Host == "" {
-		return r.URL.RequestURI()
+// ownURL is the URL of the request as a DPoP proof's htu must name it: the origin of the
+// configured base URL and the path the client sent. The Host header is the caller's to choose, so
+// it is not read: a proof made for another server would verify here under that server's name.
+func ownURL(baseURL string, r *http.Request) string {
+	origin := baseURL
+	if u, err := url.Parse(baseURL); err == nil && u.Host != "" {
+		origin = u.Scheme + "://" + u.Host
 	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+	// RequestURI is what the client sent, before a host's http.StripPrefix rewrote URL.Path.
+	if u, err := url.ParseRequestURI(r.RequestURI); err == nil && r.RequestURI != "" {
+		return origin + u.EscapedPath()
 	}
-	return scheme + "://" + r.Host + r.URL.RequestURI()
+	return origin + r.URL.EscapedPath()
 }
 
 // hasAMR reports whether a principal came through this provider.
