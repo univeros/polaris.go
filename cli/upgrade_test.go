@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/univeros/polaris.go/plugins/passkey"
+	"github.com/univeros/polaris.go/plugins/social"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
@@ -35,6 +37,9 @@ func pluginModels() map[string][]schema.Model {
 			out[p.name] = sp.Schema()
 		}
 	}
+	// Not standard plugins (they need a relying party or providers), but their tables are stored
+	// data all the same.
+	out["passkey"], out["social"] = passkey.Models(), social.Models()
 	return out
 }
 

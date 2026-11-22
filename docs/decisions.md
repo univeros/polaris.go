@@ -2010,3 +2010,90 @@ already set; the invitation token is returned once, as the event carried it, and
 the loggable struct; `SignIn.OrganizationID` applies the switch route's membership checks and the
 escalation guard still bounds `Invite`. Two-phase delivery keeps the audit trail and erasure atomic
 with the action; it only delays what leaves the database.
+
+## 71. 2026-11-22 — v1 assurance: the stored-format inventory, the fuzz bar, the security policy after 1.0
+
+Three rows of `docs/v1.md` asked for something to be written down and checked rather than built:
+3.2 (every stored format has a vector), 4.4 (fuzzing), 4.7 (supported versions after 1.0). No
+production code changes in this entry; tests, vectors, a workflow and documents do.
+
+- **Stored formats (3.2).** [docs/stored-formats.md](stored-formats.md) is one table of what
+  Polaris writes to the database or hands to clients and other deployments, where, in what format,
+  and the test that pins it. Walking every `Pepper.Hash`, `Encrypt`, `sha256`/`hmac` call and every
+  table found these gaps, now closed:
+  - Passkey credentials had no vector: a change to the COSE parsing or the base64url form would
+    have locked users out of the only copy of their credential. `testdata/vectors/passkey.json`
+    records an ES256 and an RS256 registration, the row each stored and an assertion;
+    `TestPasskeyVectors` stores the same row and verifies the assertion against it.
+  - Peppered lookups were pinned as a function (`pepper.json`) but not by the context each table
+    uses: renaming a context constant (`api_key`, `refresh`, …) would strand every stored digest
+    without failing a test. `pepper.json` gains one case per context in use (`used_by` names the
+    column), and `TestPepperContextsAreTheStoredOnes` in each owning package (`identity`, `mfa`,
+    `orgs`, `session`, `plugins/{apikeys,admin,scim,oauth,agents,passwordless,social,ui}`) pins its
+    constants, including the passwordless kinds that are also the stored `kind` column.
+  - bcrypt imports (`$2a$`, `$2b$`, `$2y$`) were tested only by round trip with a freshly generated
+    hash. `imported-hashes.json` gains the Openwall crypt_blowfish vectors.
+  - Receipt hashes were pinned on the SDK side and by the server's canonical form of an ASCII
+    receipt; `TestRecordedReceiptChainsHashAsTheyWereIssued` (`plugins/agents`) hashes the recorded
+    chains (`agent/testdata/receipt-chains.json`, with non-ASCII capabilities) with the server code.
+  - The default `kid` had only a relative test; `TestTheDefaultKeyIDIsTheRecordedOne` (`config`)
+    pins it for the test RSA and EdDSA keys.
+  - The passkey and social tables had no DDL golden (`TestPluginDDLGoldens` only walked the CLI's
+    standard plugins, which leave out the two that need configuration), so row 3.5's "every plugin"
+    was not true. `testdata/ddl/{passkey,social}.*.sql` now pin them; their models are unchanged
+    since v0.4.1.
+  Vectors were generated once from the current code by throwaway generators and checked in; the
+  tests only read them.
+
+  **Not stable enough to promise as they are**, for the owner to decide before 1.0:
+  - *The default `kid` is the SHA-256 of the PEM text*, not of the key. The same key re-encoded
+    (CRLF line ends, another line wrap) gets a new `kid`, so tokens and cached
+    key sets from before the change stop verifying. Pinned as it is today; the options are to keep
+    it and recommend `AUTH_JWT_KID` (llms.txt, `polaris init`), or to derive the default from the
+    RFC 7638 thumbprint, which changes every deployment's `kid` once (a release note, and a
+    rollover through `AUTH_JWT_PREVIOUS_KID`).
+  - *`APP_KEY` cannot rotate.* The encrypter payload's version byte is the only marker and the
+    pepper has none, so a new `APP_KEY` makes every encrypted secret (TOTP, SSO client secrets,
+    social tokens, drain secrets) unreadable and every peppered digest (refresh tokens, API keys,
+    …) unmatchable. The formats are stable; the promise must say that `APP_KEY` is forever until a
+    key-id byte and a keyring exist (additive: a new version byte, the 0x01 payloads still read).
+  - Transient formats (social and SSO hand-offs in the cache, MFA tickets' `mfa_factors`, cache
+    keys) are not all pinned: a change fails only flows in progress during a rollout.
+  The encrypter's HKDF info is `polaris:encrypter:mfa` for every use, not only MFA: a misnomer kept
+  forever, since changing it changes the key.
+
+- **Fuzzing (4.4).** The bar, set by the owner's delegate: every fuzz target fuzzed for at least
+  60 minutes accumulated on the release-candidate code, across at least two separate runs, with no
+  failing input outstanding; the weekly job keeps running after 1.0. It replaces "four green weeks
+  at 4 minutes", which spent a month of calendar for less fuzzing than one dispatch. Nineteen
+  targets at 60 minutes in one job is 19 hours, past GitHub's 6-hour job limit, so
+  `.github/workflows/fuzz.yml` is now a matrix: a first job lists the targets
+  (`scripts/fuzz.sh --list [regexp]`, the same discovery `make fuzz` uses, as JSON
+  `{target, package, id}`; `FuzzDPoPProof` exists in two packages, so the package is part of the
+  key), then one job per target runs `go test -fuzz` for `fuzztime` with `fail-fast: false` and a
+  90-minute timeout (60 minutes of fuzzing plus the build and the seed corpus). The weekly
+  schedule (60 s), `workflow_dispatch` inputs `fuzztime` and `targets`, `contents: read` and the
+  `fuzz` concurrency group stay; a failing target uploads its corpus directory as
+  `fuzz-failures-<package>-<target>`. Two dispatches with `fuzztime: 30m` (or one of `60m` plus any
+  other) on the release candidate meet the bar. Row 4.4 stays open until they run. Validated with
+  `actionlint`; `scripts/fuzz.sh --list` lists 19 targets and fails on a regexp that matches none.
+
+- **Security policy after 1.0 (4.7).** SECURITY.md: the latest minor release of the current major
+  gets every fix; the minor before it gets fixes rated Critical or High (CVSS 7.0 or more) for
+  3 months after the new minor ships; older minors none. Semver makes the upgrade to the latest
+  minor safe by promise, so one supported line would do, but hosts pin minors and a new minor can
+  arrive the week before a disclosure: three months covers one release cycle of a careful host at
+  the cost of a backport only for the severe fixes. From v1.0.0 each fix is announced, when it
+  ships, as a GitHub security advisory with a CVE requested through GitHub (a CNA), in the release
+  notes (CHANGELOG **Security**, the GitHub Release), and reported to the Go vulnerability
+  database so `govulncheck` warns hosts. The private reporting flow is unchanged; the v0.x policy
+  stays as "Before 1.0" (now naming `v0.5.x`). Rejected: a fixed support period per minor (dates
+  to track, and a minor can be short-lived); supporting only the latest minor (simpler, and
+  leaves a host that upgraded cautiously without a fix it can take as a patch).
+
+Also ticked in `docs/v1.md`: 1.5 (the "API compatibility" check is required on `main`) and 7.3
+(v0.4.0 to v0.5.1 were released by the workflow).
+Security review: no production code changed. The new tests only read vectors; the vectors hold
+test-only keys (`keys.json`, the vector `APP_KEY`) and published or generated test credentials.
+The fuzz workflow keeps `contents: read`, takes its inputs through environment variables (no
+expression is expanded into a script), and uploads only the fuzzed target's corpus directory.

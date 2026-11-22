@@ -26,6 +26,108 @@
             "context": "invite",
             "value": "ünïcødé ✓",
             "hash": "0944fc8fc9e0c269eea2f263bc3699ea3ea7aaf7992923f9efa54e6212b77149"
+        },
+        {
+            "context": "email_verify",
+            "value": "Yk3n_verification-secret",
+            "hash": "922a7c1c09a2b323f0aa6b840e9d09c707e15d74087015cbe660df1405676cc0",
+            "used_by": "identity: auth_email_verifications.token_hash"
+        },
+        {
+            "context": "password_reset",
+            "value": "Rq8m_reset-secret",
+            "hash": "b5fc76522e55f1b4820445f0086166286de7946bdfc8f3d7085251a41228d97c",
+            "used_by": "identity: auth_password_resets.token_hash"
+        },
+        {
+            "context": "user_erasure",
+            "value": "ana@example.com",
+            "hash": "8f395a42cd9d4dacd4163ed5ace69656c309519797dc06a73e0b093a9197679f",
+            "used_by": "identity: auth_users.email of an erased user (the digest + the tombstone suffix)"
+        },
+        {
+            "context": "org_invite",
+            "value": "Iv2p_invite-token",
+            "hash": "1ab31ae1f254085e6b4b0d45c02cf18e37bb644673e075e18e9933314dce466a",
+            "used_by": "orgs: auth_invitations.token_hash"
+        },
+        {
+            "context": "api_key",
+            "value": "pk_live_cvR3ZJm5o0WkVKr2x9yT6uQ8sLp1nB4hD7fG0jA2eC5",
+            "hash": "1105c3bbbeab14c94845ef155fe18068306680885b07c200a35997dc6feddc3e",
+            "used_by": "plugins/apikeys: polaris_api_key.key_hash"
+        },
+        {
+            "context": "admin_key",
+            "value": "pak_9f3c-admin-key-secret",
+            "hash": "83237af1a52e1af31700de7fbb68a80f3cc563cd1fa83d7cb8a3b0c09770e98e",
+            "used_by": "plugins/admin: polaris_admin_key.key_hash"
+        },
+        {
+            "context": "scim_token",
+            "value": "scim_Tk7w-connection-token",
+            "hash": "b7b1dd0ad785f3464df688b89a9c5980aacc6fec6424f923be338b8f332cdf86",
+            "used_by": "plugins/scim: polaris_scim_connection.token_hash"
+        },
+        {
+            "context": "oauth_client",
+            "value": "cs_Lm4q-client-secret",
+            "hash": "1d7bb77fb4f74756f53e93e9039911b24dcbdb5d53410085b117a8515e3a434f",
+            "used_by": "plugins/oauth: polaris_oauth_client.secret_hash"
+        },
+        {
+            "context": "oauth_refresh",
+            "value": "rt_Ox1v-oauth-refresh",
+            "hash": "66d37b4cc08cf67140a20a8ee8a070091d625c24ea8f6dbe74d66a8ef8700f9d",
+            "used_by": "plugins/oauth: polaris_oauth_token.token_hash (refresh)"
+        },
+        {
+            "context": "oauth_code",
+            "value": "ac_Pz6r-authorization-code",
+            "hash": "389d65b5beb52a9643a40bf26545ddbbb94f324c4cd45df79cd246fbb6067a7b",
+            "used_by": "plugins/oauth: polaris_oauth_code.code_hash"
+        },
+        {
+            "context": "oauth_device",
+            "value": "dc_Qa9s-device-code",
+            "hash": "f9267443875b8d750a49f5e49014b32d9f157a523d67913079d5cc3095c26cd8",
+            "used_by": "plugins/oauth: polaris_oauth_device_code.device_code_hash"
+        },
+        {
+            "context": "agent_host",
+            "value": "ht_Rb2t-host-enrollment",
+            "hash": "732e40cc992486c46ff87c4590f371fb65ba6adfec98cf1de760486771914024",
+            "used_by": "plugins/agents: polaris_agent_host.enrollment_token_hash"
+        },
+        {
+            "context": "passwordless:identifier",
+            "value": "ana@example.com",
+            "hash": "3e44798fa53419e0b9f2200cfc60d9a123850602cde5fed94e1830a453248816",
+            "used_by": "plugins/passwordless: polaris_passwordless_secret.identifier_hash"
+        },
+        {
+            "context": "passwordless:magic_link",
+            "value": "ml_Sc5u-magic-link",
+            "hash": "b418f8175661b5f99dade77f63c0ec5d916f17a3213299795c73a7117bb61618",
+            "used_by": "plugins/passwordless: secret_hash of a token kind (context passwordless:<kind>, value the token)"
+        },
+        {
+            "context": "passwordless:email_otp:sign-in",
+            "value": "ana@example.com\u0000123456",
+            "hash": "d8f28fe1f63df8540941231a9fdc312732ab6592dcd676ee77c89a89d3d305e6",
+            "used_by": "plugins/passwordless: secret_hash of a code kind (context passwordless:<kind>, value identifier NUL code)"
+        },
+        {
+            "context": "ui.csrf",
+            "value": "Td8w-csrf-nonce",
+            "hash": "2e34ce66e031f99777ea0433d22072c8249a8fca08520617fbc7ff29a2938243",
+            "used_by": "plugins/ui: the CSRF form field (digest of the cookie nonce)"
+        },
+        {
+            "context": "social:proxy",
+            "value": "Ue1x-random.payload",
+            "hash": "4806bf48c920afe6b5a8cb26f66c40ed21df63875418005f6ed3dcf45cc0a358",
+            "used_by": "plugins/social: the redirect-proxy state signature (base64url of this hex digest)"
         }
     ]
 }

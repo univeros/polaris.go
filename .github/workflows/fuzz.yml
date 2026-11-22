@@ -1,6 +1,10 @@
-# Fuzzing: every fuzz target for a bounded time, weekly and on demand. Not on pull requests: those
-# run the seed corpora as unit tests in `make qa`. A failing input fails the run and is uploaded as
-# the artifact "fuzz-failures"; commit it under the package's testdata/fuzz/<Target>/ with the fix.
+# Fuzzing: every fuzz target in its own job, in parallel, for a bounded time, weekly and on demand.
+# Not on pull requests: those run the seed corpora as unit tests in `make qa`. The first job lists
+# the targets (scripts/fuzz.sh --list); each target then fuzzes for `fuzztime`. A failing input
+# fails that target's job and is uploaded as the artifact "fuzz-failures-<package>-<target>";
+# commit it under the package's testdata/fuzz/<Target>/ with the fix. The v1.0.0 bar (decision 71):
+# every target fuzzed for at least 60 minutes in total on the release candidate, across at least
+# two runs, with no failing input outstanding.
 name: fuzz
 
 on:
@@ -9,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       fuzztime:
-        description: Time per target (go test -fuzztime, e.g. 60s, 10m)
+        description: Time per target (go test -fuzztime, e.g. 60s, 10m, 30m; at most 60m)
         required: true
         default: 60s
       targets:
@@ -25,10 +29,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  fuzz:
-    name: fuzz (every target)
+  targets:
+    name: list the fuzz targets
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        env:
+          TARGETS: ${{ inputs.targets || '.' }}
+        run: echo "matrix=$(scripts/fuzz.sh --list "$TARGETS")" >>"$GITHUB_OUTPUT"
+
+  fuzz:
+    name: ${{ matrix.target }} (${{ matrix.package }})
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # fuzztime up to 60m, plus the build and the seed corpus
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.targets.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -36,15 +58,16 @@ jobs:
           go-version: "1.26" # latest patch; go.mod's toolchain line names the minimum patched one
           check-latest: true
           cache: true
-      - name: make fuzz
+      - name: go test -fuzz
         env:
           FUZZTIME: ${{ inputs.fuzztime || '60s' }}
-          TARGETS: ${{ inputs.targets || '.' }}
-        run: scripts/fuzz.sh "$TARGETS" # make fuzz, without make's $ expansion of the regexp
-      - name: Upload failing inputs
+          TARGET: ${{ matrix.target }}
+          PACKAGE: ${{ matrix.package }}
+        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime "$FUZZTIME" "$PACKAGE"
+      - name: Upload the failing input
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: fuzz-failures
-          path: "**/testdata/fuzz/**"
+          name: fuzz-failures-${{ matrix.id }}
+          path: ${{ matrix.package }}/testdata/fuzz/${{ matrix.target }}/
           if-no-files-found: warn
