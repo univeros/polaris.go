@@ -87,6 +87,12 @@ a remedy if your data needs a manual step (see the admin entry under Security). 
 
 ### Security
 
+- **Critical:** an organization's owner could create a role slugged `superadmin` and be treated as
+  the platform superadmin (other organizations' members, roles, OAuth clients, SSO providers and
+  audit; platform-only permissions). Only the system superadmin role counts now, and the slug is
+  reserved (decision 67). After upgrading, check for organization roles with that slug:
+  `SELECT * FROM auth_roles WHERE slug = 'superadmin' AND organization_id IS NOT NULL`.
+
 - MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
   factors. After an email code or magic link to an address (or an SMS code to a phone), the
   `mfa_required` envelope lists only factors that do not deliver there, and the `mfa_token` is

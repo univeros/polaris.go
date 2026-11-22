@@ -16,8 +16,10 @@ import (
 
 // Messages of the role refusals.
 const (
-	MsgRoleName         = "A role name is required."
-	MsgRoleSlug         = "The slug must be lowercase letters, digits and hyphens."
+	MsgRoleName = "A role name is required."
+	MsgRoleSlug = "The slug must be lowercase letters, digits and hyphens."
+	// MsgRoleSlugReserved refuses a role slug reserved for the platform's system roles.
+	MsgRoleSlugReserved = "This role slug is reserved."
 	MsgRoleNotFound     = "The role does not exist in this organization."
 	MsgSystemRole       = "System roles cannot be modified."
 	MsgOwnerRole        = "The owner role cannot be modified."
@@ -86,6 +88,9 @@ func (s *Service) CreateRole(ctx context.Context, actorUserID, organizationID st
 	}
 	if !roleSlug.MatchString(in.Slug) {
 		return Role{}, refuse(ErrInvalid, MsgRoleSlug)
+	}
+	if in.Slug == authz.RoleSuperadmin {
+		return Role{}, refuse(ErrInvalid, MsgRoleSlugReserved)
 	}
 	taken := refuse(ErrConflict, fmt.Sprintf(msgRoleSlugTakenFmt, in.Slug))
 	now := s.clock.Now()

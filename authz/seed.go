@@ -109,6 +109,9 @@ func ensureGrant(ctx context.Context, r *repository.Repos, roleID, permissionID 
 // it. The template's grants record what was given: a later Seed finds the grant on the template
 // and leaves the copies alone, so a tenant's removal from an editable role is kept.
 func grantToCopies(ctx context.Context, r *repository.Repos, slug, permissionID string) error {
+	if slug == RoleSuperadmin {
+		return nil // the system role is not copied into organizations; a same-slug copy is not it
+	}
 	roles, err := r.Roles.ListBySlug(ctx, slug)
 	if err != nil {
 		return fmt.Errorf("authz: seed %s grants: %w", slug, err)
