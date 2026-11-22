@@ -30,6 +30,9 @@ type app struct {
 
 func newApp(t *testing.T, cfg ui.Config, opts ...polaristest.Option) *app {
 	t.Helper()
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = origin // the issuer of polaristest is another host
+	}
 	web := ui.New(cfg)
 	srv := polaristest.New(t, append([]polaristest.Option{polaristest.WithPlugins(web)}, opts...)...)
 	return mount(t, srv, web)
@@ -49,13 +52,24 @@ func mount(t *testing.T, srv *polaristest.Server, web *ui.Plugin) *app {
 
 // browser keeps cookies and the last CSRF token, like a browser without JavaScript.
 type browser struct {
-	a    *app
-	jar  map[string]string
-	csrf string
-	last *httptest.ResponseRecorder
+	a *app
+	// url is where requests go (default origin); from is the Origin a form post carries (default
+	// origin). Behind a TLS-terminating proxy url is the internal address, plain http.
+	url, from string
+	jar       map[string]string
+	csrf      string
+	last      *httptest.ResponseRecorder
 }
 
-func (a *app) browser() *browser { return &browser{a: a, jar: map[string]string{}} }
+func (a *app) browser() *browser {
+	return &browser{a: a, jar: map[string]string{}, url: origin, from: origin}
+}
+
+// proxied is a browser on https://app.example.com reaching the app through a proxy that terminates
+// TLS and forwards to host (r.TLS nil, Host the internal address).
+func (a *app) proxied(host string) *browser {
+	return &browser{a: a, jar: map[string]string{}, url: "http://" + host, from: "https://app.example.com"}
+}
 
 var csrfField = regexp.MustCompile(`name="csrf" value="([^"]+)"`)
 
@@ -67,12 +81,12 @@ func (b *browser) do(method, target string, form url.Values, mods ...func(*http.
 		body = strings.NewReader(form.Encode())
 	}
 	if !strings.HasPrefix(target, "http") {
-		target = origin + target
+		target = b.url + target
 	}
 	r := httptest.NewRequest(method, target, body)
 	if form != nil {
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		r.Header.Set("Origin", origin)
+		r.Header.Set("Origin", b.from)
 	}
 	for name, value := range b.jar {
 		r.AddCookie(&http.Cookie{Name: name, Value: value})

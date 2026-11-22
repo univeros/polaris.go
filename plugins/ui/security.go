@@ -72,18 +72,20 @@ func (p *Plugin) csrfToken(w http.ResponseWriter, r *http.Request) string {
 	return p.g.Pepper().Hash(csrfContext, nonce)
 }
 
-// csrfOK is the check of every form post: the browser says it comes from this origin (when it says
-// anything), and the form's token is the HMAC of the cookie's nonce, compared in constant time.
+// csrfOK reports whether the form's token is the HMAC of the CSRF cookie's nonce, compared in
+// constant time. form checks the origin before it.
 func (p *Plugin) csrfOK(r *http.Request) bool {
 	nonce := cookie(r, csrfCookie)
-	return p.sameOrigin(r, false) && nonce != "" && p.g.Pepper().Matches(csrfContext, nonce, r.PostFormValue("csrf"))
+	return nonce != "" && p.g.Pepper().Matches(csrfContext, nonce, r.PostFormValue("csrf"))
 }
 
-// sameOrigin reports whether Origin (or, without one, Sec-Fetch-Site) names this origin. Without
-// either header it answers !strict.
+// sameOrigin reports whether the browser says the request comes from the pages' configured origin
+// (Config.BaseURL's): its Origin header or, without one, Sec-Fetch-Site. Without either it answers
+// !strict. The Host header and r.TLS play no part: a TLS-terminating proxy changes nothing, and a
+// forged Host cannot make another origin look like this one.
 func (p *Plugin) sameOrigin(r *http.Request, strict bool) bool {
 	if values := r.Header.Values("Origin"); len(values) > 0 {
-		return len(values) == 1 && strings.ToLower(values[0]) == requestOrigin(r)
+		return len(values) == 1 && strings.ToLower(values[0]) == p.origin
 	}
 	if site := r.Header.Get("Sec-Fetch-Site"); site != "" {
 		return site == "same-origin"
@@ -91,36 +93,29 @@ func (p *Plugin) sameOrigin(r *http.Request, strict bool) bool {
 	return !strict
 }
 
-// requestOrigin is scheme://host[:port] of r, the port omitted when it is the scheme's default.
-// The scheme is https exactly when r.TLS is set, as in core's cookie delivery.
-func requestOrigin(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+// originOf is scheme://host[:port] of an absolute http(s) URL, lower case, the port omitted when
+// it is the scheme's default; "" for anything else.
+func originOf(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
+		return ""
 	}
-	host := strings.ToLower(r.Host)
-	if h, port, err := net.SplitHostPort(host); err == nil && (scheme == "https" && port == "443" || scheme == "http" && port == "80") {
-		host = h
-		if strings.Contains(h, ":") {
-			host = "[" + h + "]"
-		}
+	host := strings.ToLower(u.Host)
+	if port := u.Port(); u.Scheme == "https" && port == "443" || u.Scheme == "http" && port == "80" {
+		host = strings.TrimSuffix(host, ":"+port)
 	}
-	return scheme + "://" + host
+	return u.Scheme + "://" + host
 }
 
-// secureTransport reports whether a session may be issued over r: TLS, or a loopback host in
+// mayIssue reports whether sessions may be issued on origin: https, or http on a loopback host in
 // development (browsers keep Secure cookies for http://localhost).
-func secureTransport(r *http.Request) bool {
-	if r.TLS != nil {
-		return true
+func mayIssue(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
 	}
-	host := r.Host
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	host = strings.Trim(host, "[]")
-	ip := net.ParseIP(host)
-	return strings.EqualFold(host, "localhost") || ip != nil && ip.IsLoopback()
+	ip := net.ParseIP(u.Hostname())
+	return u.Scheme == "https" || u.Hostname() == "localhost" || ip != nil && ip.IsLoopback()
 }
 
 // isPath reports whether s is a same-origin absolute path: "/x", never "//host" or "/\host".
@@ -137,8 +132,8 @@ func hasControl(s string) bool {
 }
 
 // allowed reports whether a redirect may go to target: a same-origin path, or an http(s) URL on
-// origin or one of Config.RedirectOrigins.
-func (p *Plugin) allowed(target, origin string) bool {
+// the pages' origin or one of Config.RedirectOrigins.
+func (p *Plugin) allowed(target string) bool {
 	if target == "" || len(target) > maxRedirect {
 		return false
 	}
@@ -149,13 +144,13 @@ func (p *Plugin) allowed(target, origin string) bool {
 	if err != nil || u.User != nil || hasControl(target) || strings.ContainsAny(target, "\\") || (u.Scheme != "https" && u.Scheme != "http") {
 		return false
 	}
-	o := u.Scheme + "://" + strings.ToLower(u.Host)
-	return o == origin || slices.Contains(p.origins, o)
+	o := originOf(target)
+	return o != "" && (o == p.origin || slices.Contains(p.origins, o))
 }
 
 // target is where a flow ends: return_to when allowed, else Config.AfterSignIn.
-func (p *Plugin) target(r *http.Request, returnTo string) string {
-	if p.allowed(returnTo, requestOrigin(r)) {
+func (p *Plugin) target(returnTo string) string {
+	if p.allowed(returnTo) {
 		return returnTo
 	}
 	return p.cfg.AfterSignIn

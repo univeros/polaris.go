@@ -27,7 +27,7 @@ func TestHappyPath(t *testing.T) {
 
 	token, _ := a.lastMail("ada@example.com", "verify_email")["token"].(string)
 	link := a.web.VerifyEmailURL(token)
-	if !strings.HasPrefix(link, contractIssuer(a)+"/auth/ui/verify?token=") {
+	if !strings.HasPrefix(link, origin+"/auth/ui/verify?token=") {
 		t.Fatalf("verify link %q", link)
 	}
 	u, _ := url.Parse(link)
@@ -58,8 +58,6 @@ func TestHappyPath(t *testing.T) {
 	location(t, rec, "/auth/ui/refresh?return_to=%2Fdashboard")
 	location(t, b.follow(rec), "/auth/ui/sign-in?return_to=%2Fdashboard")
 }
-
-func contractIssuer(a *app) string { return strings.TrimRight(a.srv.Graph().Auth().Issuer, "/") }
 
 func TestRefreshRenewsAnExpiredSession(t *testing.T) {
 	a := newApp(t, ui.Config{})
@@ -100,7 +98,7 @@ func TestSignInRefusals(t *testing.T) {
 	expect(t, b.post("/auth/ui/sign-in", url.Values{"email": {""}, "password": {""}}), 422, "An email and password are required.")
 	insecure := b.post("http://example.com/auth/ui/sign-in", url.Values{"email": {"ada@example.com"}, "password": {password}},
 		func(r *http.Request) { r.Header.Set("Origin", "http://example.com") })
-	expect(t, insecure, 403, "needs a secure (HTTPS) connection")
+	expect(t, insecure, 403, "This form only works at https://example.com") // plaintext is another origin
 }
 
 func TestUnverifiedEmailAndDisabledAccount(t *testing.T) {
@@ -336,6 +334,7 @@ func TestBadConfigurationFailsAtStartup(t *testing.T) {
 		"origin":         {RedirectOrigins: []string{"https://app.example.com/path"}},
 		"logo":           {LogoURL: "http://cdn.example.net/logo.png"},
 		"terms":          {TermsURL: "javascript:alert(1)"},
+		"base URL":       {BaseURL: "app.example.com"},
 		"template":       {Templates: fstest.MapFS{"sign-in.html": {Data: []byte(`{{define "content"}}{{.Nope}`)}}},
 	} {
 		srv := polaristest.New(t)

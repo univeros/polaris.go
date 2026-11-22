@@ -47,7 +47,7 @@ func (s blockEmail) Evaluate(_ context.Context, a sentinel.Attempt) (sentinel.Ve
 
 // TestSentinelJudgesThePages runs sentinel's middleware on the pages' sign-in and sign-up.
 func TestSentinelJudgesThePages(t *testing.T) {
-	web := ui.New(ui.Config{})
+	web := ui.New(ui.Config{BaseURL: origin})
 	srv := polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}), web, sentinel.New(sentinel.Config{
 		Mode: sentinel.Enforce, NoBuiltIn: true, Signals: []sentinel.Signal{blockEmail("mallory@example.com")},
 	})))

@@ -10,9 +10,10 @@
 //	export AUTH_JWT_PRIVATE_KEY="$(cat jwt.key)" AUTH_JWT_PUBLIC_KEY="$(cat jwt.pub)" AUTH_ISSUER=http://localhost:8080
 //	go run ./examples/webapp
 //
-// Then open http://localhost:8080 (the session cookies are Secure: browsers keep them on
-// localhost; anywhere else serve HTTPS). The verification and reset links are printed to the log,
-// where a real Mailer would email them.
+// Then open http://localhost:8080: AUTH_ISSUER is the one origin the pages accept forms from (the
+// session cookies are Secure; browsers keep them on localhost). In production set it to the https
+// URL browsers use, behind a TLS-terminating proxy too. The verification and reset links are
+// printed to the log, where a real Mailer would email them.
 package main
 
 import (

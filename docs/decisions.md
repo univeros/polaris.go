@@ -771,7 +771,18 @@ pages. `html/template`, embedded templates and one stylesheet (about 10 KB), no 
   bearer resolver reads the session cookie, so `p.Protect` and the bearer routes accept a browser;
   an `Authorization` or `X-Api-Key` header wins. `RequireSignIn(h)` turns a GET's 401 into a redirect
   to `/auth/ui/refresh`, which rotates the refresh token through `POST /auth/token/refresh` or asks
-  for a sign-in. Sessions are issued over TLS (`r.TLS`, as cookie delivery) or a loopback host.
+  for a sign-in.
+- **One configured origin.** The pages' origin is `ui.Config.BaseURL`'s (default the issuer +
+  `PathPrefix`), never one derived from the request: the Host header and `r.TLS` are not read and
+  `X-Forwarded-*` is not trusted. It is what a browser's `Origin` must equal (form posts, and the
+  session cookie on non-GET requests), the origin a `return_to` URL may name, and the session rule:
+  an https origin issues sessions whatever the connection, a loopback http origin too
+  (development), any other http origin refuses every form and warns at startup. So the pages work
+  behind a TLS-terminating proxy with an internal Host, as `plugins/social`'s binding cookie learnt
+  to follow `BaseURL` (#50), and a forged Host cannot make a cross-site Origin look same-origin.
+  The pages are served on that origin only: under another name they render but refuse every post
+  with a link to the configured origin (`__Host-` cookies belong to one host); hosts redirect other
+  names at the proxy. A `BaseURL` that is not an absolute http(s) URL fails `polaris.New`.
 - **OAuth.** `plugins/oauth` gains `oauth.PageProvider`: a plugin implementing it fills the
   `ConsentURL` and `DeviceURL` the host left empty (an explicit URL still wins). With `ui`
   installed, a filled `DeviceURL` turns the device flow on.
@@ -782,13 +793,13 @@ Security review (rule 6):
   signed double-submit token: a random nonce in `__Host-polaris_csrf` (HttpOnly, Secure, Path=/,
   SameSite=Strict; the `__Host-` prefix stops a sibling subdomain from planting it) and, in every
   form, its HMAC from core's pepper (`Pepper.Hash("ui.csrf", nonce)`, keyed from `APP_KEY`), checked
-  with `Pepper.Matches` in constant time. A post whose `Origin` (or `Sec-Fetch-Site`) names another
-  origin is refused before the token is looked at. The session cookie adds no CSRF surface to other
+  with `Pepper.Matches` in constant time. A post whose `Origin` (or `Sec-Fetch-Site`) is not the
+  configured origin is refused before the token is looked at. The session cookie adds no CSRF surface to other
   routes: the resolver uses it for GET, HEAD and OPTIONS, and for any other method only when `Origin`
   or `Sec-Fetch-Site` says same-origin (no header: no credential), which covers the host's own
   routes behind `p.Protect`.
 - **Redirects.** `return_to`, `AfterSignIn` and `AfterSignOut` are a same-origin path (not `//`, no
-  backslash, no control character) or an http(s) URL on the request's origin or
+  backslash, no control character) or an http(s) URL on the configured origin or
   `Config.RedirectOrigins`; anything else ends on `AfterSignIn` and is not echoed into the form. The
   configured targets are checked at startup. The consent and device pages redirect only to what
   the provider answers (the client's registered redirect URI); that origin joins the consent page's

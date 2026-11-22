@@ -37,13 +37,31 @@ Every field is optional.
 | `TermsURL`, `PrivacyURL` | none | footer links |
 | `AfterSignIn` | `/` | where a sign-in without `return_to` ends |
 | `AfterSignOut` | the sign-in page | where a sign-out ends |
-| `RedirectOrigins` | none | origins besides the request's own a `return_to` may point at (`https://app.example.com`) |
-| `BaseURL` | issuer + `polaris.Config.PathPrefix` | where Polaris is mounted; the email links and OAuth pages derive from it |
+| `RedirectOrigins` | none | origins besides `BaseURL`'s a `return_to` may point at (`https://other.example.com`) |
+| `BaseURL` | issuer + `polaris.Config.PathPrefix` | the public URL browsers use; its origin is the pages' only origin (below); the email links and OAuth pages derive from it |
 | `Templates` | built-in | an `fs.FS` overriding files by name (below) |
 | `Messages` | English | texts per locale (`"pt": {"sign_in_title": "Entrar"}`), keys of `ui.English`; picked by `Accept-Language` |
 
-A bad colour, a redirect target off the allow-list, a logo or link that is not http(s), or a template
-that does not parse fails `polaris.New` naming the field.
+A `BaseURL` (or issuer) that is not an absolute http(s) URL, a bad colour, a redirect target off the
+allow-list, a logo or link that is not http(s), or a template that does not parse fails `polaris.New`
+naming the field.
+
+## One origin, behind a proxy too
+
+The pages have exactly one origin: `BaseURL`'s (scheme, host, port). They never read the Host header
+or `r.TLS`, and they do not trust `X-Forwarded-*`:
+
+- A form post is accepted only when the browser's `Origin` header is that origin (or, without
+  `Origin`, `Sec-Fetch-Site: same-origin`); the session cookie authenticates a non-GET request on the
+  same terms. Behind a TLS-terminating proxy (nginx, Caddy, a cloud load balancer), where `r.TLS` is
+  nil and the Host may be an internal address, nothing needs configuring: set `BaseURL` (or
+  `AUTH_ISSUER`) to the https URL browsers use.
+- Sessions are issued when that origin is https, or http on `localhost` / a loopback address in
+  development. Any other http origin refuses every form (and logs a warning at startup).
+- Served under another name (`www.` beside the bare domain, an internal URL opened in a browser), the
+  pages render but refuse every post with "This form only works at <origin>" and a link there: the
+  `__Host-` cookies belong to one host, so the pages are served on the configured origin only.
+  Redirect the other names to it at the proxy.
 
 ## Pages
 
@@ -85,25 +103,24 @@ A sign-in opens core's session (the same refresh-token family, rotation and reus
 - `__Host-polaris_session`: the access token, `SameSite=Lax`, for its lifetime. `p.Protect` and every
   bearer route accept it from a browser (the plugin's bearer resolver); an `Authorization` header or
   `X-Api-Key` wins. A request other than GET, HEAD or OPTIONS uses it only with an `Origin` (or
-  `Sec-Fetch-Site`) of this origin, so a cross-site form cannot ride it, on the host's routes too.
+  `Sec-Fetch-Site`) of the pages' origin, so a cross-site form cannot ride it, on the host's routes too.
 - `__Secure-polaris_ui_refresh`: the refresh token, `Path=/auth/ui`: only the pages see it.
 - `__Secure-polaris_ui_mfa`: the login ticket between the password and the code.
 - `__Host-polaris_csrf`: the CSRF nonce, `SameSite=Strict`.
 
 `RequireSignIn` turns the 401 of a GET or HEAD into a redirect to `/refresh`, which renews the
-session or asks for a sign-in, then returns to the same URL. Sessions are issued over TLS only
-(`r.TLS` set; behind a proxy, as core's cookie delivery requires) or on a loopback host in development.
+session or asks for a sign-in, then returns to the same URL.
 
 ## Security notes
 
 - CSRF: every POST carries a signed double-submit token (the HMAC of the `__Host-` cookie's nonce,
-  keyed from `APP_KEY`, compared in constant time) and must not come from another origin.
+  keyed from `APP_KEY`, compared in constant time) and must come from the configured origin.
 - Headers on every page: `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none';
   style-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`
   (no script, no inline style), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
   `X-Content-Type-Options: nosniff`.
-- Redirects: `return_to`, `AfterSignIn` and `AfterSignOut` are same-origin paths or URLs on the request's
-  origin or `RedirectOrigins`; anything else ends on `AfterSignIn`. The OAuth pages redirect only to
+- Redirects: `return_to`, `AfterSignIn` and `AfterSignOut` are same-origin paths or URLs on
+  `BaseURL`'s origin or `RedirectOrigins`; anything else ends on `AfterSignIn`. The OAuth pages redirect only to
   what the provider answers (a registered redirect URI).
 - Error texts do not reveal whether an email is registered beyond what the JSON routes do.
 - Not in v1: passkeys (they need a JavaScript ceremony), social and magic-link buttons, account

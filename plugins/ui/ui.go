@@ -55,8 +55,12 @@ type Config struct {
 	// RedirectOrigins are origins besides the request's own ("https://app.example.com") a
 	// return_to, AfterSignIn or AfterSignOut may point at. Anything else falls back to AfterSignIn.
 	RedirectOrigins []string
-	// BaseURL is where Polaris is mounted, prefix included ("https://app.example.com/api"): the
-	// email links and the OAuth pages derive from it. Default: AUTH_ISSUER + Config.PathPrefix.
+	// BaseURL is the public URL browsers use for Polaris, prefix included
+	// ("https://app.example.com/api"). Its origin is the pages' only origin: a form is accepted
+	// only when the browser's Origin header names it (the Host header and r.TLS are never read,
+	// so a TLS-terminating proxy needs nothing), sessions are issued only when it is https (or
+	// loopback http in development), and the email links and OAuth pages derive from it.
+	// Default: AUTH_ISSUER + Config.PathPrefix.
 	BaseURL string
 	// Templates overrides files by name: "layout.html", "sign-in.html", "mfa.html",
 	// "sign-up.html", "check-email.html", "verify.html", "forgot.html", "reset.html",
@@ -74,6 +78,8 @@ type Plugin struct {
 	g   *wiring.Graph
 
 	base     string // the pages' URL path: PathPrefix + Prefix
+	origin   string // the pages' one origin, from BaseURL: what Origin headers must say
+	secure   bool   // sessions may be issued on origin (https, or loopback http)
 	pages    map[string]*template.Template
 	css      []byte
 	catalogs map[string]map[string]string
@@ -112,6 +118,12 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if p.cfg.AppName == "" {
 		p.cfg.AppName = "Account"
 	}
+	if p.origin = originOf(p.baseURL(g)); p.origin == "" {
+		return fmt.Errorf(`ui: the pages' base URL %q is not an absolute http(s) URL: set ui.Config.BaseURL (or AUTH_ISSUER) to the public URL browsers use, "https://app.example.com"`, p.baseURL(g))
+	}
+	if p.secure = mayIssue(p.origin); !p.secure {
+		g.Logger().Warn("ui: the pages' origin is plain http and not loopback: they will refuse every form; set ui.Config.BaseURL to the https URL browsers use", "origin", p.origin)
+	}
 	for _, o := range p.cfg.RedirectOrigins {
 		if !originPattern.MatchString(o) {
 			return fmt.Errorf(`ui: Config.RedirectOrigins holds %q; each must be an origin in lower case, "https://host[:port]", no path`, o)
@@ -125,7 +137,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		p.cfg.AfterSignOut = p.base + "/sign-in"
 	}
 	for name, target := range map[string]string{"AfterSignIn": p.cfg.AfterSignIn, "AfterSignOut": p.cfg.AfterSignOut} {
-		if !p.allowed(target, "") {
+		if !p.allowed(target) {
 			return fmt.Errorf(`ui: Config.%s is %q; use a path ("/dashboard") or a URL on one of Config.RedirectOrigins`, name, target)
 		}
 	}

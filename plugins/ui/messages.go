@@ -71,6 +71,7 @@ var English = map[string]string{
 	"error_generic":             "The request could not be completed. Try again.",
 	"error_csrf":                "This form expired. Reload the page and try again.",
 	"error_insecure":            "Signing in needs a secure (HTTPS) connection.",
+	"error_origin":              "This form only works at {origin}. Open the page there and try again.",
 	"error_rate_limited":        "Too many attempts. Wait {seconds} seconds and try again.",
 	"error_invalid_credentials": "Incorrect email or password.",
 	"error_email_unverified":    "Verify your email address before signing in.",

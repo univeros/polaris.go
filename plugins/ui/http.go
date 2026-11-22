@@ -45,12 +45,18 @@ func (p *Plugin) routes() http.Handler {
 	})
 }
 
-// form parses a form post, bounded, and refuses it over plaintext (the Secure cookies would not
-// stick) and without a valid CSRF token.
+// form parses a form post, bounded. It refuses it when the configured origin is plain http (the
+// Secure cookies would not stick), when the browser posts from another origin (another name
+// for this service included: the pages live on the configured origin only), and without a valid
+// CSRF token.
 func (p *Plugin) form(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !secureTransport(r) {
+		switch {
+		case !p.secure:
 			p.message(w, r, http.StatusForbidden, "error_title", "error_insecure", "", "")
+			return
+		case !p.sameOrigin(r, false):
+			p.message(w, r, http.StatusForbidden, "error_title", "error_origin", p.origin+p.base+"/sign-in", "continue", "origin", p.origin)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxForm)
@@ -117,7 +123,7 @@ func problems(t map[string]string, rep reply, fallback string) []string {
 
 func (p *Plugin) signInPage(w http.ResponseWriter, r *http.Request) {
 	v := p.newView(w, r, "sign_in_title")
-	if rt := r.URL.Query().Get("return_to"); p.allowed(rt, requestOrigin(r)) {
+	if rt := r.URL.Query().Get("return_to"); p.allowed(rt) {
 		v.ReturnTo = rt
 	}
 	p.render(w, r, http.StatusOK, "sign-in", v)
@@ -136,7 +142,7 @@ func (p *Plugin) signIn(w http.ResponseWriter, r *http.Request) {
 	case !rep.ok():
 		v := p.newView(w, r, "sign_in_title")
 		v.Email, v.Errors = email, problems(v.T, rep, "error_invalid_credentials")
-		if p.allowed(returnTo, requestOrigin(r)) {
+		if p.allowed(returnTo) {
 			v.ReturnTo = returnTo
 		}
 		p.render(w, r, rep.status, "sign-in", v)
@@ -155,7 +161,7 @@ func (p *Plugin) signedIn(w http.ResponseWriter, r *http.Request, data map[strin
 	if cookie(r, mfaCookie) != "" {
 		p.clearCookie(w, mfaCookie)
 	}
-	http.Redirect(w, r, p.target(r, returnTo), http.StatusSeeOther) //nolint:gosec // target allows only same-origin paths and the configured origins (G710)
+	http.Redirect(w, r, p.target(returnTo), http.StatusSeeOther) //nolint:gosec // target allows only same-origin paths and the configured origins (G710)
 }
 
 // --- two-step verification ---
@@ -396,7 +402,7 @@ func (p *Plugin) renew(w http.ResponseWriter, r *http.Request) (reply, error) {
 // user to sign in, then returns there.
 func (p *Plugin) refresh(w http.ResponseWriter, r *http.Request) {
 	returnTo := r.URL.Query().Get("return_to")
-	if secureTransport(r) {
+	if p.secure {
 		rep, err := p.renew(w, r)
 		switch {
 		case err != nil:
@@ -410,7 +416,7 @@ func (p *Plugin) refresh(w http.ResponseWriter, r *http.Request) {
 			p.clearCookie(w, refreshCookie)
 		}
 	}
-	http.Redirect(w, r, p.base+"/sign-in?return_to="+url.QueryEscape(p.target(r, returnTo)), http.StatusSeeOther)
+	http.Redirect(w, r, p.base+"/sign-in?return_to="+url.QueryEscape(p.target(returnTo)), http.StatusSeeOther)
 }
 
 // toSignIn sends a browser without a session through refresh (then sign-in), back to this page.

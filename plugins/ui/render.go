@@ -134,9 +134,10 @@ func (p *Plugin) render(w http.ResponseWriter, r *http.Request, status int, page
 	_, _ = w.Write(buf.Bytes())
 }
 
-// message renders the generic page: a title, a text and an optional link, by catalog key.
-func (p *Plugin) message(w http.ResponseWriter, r *http.Request, status int, titleKey, textKey, link, linkKey string) {
+// message renders the generic page: a title, a text (its {placeholders} filled from args) and an
+// optional link, by catalog key.
+func (p *Plugin) message(w http.ResponseWriter, r *http.Request, status int, titleKey, textKey, link, linkKey string, args ...string) {
 	v := p.newView(w, r, titleKey)
-	v.Text, v.Link, v.LinkText = v.T[textKey], link, v.T[linkKey]
+	v.Text, v.Link, v.LinkText = format(v.T[textKey], args...), link, v.T[linkKey]
 	p.render(w, r, status, "message", v)
 }
