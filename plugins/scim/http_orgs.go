@@ -66,11 +66,11 @@ var orgRoutes = []string{RouteConnectionsList, RouteConnectionsCreate, RouteConn
 
 type outsideKey struct{}
 
-// activeOrganization orders the organization routes' checks as upstream: a caller outside the
+// activeOrganization orders the organization routes' checks: a caller outside the
 // path's organization reads scim/forbidden (not core's org.update 403), with the rate-limit
 // headers every route carries. Such a request goes on without the route's permission
 // requirement, marked so that the endpoint refuses it whatever it reads; a caller in the
-// organization goes on unchanged and core enforces org.update (upstream never checked it).
+// organization goes on unchanged and core enforces org.update.
 func activeOrganization(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -179,7 +179,7 @@ func (p *Plugin) createConnection(ctx context.Context, in *endpoint.Input, tok *
 	invalidInput := func(detail string) endpoint.Result {
 		return orgProblem(http.StatusUnprocessableEntity, "invalid_input", "Invalid input", detail)
 	}
-	name := phpTrim(in.String("name"))
+	name := trimBlank(in.String("name"))
 	if name == "" || utf8.RuneCountInString(name) > 120 {
 		return invalidInput("name must be 1 to 120 characters.")
 	}
@@ -265,7 +265,7 @@ func (p *Plugin) decommissionConnection(ctx context.Context, in *endpoint.Input,
 // adminList answers GET /admin/scim/connections: oldest first, cursor-paginated; an
 // organization-scoped operator sees their organization's.
 func (p *Plugin) adminList(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	orgID := phpTrim(in.String("organization_id"))
+	orgID := trimBlank(in.String("organization_id"))
 	if op, ok := admin.Operator(ctx); ok && orgID == "" && op.Scope != admin.ScopeInstance {
 		orgID = op.Scope
 	}
@@ -276,7 +276,7 @@ func (p *Plugin) adminList(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if !ok {
 		return admin.Invalid("limit must be a positive integer.")
 	}
-	conns, next, err := p.conns.List(ctx, orgID, phpTrim(in.String("cursor")), limit)
+	conns, next, err := p.conns.List(ctx, orgID, trimBlank(in.String("cursor")), limit)
 	if err != nil {
 		return p.failed(ctx, err)
 	}
@@ -315,7 +315,7 @@ func (p *Plugin) adminDelete(ctx context.Context, in *endpoint.Input) endpoint.R
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "deleted"})
 }
 
-// positiveInt is upstream's limit reading: a numeric value (truncated) of at least 1, def when
+// positiveInt reads a limit: a numeric value (truncated toward zero) of at least 1, def when
 // absent or "".
 func positiveInt(v any, def int) (int, bool) {
 	if v == nil || v == "" {

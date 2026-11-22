@@ -14,12 +14,13 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// The environment of upstream's SocialTestCase and RecordedProviders.
+// The functional environment: the recorded fixtures replayed against the recorded providers.
 const (
-	flowClass = `Polaris\Social\Tests\Functional\SocialFlowTest`
-	password  = "correct horse battery staple"
-	base      = "https://auth.polaris.test"
-	done      = "https://app.polaris.test/signed-in"
+	// flowFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/social.
+	flowFixtures = "Polaris.Social.Tests.Functional.SocialFlowTest"
+	password     = "correct horse battery staple"
+	base         = "https://auth.polaris.test"
+	done         = "https://app.polaris.test/signed-in"
 )
 
 type flow struct {
@@ -33,7 +34,7 @@ func newFlow(t *testing.T, method string) *flow {
 	t.Helper()
 	f := &flow{t: t, idp: social.NewRecorded(t)}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), social.New(social.RecordedConfig(t, base, f.idp))))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "social"), flowClass, method)).KeepCookies()
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "social"), flowFixtures, method)).KeepCookies()
 	return f
 }
 
@@ -265,14 +266,14 @@ func TestSocialFlow(t *testing.T) {
 	})
 }
 
-// Every social fixture has a Go test (port of ContractCoverageTest).
+// Every recorded social fixture is replayed by a Go test.
 func TestEveryFixtureIsReplayed(t *testing.T) {
 	covered := []string{
-		flowClass + "::testGoogleSignsUpThenSignsIn",
-		flowClass + "::testTheAccountsAreManagedFromTheSession",
-		flowClass + "::testAppleAnswersByFormPostOneTapVerifiesOfflineAndAnyOAuth2ServerSignsIn",
-		flowClass + "::testAnUntrustedProviderLinksOnlyFromASession",
-		flowClass + "::testAFlowCompletesOnlyInTheBrowserThatStartedIt",
+		flowFixtures + "::testGoogleSignsUpThenSignsIn",
+		flowFixtures + "::testTheAccountsAreManagedFromTheSession",
+		flowFixtures + "::testAppleAnswersByFormPostOneTapVerifiesOfflineAndAnyOAuth2ServerSignsIn",
+		flowFixtures + "::testAnUntrustedProviderLinksOnlyFromASession",
+		flowFixtures + "::testAFlowCompletesOnlyInTheBrowserThatStartedIt",
 	}
 	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "social"), covered)
 	if err != nil || len(missing) > 0 {

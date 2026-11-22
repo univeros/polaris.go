@@ -16,10 +16,12 @@ import (
 )
 
 const (
-	flowClass = `Polaris\Passwordless\Tests\Functional\PasswordlessFlowTest`
-	password  = "correct horse battery staple"
-	base      = "https://app.example/auth"
-	done      = "https://app.example/signed-in"
+	// flowFixtures is the file-name prefix of the recorded fixture set under
+	// internal/apispec/fixtures/passwordless.
+	flowFixtures = "Polaris.Passwordless.Tests.Functional.PasswordlessFlowTest"
+	password     = "correct horse battery staple"
+	base         = "https://app.example/auth"
+	done         = "https://app.example/signed-in"
 )
 
 type flow struct {
@@ -33,7 +35,7 @@ func newFlow(t *testing.T, method string) *flow {
 	f := &flow{t: t}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}),
 		passwordless.New(passwordless.Config{BaseURL: base, RedirectURIs: []string{done}})))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passwordless"), flowClass, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "passwordless"), flowFixtures, method))
 	return f
 }
 
@@ -259,7 +261,7 @@ func TestEveryPasswordlessFixtureHasAGoTest(t *testing.T) {
 		"testAMagicLinkSignsUpRedirectsWithACodeAndExchangesItOnce", "testEmailCodesSignInVerifyTheEmailAndResetThePassword",
 		"testAVerifiedPhoneSignsItsOwnerIn", "testAOneTimeTokenHandsTheSessionToAnotherDeviceOnce",
 	} {
-		covered = append(covered, flowClass+"::"+m)
+		covered = append(covered, flowFixtures+"::"+m)
 	}
 	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "passwordless"), covered)
 	if err != nil || len(missing) > 0 {

@@ -110,7 +110,8 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 	return strings_(caps), nil
 }
 
-// decode verifies the signature and the time claims as firebase/php-jwt does (60 s of leeway).
+// decode verifies the signature and the time claims, with 60 s of leeway: nbf and iat not after
+// now, exp after now. The error texts are the ones clients of earlier releases already see.
 func (j *requestJWTs) decode(raw string, jwk map[string]any) (map[string]any, error) {
 	verify, err := verifierOf(jwk)
 	if err != nil {
@@ -143,8 +144,8 @@ func (j *requestJWTs) checkClaims(claims map[string]any, a Agent, method, url st
 	if claims["sub"] != a.ID {
 		return invalidJWT("sub must be the agent's id.")
 	}
-	iat, okI := phpInt(claims["iat"])
-	exp, okE := phpInt(claims["exp"])
+	iat, okI := wholeNumber(claims["iat"])
+	exp, okE := wholeNumber(claims["exp"])
 	if !okI || !okE || exp <= iat {
 		return invalidJWT("iat and exp are required, exp after iat.")
 	}
@@ -188,10 +189,11 @@ func (j *requestJWTs) once(ctx context.Context, a Agent, claims map[string]any) 
 	}
 	sum := sha256.Sum256([]byte(a.ID + "|" + jti))
 	key := replayPrefix + hex.EncodeToString(sum[:])
-	exp, _ := phpInt(claims["exp"])
+	exp, _ := wholeNumber(claims["exp"])
 	ttl := exp - j.clock.Now().Unix() + int64(requestLeeway/time.Second)
 	ttl = min(j.maxAge+2*int64(requestLeeway/time.Second), max(int64(requestLeeway/time.Second), ttl))
-	// Add is atomic across replicas sharing the cache (upstream: get then set).
+	// Add is atomic across replicas sharing the cache, so two replicas cannot both accept one jti
+	// (a get then set could).
 	fresh, err := j.cache.Add(ctx, key, []byte("1"), time.Duration(ttl)*time.Second)
 	if err != nil {
 		return err

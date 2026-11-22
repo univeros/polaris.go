@@ -9,7 +9,8 @@ const (
 	TableProvenance  = "polaris_scim_membership_provenance"
 )
 
-// Models returns the three tables as upstream declares them.
+// Models returns the plugin's three tables; their columns are the schema existing databases
+// hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableConnections,

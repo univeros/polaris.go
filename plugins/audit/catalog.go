@@ -8,7 +8,7 @@ import (
 	"slices"
 )
 
-// The catalog's core names (upstream Polaris\Audit\Catalog).
+// The catalog's core names: the events Polaris itself records.
 const (
 	UserSignedUp                = "user.signed_up"
 	UserEmailVerified           = "user.email_verified"
@@ -46,7 +46,7 @@ const (
 	AuditPruned                 = "audit.pruned"
 )
 
-// coreNames is the catalog's core, in upstream's order.
+// coreNames is the catalog's core, in the fixed order the catalog lists it.
 var coreNames = []Type{
 	{UserSignedUp, "A user registered"},
 	{UserEmailVerified, "A user verified their email address"},

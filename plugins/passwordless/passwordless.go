@@ -69,7 +69,7 @@ const (
 )
 
 // SentinelRoutes are the send and sign-in routes for the sentinel plugin's route list (path to
-// attempt kind), as upstream's PasswordlessPlugin::SENTINEL_ROUTES.
+// attempt kind): the routes the sentinel scores when both plugins are installed.
 var SentinelRoutes = map[string]string{
 	"/magic-link/send":  "otp_send",
 	"/email-otp/send":   "otp_send",
@@ -79,7 +79,7 @@ var SentinelRoutes = map[string]string{
 	"/phone/verify":     "sign_in",
 }
 
-// Config configures the plugin; the zero value is upstream's defaults.
+// Config configures the plugin; the zero value is the defaults.
 type Config struct {
 	// BaseURL is where the Polaris routes are mounted, as the magic link must point there
 	// ("https://app.example.com/auth"); default: the issuer plus polaris.Config.PathPrefix.
@@ -178,7 +178,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_passwordless_secret and polaris_passwordless_phone.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/passwordless).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/passwordless).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/passwordless")
 	if err != nil {

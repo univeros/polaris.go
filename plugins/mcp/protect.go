@@ -313,7 +313,8 @@ func (e *refusal) write(w http.ResponseWriter) {
 	writeJSON(w, e.status, "application/problem+json", body, h)
 }
 
-// title is PHP's ucwords(str_replace('_', ' ', name)).
+// title turns a snake_case name into words with their first letter upper-cased:
+// "insufficient_scope" is "Insufficient Scope".
 func title(name string) string {
 	words := strings.Split(name, "_")
 	for i, w := range words {

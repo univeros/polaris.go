@@ -10,9 +10,8 @@ import (
 	"testing"
 )
 
-// Authenticator is a software authenticator (port of upstream's tests/Support/SoftwareAuthenticator):
-// a P-256 credential answering the ceremonies with real WebAuthn payloads, "none" attestation.
-// Exported to the external tests.
+// Authenticator is a software authenticator: a P-256 credential answering the ceremonies with
+// real WebAuthn payloads, "none" attestation. Exported to the external tests.
 type Authenticator struct {
 	key          *ecdsa.PrivateKey
 	CredentialID []byte

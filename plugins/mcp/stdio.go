@@ -13,8 +13,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// StdioEnv is the environment variable a stdio host reads the credential from, as upstream's
-// `polaris mcp` does.
+// StdioEnv is the environment variable a stdio host reads the credential from.
 const StdioEnv = "POLARIS_MCP_TOKEN"
 
 // stdioVersions are the handshake-era revisions the stdio transport negotiates, newest first.

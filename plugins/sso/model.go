@@ -123,7 +123,8 @@ func (d Domain) Map() map[string]any {
 	}
 }
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 func atom(t time.Time) string { return t.UTC().Format(dateAtom) }
@@ -148,7 +149,8 @@ type member struct {
 	value any
 }
 
-// object is a JSON object written in member order; empty, it is PHP's "[]".
+// object is a JSON object written in member order; empty, it is written "[]", the form stored
+// rows hold for an empty object.
 type object []member
 
 // MarshalJSON writes the members in order.
@@ -175,9 +177,11 @@ func (o object) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// phpJSON encodes v as PHP's json_encode with default flags writes it (slashes escaped, non-ASCII
-// as \u escapes), so the JSON columns are what upstream stores.
-func phpJSON(v any) (string, error) {
+// escapedJSON encodes v with slashes escaped ("\/") and every non-ASCII character as a \uXXXX
+// escape (UTF-16 surrogate pairs above the BMP), HTML characters left as they are. The JSON
+// columns are written in this form, and it must stay byte-identical so that rows written by
+// earlier releases read and compare the same.
+func escapedJSON(v any) (string, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)

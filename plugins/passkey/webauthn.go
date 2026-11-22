@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// The WebAuthn Level 3 subset upstream's web-auth/webauthn-lib setup verifies: "none" attestation,
+// The WebAuthn Level 3 subset the plugin verifies: "none" attestation,
 // ES256 and RS256 credentials, the client data (type, challenge, origin, not cross-origin), the
 // authenticator data (relying party id hash, user presence, user verification when required,
 // consistent backup flags, attested credential data on registration), the assertion signature
@@ -330,7 +330,7 @@ func parseCOSEKey(raw []byte) (coseKey, error) {
 	return coseKey{}, errInvalid("only ES256 and RS256 credentials are accepted")
 }
 
-// creationOptions are PublicKeyCredentialCreationOptionsJSON as upstream serializes them.
+// creationOptions are the PublicKeyCredentialCreationOptionsJSON the registration route answers.
 func (s settings) creationOptions(challenge []byte, userID, userName, displayName string, exclude []string) map[string]any {
 	selection := map[string]any{"requireResidentKey": true, "residentKey": "required", "userVerification": s.userVerification}
 	if s.attachment != "" {
@@ -369,7 +369,7 @@ func descriptors(ids []string) []any {
 
 func b64(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
-// unb64 decodes base64url with or without padding (upstream's Base64Url::decode).
+// unb64 decodes base64url with or without padding.
 func unb64(s string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(strings.TrimRight(s, "="))
 }

@@ -195,7 +195,7 @@ func (v *service) exchange(ctx context.Context, code string) (envelope, error) {
 	return e, nil
 }
 
-// optional maps "" (no value) to nil, as upstream's nullable strings.
+// optional maps "" (no value) to nil, so an absent string is stored and answered as null.
 func optional(v string) *string {
 	if v == "" {
 		return nil

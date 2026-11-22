@@ -238,8 +238,8 @@ func (s DefaultSAML) serviceProvider(p Provider, sp SP, sloLocation string, idpI
 		AuthnNameIDFormat:                saml.UnspecifiedNameIDFormat,
 		LogoutBindings:                   []string{saml.HTTPRedirectBinding},
 		AssertionConsumerServiceBindings: []string{saml.HTTPPostBinding},
-		// As upstream (php-saml): the certificate is a container for the IdP's key; an expired
-		// one still verifies.
+		// The certificate is only a container for the IdP's key, which the operator configured
+		// explicitly: an expired one still verifies.
 		IgnoreCertificateExpiry: true,
 	}
 	if sp.Key != nil && sp.Certificate != nil {
@@ -248,7 +248,7 @@ func (s DefaultSAML) serviceProvider(p Provider, sp SP, sloLocation string, idpI
 	return csp, nil
 }
 
-// maxAssertions is php-saml's rule: a response carries exactly one assertion.
+// maxAssertions is the number of assertions a response carries: exactly one.
 const maxAssertions = 1
 
 // oneAssertion refuses a response that does not carry exactly one Assertion or
@@ -312,8 +312,8 @@ func first(attributes map[string]any, name string) string {
 	return ""
 }
 
-// certificateBody is a certificate given as PEM or base64, as base64 without armour or spaces
-// (php-saml's Utils::formatCert($cert, false)).
+// certificateBody is a certificate given as PEM or base64, as base64 without the BEGIN/END
+// armour lines or any whitespace.
 func certificateBody(cert string) string {
 	for _, armour := range []string{"-----BEGIN CERTIFICATE-----", "-----END CERTIFICATE-----"} {
 		cert = strings.ReplaceAll(cert, armour, "")

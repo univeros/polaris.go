@@ -20,11 +20,13 @@ import (
 const (
 	password = "correct horse battery staple"
 	base     = "https://app.example/auth"
-	classes  = `Polaris\Scim\Tests\Functional\`
+	// fixturePrefix is the recorded fixture set's file-name prefix under
+	// internal/apispec/fixtures/scim: a fixture is fixturePrefix + suite + "." + test + ".json".
+	fixturePrefix = "Polaris.Scim.Tests.Functional."
 )
 
-// flow is upstream's ScimTestCase: audit, admin and scim under the pipeline, replaying the
-// recorded fixture of one PHP test.
+// flow is the functional environment: audit, admin and scim under the pipeline, replaying one
+// recorded fixture.
 type flow struct {
 	t     *testing.T
 	srv   *polaristest.Server
@@ -33,11 +35,11 @@ type flow struct {
 	trail *audit.Plugin
 }
 
-func newFlow(t *testing.T, class, method string) *flow {
+func newFlow(t *testing.T, suite, test string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{}), trail: audit.New(audit.Config{})}
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, scim.New(scim.Config{BaseURL: base})))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "scim"), classes+class, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "scim"), fixturePrefix+suite, test))
 	return f
 }
 
@@ -175,7 +177,7 @@ func (f *flow) auditNames(names ...string) []any {
 	return out
 }
 
-// q is a filter query as PHP's rawurlencode writes it.
+// q is a filter query, percent-encoded as RFC 3986 asks (a space is %20, not +).
 func q(filter string) string {
 	return "?filter=" + strings.ReplaceAll(url.QueryEscape(filter), "+", "%20")
 }

@@ -11,10 +11,10 @@ import (
 	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
-// Port of OAuthFlowTest: every grant against its fixture, DPoP binding and proof replay, the
+// The flow fixtures: every grant against its fixture, DPoP binding and proof replay, the
 // discovery documents, scopes as permissions, trusted clients and consent revocation.
 func TestOAuthFlow(t *testing.T) {
-	run(t, phpFlow, false, map[string]func(*oauthCase){
+	run(t, flowFixtures, false, map[string]func(*oauthCase){
 		"testAuthorizationCodeWithPkceConsentRefreshRotationAndRevocation": authorizationCodeFlow,
 		"testACodePresentedTwiceRevokesTheTokensItIssued":                  codePresentedTwice,
 		"testClientCredentialsDeviceFlowBackchannelAndTokenExchange":       clientCredentialsDeviceCIBAExchange,

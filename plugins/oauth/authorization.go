@@ -182,12 +182,13 @@ func (a *authorization) decide(ctx context.Context, req pendingRequest, c *Clien
 	return redirectWith(req.RedirectURI, "code", value, "state", req.State, "iss", a.issuer), recorded, nil
 }
 
-// redirectWith appends the non-empty name/value pairs to uri as PHP's http_build_query does.
+// redirectWith appends the non-empty name/value pairs to uri as a form-encoded query, joined with
+// "&" (after "?", or after "&" when uri already has a query).
 func redirectWith(uri string, pairs ...string) string {
 	var parts []string
 	for i := 0; i+1 < len(pairs); i += 2 {
 		if pairs[i+1] != "" {
-			parts = append(parts, phpURLEncode(pairs[i])+"="+phpURLEncode(pairs[i+1]))
+			parts = append(parts, formEncode(pairs[i])+"="+formEncode(pairs[i+1]))
 		}
 	}
 	sep := "?"
@@ -197,8 +198,10 @@ func redirectWith(uri string, pairs ...string) string {
 	return uri + sep + strings.Join(parts, "&")
 }
 
-// phpURLEncode is PHP's urlencode: every byte but letters, digits and -_. escaped, space as +.
-func phpURLEncode(s string) string {
+// formEncode percent-encodes every byte but ASCII letters, digits and -_. (upper-case hex), and
+// writes a space as +. Unlike url.QueryEscape it also escapes ~, so the redirect URIs keep the
+// bytes earlier releases sent.
+func formEncode(s string) string {
 	const hex = "0123456789ABCDEF"
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {

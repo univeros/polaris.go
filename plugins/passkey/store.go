@@ -13,7 +13,7 @@ import (
 // TablePasskeys is the table the plugin owns. Challenges live in the cache.
 const TablePasskeys = "polaris_passkey"
 
-// Models returns polaris_passkey as upstream declares it.
+// Models returns polaris_passkey; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TablePasskeys,
@@ -38,7 +38,8 @@ func Models() []schema.Model {
 	}
 }
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // record is a row of polaris_passkey: the credential id and COSE public key as the authenticator

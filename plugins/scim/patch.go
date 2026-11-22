@@ -86,7 +86,7 @@ func stripURN(path string) string {
 	return path
 }
 
-// isArray is PHP's is_array on a decoded JSON value: an object or a list.
+// isArray reports whether a decoded JSON value is an object or a list.
 func isArray(v any) bool {
 	switch v.(type) {
 	case map[string]any, []any:

@@ -181,10 +181,11 @@ func (r *renderer) bundled(key, locale string) (Template, bool) {
 	return Template{Subject: subject, Text: text, HTML: html}, true
 }
 
-// htmlEscaper is PHP's htmlspecialchars with ENT_QUOTES.
+// htmlEscaper escapes &, <, >, " and ' (as &#039;) for HTML text and attribute values.
 var htmlEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#039;")
 
-// scalar is PHP's (string) cast of a scalar; anything else (nil, lists, maps) is "".
+// scalar renders a scalar variable as text: true is "1", false is "", numbers in their shortest
+// plain form (no exponent); anything else (nil, lists, maps) is "".
 func scalar(v any) string {
 	switch v := v.(type) {
 	case string:
