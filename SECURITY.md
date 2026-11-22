@@ -16,7 +16,7 @@ Do not open a public issue, pull request or discussion.
 
 Report it privately through GitHub: on the repository's **Security** tab choose **Report a
 vulnerability** ([direct link](https://github.com/univeros/polaris.go/security/advisories/new)).
-The report and the conversation that follows stay private until an advisory is published.
+The report and the conversation that follows stay private until the fix is released.
 
 Include what you can of:
 
@@ -28,12 +28,12 @@ Include what you can of:
 ## What happens next
 
 - You get an acknowledgement within a few days, and updates as the fix progresses.
-- The fix is made and released first; the advisory is published after, with credit to the reporter
-  unless they prefer otherwise. Nothing that would let someone exploit an unpatched release is made
-  public before its fix ships.
-- Advisories are published on the repository's
-  [Security advisories](https://github.com/univeros/polaris.go/security/advisories) page and named
-  in the release notes.
+- The fix is made and released first, and announced after, with credit to the reporter unless they
+  prefer otherwise. Nothing that would let someone exploit an unpatched release is made public
+  before its fix ships.
+- Before 1.0, a fix ships as a patch release whose notes ([CHANGELOG.md](CHANGELOG.md), the GitHub
+  Release) describe it under **Security**. From v1.0.0, each fix is also published as a
+  [security advisory](https://github.com/univeros/polaris.go/security/advisories).
 
 ## Scope
 
