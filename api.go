@@ -74,6 +74,46 @@ func (u Users) Create(ctx context.Context, in NewUser) (User, error) {
 	return wiring.UserOf(m), nil
 }
 
+// ImportedUser is an account brought from another system (your own users table, Auth0, Firebase,
+// Django, Devise, Laravel, …) with the password hash that system stored, so the user keeps their
+// password. Users().Import makes it.
+type ImportedUser struct {
+	Email string
+	// PasswordHash is the hash as the other system stored it. The default hasher verifies
+	// Argon2id/Argon2i, bcrypt ($2a$, $2b$, $2y$), Django's pbkdf2_sha256$ and scrypt$, passlib's
+	// $pbkdf2-sha256$, $pbkdf2-sha512$ and $scrypt$, and Firebase's scrypt written as
+	// "$firebase-scrypt$ln=<mem_cost>,r=<rounds>,sep=<salt separator>,key=<signer key>$<salt>$<hash>"
+	// (security.SupportedHashFormats). "" imports an account without a password.
+	PasswordHash string
+	DisplayName  string
+	// EmailVerified imports the address as verified. Otherwise it stays unverified and no
+	// verification email goes out (the user asks for one when sign-in requires it).
+	EmailVerified bool
+	// Disabled imports the account disabled; Enable re-enables it.
+	Disabled bool
+	// CreatedAt keeps the original creation time; zero is now. A time in the future is
+	// ErrInvalidInput.
+	CreatedAt time.Time
+}
+
+// Import creates an account from another system, keeping its password hash: the user signs in
+// with the password they already have, and that first sign-in replaces the hash with the
+// configured Argon2id. Nothing is hashed or emailed, so a batch is fast; run it inside your
+// transaction (sqlstore.WithTx) to import all or nothing. Hooks.OnUserCreated runs in the
+// account's transaction and event user.registered is dispatched, as for Create.
+//
+// A hash the configured hasher cannot verify (an unknown format, a malformed string, a cost out
+// of bounds) is ErrInvalidInput, also matching security.ErrUnsupportedHash, with a message that
+// lists the supported formats; a taken email is ErrConflict; a bad email or name
+// ErrInvalidInput. A custom Config.Hasher must implement security.HashChecker.
+func (u Users) Import(ctx context.Context, in ImportedUser) (User, error) {
+	m, err := services.Of(u.p.graph).Identity.ImportUser(ctx, identity.ImportedUser(in))
+	if err != nil {
+		return User{}, classify(err)
+	}
+	return wiring.UserOf(m), nil
+}
+
 // SetPassword sets the account's password under the policy (ErrInvalidInput) and ends every
 // session, as a password reset does.
 func (u Users) SetPassword(ctx context.Context, userID, password string) error {
