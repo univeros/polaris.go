@@ -100,7 +100,7 @@ func TestEncrypterVectors(t *testing.T) {
 	}
 }
 
-func readVector(t *testing.T, name string, v any) {
+func readVector(t testing.TB, name string, v any) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "testdata", "vectors", name))
 	if err != nil {

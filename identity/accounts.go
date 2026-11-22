@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/event"
@@ -60,18 +61,10 @@ type NewUser struct {
 // password policy) without its anti-enumeration, so a taken email is ErrEmailTaken. It
 // dispatches event.UserRegistered (without a token when the account is created verified).
 func (s *Service) CreateUser(ctx context.Context, in NewUser, client token.ClientContext) (model.User, error) {
-	email := NormalizeEmail(in.Email)
-	if !manifest.IsEmail(email) {
-		return model.User{}, refuse(ErrInvalidProfile, msgInvalidEmail)
-	}
-	name := strings.Trim(in.DisplayName, trimSet)
-	if utf8.RuneCountInString(name) > displayNameMax {
-		return model.User{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
-	}
 	now := s.now()
-	user := model.User{
-		ID: repository.NewID(), Email: email, DisplayName: optional(name),
-		Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now,
+	user, err := newAccount(in.Email, in.DisplayName, now)
+	if err != nil {
+		return model.User{}, err
 	}
 	if in.Password != "" {
 		if err := s.policy.enforce(ctx, in.Password); err != nil {
@@ -87,7 +80,7 @@ func (s *Service) CreateUser(ctx context.Context, in NewUser, client token.Clien
 		user.EmailVerifiedAt = &now
 	}
 	var secret string
-	err := s.db.Tx(ctx, func(ctx context.Context) error {
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		if err := s.InsertUser(ctx, user); errors.Is(err, store.ErrDuplicate) {
 			return refuse(ErrEmailTaken, msgEmailTaken)
 		} else if err != nil {
@@ -105,6 +98,23 @@ func (s *Service) CreateUser(ctx context.Context, in NewUser, client token.Clien
 	}
 	s.events.Dispatch(ctx, event.UserRegistered{UserID: user.ID, Email: user.Email, VerificationToken: secret})
 	return user, nil
+}
+
+// newAccount is the active account row a trusted caller creates, its email and display name
+// checked as CreateUser checks them.
+func newAccount(email, displayName string, now time.Time) (model.User, error) {
+	email = NormalizeEmail(email)
+	if !manifest.IsEmail(email) {
+		return model.User{}, refuse(ErrInvalidProfile, msgInvalidEmail)
+	}
+	name := strings.Trim(displayName, trimSet)
+	if utf8.RuneCountInString(name) > displayNameMax {
+		return model.User{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
+	}
+	return model.User{
+		ID: repository.NewID(), Email: email, DisplayName: optional(name),
+		Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now,
+	}, nil
 }
 
 // SetPassword sets userID's password for a trusted caller (an operator, the host), as a reset

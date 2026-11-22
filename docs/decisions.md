@@ -740,6 +740,63 @@ What a client reads from the server said "Polaris for PHP" (#53 follow-up). Brea
   (tests, a `replace`). Nothing to bump at release time.
 - The MCP and agents contract fixtures and the OpenAPI goldens are edited to match.
 
+## 56. 2026-11-22 — Import users with their password hashes
+
+Adopting Polaris should not mean a password reset for every existing user. A host can now bring
+accounts with the hash another system stored, and the first sign-in upgrades each one.
+
+- `p.Users().Import(ctx, polaris.ImportedUser{...})`, a method of its own rather than a
+  `PasswordHash` field on `NewUser`: `Create` keeps one meaning (Polaris hashes a password under the
+  policy, verification email out), and an import has different rules (no policy, no hashing, no
+  email; `CreatedAt` and `Disabled` kept). It goes through `identity.InsertUser`, so
+  `Hooks.OnUserCreated` runs in the account's transaction and `user.registered` is dispatched
+  (without a verification token, so the mailer sends nothing); it joins the host's
+  `sqlstore.WithTx`, so a migration is all or nothing. No HTTP route: it is for a trusted caller in
+  process. The contract fixtures are unchanged.
+- The hash must pass `security.HashChecker.CheckHash`, a new optional interface of the
+  `PasswordHasher` port (`security.Argon2id` implements it). A configured hasher without it refuses
+  imports with an error naming the fix, rather than storing a hash nobody could sign in with. A
+  refused hash is `polaris.ErrInvalidInput` and `security.ErrUnsupportedHash`; the message lists
+  `security.SupportedHashFormats`.
+- `security.Argon2id.Verify` also verifies Django `pbkdf2_sha256$` and `scrypt$`, passlib
+  `$pbkdf2-sha256$`, `$pbkdf2-sha512$` and `$scrypt$` (standard or passlib base64), and Firebase's
+  modified scrypt as `$firebase-scrypt$ln=,r=,sep=,key=$salt$hash` (the project's hash parameters
+  and the exported values, so each row describes itself). PBKDF2 uses stdlib `crypto/pbkdf2`,
+  scrypt `golang.org/x/crypto/scrypt` (already required); no new dependency. Bcrypt, Argon2id and
+  Argon2i verify exactly as before. Known-answer vectors from Django's and passlib's test suites,
+  RFC 7914 §11–12 and the `firebase/scrypt` README are in `testdata/vectors/imported-hashes.json`.
+  Not supported: Django `pbkdf2_sha1$` and `argon2$`, passlib `$pbkdf2$` (SHA-1), PHC-style
+  `i=,l=` PBKDF2 parameters, scrypt `$7$`; Cognito exports no hashes at all. A host keeps an exotic
+  scheme by wrapping `Argon2id` as `Config.Hasher` (its own `Verify` and `CheckHash` for the
+  prefix); `ExampleHashChecker` shows it.
+
+Security review (rule 6):
+
+- Verify only. Polaris never creates these formats; `NeedsRehash` is true for every one of them,
+  so `Login` stores an Argon2id hash under the configured parameters on the first correct
+  password, and the legacy string is gone.
+- A hash string is data from the database, so its costs are bounded before any work: PBKDF2
+  iterations 1,000 (RFC 8018 §4.2) to 5,000,000; scrypt memory 128·r·N from 1 MiB to 256 MiB,
+  p ≤ 16 and 128·r·N·p ≤ 1 GiB; salts 4 to 256 bytes (4 is RFC 7914's own "NaCl"; refusing
+  shorter catches truncated rows); stored hashes 16 to 64 bytes; strings at most 1,024
+  characters. Out of bounds never verifies (and never runs the KDF); the parsers take strict
+  decimals (no sign, no leading zero) and reject trailing fields. `FuzzCheckHash` covers them.
+- Imports are stricter than `Verify` for the formats `Verify` already read: bcrypt cost at most 16,
+  Argon2 memory at most 1 GiB and memory × passes at most 4 GiB. `Verify` itself keeps reading every
+  bcrypt and Argon2 hash it read before (rule 5), so an existing row with an absurd cost still costs
+  what it did; bounding that is a separate change.
+- Comparisons are `crypto/subtle.ConstantTimeCompare` of the derived bytes (bcrypt compares inside
+  `x/crypto/bcrypt`, as before). The Firebase scheme compares the signer key encrypted under the
+  derived key, as Firebase does.
+- Timing: `Login` still runs exactly one verify per attempt, but a not-yet-upgraded user's verify
+  runs at the imported hash's cost, not the configured Argon2id's, so the response time can tell an
+  imported account from an unknown email until that user signs in once. This is the same exposure
+  an Argon2id hash with older parameters already had.
+- The Firebase signer key sits in each Firebase row's hash string. A database reader can then test
+  guesses against those rows offline, as with any stored hash; without the key the rows could not
+  be verified at all. The rows disappear as their users sign in; a host that does not accept this
+  imports Firebase users without a hash and has them reset.
+
 ## 58. 2026-11-22 — The code reads as Go, not as a port
 
 Outside `plugins/`, comments, private identifiers, test names and test-data file names no longer

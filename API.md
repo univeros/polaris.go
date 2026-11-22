@@ -16,7 +16,7 @@ What an application imports. A host never needs another package.
 
 | Package | Stable names |
 |---|---|
-| `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `Users`, `Orgs`, `Sessions` and their methods, `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
+| `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `ImportedUser`, `Users`, `Orgs`, `Sessions` and their methods (`Users.Import` included), `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
 | `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, …) |
 | `store/sqlstore` | `Open`, `New`, `WithTx`, `Store.DB` |
 | `store` | `Dialect` values, `Adapter` (to pass one), `ErrDuplicate` |
@@ -26,7 +26,7 @@ What an application imports. A host never needs another package.
 | `cli` | `Run` |
 | `config` | `Secrets`, `Auth` and `Defaults`, the `Signer*` values (fields may be added) |
 | `telemetry/otel` | `Middleware`, `Store`, `Listener` and their options |
-| ports a host implements | `security.PasswordHasher`, `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`, `cache.Cache`, `ratelimit.Store` (and `ratelimit.Result`), `metrics.Metrics` |
+| ports a host implements | `security.PasswordHasher` (and the optional `security.HashChecker`, with `security.ErrUnsupportedHash`), `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`, `cache.Cache`, `ratelimit.Store` (and `ratelimit.Result`), `metrics.Metrics` |
 
 Behaviour that is part of the contract: `Protect` answers 401 without a principal and 403 without a
 permission, and resolves the caller's authority on every request; hooks run inside the account's
