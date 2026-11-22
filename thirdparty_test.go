@@ -33,7 +33,14 @@ func TestAThirdPartyPluginBuildsOutsideTheModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The fixture requires what Polaris requires, so its (pruned) module graph is the one this
+	// module already resolved: nothing beyond the module cache CI and developers already hold.
+	gomod, err := os.ReadFile("go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
 	mod := "module example.com/notes\n\ngo 1.26.0\n\nrequire github.com/univeros/polaris.go v0.0.0\n\n" +
+		requireBlocks(string(gomod)) +
 		"replace github.com/univeros/polaris.go => " + root + "\n"
 	for name, data := range map[string][]byte{"go.mod": []byte(mod), "go.sum": sum} {
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
@@ -60,4 +67,27 @@ func TestAThirdPartyPluginBuildsOutsideTheModule(t *testing.T) {
 	if out, err := vet(); err == nil || !strings.Contains(out, "use of internal package") {
 		t.Fatalf("internal/services is importable from outside the module: %v\n%s", err, out)
 	}
+}
+
+// requireBlocks returns the require directives of a go.mod file, verbatim.
+func requireBlocks(gomod string) string {
+	var b strings.Builder
+	in := false
+	for _, line := range strings.Split(gomod, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case in:
+			b.WriteString(line + "\n")
+			if trimmed == ")" {
+				in = false
+				b.WriteString("\n")
+			}
+		case trimmed == "require (":
+			in = true
+			b.WriteString(line + "\n")
+		case strings.HasPrefix(trimmed, "require "):
+			b.WriteString(line + "\n\n")
+		}
+	}
+	return b.String()
 }
