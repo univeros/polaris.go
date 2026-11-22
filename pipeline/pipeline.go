@@ -214,14 +214,45 @@ func (p *Pipeline) Endpoints() http.Handler { return http.HandlerFunc(p.dispatch
 // it with endpoint.ResolveAuthority (resolved on first use, once), and the principal with
 // endpoint.Token.
 // Protect panics when permissions are given and Options.Gate is nil.
+//
+// Behind another Protect or Authenticate that found a principal, Protect only checks permissions:
+// the bearer is resolved and the plugin middleware runs once per request.
 func (p *Pipeline) Protect(next http.Handler, permissions ...string) http.Handler {
 	if len(permissions) > 0 && p.opts.Gate == nil {
 		panic("pipeline: Protect with permissions needs Options.Gate")
 	}
+	return p.guard(next, p.authenticate, permissions)
+}
+
+// Authenticate is Protect without permissions for a route open to anonymous callers: a request
+// presenting no credential reaches next without a principal; one presenting a credential gets
+// Protect's checks, and a credential that does not verify (or is denylisted) is answered 401, never
+// downgraded to anonymous. An Authorization header with a scheme other than Bearer or DPoP is
+// not a Polaris credential and passes as anonymous.
+func (p *Pipeline) Authenticate(next http.Handler) http.Handler {
+	return p.guard(next, p.mayAuthenticate, nil)
+}
+
+type guardedKey struct{}
+
+// guard is Protect's stack with authn as its authentication step. A request a guard already
+// authenticated skips straight to the permission check.
+func (p *Pipeline) guard(next http.Handler, authn func(http.Handler) http.Handler, permissions []string) http.Handler {
 	required := append([]string(nil), permissions...)
-	return chain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	permit := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if endpoint.Token(r.Context()) != nil {
+			r = r.WithContext(context.WithValue(r.Context(), guardedKey{}, true))
+		}
 		p.permit(w, r, required, next, p.opts.Gate != nil)
-	}), append(append([]func(http.Handler) http.Handler{clientContext, p.authenticate}, p.opts.PluginMiddleware...), p.denylist))
+	})
+	full := chain(permit, append(append([]func(http.Handler) http.Handler{clientContext, authn}, p.opts.PluginMiddleware...), p.denylist))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Context().Value(guardedKey{}) != nil {
+			permit.ServeHTTP(w, r)
+			return
+		}
+		full.ServeHTTP(w, r)
+	})
 }
 
 // chain wraps h so that mw[0] runs first.

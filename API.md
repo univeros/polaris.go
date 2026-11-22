@@ -16,21 +16,25 @@ What an application imports. A host never needs another package.
 
 | Package | Stable names |
 |---|---|
-| `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `Users`, `Orgs`, `Sessions` and their methods, `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
+| `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Require`, `Authenticate`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `RequireKind`, `RequireOrganization`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `Users`, `Orgs`, `Sessions` and their methods, `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
 | `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, …) |
 | `store/sqlstore` | `Open`, `New`, `WithTx`, `Store.DB` |
 | `store` | `Dialect` values, `Adapter` (to pass one), `ErrDuplicate` |
 | `polaristest` | `New` and its options, `Server` fields |
 | `agent` | the Go agent SDK: `New`, `GenerateKey`, `ImportKey`, `Enroll`, `RequestGrants`, `WaitForApproval`, `Execute`, `Do`, its errors |
 | `plugins/mcp` | `Protect`, `ProtectConfig`, `Claims`, `ServeStdio` |
+| `verify` | for a service that is not the Polaris host: `New`, `Config` (every field), `Verifier` (`Verify`, `Require`), `Claims`, `ClaimsFrom`, `ErrInvalidToken`, `ErrUnavailable` |
 | `cli` | `Run` |
 | `config` | `Secrets`, `Auth` and `Defaults`, the `Signer*` values (fields may be added) |
 | `telemetry/otel` | `Middleware`, `Store`, `Listener` and their options |
 | ports a host implements | `security.PasswordHasher`, `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`, `cache.Cache`, `ratelimit.Store` (and `ratelimit.Result`), `metrics.Metrics` |
 
 Behaviour that is part of the contract: `Protect` answers 401 without a principal and 403 without a
-permission, and resolves the caller's authority on every request; hooks run inside the account's
-transaction; `Hooks.Claims` refuses reserved names; the programmatic API applies the HTTP routes'
+permission, and resolves the caller's authority on every request; `Require(perms...)(next)` is
+`Protect(next, perms...)`; `Authenticate` lets a request without a credential through anonymous and
+answers 401 to a credential that does not verify (never anonymous); `verify` accepts only RS256 and
+EdDSA access tokens of the configured issuer and audience, and refuses DPoP-bound ones; hooks run
+inside the account's transaction; `Hooks.Claims` refuses reserved names; the programmatic API applies the HTTP routes'
 rules, events and audit, for a trusted caller (the actor recorded is `system`).
 
 Adding a field to a stable struct, a method, an option or a constant is not a breaking change;
@@ -74,7 +78,7 @@ missing something.
 ## 4. Internal
 
 `internal/…` (core's endpoints, the observers, maintenance jobs, the route specs and
-fixtures, the contract-test harness, the SSRF guard, the concrete services for core) cannot be imported from outside the module.
+fixtures, the contract-test harness, the SSRF guard, the access-token verifier `verify` and `plugins/mcp` share, the concrete services for core) cannot be imported from outside the module.
 
 ## 5. Changed in this release (from the first port)
 

@@ -36,6 +36,7 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/sqlstore"
+	"github.com/univeros/polaris.go/verify"
 )
 
 func TestLLMSSnippetsCompile(t *testing.T) {
@@ -76,6 +77,9 @@ var (
 	deleteProfile   func(context.Context, string) error
 	planOf          func(string) string
 	otherUserID     string
+	home, list      http.Handler
+	billing, team   http.Handler
+	rawToken        string
 )
 
 func llmsQuickstart() {
@@ -167,6 +171,28 @@ func llmsProtectMCP(mcpServerHandler http.Handler, mux *http.ServeMux) {
 	})
 	mux.Handle("/", h) // also serves /.well-known/oauth-protected-resource/mcp; mcp.Claims(ctx) in the handler
 	_, _ = err, mcp.Claims
+}
+
+func llmsMiddleware(p *polaris.Polaris, mux *http.ServeMux) {
+	mux.Handle("GET /", p.Authenticate(home))                                                    // anonymous or signed in; a bad or revoked token is still 401
+	mux.Handle("GET /api/invoices", p.Require("invoices.read")(list))                            // the same as p.Protect(list, "invoices.read")
+	mux.Handle("POST /api/billing", p.Require()(polaris.RequireKind(polaris.KindUser)(billing))) // people only: no API keys, OAuth clients, agents
+	mux.Handle("GET /api/team", p.Require()(polaris.RequireOrganization(team)))                  // 403 without an active organization
+}
+
+func llmsVerify(mux *http.ServeMux) {
+	v, err := verify.New(verify.Config{
+		Issuer:  "https://auth.example.com",                            // the Polaris host's AUTH_ISSUER
+		JWKSURL: "https://auth.example.com/auth/.well-known/jwks.json", // fetched, cached 1 h, refetched for a new kid
+	})
+	mux.Handle("GET /invoices", v.Require("invoices.read")(invoicesHandler)) // 401 / 403 / 503 (issuer unreachable)
+	// in the handler: c, _ := verify.ClaimsFrom(r.Context()) — c.Subject, c.OrganizationID, c.Scopes, c.All
+	claims, err := v.Verify(ctx, rawToken) // a token from elsewhere (WebSocket, queue); errors.Is(err, verify.ErrInvalidToken)
+	var r *http.Request
+	c, _ := verify.ClaimsFrom(r.Context())
+	_, _, _, _ = c.Subject, c.OrganizationID, c.Scopes, c.All
+	_, _ = claims, errors.Is(err, verify.ErrInvalidToken)
+	_ = verify.Config{Audiences: []string{"https://billing.example.com"}, HTTPClient: http.DefaultClient}
 }
 
 func llmsTesting(t *testing.T) {
