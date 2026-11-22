@@ -399,7 +399,7 @@ func TestRequestJWTsAreVerifiedAgainstTheAgentsKeyAndTheRequest(t *testing.T) {
 		refused := map[string]string{
 			"aud":                k.jwt(k.request(a.ID, unitBase+"/agents/session", nil), nil),
 			"aud with query":     k.jwt(k.request(a.ID, execute+"?x=1", nil), nil),
-			"exp - iat > 300":    k.jwt(k.request(a.ID, execute, map[string]any{"exp": now + 301}), nil),
+			"exp - iat > 300":    k.jwt(k.request(a.ID, execute, map[string]any{"iat": now, "exp": now + 301}), nil),
 			"expired":            k.jwt(k.request(a.ID, execute, map[string]any{"iat": now - 400, "exp": now - 100}), nil),
 			"future":             k.jwt(k.request(a.ID, execute, map[string]any{"iat": now + 400, "exp": now + 500}), nil),
 			"nbf":                k.jwt(k.request(a.ID, execute, map[string]any{"nbf": now + 400}), nil),
