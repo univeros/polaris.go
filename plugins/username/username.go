@@ -7,7 +7,7 @@
 //
 //	p, err := polaris.New(polaris.Config{
 //		Secrets: secrets, Auth: auth, DB: db,
-//		Plugins: []polaris.Plugin{username.New(username.Config{})}, // upstream's rules
+//		Plugins: []polaris.Plugin{username.New(username.Config{})}, // default rules
 //	})
 //	mux.Handle("/", p.Handler()) // includes POST /username/sign-in, PATCH /username
 package username

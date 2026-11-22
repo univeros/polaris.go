@@ -1,7 +1,6 @@
 // Package polaris is embedded authentication for Go services: sign-in (password, MFA, sessions),
 // organizations and RBAC, and agent sign-in (API keys, an OAuth 2.1 / OIDC provider, agents, MCP)
-// as plugins. It is the Go port of Polaris (univeros/polaris-core), wire-, database- and
-// token-compatible with it.
+// as plugins, self-hosted in the application's database.
 //
 // An application touches this package only (plus plugin constructors, store/sqlstore and
 // polaristest):

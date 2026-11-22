@@ -3,7 +3,7 @@
 // the plugins' maintenance commands (audit, admin, anonymous).
 //
 // A host builds its own binary over its own instance, so the commands see its plugins, tables and
-// permissions (upstream's --bootstrap):
+// permissions:
 //
 //	func main() {
 //		p, err := polaris.New(cfg) // the host's Config, plugins included

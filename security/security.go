@@ -2,8 +2,8 @@
 // strings), keyed hashing of verifiable secrets (Pepper), authenticated encryption of secrets at
 // rest (XChaCha20-Poly1305) and breached-password screening (HIBP k-anonymity).
 //
-// Every format here is frozen (spec §3.3): a hash, digest or payload made by the PHP
-// implementation (polaris-core) verifies here and vice versa, given the same APP_KEY.
+// Every format here is frozen: a hash, digest or payload made by an earlier release keeps
+// verifying, given the same APP_KEY (testdata/vectors holds the known-answer vectors).
 // Comparisons are constant-time and secret-bearing types redact themselves in slog output.
 package security
 

@@ -1,5 +1,5 @@
-// Package model holds core's records as plain Go values, one struct per table of schema.Core()
-// (PHP Polaris\Model). Datetimes are time.Time (UTC, stored to the second); nullable columns are
+// Package model holds core's records as plain Go values, one struct per table of
+// schema.Core(). Datetimes are time.Time (UTC, stored to the second); nullable columns are
 // pointers; JSON columns are typed. The repository package reads and writes them.
 package model
 

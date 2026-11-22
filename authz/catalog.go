@@ -1,4 +1,4 @@
-// Package authz is Polaris's role-based authorization (upstream docs/auth/rbac.md): the
+// Package authz is Polaris's role-based authorization: the
 // code-defined permission catalog and its seeder, the resolver that turns a user and an active
 // organization into an Authority (role slugs and permission keys), the Gate that checks it, the
 // escalation guard and the session-principal resolver that puts roles into access tokens.

@@ -1,5 +1,4 @@
-// Package session runs the refresh-token session lifecycle (upstream TokenService and
-// SessionService, docs/auth/flows.md §3, §5, §7): issuing a short-lived access JWT plus a
+// Package session runs the refresh-token session lifecycle: issuing a short-lived access JWT plus a
 // rotating, opaque refresh token; refreshing with reuse detection; step-up and organization
 // switches that re-mint without rotating; listing and revoking sessions. It also holds the
 // access-token denylist and the login-MFA ticket.

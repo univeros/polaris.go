@@ -1,4 +1,4 @@
-// Package schema is the database schema as data, the Go form of PHP Polaris\Schema. DDL export,
+// Package schema is the database schema as data. DDL export,
 // schema diff, installers and adapters read it; core's tables are in core.go, a plugin declares its
 // own through polaris.Plugin.Schema.
 package schema

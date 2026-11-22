@@ -7,7 +7,7 @@
 //		Secrets: secrets, Auth: auth, DB: db,
 //		Plugins: []polaris.Plugin{audit.New(audit.Config{}), admin.New(admin.Config{})},
 //	})
-//	// the first operator (what upstream's admin:grant / admin:key commands do):
+//	// the first operator:
 //	admin.Of(p.Graph()).Grants().Grant(ctx, admin.Grant{UserID: id, Role: admin.RoleOwner})
 //	_, secret, err := admin.Of(p.Graph()).Keys().Create(ctx, admin.Key{Name: "dashboard", Role: admin.RoleViewer})
 //

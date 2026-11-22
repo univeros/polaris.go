@@ -13,7 +13,7 @@
 //     then /one-time-token/verify within 3 minutes); the new session inherits how the first one
 //     authenticated.
 //
-// Integration is one line; the zero Config is upstream's defaults:
+// Integration is one line; the zero Config is the defaults:
 //
 //	p, err := polaris.New(polaris.Config{…, Plugins: []polaris.Plugin{
 //		passwordless.New(passwordless.Config{RedirectURIs: []string{"https://app.example.com/signed-in"}}),

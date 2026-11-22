@@ -1,4 +1,4 @@
-// Package mfa holds multi-factor authentication (upstream docs/auth/mfa-otp.md).
+// Package mfa holds multi-factor authentication.
 //
 // [Service] is the whole of it: TOTP, SMS and email factors (enroll, confirm, list, relabel,
 // re-default, remove), the SMS/email one-time-code engine (hashed, time-boxed, attempt-bounded,

@@ -1,5 +1,5 @@
-// Package event is the domain-event port, the Go form of PSR-14 in PHP Polaris. Every event is a
-// struct whose EventName() equals the PHP event's NAME constant (user.logged_in, agent.executed, …).
+// Package event is the domain-event port. Every event is a struct with a stable EventName()
+// (user.logged_in, agent.executed, …).
 //
 // Package event is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
 // third-party plugin builds on. API.md states what is stable.

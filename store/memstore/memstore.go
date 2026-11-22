@@ -1,4 +1,4 @@
-// Package memstore is an in-memory store.Adapter (port of PHP Polaris\Testing\InMemoryAdapter) for
+// Package memstore is an in-memory store.Adapter for
 // tests and prototypes. It has the full criteria semantics, ordering, paging, Increment, nested
 // transactions with savepoint semantics and, when given the schema, primary-key and unique-index
 // enforcement (store.ErrDuplicate). It is safe for concurrent use; transactions are serialized.
