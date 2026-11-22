@@ -20,8 +20,13 @@
 // Config.Issuer, whose exp has not passed and whose nbf and iat have (a minute's leeway), and
 // whose aud names one of Config.Audiences, or, with no Audiences, that carry no aud at all (a
 // session token while AUTH_AUDIENCE is unset). Single-purpose tickets (login MFA, step-up), DPoP
-// proofs, agent request JWTs and receipts are refused even though the same key signs them. A
-// DPoP-bound token (cnf) is refused: without its proof it would be a bearer token. API keys and
+// proofs, agent request JWTs and receipts are refused even though the same key signs them.
+//
+// A typ JWT token is accepted only if it carries the roles list, which every session access
+// token carries (empty when the user has no role) and an OpenID ID token never does. Without
+// that rule, an ID token whose aud (its client_id) is one of Config.Audiences would pass as an
+// access token. A DPoP-bound token (cnf) is refused: without its proof it would be a bearer
+// token. API keys and
 // agent request signatures are not JWT access tokens; only the Polaris host can check them.
 //
 // # What it cannot know
@@ -157,11 +162,12 @@ func New(cfg Config) (*Verifier, error) {
 		logger = slog.Default()
 	}
 	return &Verifier{v: &jwtverify.Verifier{
-		Issuer:     cfg.Issuer,
-		Audiences:  slices.Clone(cfg.Audiences),
-		Algorithms: algorithms,
-		RequireTyp: true,
-		Clock:      clk,
+		Issuer:       cfg.Issuer,
+		Audiences:    slices.Clone(cfg.Audiences),
+		Algorithms:   algorithms,
+		RequireTyp:   true,
+		SessionShape: true,
+		Clock:        clk,
 		JWKS: &jwtverify.JWKS{URL: cfg.JWKSURL, Client: netguard.NoRedirects(cfg.HTTPClient), TTL: ttl, Clock: clk,
 			Log: func(msg string, args ...any) { logger.Warn("polaris verify: "+msg, args...) }},
 	}}, nil

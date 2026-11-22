@@ -53,16 +53,19 @@ var Compact = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]
 // Verifier checks an access token: a compact JWS signed with one of Algorithms by the key its kid
 // names, typ at+jwt or JWT (or absent unless RequireTyp), iss Issuer, an exp, exp and nbf within
 // Leeway, no purpose claim (a single-purpose ticket), and an aud naming one of Audiences (with no
-// Audiences, no aud at all). Keys are Keys, or JWKS when it is set. Sender constraints (cnf) are
-// the caller's to check. Safe for concurrent use once built.
+// Audiences, no aud at all). With SessionShape, a typ JWT token must also carry the roles list
+// every session access token carries (token.AccessClaims) and an OpenID ID token, signed by the
+// same key with typ JWT, never does. Keys are Keys, or JWKS when it is set. Sender constraints
+// (cnf) are the caller's to check. Safe for concurrent use once built.
 type Verifier struct {
-	Issuer     string
-	Audiences  []string
-	Algorithms []string
-	RequireTyp bool
-	Clock      clock.Clock
-	Keys       map[string]any // local keys by kid
-	JWKS       *JWKS          // a remote set; Keys are ignored when set
+	Issuer       string
+	Audiences    []string
+	Algorithms   []string
+	RequireTyp   bool
+	SessionShape bool
+	Clock        clock.Clock
+	Keys         map[string]any // local keys by kid
+	JWKS         *JWKS          // a remote set; Keys are ignored when set
 }
 
 // Verify returns the claims of raw (numbers as json.Number), or an Invalid naming the refusal,
@@ -103,8 +106,15 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (map[string]any, erro
 	if !v.audience(claims["aud"]) {
 		return nil, Invalid("The token is meant for another resource.")
 	}
+	if v.SessionShape && !strings.EqualFold(stringOf(header["typ"]), "at+jwt") {
+		if _, ok := claims["roles"].([]any); !ok {
+			return nil, Invalid("The token is not an access token.")
+		}
+	}
 	return claims, nil
 }
+
+func stringOf(v any) string { s, _ := v.(string); return s }
 
 // accessTyp: typ at+jwt or JWT, in any case; or absent, unless RequireTyp.
 func (v *Verifier) accessTyp(header map[string]any) bool {

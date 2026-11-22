@@ -120,10 +120,15 @@ func (i *issuer) verifier(t testing.TB, cfg verify.Config) *verify.Verifier {
 	return v
 }
 
-// session is a Polaris session access token (typ JWT, no aud) for ada in org-1.
+// session is a Polaris session access token for ada in org-1, in the claim shape session.Mint
+// writes (token.AccessClaims); typ JWT, aud only when c has an Audience.
 func (i *issuer) session(t testing.TB, c *token.Codec, extra ...any) string {
 	t.Helper()
-	claims := token.Claims{}.With("sub", "ada").With("jti", "j1").With("org", "org-1").With("scope", []string{"invoices.read", "invoices.write"})
+	claims, err := token.AccessClaims{Subject: "ada", ID: "j1", SessionID: "s1", OrganizationID: "org-1", Roles: []string{"member"},
+		Scope: []string{"invoices.read", "invoices.write"}, EmailVerified: true, AMR: []string{"pwd"}}.Claims()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for k := 0; k+1 < len(extra); k += 2 {
 		claims = claims.With(extra[k].(string), extra[k+1])
 	}
@@ -177,7 +182,7 @@ func forge(t testing.TB, header, payload map[string]any, key any) string {
 
 func (i *issuer) payload(extra map[string]any) map[string]any {
 	now := i.clock.Now().Unix()
-	p := map[string]any{"iss": issuerURL, "sub": "ada", "iat": now, "nbf": now, "exp": now + 600}
+	p := map[string]any{"iss": issuerURL, "sub": "ada", "iat": now, "nbf": now, "exp": now + 600, "roles": []string{}}
 	for k, v := range extra {
 		if v == nil {
 			delete(p, k)
@@ -210,6 +215,55 @@ func TestVerifyAcceptsPolarisAccessTokens(t *testing.T) {
 	}
 	if i.fetched() != 2 {
 		t.Fatalf("each verifier fetches the JWK Set once and caches it: %d fetches", i.fetched())
+	}
+}
+
+// idToken is an OpenID ID token as plugins/oauth mintIDToken writes it: Mint with typ "" (so
+// "JWT"), the same key, aud the client_id, the OpenID claims, auth_time and nonce.
+func (i *issuer) idToken(t testing.TB, clientID string) string {
+	t.Helper()
+	claims := token.Claims{}.With("sub", "ada").With("aud", clientID).With("jti", "id1").
+		With("email", "ada@example.com").With("email_verified", true).With("name", "Ada").With("updated_at", i.clock.Now().Unix()).
+		With("auth_time", i.clock.Now().Unix()).With("nonce", "n-0S6")
+	raw, err := i.rsa.Mint("", claims, i.clock.Now().Add(15*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// An ID token is not an access token, even when its aud (the client_id) is an audience this
+// service accepts: a service that is itself an OAuth client of the issuer.
+func TestIDTokensAreNotAccessTokens(t *testing.T) {
+	i := newIssuer(t)
+	v := i.verifier(t, verify.Config{Audiences: []string{service}})
+	idToken := i.idToken(t, service)
+	if _, err := v.Verify(context.Background(), idToken); !errors.Is(err, verify.ErrInvalidToken) {
+		t.Fatalf("Verify accepted an ID token: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("Authorization", "Bearer "+idToken)
+	w := httptest.NewRecorder()
+	v.Require()(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Error("Require let an ID token through") })).ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Require: %d", w.Code)
+	}
+
+	// What still passes: session tokens with and without AUTH_AUDIENCE, and at+jwt tokens.
+	private, public := contracttest.TestRSAKeyPEM()
+	withAudience := codec(t, token.Config{PrivateKey: private, PublicKey: public, KeyID: "rsa-1", Issuer: issuerURL, Audience: service, TTL: time.Hour, Clock: i.clock})
+	for name, c := range map[string]struct {
+		v   *verify.Verifier
+		raw string
+	}{
+		"a session token, no AUTH_AUDIENCE":  {i.verifier(t, verify.Config{}), i.session(t, i.rsa)},
+		"a session token with AUTH_AUDIENCE": {v, i.session(t, withAudience)},
+		"an EdDSA session token":             {i.verifier(t, verify.Config{}), i.session(t, i.ed)},
+		"an at+jwt for this service":         {v, i.oauth(t, service, "invoices.read")},
+	} {
+		if _, err := c.v.Verify(context.Background(), c.raw); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }
 

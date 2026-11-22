@@ -59,6 +59,13 @@ func TestVerifierWithLocalKeys(t *testing.T) {
 			t.Errorf("aud %v: %v", aud, err)
 		}
 	}
+	shaped := *v
+	shaped.SessionShape = true
+	for typ, c := range map[string]map[string]any{"JWT": {"roles": []string{}}, "at+jwt": nil} {
+		if _, err := shaped.Verify(context.Background(), sign(t, map[string]any{"typ": typ, "alg": "RS256", "kid": "k"}, claims(c))); err != nil {
+			t.Errorf("SessionShape, %s: %v", typ, err)
+		}
+	}
 	strict := *v
 	strict.RequireTyp = true
 	for name, c := range map[string]struct {
@@ -66,6 +73,8 @@ func TestVerifierWithLocalKeys(t *testing.T) {
 		raw string
 	}{
 		"typ required":   {&strict, sign(t, rs, claims(nil))},
+		"JWT, no roles":  {&shaped, sign(t, map[string]any{"typ": "JWT", "alg": "RS256", "kid": "k"}, claims(nil))},
+		"roles not list": {&shaped, sign(t, map[string]any{"typ": "JWT", "alg": "RS256", "kid": "k"}, claims(map[string]any{"roles": "admin"}))},
 		"aud, none set":  {v, sign(t, rs, claims(map[string]any{"aud": "https://a.test"}))},
 		"aud elsewhere":  {&withAud, sign(t, rs, claims(map[string]any{"aud": []any{"https://c.test"}}))},
 		"aud a number":   {&withAud, sign(t, rs, claims(map[string]any{"aud": 7}))},

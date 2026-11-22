@@ -790,4 +790,10 @@ never used past it; an unknown kid refetches at most once a minute, so a forged 
 amplifier. alg none, HS256 keyed with the public key, ES256 under an RSA kid and an RS256 token
 naming the Ed25519 kid are tested refusals; `FuzzVerify` covers arbitrary headers and claims signed
 with the issuer's key. Optional authentication shares Protect's chain (resolvers, plugin middleware,
-denylist), so the only new branch is "no credential at all", which carries no principal.
+denylist), so the only new branch is "no credential at all", which carries no principal. An OpenID
+ID token is typ JWT, signed by the same key, with aud its client_id, so `verify` accepts a typ JWT
+token only when it carries the `roles` list every session access token carries (empty when the
+user has no role) and an ID token never does: a positive session marker, not a deny-list of ID
+token claims an ID token may lack. `mcp.Protect` keeps accepting typ JWT without that marker for
+now (its behaviour is not changed here), so a resource whose audience equals a client_id accepts
+that client's ID tokens there.
