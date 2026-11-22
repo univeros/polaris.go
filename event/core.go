@@ -304,40 +304,107 @@ type UserRegistered struct {
 	VerificationToken string
 }
 
-func (MemberInvited) EventName() string          { return NameMemberInvited }
-func (MemberJoined) EventName() string           { return NameMemberJoined }
-func (MemberRemoved) EventName() string          { return NameMemberRemoved }
-func (MemberRolesChanged) EventName() string     { return NameMemberRolesChanged }
-func (MemberStatusChanged) EventName() string    { return NameMemberStatusChanged }
-func (MFAEnrolled) EventName() string            { return NameMFAEnrolled }
-func (MFAFactorRemoved) EventName() string       { return NameMFAFactorRemoved }
+// EventName implements Event.
+func (MemberInvited) EventName() string { return NameMemberInvited }
+
+// EventName implements Event.
+func (MemberJoined) EventName() string { return NameMemberJoined }
+
+// EventName implements Event.
+func (MemberRemoved) EventName() string { return NameMemberRemoved }
+
+// EventName implements Event.
+func (MemberRolesChanged) EventName() string { return NameMemberRolesChanged }
+
+// EventName implements Event.
+func (MemberStatusChanged) EventName() string { return NameMemberStatusChanged }
+
+// EventName implements Event.
+func (MFAEnrolled) EventName() string { return NameMFAEnrolled }
+
+// EventName implements Event.
+func (MFAFactorRemoved) EventName() string { return NameMFAFactorRemoved }
+
+// EventName implements Event.
 func (MFARecoveryRegenerated) EventName() string { return NameMFARecoveryRegenerated }
-func (MFARecoveryUsed) EventName() string        { return NameMFARecoveryUsed }
-func (MFAStepUpCompleted) EventName() string     { return NameMFAStepUpCompleted }
-func (MFAVerified) EventName() string            { return NameMFAVerified }
-func (MFAVerifyFailed) EventName() string        { return NameMFAVerifyFailed }
-func (OrganizationCreated) EventName() string    { return NameOrganizationCreated }
-func (OrganizationDeleted) EventName() string    { return NameOrganizationDeleted }
-func (OrganizationSwitched) EventName() string   { return NameOrganizationSwitched }
-func (OrganizationUpdated) EventName() string    { return NameOrganizationUpdated }
-func (OTPChallengeSent) EventName() string       { return NameOTPChallengeSent }
-func (OTPVerifyFailed) EventName() string        { return NameOTPVerifyFailed }
-func (PasswordChanged) EventName() string        { return NamePasswordChanged }
+
+// EventName implements Event.
+func (MFARecoveryUsed) EventName() string { return NameMFARecoveryUsed }
+
+// EventName implements Event.
+func (MFAStepUpCompleted) EventName() string { return NameMFAStepUpCompleted }
+
+// EventName implements Event.
+func (MFAVerified) EventName() string { return NameMFAVerified }
+
+// EventName implements Event.
+func (MFAVerifyFailed) EventName() string { return NameMFAVerifyFailed }
+
+// EventName implements Event.
+func (OrganizationCreated) EventName() string { return NameOrganizationCreated }
+
+// EventName implements Event.
+func (OrganizationDeleted) EventName() string { return NameOrganizationDeleted }
+
+// EventName implements Event.
+func (OrganizationSwitched) EventName() string { return NameOrganizationSwitched }
+
+// EventName implements Event.
+func (OrganizationUpdated) EventName() string { return NameOrganizationUpdated }
+
+// EventName implements Event.
+func (OTPChallengeSent) EventName() string { return NameOTPChallengeSent }
+
+// EventName implements Event.
+func (OTPVerifyFailed) EventName() string { return NameOTPVerifyFailed }
+
+// EventName implements Event.
+func (PasswordChanged) EventName() string { return NamePasswordChanged }
+
+// EventName implements Event.
 func (PasswordResetRequested) EventName() string { return NamePasswordResetRequested }
-func (RefreshReuseDetected) EventName() string   { return NameRefreshReuseDetected }
-func (RoleCreated) EventName() string            { return NameRoleCreated }
-func (RoleDeleted) EventName() string            { return NameRoleDeleted }
-func (RoleUpdated) EventName() string            { return NameRoleUpdated }
-func (SessionsRevoked) EventName() string        { return NameSessionsRevoked }
-func (TokenRefreshed) EventName() string         { return NameTokenRefreshed }
-func (UserDeleted) EventName() string            { return NameUserDeleted }
-func (UserDisabled) EventName() string           { return NameUserDisabled }
-func (UserEmailVerified) EventName() string      { return NameUserEmailVerified }
-func (UserEnabled) EventName() string            { return NameUserEnabled }
-func (UserLocked) EventName() string             { return NameUserLocked }
-func (UserLoggedIn) EventName() string           { return NameUserLoggedIn }
-func (UserLoginFailed) EventName() string        { return NameUserLoginFailed }
-func (UserRegistered) EventName() string         { return NameUserRegistered }
+
+// EventName implements Event.
+func (RefreshReuseDetected) EventName() string { return NameRefreshReuseDetected }
+
+// EventName implements Event.
+func (RoleCreated) EventName() string { return NameRoleCreated }
+
+// EventName implements Event.
+func (RoleDeleted) EventName() string { return NameRoleDeleted }
+
+// EventName implements Event.
+func (RoleUpdated) EventName() string { return NameRoleUpdated }
+
+// EventName implements Event.
+func (SessionsRevoked) EventName() string { return NameSessionsRevoked }
+
+// EventName implements Event.
+func (TokenRefreshed) EventName() string { return NameTokenRefreshed }
+
+// EventName implements Event.
+func (UserDeleted) EventName() string { return NameUserDeleted }
+
+// EventName implements Event.
+func (UserDisabled) EventName() string { return NameUserDisabled }
+
+// EventName implements Event.
+func (UserEmailVerified) EventName() string { return NameUserEmailVerified }
+
+// EventName implements Event.
+func (UserEnabled) EventName() string { return NameUserEnabled }
+
+// EventName implements Event.
+func (UserLocked) EventName() string { return NameUserLocked }
+
+// EventName implements Event.
+func (UserLoggedIn) EventName() string { return NameUserLoggedIn }
+
+// EventName implements Event.
+func (UserLoginFailed) EventName() string { return NameUserLoginFailed }
+
+// EventName implements Event.
+func (UserRegistered) EventName() string { return NameUserRegistered }
 
 // LogValue keeps the invitation token out of logs.
 func (e MemberInvited) LogValue() slog.Value {

@@ -26,6 +26,8 @@ type ConfirmResult struct {
 func (r ConfirmResult) String() string {
 	return "mfa.ConfirmResult{" + strconv.Itoa(len(r.RecoveryCodes)) + " recovery codes}"
 }
+
+// GoString keeps the recovery codes out of %#v output.
 func (r ConfirmResult) GoString() string { return r.String() }
 
 // LogValue keeps the recovery codes out of logs.
@@ -46,6 +48,8 @@ type TOTPEnrollResult struct {
 func (r TOTPEnrollResult) String() string {
 	return "mfa.TOTPEnrollResult{FactorID:" + r.FactorID + " Secret:[redacted] OTPAuthURI:[redacted] QRSVG:[redacted]}"
 }
+
+// GoString keeps the secret out of %#v output.
 func (r TOTPEnrollResult) GoString() string { return r.String() }
 
 // LogValue keeps the secret out of logs.

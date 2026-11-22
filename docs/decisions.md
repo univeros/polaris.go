@@ -984,3 +984,58 @@ Security review: both changes only refuse more. Tests: `TestEmailVerifiedIsTrueO
 (every provider mapping and `OIDCProfile`, "false" and container values),
 `TestAnIDTokenIsNotAnAccessToken`, and `TestOnlyAccessTokensAreAccepted` extended with the refused
 shapes. The `mcp` contract fixtures replay unchanged.
+
+## 63. 2026-11-22 — Schema evolution: additive, declared in the schema DSL
+
+1.x will change tables that exist in deployed databases (a unique index on a plugin table, a column
+for SCIM name parts), and `Migrate` only created missing tables (`CreateMissing`). The mechanism:
+
+- **The schema DSL stays the single source.** A table is declared as the latest release wants it.
+  `sqlstore.Store.Migrate(ctx, models)` inspects each table and creates it when missing (the table,
+  then its indexes) or, on an existing table, adds every declared column it lacks
+  (`ALTER TABLE … ADD COLUMN`) and every declared index it lacks (matched by columns and
+  uniqueness, as `Diff` matches), then drops the indexes a model retires with
+  `Model.DropIndex(name)` (a new `DroppedIndexes` field). A fresh install never sees a retired name.
+  `Polaris.Migrate` calls it, finding it through `Unwrap` (telemetry/otel's wrapper) and falling
+  back to `CreateMissing` for an adapter without one.
+- **Safe by default.** It never drops a table or a column and never changes a type, nullability
+  or default: `schema:diff` reports those and they stay manual. It plans every table before the
+  first statement and refuses, changing nothing, a column added to an existing table that is NOT
+  NULL without a default (SQLite cannot add one, PostgreSQL fails on a table with rows) or part of
+  the primary key, and an index both declared and dropped (Migrate would drop and recreate it on
+  every boot). A unique index that meets duplicate rows fails with the remedy (remove the
+  duplicates, migrate again); it never deletes rows. A foreign key on an existing table is not
+  added (SQLite cannot); a new relation goes on a new table.
+- **Idempotent on every replica.** Each step is checked against the live table before it runs;
+  when its statement fails and a fresh inspection shows the change in place (another replica got
+  there first: none of the three dialects has `ADD COLUMN IF NOT EXISTS` and MySQL has no `CREATE
+  INDEX IF NOT EXISTS`), the step counts as done. A second run changes nothing.
+- **What it returns.** `Polaris.Migrate` returned the tables it created; it now returns what it
+  changed: each created table by name (as before), then `"<table>: added column <c>"`,
+  `"<table>: created index <i>"`, `"<table>: dropped index <i>"`. On a database that only lacked
+  tables the result is unchanged. `polaris migrate` prints "Applied N change(s)"; its JSON keeps
+  the `created` key, holding the same list.
+
+How a plugin declares a change: add the field to its `schema.Table(…)` (`.AsNullable()` or
+`.WithDefault(v)`); add an index with `.Index`/`.Unique` under a new name; to turn an index into a
+unique one, declare the unique index under a new name and `.DropIndex("<old name>")`. Then
+regenerate the plugin's DDL golden (`go test ./cli -run TestPluginDDLGoldens -update`); the
+upgrade test checks `Migrate` reaches the new schema from the released one.
+
+Why not versioned migration steps (a table of applied step ids, SQL per dialect): every additive
+change would need three hand-written dialect variants and a step id, for what the DSL already
+says; a diff-driven step cannot drift from the fresh-install DDL. A change the DSL cannot express
+(a rename, a type change, a backfill) is when a versioned step is worth adding; none is needed
+yet.
+
+Guards, all in `make qa` (SQLite) and the database matrix (PostgreSQL 17, MySQL 8.4):
+`TestMigrateAddsColumnsAndIndexesAndKeepsRows`, `TestMigrateIsSafeOnConcurrentReplicas`,
+`TestMigrateRefusesWhatItCannotApplySafely`, `TestMigrateNamesTheFixWhenAUniqueIndexMeetsDuplicates`
+(`store/sqlstore`); `TestMigrateUpgradesEveryReleasedSchema` (`cli`: applies the schema
+`polaris schema:export --plugins=<all>` printed at v0.4.1, `testdata/upgrade/v0.4.1.*.sql`, runs
+`Migrate`, and compares every table with a fresh install, index names included; a release that
+changes the schema adds its predecessor's export there); `TestPluginDDLGoldens` (one golden per
+plugin per dialect in `testdata/ddl`, like core's). Lint: revive's `exported` rule now fails on an
+exported name without a doc comment (its "X …" wording check is not enforced: the event types
+read "UserLoggedIn: …"). Security review: no security-critical package changes; `Migrate` runs
+DDL built from the compiled-in schema only, quoting every identifier, never from input.

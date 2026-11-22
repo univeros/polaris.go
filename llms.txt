@@ -44,6 +44,12 @@ system roles hold them: `cfg.RolePermissions = map[string][]string{"owner": {"in
 `Migrate`). An owner then puts them into custom roles through `POST /orgs/{id}/roles`, invitations
 and API keys.
 
+Databases: PostgreSQL 17 and MySQL 8.4 (every suite runs on both in CI), and SQLite through the bundled
+pure-Go driver (modernc.org/sqlite, SQLite 3.54; no cgo); other versions are untested. On MySQL,
+`sqlstore.Open` sets `clientFoundRows=true`; a pool you open yourself for `sqlstore.New` needs it too. `Migrate` creates missing tables and adds
+missing columns and indexes; it never drops a column or changes a type (`polaris schema:diff` lists
+those).
+
 Housekeeping: schedule `p.Prune(ctx)` (hourly is plenty) to delete expired refresh tokens, codes and
 invitations; idempotent on every replica.
 

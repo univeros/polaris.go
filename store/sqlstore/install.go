@@ -115,9 +115,7 @@ func diffTable(m schema.Model, live *LiveTable, d store.Dialect) []string {
 		add("%s: expected primary key (%s), found (%s)", m.Table, strings.Join(primary, ", "), strings.Join(live.Primary, ", "))
 	}
 	for _, idx := range m.Indexes {
-		if !slices.ContainsFunc(live.Indexes, func(l LiveIndex) bool {
-			return l.Unique == idx.Unique && slices.Equal(l.Columns, idx.Columns)
-		}) {
+		if !live.hasIndex(idx) {
 			kind := "plain"
 			if idx.Unique {
 				kind = "unique"

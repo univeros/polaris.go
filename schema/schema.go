@@ -11,6 +11,9 @@ import (
 // FieldType is a column's logical type.
 type FieldType string
 
+// The column types. Each dialect maps them in the DDL: String is VARCHAR(Length), Text is TEXT,
+// Int is INTEGER, Bool is BOOLEAN (TINYINT(1) on MySQL, INTEGER on SQLite), DateTime is TIMESTAMP
+// (DATETIME on MySQL and SQLite) and JSON is JSONB on PostgreSQL, JSON on MySQL and TEXT on SQLite.
 const (
 	String   FieldType = "string"
 	Text     FieldType = "text"
@@ -50,19 +53,32 @@ func newField(property string, t FieldType, length int, column ...string) Field 
 	return Field{Property: property, Column: col, Type: t, Length: length}
 }
 
+// StringField declares a NOT NULL VARCHAR(length) column for property; its column name is
+// SnakeCase(property) unless column names it.
 func StringField(property string, length int, column ...string) Field {
 	return newField(property, String, length, column...)
 }
+
+// TextField declares a NOT NULL TEXT column (named as StringField's).
 func TextField(property string, column ...string) Field {
 	return newField(property, Text, 0, column...)
 }
+
+// IntField declares a NOT NULL INTEGER column (named as StringField's).
 func IntField(property string, column ...string) Field { return newField(property, Int, 0, column...) }
+
+// BoolField declares a NOT NULL boolean column (named as StringField's).
 func BoolField(property string, column ...string) Field {
 	return newField(property, Bool, 0, column...)
 }
+
+// DateTimeField declares a NOT NULL timestamp column, stored in UTC to the second (named as
+// StringField's).
 func DateTimeField(property string, column ...string) Field {
 	return newField(property, DateTime, 0, column...)
 }
+
+// JSONField declares a NOT NULL JSON column (named as StringField's).
 func JSONField(property string, column ...string) Field {
 	return newField(property, JSON, 0, column...)
 }
@@ -110,12 +126,17 @@ type Reference struct {
 	OnUpdate          string
 }
 
-// Model is one table.
+// Model is one table. It is declared as the latest release wants it: Migrate creates the table
+// when it is missing and, on an existing table, adds the fields and indexes it lacks (see
+// sqlstore.Store.Migrate). A field added to an existing table must be nullable or have a default.
 type Model struct {
 	Table       string
 	Fields      []Field
 	Indexes     []Index
 	ForeignKeys []Reference
+	// DroppedIndexes names indexes an earlier release created that this one no longer has;
+	// Migrate drops each one that exists. A fresh install never creates them.
+	DroppedIndexes []string
 }
 
 // Table starts a model.
@@ -144,6 +165,15 @@ func (m Model) References(columns []string, table string, referenced []string, a
 	}
 	out := m
 	out.ForeignKeys = append(append([]Reference{}, m.ForeignKeys...), ref)
+	return out
+}
+
+// DropIndex records that an earlier release created the index name and this one does not: Migrate
+// drops it where it exists. Use it to replace an index (a plain one becoming unique, other
+// columns): declare the new index under a new name and drop the old name.
+func (m Model) DropIndex(name string) Model {
+	out := m
+	out.DroppedIndexes = append(append([]string{}, m.DroppedIndexes...), name)
 	return out
 }
 
