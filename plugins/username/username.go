@@ -51,7 +51,7 @@ var DefaultReserved = []string{"admin", "administrator", "root", "system", "supp
 // SentinelRoutes is the sign-in route for the sentinel plugin's routes option (path: attempt kind).
 var SentinelRoutes = map[string]string{"/username/sign-in": "sign_in"}
 
-// Config holds the username rules; the zero value is upstream's defaults.
+// Config holds the username rules; the zero value is the defaults.
 type Config struct {
 	// MinLength and MaxLength bound the length in characters; zero: 3 and 30.
 	MinLength, MaxLength int
@@ -112,7 +112,7 @@ type Username struct {
 	UpdatedAt       time.Time
 }
 
-// Models returns polaris_username as upstream declares it.
+// Models returns polaris_username; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableUsernames,
@@ -141,7 +141,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_username.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/username).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/username).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/username")
 	if err != nil {
@@ -201,8 +201,9 @@ func NewUsernames(db store.Adapter, clk clock.Clock, cfg Config) (*Usernames, er
 // Normalize is a username as stored for uniqueness: lowercased.
 func Normalize(username string) string { return strings.ToLower(username) }
 
-// trim is PHP's trim().
-func trim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
+// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
+// (not the other Unicode spaces strings.TrimSpace strips).
+func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
 
 // Violations lists the rules username breaks; none means acceptable.
 func (u *Usernames) Violations(username string) []string {
@@ -236,7 +237,7 @@ func (u *Usernames) ForUser(ctx context.Context, userID string) (Username, bool,
 
 // UserID returns the user a username belongs to, without regard to case; "" when nobody has it.
 func (u *Usernames) UserID(ctx context.Context, username string) (string, error) {
-	r, err := u.db.FindOne(ctx, TableUsernames, store.Criteria{"username": Normalize(trim(username))})
+	r, err := u.db.FindOne(ctx, TableUsernames, store.Criteria{"username": Normalize(trimBlank(username))})
 	if err != nil || r == nil {
 		return "", err
 	}
@@ -247,9 +248,9 @@ func (u *Usernames) UserID(ctx context.Context, username string) (string, error)
 // must be the same letters in another case. It returns a *InvalidError (ErrInvalid) for a username
 // breaking the rules and ErrTaken for another user's, also when that user took it concurrently.
 func (u *Usernames) Set(ctx context.Context, userID, username, display string) (Username, error) {
-	username = trim(username)
+	username = trimBlank(username)
 	violations := u.Violations(username)
-	if display = trim(display); display == "" {
+	if display = trimBlank(display); display == "" {
 		display = username
 	}
 	if Normalize(display) != Normalize(username) {

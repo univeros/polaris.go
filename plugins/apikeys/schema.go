@@ -5,7 +5,7 @@ import "github.com/univeros/polaris.go/schema"
 // TableKeys is the table the plugin owns.
 const TableKeys = "polaris_api_key"
 
-// Models returns polaris_api_key as upstream declares it.
+// Models returns polaris_api_key; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableKeys,

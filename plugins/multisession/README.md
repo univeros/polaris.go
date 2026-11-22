@@ -4,8 +4,8 @@ Several accounts signed in on one device (one browser): list them, switch betwee
 signing in again, sign one out, and read the device's last sign-in method so the client can
 pre-select its button. Every Polaris response that opens or refreshes a session (any sign-in
 method, a refresh, a switch) is recorded against a device id the server mints and answers in the
-`X-Polaris-Device` header and the HttpOnly cookie `polaris_ms_device`. Port of
-`polaris/multi-session` (plugin id `multi-session`).
+`X-Polaris-Device` header and the HttpOnly cookie `polaris_ms_device`. Plugin id
+`multi-session`.
 
 ## Install
 

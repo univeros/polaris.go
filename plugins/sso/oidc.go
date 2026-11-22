@@ -263,7 +263,7 @@ type errUnknownKey struct{ msg string }
 
 func (e errUnknownKey) Error() string { return e.msg }
 
-// verifyIDToken is firebase/php-jwt's decode against a key set: a compact JWS whose kid names a
+// verifyIDToken verifies an ID token against a key set: a compact JWS whose kid names a
 // key of the header's algorithm (a key without alg is RS256), a valid signature, a JSON object
 // payload, and nbf / iat / exp within a minute of leeway.
 func verifyIDToken(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {

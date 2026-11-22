@@ -52,7 +52,7 @@ func must[T any](v T, err error) T {
 	return v
 }
 
-// user inserts an account directly, as upstream's unit of work does.
+// user inserts an account directly into the store, bypassing the sign-up routes.
 func (f *fixture) user(id, email string) model.User {
 	f.t.Helper()
 	now := time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)

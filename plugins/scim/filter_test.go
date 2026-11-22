@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The filter subset and the PatchOp parsing (upstream FilterAndPatchTest).
+// The filter subset and the PatchOp parsing.
 func TestFilterAndPatch(t *testing.T) {
 	t.Run("testFiltersParseAndMatch", func(t *testing.T) {
 		f, err := parseFilter(`userName eq "Ada@Example.com" and displayName co "ada" and externalId sw "ext-"`)
@@ -93,8 +93,8 @@ func TestStripSlashesAndBooleans(t *testing.T) {
 		}
 	}
 	for v, want := range map[any]bool{true: true, false: false, "True": true, " yes ": true, "on": true, "0": false, "no": false, 3: false} {
-		if phpBool(v) != want {
-			t.Fatalf("phpBool(%v) != %v", v, want)
+		if truthy(v) != want {
+			t.Fatalf("truthy(%v) != %v", v, want)
 		}
 	}
 }

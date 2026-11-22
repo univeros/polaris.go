@@ -20,7 +20,7 @@ import (
 
 var now = time.Date(2026, 9, 11, 10, 0, 0, 0, time.UTC)
 
-// boot is upstream's PluginTest::polaris(): core, audit and the plugin in memory, a frozen clock.
+// boot starts core, audit and the plugin in memory, on a frozen clock.
 func boot(t *testing.T, cfg messaging.Config, edit ...func(*polaris.Config)) (*polaris.Polaris, *messaging.Plugin) {
 	t.Helper()
 	p, err := start(t, cfg, edit...)

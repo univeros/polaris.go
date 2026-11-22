@@ -274,7 +274,8 @@ func (k *Keys) ForOwner(ctx context.Context, ownerType, ownerID string) ([]Key, 
 	return out, nil
 }
 
-// Update changes key and returns it with what changed (in upstream's order).
+// Update changes key and returns it with what changed, in a fixed order (name, permissions,
+// rate_limit, expires_at, metadata): the order the audit event records them in.
 func (k *Keys) Update(ctx context.Context, key Key, p UpdateParams) (Key, []string, error) {
 	now := k.now()
 	data := store.Data{"updated_at": now}

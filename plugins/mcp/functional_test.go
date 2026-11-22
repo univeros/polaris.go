@@ -18,13 +18,14 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 )
 
-// Port of upstream's McpServerTest (WP4 acceptance 2, over HTTP).
+// The MCP server over HTTP: the protected resource lists and calls the tools of the token's user.
 
 const (
-	phpServerTest = `Polaris\Mcp\Tests\Functional\McpServerTest`
-	base          = "https://auth.polaris.test"
-	metadataURL   = base + "/.well-known/oauth-protected-resource/mcp"
-	password      = "correct horse battery staple"
+	// serverFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/mcp.
+	serverFixtures = "Polaris.Mcp.Tests.Functional.McpServerTest"
+	base           = "https://auth.polaris.test"
+	metadataURL    = base + "/.well-known/oauth-protected-resource/mcp"
+	password       = "correct horse battery staple"
 )
 
 func newServer(t *testing.T, opts ...polaristest.Option) *polaristest.Server {
@@ -126,7 +127,7 @@ func equalJSON(t *testing.T, got, want any, msg string) {
 func TestMcpServer(t *testing.T) {
 	t.Run("testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser", func(t *testing.T) {
 		srv := newServer(t)
-		fx := contracttest.For(t, contracttest.Fixtures(t, "mcp"), phpServerTest, "testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser")
+		fx := contracttest.For(t, contracttest.Fixtures(t, "mcp"), serverFixtures, "testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser")
 		s := &serverCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)}
 
 		// The metadata a challenged client is sent to.
@@ -226,7 +227,7 @@ func TestMcpServer(t *testing.T) {
 
 func TestEveryMcpFixtureHasAGoTest(t *testing.T) {
 	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "mcp"),
-		[]string{phpServerTest + "::testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser"})
+		[]string{serverFixtures + "::testTheProtectedResourceListsAndCallsTheToolsOfTheTokensUser"})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("fixtures without a Go test: %v %v", missing, err)
 	}

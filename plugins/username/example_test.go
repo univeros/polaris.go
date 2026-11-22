@@ -25,7 +25,7 @@ func Example() {
 	auth.Issuer = "https://auth.example.com"
 	db := memstore.New(append(schema.Core(), username.Models()...)...) // sqlstore.Open(...) in production
 
-	names := username.New(username.Config{}) // upstream's rules: 3-30 of [A-Za-z0-9_.], reserved names
+	names := username.New(username.Config{}) // the default rules: 3-30 of [A-Za-z0-9_.], reserved names
 	p, err := polaris.New(polaris.Config{
 		Secrets: config.Secrets{AppKey: strings.Repeat("k", 32), JWTPrivateKey: private, JWTPublicKey: public},
 		Auth:    auth, DB: db, Plugins: []polaris.Plugin{names},

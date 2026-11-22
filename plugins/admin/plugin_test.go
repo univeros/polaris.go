@@ -130,7 +130,7 @@ func TestKeysAuthenticateByHashExpiryAndAllowlist(t *testing.T) {
 	}
 	stored, _ := e.db.FindOne(ctx, admin.TableKeys, store.Criteria{"id": key.ID})
 	if stored.String("ip_allowlist") != `["10.0.0.0\/8"]` || stored.String("key_hash") == secret {
-		t.Fatalf("stored as upstream: %v", stored)
+		t.Fatalf("stored form: %v", stored)
 	}
 
 	got, ok, err := keys.Authenticate(ctx, secret, "10.1.2.3")

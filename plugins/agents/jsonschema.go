@@ -10,9 +10,9 @@ import (
 	"unicode/utf8"
 )
 
-// The JSON Schema subset a capability's input may use. Upstream validates with opis/json-schema;
-// no Go dependency is allowed for it (spec §5), so the keywords below are checked here with
-// opis's messages, and a schema using any other keyword fails New rather than being silently
+// The JSON Schema subset a capability's input may use. No dependency is taken for it (stdlib
+// first), so the keywords below are checked here, with the refusal messages clients of earlier
+// releases already see, and a schema using any other keyword fails New rather than being silently
 // weaker than written. Annotations (title, description, default, examples, format, $schema,
 // $comment) are accepted and not checked.
 var (
@@ -64,7 +64,7 @@ func checkSchema(s map[string]any, at string) error {
 
 func isBool(v any) bool { _, ok := v.(bool); return ok }
 
-// validateSchema returns the first error, as opis reports it ("/path: message", the root without a
+// validateSchema returns the first error as "/path: message" (the root without a
 // prefix), "" when data is valid.
 func validateSchema(s map[string]any, data any) string {
 	path, msg := validate(s, data, "")
@@ -91,10 +91,10 @@ func validate(s map[string]any, data any, path string) (string, string) {
 	case map[string]any:
 		return validateObject(s, d, path)
 	case []any:
-		if n, ok := phpInt(s["minItems"]); ok && int64(len(d)) < n {
+		if n, ok := wholeNumber(s["minItems"]); ok && int64(len(d)) < n {
 			return path, fmt.Sprintf("Array should have at least %d items, %d found", n, len(d))
 		}
-		if n, ok := phpInt(s["maxItems"]); ok && int64(len(d)) > n {
+		if n, ok := wholeNumber(s["maxItems"]); ok && int64(len(d)) > n {
 			return path, fmt.Sprintf("Array should have at most %d items, %d found", n, len(d))
 		}
 		if items, ok := s["items"].(map[string]any); ok {
@@ -106,10 +106,10 @@ func validate(s map[string]any, data any, path string) (string, string) {
 		}
 	case string:
 		n := int64(utf8.RuneCountInString(d))
-		if least, ok := phpInt(s["minLength"]); ok && n < least {
+		if least, ok := wholeNumber(s["minLength"]); ok && n < least {
 			return path, fmt.Sprintf("Minimum string length is %d, found %d", least, n)
 		}
-		if most, ok := phpInt(s["maxLength"]); ok && n > most {
+		if most, ok := wholeNumber(s["maxLength"]); ok && n > most {
 			return path, fmt.Sprintf("Maximum string length is %d, found %d", most, n)
 		}
 		if p, ok := s["pattern"].(string); ok {
@@ -188,7 +188,7 @@ func validateNumber(s map[string]any, v float64, path string) (string, string) {
 	return "", ""
 }
 
-// jsonType names data as opis does.
+// jsonType names data by its JSON Schema type; a whole number is "integer", not "number".
 func jsonType(data any) string {
 	switch d := data.(type) {
 	case nil:

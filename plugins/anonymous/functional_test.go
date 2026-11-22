@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	flowClass = `Polaris\Anonymous\Tests\Functional\AnonymousFlowTest`
-	password  = "correct horse battery staple"
+	// flowFixtures is the recorded fixture set's file-name prefix under internal/apispec/fixtures/anonymous.
+	flowFixtures = "Polaris.Anonymous.Tests.Functional.AnonymousFlowTest"
+	password     = "correct horse battery staple"
 )
 
 func data(t *testing.T, resp *http.Response) map[string]any {
@@ -69,7 +70,7 @@ func TestAnonymousFlow(t *testing.T) {
 			return nil
 		}})
 		srv := polaristest.New(t, polaristest.WithPlugins(plugin))
-		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "anonymous"), flowClass, "testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"))
+		c := contracttest.NewClient(t, srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "anonymous"), flowFixtures, "testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"))
 
 		resp := c.Post("/anonymous/sign-in", map[string]any{})
 		status(t, resp, 201, "sign-in")
@@ -116,7 +117,7 @@ func TestAnonymousFlow(t *testing.T) {
 }
 
 func TestEveryFixtureIsCovered(t *testing.T) {
-	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "anonymous"), []string{flowClass + "::testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"})
+	left, err := contracttest.Uncovered(contracttest.Fixtures(t, "anonymous"), []string{flowFixtures + "::testAGuestSignsInAndConvertsIntoTheAccountItSignsUpFor"})
 	if err != nil || len(left) > 0 {
 		t.Fatalf("uncovered %v (%v)", left, err)
 	}

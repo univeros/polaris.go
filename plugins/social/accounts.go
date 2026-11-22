@@ -14,7 +14,7 @@ import (
 // TableAccounts is the table the plugin owns. The OAuth state lives in the cache.
 const TableAccounts = "polaris_social_account"
 
-// Models returns polaris_social_account as upstream declares it.
+// Models returns polaris_social_account; its columns are the schema existing databases hold.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableAccounts,
@@ -38,7 +38,8 @@ func Models() []schema.Model {
 	}
 }
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
+// the API emits and stored rows keep.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // account is a row of polaris_social_account; the tokens stay sealed (core's encrypter).

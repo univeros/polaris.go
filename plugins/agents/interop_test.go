@@ -20,7 +20,7 @@ import (
 
 // The Go agent SDK walks the protocol against this server: enrol through a host, ask for a
 // grant the policy approves, execute with signed request JWTs, read the session and verify the
-// receipt chain locally (the WP5 acceptance walkthrough). It runs with each access-token signer:
+// receipt chain locally. It runs with each access-token signer:
 // with EdDSA the receipts are Ed25519-signed and the SDK reads the key from the OKP JWKS.
 func TestTheGoAgentSDKWalksThrough(t *testing.T) {
 	for _, signer := range []config.Signer{config.SignerRS256, config.SignerEdDSA} {

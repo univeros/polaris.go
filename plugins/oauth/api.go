@@ -9,7 +9,7 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// This file is the Go API other plugins (polaris/agents) and hosts use; reach the plugin with
+// This file is the Go API other plugins (plugins/agents) and hosts use; reach the plugin with
 // g.Plugin(oauth.ID).(*oauth.Plugin) after Init.
 
 // Client returns the client clientID names: a registered one, or (an https client id) the one

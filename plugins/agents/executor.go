@@ -28,7 +28,7 @@ func (e execution) view() map[string]any {
 	return map[string]any{"data": e.result, "receipt": map[string]any{"id": e.receipt.ID, "seq": e.receipt.Seq, "hash": e.receipt.Hash}}
 }
 
-// arguments reads the arguments of a call: an object, or nothing (PHP's empty [] included).
+// arguments reads the arguments of a call: an object, or nothing (an empty list [] included).
 func arguments(v any) (map[string]any, bool) {
 	switch v := v.(type) {
 	case nil:

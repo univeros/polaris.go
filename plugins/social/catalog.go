@@ -261,7 +261,8 @@ func at(v any, path ...any) any {
 	return v
 }
 
-// str is PHP's (string) cast of a decoded JSON scalar.
+// str reads a decoded JSON scalar from a provider's profile as text: a string as is, a number
+// in its shortest form, true as "1"; false, null and anything else as "".
 func str(v any) string {
 	switch v := v.(type) {
 	case string:
@@ -287,7 +288,9 @@ func text(v any) string {
 	return s
 }
 
-// truthy is PHP's (bool) cast of a decoded JSON value.
+// truthy reads a decoded JSON value from a provider as a flag (providers spell email_verified
+// as true, "true", 1 or "1"): false for false, "", "0", zero, an empty list or object and null;
+// true otherwise (so the string "false" reads as true).
 func truthy(v any) bool {
 	switch v := v.(type) {
 	case bool:

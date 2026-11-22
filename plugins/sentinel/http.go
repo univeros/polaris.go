@@ -177,7 +177,7 @@ func (p *Plugin) recorded(ctx context.Context, res endpoint.Result, name string,
 	return res
 }
 
-// text is a non-empty string value, "" otherwise (upstream's AdminRoute::text).
+// text is a non-empty string value, "" otherwise (as the admin routes read text fields).
 func text(v any) string { return str(v) }
 
 // positiveInt reads an optional numeric limit of at least 1; def when absent or "".

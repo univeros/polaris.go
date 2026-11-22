@@ -2,8 +2,8 @@
 
 The operator API under `/admin`: users, sessions, MFA, organizations, the audit trail, audit drains,
 statistics, operator grants and operator API keys (`pak_…`), for a dashboard, a support tool or an
-integration. Every operator action is recorded in the audit trail as `admin.<action>`. Port of
-`polaris/admin`; needs `plugins/audit` registered too (any order — `Init` fails without it).
+integration. Every operator action is recorded in the audit trail as `admin.<action>`. It
+needs `plugins/audit` registered too (any order — `Init` fails without it).
 
 ## Install
 

@@ -127,7 +127,8 @@ func body(in *endpoint.Input) map[string]any {
 
 var numericPattern = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
 
-// numeric is PHP's (int) of an is_numeric value; ok false when the value is not numeric.
+// numeric reads a decimal number (a JSON number or a numeric string, surrounding whitespace
+// allowed) truncated toward zero and clamped to ±1e9; ok is false when the value is not numeric.
 func numeric(v any) (int, bool) {
 	var s string
 	switch v := v.(type) {

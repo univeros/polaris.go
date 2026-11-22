@@ -51,8 +51,8 @@ const (
 	DefaultChallengeTTL = 5 * time.Minute
 )
 
-// Config configures the plugin. Origins is required; every other field's zero value is
-// upstream's default.
+// Config configures the plugin. Origins is required; every other field's zero value is its
+// default.
 type Config struct {
 	// Origins are the exact origins the browser pages live on ("https://app.example.com"); a plain
 	// http origin is accepted on localhost and 127.0.0.1 only.
@@ -150,7 +150,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares polaris_passkey.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's routes (upstream api/passkey).
+// Manifest returns the plugin's routes (declared in internal/apispec/api/passkey).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/passkey")
 	if err != nil {
