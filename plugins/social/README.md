@@ -106,8 +106,8 @@ password, factors, passkeys, keys, other providers' links and sessions of the un
 
 ## Host integration
 
-- Social works without audit. A `event.UserDeleted` erases the user's provider accounts (email,
-  profile, tokens) through the plugin's listener.
+- Social works without audit. Erasing a user deletes its provider accounts (email, profile,
+  tokens) inside the erasure's transaction (`wiring.AccessEraser`).
 - Unlinking checks for the last credential and deletes in one transaction with the user's row
   locked, so concurrent unlinks cannot leave an account without a way to sign in. A flow
   completes only in the browser that started it (a binding cookie, decision 39).

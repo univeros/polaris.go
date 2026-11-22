@@ -2609,3 +2609,25 @@ other listener; the graph calls it only through `wiring.ListenerProvider`). No n
 `auth_role_permissions` as described. Stored data stays readable; an impersonation token minted
 before the upgrade keeps its `auth_time` until it expires (one access-token TTL) and is refused by
 the new rule all the same.
+
+## 77. 2026-11-22 — Follow-ups to decisions 75 and 76
+
+- **The OAuth plugin's default operator check ignores organization-bound sessions.** Without the
+  admin plugin, `plugins/oauth` treats a superadmin's session as an instance operator on its admin
+  routes (`superadmins`). A session an organization's identity provider opened (amr `sso`,
+  decision 68) is no operator there, as decision 76 made it for `/admin/*`. Test:
+  `TestAnOrganizationBoundSessionIsNoDefaultOperator`.
+- **A revoked capability is not auto-approved again.** Revoking a grant took access back, but the
+  agent could ask again and the auto-approval policy handed it back. A request for a capability
+  of which the agent holds a revoked grant now waits for a person (`personDecides`, next to the
+  exhausted-budget rule of decision 76). A denial is not binding the same way: a person denied a
+  request the policy did not cover, and the policy still covers the smaller requests it was set
+  for (the recorded `testTheAskerCannotChooseItsAutoApprovalBudget` relies on it). Test:
+  `TestARevokedCapabilityIsNotAutoApprovedAgain`.
+- The READMEs of anonymous, username, scim, passwordless, oauth and social say erasure runs inside
+  the erasure's transaction (`wiring.AccessEraser` / `wiring.UserEraser`, decision 76). The
+  plugins' `event.UserDeleted` listener cases that duplicate it stay: they delete nothing more and
+  cover any path that dispatches the event without the transactional erasers.
+- Left as decision 76 records it: the check and the write of `createGrant` are two statements.
+
+Security review: both changes only refuse more.
