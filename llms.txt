@@ -40,6 +40,12 @@ EdDSA instead of RS256: `polaris keys:generate --alg=EdDSA` (base64 keys for the
 Your own permissions: `cfg.Permissions = map[string]string{"invoices.read": "Read invoices"}` before
 `polaris.New`; `Migrate` adds them to the catalog. Grant them to roles through `/orgs/{id}/roles`.
 
+Databases: PostgreSQL 17 and MySQL 8.4 (every suite runs on both in CI), and SQLite through the bundled
+pure-Go driver (modernc.org/sqlite, SQLite 3.54; no cgo); other versions are untested. On MySQL,
+`sqlstore.Open` sets `clientFoundRows=true`; a pool you open yourself for `sqlstore.New` needs it too. `Migrate` creates missing tables and adds
+missing columns and indexes; it never drops a column or changes a type (`polaris schema:diff` lists
+those).
+
 Housekeeping: schedule `p.Prune(ctx)` (hourly is plenty) to delete expired refresh tokens, codes and
 invitations; idempotent on every replica.
 

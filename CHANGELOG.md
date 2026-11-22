@@ -9,6 +9,22 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
+  tables, it adds the columns and indexes a release declares on an existing table and drops the
+  indexes it retires. It never drops a table or a column, never changes a column's type, and is
+  safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
+  (decision 63).
+- Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
+
+### Changed
+
+- `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
+  `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
+  an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
+  the same lines (decision 63).
+
 ## [0.4.1] - 2026-11-22
 
 Security fixes. Upgrade: `go get github.com/univeros/polaris.go@v0.4.1`. Check the `mcp.Protect`
