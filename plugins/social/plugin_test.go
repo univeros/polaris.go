@@ -763,8 +763,39 @@ func TestCatalogProfiles(t *testing.T) {
 	if p := (Profile{Name: "  " + strings.Repeat("é", 130)}).normalized(); len([]rune(p.Name)) != 118 {
 		t.Fatalf("a name fits core's display name: %d", len([]rune(p.Name)))
 	}
-	if str(true) != "1" || str(1.5) != "1.5" || truthy("0") || !truthy([]any{1}) || !truthy(map[string]any{"a": 1}) || truthy(nil) || !truthy(1.0) {
-		t.Fatal("str and truthy read profile scalars")
+	if str(true) != "1" || str(1.5) != "1.5" {
+		t.Fatal("str reads profile scalars")
+	}
+}
+
+// A provider's email_verified is true only when the provider plainly says so: anything else,
+// "false" and other strings, lists and objects included, is unverified. A wrong true lets a
+// trusted provider claim an existing account (linkTrusted).
+func TestEmailVerifiedIsTrueOnlyWhenTheProviderSaysSo(t *testing.T) {
+	verified := []any{true, "true", "TRUE", "1", jsonNumber("1"), 1.0}
+	unverified := []any{false, "false", "False", "no", "0", "", "yes", "verified", jsonNumber("0"), jsonNumber("2"),
+		jsonNumber("1.0"), 0.0, 2.0, []any{1}, []any{true}, map[string]any{"a": 1}, nil}
+	for _, v := range verified {
+		if !verifiedFlag(v) {
+			t.Errorf("verifiedFlag(%#v) = false, want true", v)
+		}
+	}
+	for _, v := range unverified {
+		if verifiedFlag(v) {
+			t.Errorf("verifiedFlag(%#v) = true, want false", v)
+		}
+	}
+	for _, id := range []string{"github", "discord", "zoom", "dropbox"} {
+		def, _ := catalog(id, "")
+		for _, field := range []string{"email_verified", "verified"} {
+			if p := def.Profile(map[string]any{"id": "u1", "account_id": "u1", "email": "a@example.com", field: "false"}); p.EmailVerified {
+				t.Errorf("%s: %s \"false\" reads as verified", id, field)
+			}
+		}
+	}
+	if OIDCProfile(map[string]any{"sub": "s", "email": "a@example.com", "email_verified": "false"}).EmailVerified ||
+		!OIDCProfile(map[string]any{"sub": "s", "email": "a@example.com", "email_verified": 1.0}).EmailVerified {
+		t.Error("OIDCProfile reads email_verified as verifiedFlag does")
 	}
 }
 

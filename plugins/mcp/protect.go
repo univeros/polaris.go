@@ -91,6 +91,11 @@ type ProtectedResource struct {
 // serves the RFC 9728 metadata at the well-known URL, so mount the result where both paths reach
 // it (usually "/"):
 //
+// An access token is an at+jwt (RFC 9068: the oauth plugin's tokens) or a Polaris session access
+// token (typ JWT, or no typ, carrying its roles list). Any other token the issuer signs is
+// refused, an OpenID ID token included even when its aud (a client_id) equals the resource; a
+// non-Polaris issuer's tokens must be at+jwt.
+//
 //	h, err := mcp.Protect(mcpHandler, mcp.ProtectConfig{
 //		Resource: "https://tools.example.com/mcp",
 //		Issuer:   "https://auth.example.com",
@@ -175,8 +180,12 @@ func NewProtectedResource(cfg ProtectConfig) (*ProtectedResource, error) {
 			Issuer:     cfg.Issuer,
 			Audiences:  append([]string{cfg.Resource}, cfg.Audiences...),
 			Algorithms: Algorithms,
-			Clock:      clk,
-			Keys:       keys,
+			// A typ JWT token must have a session access token's shape (its roles list): an
+			// OpenID ID token is signed by the same key, and its aud (a client_id) may equal the
+			// resource. at+jwt tokens (RFC 9068) are unaffected.
+			SessionShape: true,
+			Clock:        clk,
+			Keys:         keys,
 		},
 		dpop: &dpopProofs{cache: store, clock: clk},
 	}

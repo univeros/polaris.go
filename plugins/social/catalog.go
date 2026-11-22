@@ -124,7 +124,7 @@ func catalog(id, tenant string) (Definition, bool) {
 			UserinfoURL: "https://api.github.com/user", Scopes: []string{"read:user", "user:email"}, NoPKCE: true,
 			UserinfoHeaders: map[string]string{"Accept": "application/vnd.github+json"},
 			Profile: func(d map[string]any) Profile {
-				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: truthy(d["email_verified"]),
+				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: verifiedFlag(d["email_verified"]),
 					Name: or(text(d["name"]), text(d["login"])), Extra: map[string]any{"login": d["login"], "picture": d["avatar_url"]}}
 			}}, true
 	case "gitlab":
@@ -134,7 +134,7 @@ func catalog(id, tenant string) (Definition, bool) {
 		return Definition{Name: "Discord", AuthorizationURL: "https://discord.com/oauth2/authorize", TokenURL: "https://discord.com/api/oauth2/token",
 			UserinfoURL: "https://discord.com/api/users/@me", Scopes: []string{"identify", "email"}, NoPKCE: true,
 			Profile: func(d map[string]any) Profile {
-				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: truthy(d["verified"]),
+				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: verifiedFlag(d["verified"]),
 					Name: or(text(d["global_name"]), text(d["username"])), Extra: map[string]any{"username": d["username"]}}
 			}}, true
 	case "facebook":
@@ -172,7 +172,7 @@ func catalog(id, tenant string) (Definition, bool) {
 		return Definition{Name: "Zoom", AuthorizationURL: "https://zoom.us/oauth/authorize", TokenURL: "https://zoom.us/oauth/token",
 			UserinfoURL: "https://api.zoom.us/v2/users/me", Scopes: []string{"user:read:user"}, BasicAuth: true,
 			Profile: func(d map[string]any) Profile {
-				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: truthy(d["verified"]), Name: text(d["display_name"]),
+				return Profile{Subject: str(d["id"]), Email: text(d["email"]), EmailVerified: verifiedFlag(d["verified"]), Name: text(d["display_name"]),
 					Extra: map[string]any{"picture": d["pic_url"]}}
 			}}, true
 	case "notion":
@@ -188,7 +188,7 @@ func catalog(id, tenant string) (Definition, bool) {
 			UserinfoURL: "https://api.dropboxapi.com/2/users/get_current_account", Scopes: []string{"account_info.read"},
 			AuthorizationParams: url.Values{"token_access_type": {"offline"}}, UserinfoPOST: true,
 			Profile: func(d map[string]any) Profile {
-				return Profile{Subject: str(d["account_id"]), Email: text(d["email"]), EmailVerified: truthy(d["email_verified"]), Name: text(at(d, "name", "display_name"))}
+				return Profile{Subject: str(d["account_id"]), Email: text(d["email"]), EmailVerified: verifiedFlag(d["email_verified"]), Name: text(at(d, "name", "display_name"))}
 			}}, true
 	case "reddit":
 		return Definition{Name: "Reddit", AuthorizationURL: "https://www.reddit.com/api/v1/authorize", TokenURL: "https://www.reddit.com/api/v1/access_token",
@@ -227,16 +227,7 @@ func OIDCProfile(d map[string]any) Profile {
 	if !ok || subject == nil {
 		subject = d["id"]
 	}
-	verified := false
-	switch v := d["email_verified"].(type) {
-	case bool:
-		verified = v
-	case string:
-		verified = v == "true"
-	case json.Number:
-		verified = v.String() == "1"
-	}
-	return Profile{Subject: str(subject), Email: text(d["email"]), EmailVerified: verified,
+	return Profile{Subject: str(subject), Email: text(d["email"]), EmailVerified: verifiedFlag(d["email_verified"]),
 		Name: or(text(d["name"]), text(d["preferred_username"])), Extra: map[string]any{"picture": d["picture"]}}
 }
 
@@ -288,24 +279,20 @@ func text(v any) string {
 	return s
 }
 
-// truthy reads a decoded JSON value from a provider as a flag (providers spell email_verified
-// as true, "true", 1 or "1"): false for false, "", "0", zero, an empty list or object and null;
-// true otherwise (so the string "false" reads as true).
-func truthy(v any) bool {
+// verifiedFlag reads a provider's email_verified (or verified) claim: true only for the JSON
+// true, the strings "true" (any case) or "1", or the number 1. Everything else, "false" and other
+// strings, other numbers, lists, objects and null, is unverified: a wrong true lets a trusted
+// provider claim an existing account, so the reading fails closed.
+func verifiedFlag(v any) bool {
 	switch v := v.(type) {
 	case bool:
 		return v
 	case string:
-		return v != "" && v != "0"
+		return strings.EqualFold(v, "true") || v == "1"
 	case json.Number:
-		f, err := v.Float64()
-		return err == nil && f != 0
+		return v.String() == "1"
 	case float64:
-		return v != 0
-	case []any:
-		return len(v) > 0
-	case map[string]any:
-		return len(v) > 0
+		return v == 1
 	}
 	return false
 }

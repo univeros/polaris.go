@@ -9,6 +9,15 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Security
+
+- `plugins/social`: a provider's `email_verified` / `verified` is true only when the provider
+  sends true, "true" or 1. The string "false", other strings and container values were read as
+  verified, which could let a trusted provider link to an existing account (decision 59).
+- `mcp.Protect` refuses OpenID ID tokens, even when their `aud` equals the resource. **Changed:**
+  a typ JWT token (or one without typ) is accepted only with a Polaris session token's `roles`
+  list; tokens from another issuer must be `at+jwt` (decision 59).
+
 ## [0.4.0] - 2026-11-22
 
 Drop-in sign-in pages, users brought over with their existing passwords, middleware for every Go

@@ -30,11 +30,25 @@ func TestOnlyAccessTokensAreAccepted(t *testing.T) {
 	} {
 		status(t, pr, request(token, "Bearer", "", nil), 401, name)
 	}
-	for name, typ := range map[string]any{"at+jwt": "at+jwt", "a core access token": "JWT", "no typ": nil} {
+	// A session access token (typ JWT) always carries its roles list; an OpenID ID token never
+	// does. at+jwt (RFC 9068) needs no roles.
+	session := with(map[string]any{"roles": []any{}})
+	for name, c := range map[string]struct {
+		typ    any
+		claims map[string]any
+		want   int
+	}{
+		"at+jwt":                    {"at+jwt", claims, 200},
+		"a core access token":       {"JWT", session, 200},
+		"no typ, a session's shape": {nil, session, 200},
+		"typ JWT without roles":     {"JWT", claims, 401},
+		"no typ without roles":      {nil, claims, 401},
+		"roles that are not a list": {"JWT", with(map[string]any{"roles": "admin"}), 401},
+	} {
 		header := map[string]any{"alg": "RS256", "kid": "test"}
-		if typ != nil {
-			header["typ"] = typ
+		if c.typ != nil {
+			header["typ"] = c.typ
 		}
-		status(t, pr, request(sign(t, header, claims, issuerKey()), "Bearer", "", nil), 200, name)
+		status(t, pr, request(sign(t, header, c.claims, issuerKey()), "Bearer", "", nil), c.want, name)
 	}
 }

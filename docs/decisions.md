@@ -959,3 +959,28 @@ Security review (rule 6):
 Not in v1: passkeys (the WebAuthn ceremony needs JavaScript), social and magic-link buttons (each needs
 a landing page registered among that plugin's redirect URIs), account settings and organization
 screens. `cli` knows the plugin (`--plugins=ui`).
+
+## 59. 2026-11-22 — A provider's email_verified fails closed; mcp.Protect refuses ID tokens
+
+Two token and claim checks found loose during the v0.4.0 review, both tightened.
+
+- **social: email_verified.** The GitHub, Discord, Zoom and Dropbox profiles read the provider's
+  `email_verified` / `verified` with a lenient truthiness: any non-empty string other than "0",
+  the string "false" included, and any non-empty list or object read as verified. A verified email
+  decides whether a new account starts verified and, for a trusted provider, whether `linkTrusted`
+  may claim an existing unverified account with that address and unlink its other providers.
+  Now one function, `verifiedFlag`, reads every provider's flag and `OIDCProfile`'s: true only for
+  JSON true, the strings "true" (any case) and "1", and the number 1; everything else is
+  unverified. `OIDCProfile` now also accepts "TRUE" and a float 1, which it used to refuse.
+  These providers send JSON booleans today, so no known exchange was misread.
+- **mcp.Protect: OpenID ID tokens.** The oauth plugin's ID tokens are signed by the access-token
+  key with typ JWT, and their aud is a client_id, which can be an https URL (client ID metadata
+  documents) equal to a protected resource. `mcp.Protect` now applies `verify`'s rule (#55): a
+  typ JWT token, or one without typ, must carry a session access token's `roles` list; at+jwt
+  tokens are unaffected. A non-Polaris issuer's tokens must be at+jwt. Client-visible: such a
+  token without `roles` is now 401 where it was accepted.
+
+Security review: both changes only refuse more. Tests: `TestEmailVerifiedIsTrueOnlyWhenTheProviderSaysSo`
+(every provider mapping and `OIDCProfile`, "false" and container values),
+`TestAnIDTokenIsNotAnAccessToken`, and `TestOnlyAccessTokensAreAccepted` extended with the refused
+shapes. The `mcp` contract fixtures replay unchanged.
