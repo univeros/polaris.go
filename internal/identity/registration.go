@@ -107,19 +107,20 @@ func (s *Service) registerAgain(ctx context.Context, user model.User, password s
 	contested := user.PasswordHash != nil && !same
 	var secret string
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
-		next := user
+		// Always written, so that concurrent registrations of the address queue on the row and
+		// leave one live token.
+		next, data := user, store.Data{"updated_at": now}
 		if contested {
-			claimed, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": user.ID, "email_verified_at": nil},
-				store.Data{"password_hash": nil, "display_name": nil, "updated_at": now})
-			if err != nil || claimed != 1 {
-				return err
-			}
+			data["password_hash"], data["display_name"] = nil, nil
 			next.PasswordHash = nil
+		}
+		claimed, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": user.ID, "email_verified_at": nil}, data)
+		if err != nil || claimed != 1 {
+			return err
 		}
 		if _, err := s.repos.EmailVerifications.DeleteByUser(ctx, user.ID); err != nil {
 			return err
 		}
-		var err error
 		if secret, err = s.insertVerification(ctx, next, client, now); err != nil || !contested {
 			return err
 		}
