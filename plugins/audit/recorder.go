@@ -1,10 +1,12 @@
 package audit
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
 )
 
@@ -39,8 +41,9 @@ func (r *Recorder) Record(ctx context.Context, e Event) error {
 	return r.sink.Write(ctx, e.normalized())
 }
 
-// Listen is the event listener. A refused event is logged: the operation it observes already
-// happened.
+// Listen is the event listener. An event dispatched while serving a request records that
+// request's client IP and user agent unless the event names its own. A refused event is logged:
+// the operation it observes already happened.
 func (r *Recorder) Listen(ctx context.Context, ev event.Event) {
 	var e Event
 	if a, ok := ev.(Auditable); ok {
@@ -51,6 +54,9 @@ func (r *Recorder) Listen(ctx context.Context, ev event.Event) {
 	if e.OccurredAt.IsZero() {
 		e.OccurredAt = r.clock.Now()
 	}
+	c := endpoint.Client(ctx)
+	e.IP = cmp.Or(e.IP, c.IP)
+	e.UserAgent = cmp.Or(e.UserAgent, c.UserAgent)
 	if err := r.Record(ctx, e); err != nil {
 		r.logger.ErrorContext(ctx, "Audit event not recorded", "event", ev.EventName(), "reason", err.Error())
 	}
