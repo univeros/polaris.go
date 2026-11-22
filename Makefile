@@ -35,8 +35,9 @@ test:
 bench:
 	go test -run '^$$' -bench . -benchmem ./...
 
-# fuzz fuzzes every fuzz target for FUZZTIME each (FUZZ: a regexp of target names). CI runs it
-# weekly with 60s (.github/workflows/fuzz.yml); `make qa` only runs the seed corpora.
+# fuzz fuzzes every fuzz target for FUZZTIME each (FUZZ: a regexp of target names), one after
+# the other. CI fuzzes each target in its own job, weekly for 60s and on demand
+# (.github/workflows/fuzz.yml); `make qa` only runs the seed corpora.
 FUZZTIME ?= 10s
 FUZZ     ?= .
 fuzz:

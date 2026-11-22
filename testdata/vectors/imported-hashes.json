@@ -50,6 +50,31 @@
             "password": "user1password",
             "hash": "$firebase-scrypt$ln=14,r=8,sep=Bw==,key=jxspr8Ki0RYycVU8zykbdLGjFQ3McFUH0uiiTvC8pVMXAn210wjLNmdZJzxUECKbm0QsEmYUSDzZvpjeJ9WmXA==$42xEC+ixf3L2lw==$lSrfV15cpx95/sZS2W9c9Kp6i/LVgQNDNC/qzrCnh1SAyZvqmZqAjTdn3aoItz+VHjoZilo78198JAdRuid5lQ==",
             "source": "firebase/scrypt README.md (signer key, salt separator Bw==, rounds 8, mem_cost 14, salt 42xEC+ixf3L2lw==)"
+        },
+        {
+            "password": "U*U",
+            "hash": "$2a$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW",
+            "source": "Openwall crypt_blowfish 1.3 wrapper.c, tests[] (bcrypt $2a$)"
+        },
+        {
+            "password": "U*U*",
+            "hash": "$2a$05$CCCCCCCCCCCCCCCCCCCCC.VGOzA784oUp/Z0DY336zx7pLYAy0lwK",
+            "source": "Openwall crypt_blowfish 1.3 wrapper.c, tests[] (bcrypt $2a$, second)"
+        },
+        {
+            "password": "U*U*U",
+            "hash": "$2a$05$XXXXXXXXXXXXXXXXXXXXXOAcXxm9kjPGEMsLznoKqmqw7tc8WCx4a",
+            "source": "Openwall crypt_blowfish 1.3 wrapper.c, tests[] (bcrypt $2a$, third)"
+        },
+        {
+            "password": "U*U",
+            "hash": "$2b$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW",
+            "source": "Openwall crypt_blowfish 1.3 wrapper.c, tests[], the U*U vector with the $2b$ prefix (the same algorithm for an ASCII password)"
+        },
+        {
+            "password": "U*U",
+            "hash": "$2y$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW",
+            "source": "Openwall crypt_blowfish 1.3 wrapper.c, tests[], the U*U vector with the $2y$ prefix (the same algorithm for an ASCII password)"
         }
     ]
 }

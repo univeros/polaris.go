@@ -9,20 +9,6 @@ marked **Breaking**.
 
 ## [Unreleased]
 
-### Added
-
-- Host API for what the examples had to work around (decision 66):
-  `polaris.SignIn.OrganizationID` opens a session in an organization (membership checked; as a
-  sign-in plus `POST /auth/switch-org`); `p.Orgs().Invite` returns the `polaris.Invitation` and its
-  token for the host to deliver; `polaris.ErrEmailNotVerified` (also `ErrForbidden`) names the
-  refusal of `Sessions().Issue` for an unverified email; `p.Wrap(h)` applies `Config.Middleware` to
-  a host route outside `Protect`; `polaris.DevEnv` generates throwaway secrets for local
-  development and refuses to run without `POLARIS_DEV=1`; `polaristest.Hasher()` is the cheap test
-  Argon2id for a host's own `polaris.Config` in tests; `sqlstore.Store.Conn(ctx)` (plain
-  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
-  `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
-  Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
-
 ### Changed
 
 - **Breaking** (Go API, decision 70): from v1.0.0 every exported name outside `internal/` is the
@@ -65,6 +51,39 @@ marked **Breaking**.
   `scripts/api-stable.txt`, now removed), and refuses an incompatible change outright once the
   base is `v1.0.0` or later. [API.md](API.md) is the v1 promise, with the deprecation policy: added
   and deprecated in 1.x, removed only in v2.
+
+## [0.6.0] - 2026-11-22
+
+The last v0.x feature release before 1.0: the wire speaks plain Go (decisions 64 and 65), the host
+API gains what everyday programs needed (decision 66), and an audit-chain hang is fixed (decision
+72). **Run `Migrate` after upgrading** (it now also seeds the audit chain's lock row). Many entries
+are **Client-visible**: timestamps end in `Z`, empty objects are `{}`, request bodies are typed
+strictly (422 on a wrong JSON type), OpenAPI `operationId`s are the route names, JWT and schema
+error texts are new, and SCIM, agents and OAuth inputs follow their RFCs. Read Changed before
+upgrading a client. New for hosts: `SignIn.OrganizationID`, `Orgs().Invite`,
+`sqlstore.Store.Conn`/`Tx`/`AfterCommit`/`Close`, two-phase event delivery
+(`Config.TxListeners`), `polaris.DevEnv`, `polaristest.Hasher`, `Polaris.Wrap`.
+
+### Added
+
+- Host API for what the examples had to work around (decision 66):
+  `polaris.SignIn.OrganizationID` opens a session in an organization (membership checked; as a
+  sign-in plus `POST /auth/switch-org`); `p.Orgs().Invite` returns the `polaris.Invitation` and its
+  token for the host to deliver; `polaris.ErrEmailNotVerified` (also `ErrForbidden`) names the
+  refusal of `Sessions().Issue` for an unverified email; `p.Wrap(h)` applies `Config.Middleware` to
+  a host route outside `Protect`; `polaris.DevEnv` generates throwaway secrets for local
+  development and refuses to run without `POLARIS_DEV=1`; `polaristest.Hasher()` is the cheap test
+  Argon2id for a host's own `polaris.Config` in tests; `sqlstore.Store.Conn(ctx)` (plain
+  `database/sql` in the transaction ctx carries, for hooks), `Store.AfterCommit` and `Store.Close`;
+  `Config.TxListeners` and, for plugin authors, `wiring.Graph.Deferred`.
+  Package `event` (`Event`, `Listener`, the event types) joins the host surface in API.md §1.
+- SECURITY.md states the policy from v1.0.0: the latest minor gets every security fix, the previous
+  minor gets Critical and High fixes for 3 months after a new minor, and each fix is a GitHub
+  security advisory with a CVE. [docs/stored-formats.md](docs/stored-formats.md) lists the stored
+  data and tokens every 1.x release keeps reading (decision 71).
+
+### Changed
+
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
   (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
   sinks), multi-session, oauth, passkey, scim, sentinel, social, sso. admin echoed a key's or
@@ -163,6 +182,11 @@ marked **Breaking**.
 
 ### Fixed
 
+- `plugins/audit` with `HashChain`: two requests could hang each other when a host transaction
+  recorded two events while another request recorded one, and the first chained writes on a new
+  database could fail or deadlock. `Migrate` now creates the chain's lock row (run it after
+  upgrading, as always) and writers no longer share a process-wide lock (decision 72). New for
+  plugin authors: the optional `wiring.Seeder`, called by `Migrate`.
 - `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
   `%2520`); each path segment is now escaped once (decision 65).
 
@@ -558,7 +582,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/univeros/polaris.go/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1

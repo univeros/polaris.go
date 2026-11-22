@@ -12,7 +12,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -105,8 +105,9 @@ func (p Page) Map() map[string]any {
 type Store struct {
 	db        store.Adapter
 	hashChain bool
-	mu        sync.Mutex // queues this process's writers before they reach the database lock
-	headReady bool       // the polaris_audit_chain row exists; guarded by mu
+	// headReady: this process saw the polaris_audit_chain row (it may still be uncommitted in a
+	// host's transaction; a write that then finds no row creates it again and retries).
+	headReady atomic.Bool
 }
 
 // chainHead is the id of the polaris_audit_chain row.
@@ -129,13 +130,34 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 		}
 		return e, s.db.Insert(ctx, TableEvents, row(e))
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.ensureHead(ctx); err != nil {
-		return Event{}, err
-	}
+	// No process-wide lock: the chain's database row orders every writer. A Go lock held while
+	// waiting for that row would deadlock with a host transaction that owns the row and records a
+	// second event before it commits.
 	minted := e.ID == ""
-	err = s.db.Tx(ctx, func(ctx context.Context) error {
+	for attempt := 0; ; attempt++ {
+		if err := s.ensureHead(ctx); err != nil {
+			return Event{}, err
+		}
+		written, err := s.append(ctx, e, data, minted)
+		if errors.Is(err, errHeadMissing) && attempt == 0 {
+			// The row another writer created is not visible yet (its transaction is still open):
+			// creating it again waits for that transaction, then the append sees the row.
+			s.headReady.Store(false)
+			continue
+		}
+		if err != nil {
+			return Event{}, fmt.Errorf("audit: append to the hash chain: %w", err)
+		}
+		return written, nil
+	}
+}
+
+// errHeadMissing: the polaris_audit_chain row is not visible to this transaction.
+var errHeadMissing = fmt.Errorf("the %s row is missing", TableChain)
+
+// append writes e as the chain's next link in one transaction that first takes the chain's lock.
+func (s *Store) append(ctx context.Context, e Event, data string, minted bool) (Event, error) {
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		if minted {
 			e.ID = repository.NewID()
 		}
@@ -143,8 +165,7 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 		// MySQL, the database's write lock on SQLite (taken first, its busy timeout waits for it).
 		n, err := s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"locked_by": e.ID})
 		if err == nil && n == 0 {
-			s.headReady = false
-			err = fmt.Errorf("the %s row is missing", TableChain)
+			err = errHeadMissing
 		}
 		if err != nil {
 			return err
@@ -172,7 +193,7 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 		return err
 	})
 	if err != nil {
-		return Event{}, fmt.Errorf("audit: append to the hash chain: %w", err)
+		return Event{}, err
 	}
 	return e, nil
 }
@@ -183,10 +204,20 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 // first, the duplicate is ignored. It runs in a savepoint inside a caller's transaction, so the
 // duplicate does not abort that transaction on PostgreSQL.
 func (s *Store) ensureHead(ctx context.Context) error {
-	if s.headReady {
+	if s.headReady.Load() {
 		return nil
 	}
-	err := s.db.Tx(ctx, func(ctx context.Context) error {
+	// Migrate seeds the row (Plugin.Seed): read before writing, so concurrent writers never race
+	// to insert it (on MySQL that race deadlocks and rolls back a host's whole transaction).
+	head, err := s.db.FindOne(ctx, TableChain, store.Criteria{"id": chainHead})
+	if err != nil {
+		return fmt.Errorf("audit: read the hash chain's lock row (run Migrate to create %s): %w", TableChain, err)
+	}
+	if head != nil {
+		s.headReady.Store(true)
+		return nil
+	}
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		// The insert comes first, a write taking the lock (on SQLite a read first could not
 		// upgrade to the write lock while another writer holds it).
 		if err := s.db.Insert(ctx, TableChain, store.Row{"id": chainHead, "last_id": "", "last_hash": "", "locked_by": ""}); err != nil {
@@ -202,7 +233,7 @@ func (s *Store) ensureHead(ctx context.Context) error {
 	if err != nil && !errors.Is(err, store.ErrDuplicate) {
 		return fmt.Errorf("audit: create the hash chain's lock row (run Migrate to create %s): %w", TableChain, err)
 	}
-	s.headReady = true
+	s.headReady.Store(true)
 	return nil
 }
 
