@@ -9,55 +9,8 @@ marked **Breaking**.
 
 ## [Unreleased]
 
-### Added
-
-- `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
-  tables, it adds the columns and indexes a release declares on an existing table and drops the
-  indexes it retires. It never drops a table or a column, never changes a column's type, and is
-  safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
-  (decision 63).
-- Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
-- For plugin authors: `endpoint.WithMFATicketFactors` and `endpoint.MFATicketAllows`,
-  `pipeline.MFATicketFactors`, `session.MFATickets.IssueFor` / `AuthenticateFactors`,
-  `passwordless.RouteMagicLinkConfirm`, `passwordless.KindMFASameChannel` /
-  `ErrMFASameChannel`. `mfa.Tickets` (not in the stable API) has `IssueFor` instead of `Issue`, and
-  `mfa_factors` joined the reserved claim names (`session.ReservedClaim`).
-- `Config.RolePermissions`: say which system roles (`owner`, `admin`, `member`) hold your own
-  permissions, e.g. `{"owner": {"invoices.read"}}`. Every organization's copy of the role holds
-  them (existing organizations on the next `Migrate`), so an owner can put them into custom roles,
-  invitations, API keys and agent grants. Before, nobody but a superadmin could grant a host
-  permission; drop any workaround that wrote role grants through `Graph().Repos()` (decision 62).
-- `endpoint.TooManyRequests` for plugin authors: the 429 in the route's error style (decision 62).
-
 ### Changed
 
-- `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
-  `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
-  an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
-  the same lines (decision 63).
-- **Client-visible:** `GET /magic-link/verify` answers an HTML page (no JavaScript) with one "Sign
-  in" button instead of the 302; the button posts to the new `POST /magic-link/verify`, which
-  spends the link and answers the 302 with the hand-off code as before. The emailed link,
-  `/magic-link/exchange` and the codes are unchanged. A front end that fetched the link itself
-  and expected the redirect must now POST to it (decision 61).
-- `anonymous.Config.OnConvert` runs inside the conversion's transaction (like
-  `Hooks.OnUserCreated`): write through `ctx` and the move commits or rolls back with the
-  conversion. A hook that writes elsewhere may run again on a retry; keep it idempotent.
-- `plugins/mcp`: `tools/list` is paginated. A result carries at most `mcp.ToolsPageSize` (100)
-  tools and a `nextCursor` when more follow; send it back as `params.cursor`. An invalid cursor is
-  `-32602`. Lists of 100 tools or fewer are unchanged; MCP clients that follow `nextCursor` (the
-  specification requires it) see every tool (decision 60).
-- **Client-visible:** access tokens and OAuth access / ID tokens carry `iat`, `nbf` and `exp` as
-  whole seconds, with `exp` = `iat` + the lifetime exactly; they used to carry microsecond
-  fractions that many JWT libraries refuse. Tokens issued before still verify (decision 62).
-- **Client-visible:** a 429 now has a JSON body: `{"error":"too_many_requests","message":…}` on
-  core routes and your `Protect` routes, an `application/problem+json` document on plugin routes.
-  `Retry-After` and `X-RateLimit-*` are unchanged (decision 62).
-- **Client-visible:** `plugins/agents`: once a grant's budget is spent, further calls answer 403
-  `budget_exhausted` (`agent.ErrBudgetExhausted`) instead of `capability_not_granted`
-  (decision 62).
-- `plugins/scim` adds a table, `polaris_scim_user_name`; run `Migrate` after upgrading
-  (decision 62).
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
   (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
   sinks), multi-session, oauth, passkey, scim, sentinel, social, sso. admin echoed a key's or
@@ -114,6 +67,68 @@ marked **Breaking**.
 
 - `plugins/mcp`: a path argument with a reserved character was escaped twice (a space went out as
   `%2520`); each path segment is now escaped once (decision 65).
+
+## [0.5.0] - 2026-11-22
+
+Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
+tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
+a remedy if your data needs a manual step (see the admin entry under Security). Read the
+**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
+429 bodies, `budget_exhausted` and whole-second token timestamps.
+
+### Added
+
+- `Migrate` (and `polaris migrate`) keeps an existing database current: besides creating missing
+  tables, it adds the columns and indexes a release declares on an existing table and drops the
+  indexes it retires. It never drops a table or a column, never changes a column's type, and is
+  safe on replicas booting together. New: `sqlstore.Store.Migrate`, `schema.Model.DropIndex`
+  (decision 63).
+- Runnable examples for `Protect`, `PrincipalFrom`, `Can`, `Orgs`, `Sessions` and `polaristest.New`.
+- For plugin authors: `endpoint.WithMFATicketFactors` and `endpoint.MFATicketAllows`,
+  `pipeline.MFATicketFactors`, `session.MFATickets.IssueFor` / `AuthenticateFactors`,
+  `passwordless.RouteMagicLinkConfirm`, `passwordless.KindMFASameChannel` /
+  `ErrMFASameChannel`. `mfa.Tickets` (not in the stable API) has `IssueFor` instead of `Issue`, and
+  `mfa_factors` joined the reserved claim names (`session.ReservedClaim`).
+- `Config.RolePermissions`: say which system roles (`owner`, `admin`, `member`) hold your own
+  permissions, e.g. `{"owner": {"invoices.read"}}`. Every organization's copy of the role holds
+  them (existing organizations on the next `Migrate`), so an owner can put them into custom roles,
+  invitations, API keys and agent grants. Before, nobody but a superadmin could grant a host
+  permission; drop any workaround that wrote role grants through `Graph().Repos()` (decision 62).
+- `endpoint.TooManyRequests` for plugin authors: the 429 in the route's error style (decision 62).
+
+### Changed
+
+- `Polaris.Migrate` returns every change it made: the tables it created, as before, then one
+  `"<table>: added column <c>"`, `"created index <i>"` or `"dropped index <i>"` line per change to
+  an existing table. `polaris migrate` prints "Applied N change(s)"; its JSON `created` list holds
+  the same lines (decision 63).
+- **Client-visible:** `GET /magic-link/verify` answers an HTML page (no JavaScript) with one "Sign
+  in" button instead of the 302; the button posts to the new `POST /magic-link/verify`, which
+  spends the link and answers the 302 with the hand-off code as before. The emailed link,
+  `/magic-link/exchange` and the codes are unchanged. A front end that fetched the link itself
+  and expected the redirect must now POST to it (decision 61).
+- `anonymous.Config.OnConvert` runs inside the conversion's transaction (like
+  `Hooks.OnUserCreated`): write through `ctx` and the move commits or rolls back with the
+  conversion. A hook that writes elsewhere may run again on a retry; keep it idempotent.
+- `plugins/mcp`: `tools/list` is paginated. A result carries at most `mcp.ToolsPageSize` (100)
+  tools and a `nextCursor` when more follow; send it back as `params.cursor`. An invalid cursor is
+  `-32602`. Lists of 100 tools or fewer are unchanged; MCP clients that follow `nextCursor` (the
+  specification requires it) see every tool (decision 60).
+- **Client-visible:** access tokens and OAuth access / ID tokens carry `iat`, `nbf` and `exp` as
+  whole seconds, with `exp` = `iat` + the lifetime exactly; they used to carry microsecond
+  fractions that many JWT libraries refuse. Tokens issued before still verify (decision 62).
+- **Client-visible:** a 429 now has a JSON body: `{"error":"too_many_requests","message":…}` on
+  core routes and your `Protect` routes, an `application/problem+json` document on plugin routes.
+  `Retry-After` and `X-RateLimit-*` are unchanged (decision 62).
+- **Client-visible:** `plugins/agents`: once a grant's budget is spent, further calls answer 403
+  `budget_exhausted` (`agent.ErrBudgetExhausted`) instead of `capability_not_granted`
+  (decision 62).
+- `plugins/scim` adds a table, `polaris_scim_user_name`; run `Migrate` after upgrading
+  (decision 62).
+
+### Fixed
+
 - Erasing a user (`Users().Delete`, the self-service and admin erase, SCIM delete, guest pruning)
   now deletes every plugin row keyed to it: usernames, verified phones and pending passwordless
   codes and links, multi-session and sentinel device records, operator grants, OAuth authorization
@@ -130,6 +145,12 @@ marked **Breaking**.
   (decision 62).
 
 ### Security
+
+- **Critical:** an organization's owner could create a role slugged `superadmin` and be treated as
+  the platform superadmin (other organizations' members, roles, OAuth clients, SSO providers and
+  audit; platform-only permissions). Only the system superadmin role counts now, and the slug is
+  reserved (decision 67). After upgrading, check for organization roles with that slug:
+  `SELECT * FROM auth_roles WHERE slug = 'superadmin' AND organization_id IS NOT NULL`.
 
 - MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
   factors. After an email code or magic link to an address (or an SMS code to a phone), the
@@ -339,7 +360,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1
