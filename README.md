@@ -78,6 +78,13 @@ func invoices(w http.ResponseWriter, r *http.Request) {
 user, an API key, an OAuth client or an agent; the same check covers all of them. A complete program is
 in [`examples/minimal`](examples/minimal/main.go).
 
+More complete programs, each one `go run` away with no setup and a curl walkthrough:
+[`agents`](examples/agents) (an AI agent end to end), [`mcp`](examples/mcp) (your MCP server
+behind Polaris tokens), [`b2b`](examples/b2b) (organizations, roles, invitations, API keys, SSO,
+SCIM), [`signin-methods`](examples/signin-methods) (passwordless, passkeys, social, guests, MFA),
+[`hooks`](examples/hooks) (your own tables, claims and transactions) and
+[`api-keys`](examples/api-keys).
+
 ## What you get
 
 | Area | Included |
