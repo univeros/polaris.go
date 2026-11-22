@@ -113,7 +113,7 @@ func (p *Plugin) proof(ctx context.Context, r *http.Request, c *Client) (string,
 	if p.settings.dpop == DPoPOff {
 		return "", nil
 	}
-	jkt, err := p.dpop.verify(ctx, r.Header.Get(DPoPHeader), r.Method, requestURL(r), "")
+	jkt, err := p.dpop.verify(ctx, r.Header.Get(DPoPHeader), r.Method, ownURL(p.settings.baseURL, r), "")
 	if err != nil {
 		return "", err
 	}

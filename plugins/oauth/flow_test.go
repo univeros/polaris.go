@@ -257,7 +257,7 @@ func clientCredentialsDeviceCIBAExchange(o *oauthCase) {
 func dpopBinding(o *oauthCase) {
 	userID, session := o.login("ada@example.com")
 	orgID, session := o.organization(session, "Acme")
-	client := o.client(session, orgID, map[string]any{"grant_types": []string{oauth.GrantClientCredentials, oauth.GrantAuthorizationCode, oauth.GrantRefreshToken}, "dpop_bound_access_tokens": true, "token_endpoint_auth_method": "client_secret_post"})
+	client := o.client(session, orgID, map[string]any{"grant_types": []string{oauth.GrantClientCredentials, oauth.GrantAuthorizationCode, oauth.GrantRefreshToken, oauth.GrantTokenExchange}, "dpop_bound_access_tokens": true, "token_endpoint_auth_method": "client_secret_post"})
 	auth := func(f map[string]string) map[string]string {
 		f["client_id"], f["client_secret"] = str(client["client_id"]), str(client["client_secret"])
 		return f
@@ -292,12 +292,13 @@ func dpopBinding(o *oauthCase) {
 	o.equal(claims(str(refreshed["access_token"]))["cnf"], map[string]any{"jkt": o.keys.thumbprint()}, "refresh stays bound")
 	o.equal(claims(str(refreshed["access_token"]))["sub"], userID, "refreshed subject")
 
-	exchangeClient := o.client(session, orgID, map[string]any{"grant_types": []string{oauth.GrantTokenExchange}, "token_endpoint_auth_method": "client_secret_post"})
+	// The client exchanges its own token (decision 75). It is registered for DPoP, so a request
+	// without a proof is refused before the subject is read; the proof of another key is what an
+	// exchange could unbind the token with.
 	exchange := func() map[string]string {
-		return map[string]string{"client_id": str(exchangeClient["client_id"]), "client_secret": str(exchangeClient["client_secret"]),
-			"grant_type": oauth.GrantTokenExchange, "subject_token": str(refreshed["access_token"]), "subject_token_type": oauth.TokenTypeAccessToken}
+		return auth(map[string]string{"grant_type": oauth.GrantTokenExchange, "subject_token": str(refreshed["access_token"]), "subject_token_type": oauth.TokenTypeAccessToken})
 	}
-	o.problem(o.form("/oauth2/token", exchange()), 400, "invalid_dpop_proof", "unbinding through an exchange")
+	o.problem(o.form("/oauth2/token", exchange(), dpopHeader(other.dpopProof("POST", tokenURL, ""))), 400, "invalid_dpop_proof", "unbinding through an exchange")
 	exchanged := o.json(o.form("/oauth2/token", exchange(), dpopHeader(o.keys.dpopProof("POST", tokenURL, ""))))
 	o.equal(claims(str(exchanged["access_token"]))["cnf"], map[string]any{"jkt": o.keys.thumbprint()}, "the exchanged token stays bound")
 }

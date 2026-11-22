@@ -17,9 +17,10 @@ input:
 domain:
   description: >
     The signed-in user decides on the parked request: approve true records the consent (scopes
-    remembered for the client), mints the code and answers the redirect URI with code, state and iss
-    for the browser to follow; approve false answers the redirect with error=access_denied. Without
-    approve, a trusted client or scopes already granted get the code at once, otherwise 409
+    remembered for the client in the session's organization), mints the code and answers the
+    redirect URI with code, state and iss for the browser to follow; approve false answers the
+    redirect with error=access_denied. Without approve, a trusted client or scopes already granted
+    in the session's organization get the code at once, otherwise 409
     oauth/consent_required says a screen is needed. Recorded as oauth.consent_granted or
     oauth.consent_denied.
 

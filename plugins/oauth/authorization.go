@@ -144,18 +144,19 @@ func (a *authorization) pending(ctx context.Context, id string) (pendingRequest,
 }
 
 func (a *authorization) trusted(c *Client) bool {
-	return c.Trusted || slices.Contains(a.settings.trustedClients, c.ClientID)
+	return a.settings.trusts(*c)
 }
 
-// needsConsent: never for a trusted client or scopes already granted, always for prompt=consent.
-func (a *authorization) needsConsent(ctx context.Context, req pendingRequest, c *Client, userID string) (bool, error) {
+// needsConsent: never for a trusted client or scopes already granted in the organization, always
+// for prompt=consent.
+func (a *authorization) needsConsent(ctx context.Context, req pendingRequest, c *Client, userID, organizationID string) (bool, error) {
 	if req.Prompt == "consent" {
 		return true, nil
 	}
 	if a.trusted(c) {
 		return false, nil
 	}
-	covered, err := a.consents.covers(ctx, userID, c.ClientID, req.Scopes)
+	covered, err := a.consents.covers(ctx, userID, c.ClientID, organizationID, req.Scopes)
 	return !covered, err
 }
 

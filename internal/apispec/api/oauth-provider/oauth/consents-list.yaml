@@ -13,7 +13,8 @@ input:
 
 domain:
   description: >
-    Every client the caller approved, with the scopes granted so far and when.
+    Every client the caller approved, with the scopes granted so far and when: one consent per
+    client and organization (organization_id null outside any).
 
 output:
   status: 200
