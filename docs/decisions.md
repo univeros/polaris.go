@@ -2123,3 +2123,149 @@ Security review: no production code changed. The new tests only read vectors; th
 test-only keys (`keys.json`, the vector `APP_KEY`) and published or generated test credentials.
 The fuzz workflow keeps `contents: read`, takes its inputs through environment variables (no
 expression is expanded into a script), and uploads only the fuzzed target's corpus directory.
+
+## 70. 2026-11-22 — The v1 Go API is everything exported outside `internal/`
+
+API.md split the module in three: the host surface (§1, stable), the plugin SDK (§2, stable, may
+grow) and §3, "public but not stable": the concrete services and the rest of fifteen packages,
+importable but free to change in any minor release. `make apicheck` guarded only the names in
+`scripts/api-stable.txt`. That third category does not exist for a Go module at v1: every exported
+name of a non-internal package is covered by semantic versioning in the eyes of `go get`,
+`gorelease`, pkg.go.dev and whoever imported it. A carve-out written in a Markdown file is not
+something they honour. So v1 has two categories only. **What is exported outside `internal/` is
+the API, all of it; what Polaris must stay free to change is under `internal/`.**
+
+**Inventory.** A `go/types` program listed every exported top-level name and method of the §3
+packages (`identity`, `session`, `mfa`, `orgs`, `authz`, `repository`, `security`, `notify`,
+`notify/notifytest`, `cache`, `clock`, `ratelimit`, `metrics`, `pipeline`, `store/memstore`,
+`store/storetest`: 275 top-level names) with who uses each: (a) a host (the examples, llms.txt,
+the READMEs), (b) a plugin or the plugin SDK (the source of an in-tree plugin, or a type an
+exported signature of `polaris`, `wiring`, `endpoint`, `token`, `polaristest`, a plugin… names),
+(c) only core (`wiring`'s construction, package `polaris`, `internal/…`, `cli`, tests). 109 were
+(a) or (b); 166 were (c) only.
+
+**Moved under `internal/`** (90 names; each was used by `wiring`, `internal/httpapi`, package
+`polaris`, `polaristest` and tests only):
+
+- `identity` → `internal/identity`: `Service`, `New`, `Config` and its ports (`Sessions`,
+  `MFAGate`, `MFATickets`, `AuthorityResolver`), `NewUser`, `ImportedUser`, `UserView`,
+  `ErrInvalidConfig`. The account flows; hosts reach them through `polaris.Users`, plugins through
+  `wiring.Identity`.
+- `session` → `internal/session`: `Service`, `New`, `Config`, `Issuer`, `PrincipalResolver`,
+  `UserPrincipals`, `Denylist`, `NewDenylist`, `MFATickets`, `NewMFATickets`, `PurposeLoginMFA`,
+  `ReservedClaim`, `ErrInvalidConfig`. Refresh rotation and the ticket; reached through
+  `polaris.Sessions` and `wiring.Sessions` / `Denylist`.
+- `mfa` → `internal/mfa`: `Service`, `New`, `Config` and its ports (`Sessions`, `Tickets`,
+  `PrincipalResolver`), `TOTP`, `NewTOTP`, `TOTPProvider`, `QRRenderer`, `SVGQRCode`,
+  `TOTPEnrollResult`, `OTPEnrollResult`, `OTPChallengeResult`, `ManagedFactorView`,
+  `ManagedViewOf`, `RecoveryCodeCount`, `ErrInvalidConfig`. The MFA engine; reached through
+  `wiring.MFA`.
+- `orgs` → `internal/orgs`: `Service`, `New`, `Config`, `Sessions`, `Invitation`,
+  `InvitationTTL`, `Role`, `NewRole`, `RoleChanges`, `ErrInvalidConfig` and the 27 `Msg*` wire
+  messages. Reached through `polaris.Orgs` and `wiring.Orgs`.
+- `authz` → `internal/authz`: `Resolver`, `NewResolver`, `Gate`, `NewGate`, `EscalationGuard`,
+  `NewEscalationGuard`, `Principals`, `NewPrincipals`, `Seed`. Reached through `wiring.Resolver`,
+  `Gate`, `Principals`, and `Polaris.Migrate` for the seed.
+- `notify.Listener`, `notify.Users` → `internal/observe.Mail`, `MailUsers`: the listener that
+  turns core events into mail is wiring, beside the audit and metrics observers.
+
+The five domain packages were moved whole and then split, because plugins need a part of each.
+The public package keeps the declarations; the internal one repeats them as aliases
+(`internal/<pkg>/public.go`), so the service code and its callers inside the module read as
+before and the public type is the only type. No logic changed: the files moved as they were,
+except `PasswordPolicy.enforce`, now a function of `internal/identity` (a public type cannot keep
+an unexported method its service calls).
+
+**Stayed public, and why** (185 names of those packages):
+
+- `identity`: `LoginResult`, `MFAChallenge` (what `wiring.Identity.Login` returns),
+  `PasswordError`, `Error` and the ten sentinels (what its methods refuse with), `PasswordPolicy`
+  (passwordless validates passwords with it), `NormalizeEmail` (the stored form of an email, used
+  by five plugins).
+- `session`: `Info` (`wiring.Sessions.List`) and the four sentinels its methods return.
+- `mfa`: `FactorType` (a plugin implements it), `ChallengePurpose` and its values, `LoginChallenge`,
+  `ConfirmResult`, `FactorView`, `ViewOf`, `MaskDestination`, `ValidE164`, `PolicyError` and the
+  five sentinels.
+- `orgs`: `Member` (`wiring.Orgs.ListMembers`), `Error` and its four kinds.
+- `authz`: the permission keys and role slugs, `Permission`, `Catalog` / `NewCatalog` /
+  `RoleTemplate` (agents reads core's catalog), `Authority`, `Caller`, `ErrForbidden`,
+  `ForbiddenError`, `Forbidden` and its two messages.
+- `repository`, whole: `Graph.Repos` returns `*Repos`, so every repository and its methods were
+  already reachable; `New` completes it for a plugin's unit tests.
+- `pipeline`, whole: `Graph.Pipeline` returns `*Pipeline`, `wiring.PipelineOption` names
+  `Options` and so every interface in it, plugins implement `BearerResolver` and call
+  `DeniesDelegate` / `DeniesBound`. Nine of its seventeen names were already in
+  `api-stable.txt`; the rest are the constructor and the wire names (`CSRFHeader`,
+  `RefreshCookie`).
+- The ports with their default implementations and helpers, whole: `notify` (`Mailer`,
+  `SMSSender`, the log and discard senders, the template names, `Subject`, `Text`), `cache`,
+  `clock`, `ratelimit`, `metrics`, `security`. A host that implements a port wraps or falls back to
+  the default (the webapp example wraps `notify.NewLogMailer`), and a few lines of default are not
+  worth an internal package. `security` is also where the stored formats live; it was not touched
+  (`Pepper` and `NewPepper` are used only by core, behind `wiring.Pepper`, and could move later:
+  moving is not possible after v1, keeping is harmless).
+- `notify/notifytest`, `store/memstore`, `store/storetest`: what a host's or a plugin's tests and
+  a `store.Adapter` author use (`polaristest.Server` exposes the recorders; `storetest.Run` is the
+  adapter conformance suite). As decision 51.
+- The packages that were already stable whole (`polaris`, `wiring`, `endpoint`, `manifest`,
+  `event`, `token`, `config`, `store`, `store/sqlstore`, `polaristest`, `agent`, `cli`, `verify`,
+  `telemetry/otel`, `model`, `schema`, `plugins/*`) are unchanged.
+
+**Interfaces: implemented or called.** "The plugin SDK may grow" needed a rule tools agree with,
+because adding a method to an interface breaks whoever implements it.
+
+- Every exported interface is one a host or a plugin may implement (`wiring.Plugin` and its
+  optional interfaces, `endpoint.Endpoint`, `pipeline.BearerResolver`, `mfa.FactorType`,
+  `event.Dispatcher`, the ports, `store.Adapter`, the plugins' own ports). They are frozen: no
+  method is added in v1. A capability is added as a new optional interface found by type
+  assertion (`security.HashChecker`, `wiring.AccessEraser`).
+- Except the ten service interfaces of `wiring`: `Identity`, `Sessions`, `MFA`, `Orgs`,
+  `Denylist`, `Catalog`, `Resolver`, `Gate`, `Principals`, `Pepper`. Polaris implements them and
+  plugins only call them. They now carry an unexported method (`sealed()`), so no other package
+  can implement one, and `apidiff` and `gorelease` then treat an added method as compatible, which
+  is what "may grow" means. The `Graph` accessors return a small wrapper that embeds the concrete
+  service and adds that method. A test double embeds the interface.
+
+**`make apicheck`.** It runs `apidiff` over the whole module (`-m`; `internal/` is left out by
+the tool, the `main` packages by the script) against `BASE`, the latest tag by default and the
+pull request's base in CI. `scripts/api-stable.txt` is gone. Before v1.0.0 (the base's latest tag
+is v0.x) an incompatible change passes only when `docs/decisions.md` gains a line containing
+"Breaking". Once the base's latest tag is v1.0.0 or later it is refused, whatever the decisions
+say; the one exception is a module path that changed (`/v2`), where there is nothing to compare.
+`APICHECK_TAG=v1.0.0 make apicheck BASE=origin/main` on this branch shows the refusal.
+
+**API.md** is rewritten as the promise: what is covered, what a user must do for it to hold
+(keyed literals, no implementation of sealed interfaces, `errors.Is`, a `default` in switches),
+and the deprecation policy: add and mark `// Deprecated:` in 1.x, keep working for all of v1,
+remove only in v2.
+
+**Verified.** `testdata/thirdparty/notes` is a plugin written as a third party would: its own
+module, a table, three routes from its own embedded specs, a permission, an erasure listener, a
+bearer resolver, an MFA factor type, `AccessEraser`, and every narrow service of the `Graph`.
+`TestAThirdPartyPluginBuildsOutsideTheModule` type-checks it in a temporary directory against the
+checkout through a `replace` directive on every `make qa`, and checks that the same module cannot
+import `internal/services`. Its own test, run the same way with `go test`, boots it with
+`polaristest`: sign-in through `wiring.Identity.Login`, a note written with a session, the
+plugin's credential resolved, the user's notes erased with the account. The in-tree plugins'
+sources needed no change: they compile against the public halves, which is the check that nothing
+a plugin uses was moved. `TestGraphAccessorsReturnOnlyPublicTypes` replaces
+`TestGraphAccessorsReturnOnlyStableTypes`. `make qa` and the contract fixtures are unchanged and
+green: no route, schema or stored format is touched.
+
+Not decided here. The in-tree plugins import some internal packages (`internal/apispec` for
+their embedded route specs, `internal/maintenance` for `EraseOnUserDeleted` and `PruneExpired`,
+`internal/netguard`, `internal/version`; `mcp` and `ui` also `internal/httpapi` and
+`internal/jwtverify`). None is needed to write a plugin (the third-party plugin erases with a
+plain listener), and each can be made public later without a break; making them public now would
+promise them.
+
+Breaking (pre-1.0): the 90 names above leave the public packages `identity`, `session`, `mfa`,
+`orgs`, `authz` and `notify` (CHANGELOG lists each); `wiring`'s ten service interfaces gain an
+unexported method and can no longer be implemented outside `wiring`. Nothing a host imports per
+API.md §1 or a plugin per §2 is removed.
+
+Security review (rule 6): `identity`, `session`, `mfa` and `authz` code moved without a change to
+a check, a comparison or a token path; the diff of each moved file is its package path and the
+declarations lifted to the public package. The sealing wrappers embed the same service values the
+accessors returned. The gate adapter of the pipeline now goes through `Graph.Gate()`, the same
+`*authz.Gate`.

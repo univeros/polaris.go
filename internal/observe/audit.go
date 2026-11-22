@@ -1,6 +1,6 @@
 // Package observe has the observability listeners of the core events (docs/auth/events.md): the
 // audit trail written to auth_audit_log and the event counter. Subscribe them to the event.Bus
-// next to notify.Listener. Both fail open: losing an audit row or a metric never breaks the
+// next to Mail. Both fail open: losing an audit row or a metric never breaks the
 // operation that already happened.
 package observe
 

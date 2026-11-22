@@ -7,7 +7,7 @@
 // (testdata/vectors holds the known-answer vectors).
 //
 // Package token is part of the plugin SDK (wiring, endpoint, manifest, event, token): what a
-// third-party plugin builds on. API.md states what is stable.
+// third-party plugin builds on. API.md is the API promise.
 package token
 
 import (

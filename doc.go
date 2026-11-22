@@ -19,6 +19,6 @@
 // ErrInvalidCredentials.
 //
 // Plugin authors use the plugin SDK: packages wiring (Plugin, the read-only Graph), endpoint,
-// manifest, event and token. API.md states what is stable in v0.x; llms.txt is the one-page
+// manifest, event and token. API.md is the API promise; llms.txt is the one-page
 // integration guide.
 package polaris

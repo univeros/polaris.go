@@ -11,10 +11,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/identity"
+	"github.com/univeros/polaris.go/internal/orgs"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
-	"github.com/univeros/polaris.go/orgs"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/token"
 	"github.com/univeros/polaris.go/wiring"

@@ -318,7 +318,7 @@ func TestEveryAccountIsCreatedThroughInsertUser(t *testing.T) {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return err
 		}
-		if path == filepath.Join("identity", "accounts.go") || strings.HasPrefix(path, "repository"+string(filepath.Separator)) ||
+		if path == filepath.Join("internal", "identity", "accounts.go") || strings.HasPrefix(path, "repository"+string(filepath.Separator)) ||
 			strings.HasPrefix(path, filepath.Join("store", "storetest")) { // the adapter conformance suite
 
 			return nil
