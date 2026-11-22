@@ -28,38 +28,32 @@ const (
 // challenge and dispatches event.UserRegistered carrying the plaintext token for the mailer
 // displayName "" stores none.
 //
-// An address registered before and never verified is registered again (registerAgain): nobody
-// proved that mailbox, so the earlier registration does not hold it.
+// An address that has an account nobody verified is registered again (registerAgain): nobody
+// proved that mailbox, so no registration holds it.
 //
-// A password failing the policy returns a *PasswordError. Any other taken email returns nil
-// without creating anything or dispatching an event, after hashing the password anyway, so the
-// response and its timing match the account-created path. That includes losing a race with a
-// concurrent registration of the same address (the unique index refuses the second insert).
+// A password failing the policy returns a *PasswordError. A verified or disabled account's email
+// returns nil without changing anything or dispatching an event. Every path costs one Argon2id
+// computation, so the response and its timing match the account-created path. That includes
+// losing a race with a concurrent registration of the same address (the unique index refuses the
+// second insert).
 func (s *Service) Register(ctx context.Context, email, password, displayName string, client token.ClientContext) error {
 	if err := enforce(ctx, s.policy, password); err != nil {
 		return err
 	}
 	email = NormalizeEmail(email)
 	existing, err := s.repos.Users.ByEmail(ctx, email)
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+	if err == nil {
+		return s.registerAgain(ctx, existing, password, client)
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
 		return fmt.Errorf("identity: register: %w", err)
 	}
-	taken := err == nil
 
-	hash, err := s.hasher.Hash(password) // on every path: the answer's timing does not say which
+	hash, err := s.hasher.Hash(password)
 	if err != nil {
 		return fmt.Errorf("identity: register: %w", err)
 	}
 	now := s.now()
-	if taken {
-		// A verified account is its owner's; one without a password was not made by registering
-		// (a directory, a provider) and its owner proves the mailbox by reset; a disabled one
-		// stays disabled.
-		if existing.EmailVerifiedAt != nil || existing.PasswordHash == nil || existing.Status == model.UserStatusDisabled {
-			return nil
-		}
-		return s.registerAgain(ctx, existing, hash, displayName, client, now)
-	}
 	user := model.User{
 		ID: repository.NewID(), Email: email, PasswordHash: &hash, DisplayName: optional(displayName),
 		Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now,
@@ -84,30 +78,49 @@ func (s *Service) Register(ctx context.Context, email, password, displayName str
 	return nil
 }
 
-// registerAgain is a registration of an address whose account nobody verified. The new
-// registration takes the account: its password and display name replace the stored ones, what the
-// earlier registrant could act with goes (factors, the plugins' access rows, sessions: dropAccess),
-// the outstanding verification tokens die and a new one, for the new password, is sent. Otherwise
-// the password of whoever registered an address first would be the one its owner's click confirms.
-// The update is conditional, so a verification that won the race keeps its account.
-func (s *Service) registerAgain(ctx context.Context, user model.User, hash, displayName string, client token.ClientContext, now time.Time) error {
+// registerAgain is a registration of an address that has an account. A verified account is its
+// owner's and a disabled one stays disabled: nothing happens. For an account nobody verified, a
+// new verification message is sent (the earlier tokens die), and:
+//
+//   - the password is the one the account has: the same person registered twice, nothing changes;
+//   - the account has another password: two parties registered the address and only the mailbox
+//     can tell which is its owner, so neither password is kept. The stored one is removed with
+//     what its holder could act with (factors, the plugins' access rows, sessions: dropAccess) and
+//     the new one is not stored; the verification message is then a plain proof of the mailbox,
+//     and its owner sets a password by reset. Keeping either password would let whoever did not
+//     own the mailbox have theirs confirmed by the owner's click, in one order or the other;
+//   - the account has no password (a directory or a provider created it): nothing changes, and the
+//     message is the mailbox's first proof (ProveEmail), which ends that party's hold.
+//
+// The removal is conditional on the account being unverified, so a verification that won the race
+// keeps its account.
+func (s *Service) registerAgain(ctx context.Context, user model.User, password string, client token.ClientContext) error {
+	open := user.EmailVerifiedAt == nil && user.Status != model.UserStatusDisabled
+	same := open && user.PasswordHash != nil && s.hasher.Verify(password, *user.PasswordHash)
+	if !open || user.PasswordHash == nil {
+		_, _ = s.hasher.Hash(password) // one Argon2id on every path (timing parity); the result is unused
+	}
+	if !open {
+		return nil
+	}
+	now := s.now()
+	contested := user.PasswordHash != nil && !same
 	var secret string
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
-		data := store.Data{"password_hash": hash, "display_name": store.Nullable(optional(displayName)),
-			"failed_login_count": 0, "failed_login_at": nil, "locked_until": nil, "updated_at": now}
-		if user.Status == model.UserStatusLocked {
-			data["status"] = model.UserStatusActive
-		}
-		claimed, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": user.ID, "email_verified_at": nil}, data)
-		if err != nil || claimed != 1 {
-			return err
+		next := user
+		if contested {
+			claimed, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": user.ID, "email_verified_at": nil},
+				store.Data{"password_hash": nil, "display_name": nil, "updated_at": now})
+			if err != nil || claimed != 1 {
+				return err
+			}
+			next.PasswordHash = nil
 		}
 		if _, err := s.repos.EmailVerifications.DeleteByUser(ctx, user.ID); err != nil {
 			return err
 		}
-		next := user
-		next.PasswordHash = &hash
-		if secret, err = s.insertVerification(ctx, next, client, now); err != nil {
+		var err error
+		if secret, err = s.insertVerification(ctx, next, client, now); err != nil || !contested {
 			return err
 		}
 		return s.dropAccess(ctx, user.ID) // last: it revokes sessions, which a rollback cannot undo

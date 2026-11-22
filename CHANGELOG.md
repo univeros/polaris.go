@@ -83,13 +83,16 @@ Account provisioning and email proof (decision 74). Upgrade; no schema change.
   before this release are not changed.
 - core, passwordless: a reset or verification token, and a passwordless `verify-email` or
   `reset-password` code, is refused once the account has left the address it was sent to.
-- core: `POST /auth/register` for an address that has an unverified account with a password
-  replaces that registration: its password and display name are stored, the earlier registrant's
-  sessions, factors and keys are removed, the earlier verification tokens stop working and a new
-  message is sent. **Client-visible:** same 202; a second `user.registered` event for the same
-  user; the verification token is longer (`<nonce>.<binding>`, 76 characters, still opaque) and
-  confirms only the password it was issued with: after a password change on an unverified account,
-  request a new message. Tokens already sent keep working until they expire.
+- core: `POST /auth/register` for an address whose account nobody verified sends a new
+  verification message (the earlier tokens stop working). With the password the account already
+  has, nothing else changes. With another password neither is kept: the stored password, display
+  name, sessions, factors and keys are removed, the new password is not stored, and after
+  verifying the owner sets a password with a reset. **Client-visible:** same 202; a second
+  `user.registered` event for the same user; after a contested registration the verified account
+  has no password until a reset; the verification token is longer (`<nonce>.<binding>`, 76
+  characters, still opaque) and confirms only the password it was issued with: after a password
+  change on an unverified account, request a new message. Tokens already sent keep working until
+  they expire.
 - sso: a sign-in completes only in the browser that started it. **Breaking, client-visible:**
   `POST /sso/sign-in` sets a `polaris_sso_<state>` cookie (`__Host-` prefixed, `SameSite=None;
   Secure` under https) that `/sso/callback/{providerId}` requires: call sign-in from the browser

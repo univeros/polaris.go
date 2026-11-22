@@ -9,9 +9,10 @@ import (
 	"github.com/univeros/polaris.go/model"
 )
 
-// Decision 74. An address registered and never verified is registered again by its owner: the
-// account is theirs to confirm, with their password, and what the first registrant held is gone.
-func TestASecondRegistrationOfAnUnverifiedAddressTakesItsPlace(t *testing.T) {
+// Decision 74. Two parties registered an address nobody verified: only the mailbox tells which is
+// its owner, so neither password is confirmed by the verification link, in either order, and what
+// the earlier registrant held is gone. The owner verifies and sets a password by reset.
+func TestTwoRegistrationsOfAnUnverifiedAddressConfirmNeitherPassword(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
 		lax := h.auth
 		lax.Flows.RequireVerifiedEmail = false
@@ -24,12 +25,12 @@ func TestASecondRegistrationOfAnUnverifiedAddressTakesItsPlace(t *testing.T) {
 		session := h.login(t, email)
 		h.factor(t, email)
 
-		must(t, h.svc.Register(ctx, email, newPassword, "", client))
+		must(t, h.svc.Register(ctx, email, newPassword, "Second", client))
 		regs := ofType[event.UserRegistered](h.events)
 		if len(regs) != 2 || regs[1].UserID != first.UserID || regs[1].VerificationToken == first.VerificationToken {
 			t.Fatalf("the second registration sends its own verification message: %+v", regs)
 		}
-		if u := h.user(t, email); u.EmailVerifiedAt != nil || u.DisplayName != nil || h.factors(t, email) != 0 ||
+		if u := h.user(t, email); u.EmailVerifiedAt != nil || u.PasswordHash != nil || u.DisplayName != nil || h.factors(t, email) != 0 ||
 			h.refreshes(t, session.RefreshToken) || len(erased) != 1 {
 			t.Fatalf("what the first registrant held stayed: %+v, factors %d, plugins asked %v", u, h.factors(t, email), erased)
 		}
@@ -37,31 +38,68 @@ func TestASecondRegistrationOfAnUnverifiedAddressTakesItsPlace(t *testing.T) {
 		if u := h.user(t, email); u.EmailVerifiedAt != nil {
 			t.Fatal("the first registrant's link verified the account")
 		}
+		// Whichever of the two the mailbox's owner is, the link they press confirms no password.
 		must(t, h.svc.VerifyEmail(ctx, regs[1].VerificationToken))
-		if _, err := h.svc.Login(ctx, email, password, client); !errors.Is(err, ErrInvalidCredentials) {
-			t.Fatalf("the first registrant's password was confirmed: %v", err)
+		if u := h.user(t, email); u.EmailVerifiedAt == nil || u.PasswordHash != nil {
+			t.Fatalf("the link proves the mailbox and nothing else: %+v", u)
 		}
-		if _, err := h.svc.Login(ctx, email, newPassword, client); err != nil {
+		for _, pw := range []string{password, newPassword} {
+			if _, err := h.svc.Login(ctx, email, pw, client); !errors.Is(err, ErrInvalidCredentials) {
+				t.Fatalf("a registrant's password was confirmed: %v", err)
+			}
+		}
+		const owners = "the owner's own passphrase, set by reset"
+		must(t, h.svc.ResetPassword(ctx, h.requestReset(t, email), owners, client))
+		if _, err := h.svc.Login(ctx, email, owners, client); err != nil {
 			t.Fatalf("the owner's password: %v", err)
 		}
 
 		// A verified address answers as before: nothing changes, no message.
 		must(t, h.svc.Register(ctx, email, password, "", client))
-		if _, err := h.svc.Login(ctx, email, newPassword, client); err != nil || len(ofType[event.UserRegistered](h.events)) != 2 {
+		if _, err := h.svc.Login(ctx, email, owners, client); err != nil || len(ofType[event.UserRegistered](h.events)) != 2 {
 			t.Fatalf("a registration changed a verified account: %v", err)
 		}
 	})
 }
 
-// An account a directory or a provider created has no registration to replace: registering its
-// address changes nothing (its owner proves the mailbox by reset).
-func TestRegisteringAnAddressWithoutAPasswordChangesNothing(t *testing.T) {
+// The same person registering twice (the same password) loses nothing: a new message, and the
+// link confirms the registration as before.
+func TestRegisteringAgainWithTheSamePasswordKeepsTheRegistration(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		lax := h.auth
+		lax.Flows.RequireVerifiedEmail = false
+		h.svc = h.service(t, lax)
+		first := h.register(t, email)
+		session := h.login(t, email)
+		h.factor(t, email)
+		hashes := h.hasher.hashes.Load() + h.hasher.verifies.Load()
+
+		second := h.register(t, email)
+		if h.hasher.hashes.Load()+h.hasher.verifies.Load() != hashes+1 {
+			t.Fatal("one Argon2id computation, as on every path (timing parity)")
+		}
+		isErr(t, h.svc.VerifyEmail(ctx, first), ErrInvalidVerificationToken)
+		must(t, h.svc.VerifyEmail(ctx, second))
+		if u := h.user(t, email); u.EmailVerifiedAt == nil || u.PasswordHash == nil || h.factors(t, email) != 1 || !h.refreshes(t, session.RefreshToken) {
+			t.Fatalf("a confirmed registration lost something: %+v", u)
+		}
+	})
+}
+
+// An account a directory or a provider created has no password: a registration of its address
+// changes nothing and stores no password; the message it sends is the mailbox's first proof.
+func TestRegisteringAnAddressWithoutAPasswordStoresNone(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
 		h.register(t, email)
 		h.set(t, email, func(u *model.User) { u.PasswordHash = nil })
-		must(t, h.svc.Register(ctx, email, newPassword, "", client))
-		if u := h.user(t, email); u.PasswordHash != nil || len(ofType[event.UserRegistered](h.events)) != 1 {
-			t.Fatalf("the account changed: %+v", u)
+		h.factor(t, email)
+		verification := h.register(t, email)
+		if u := h.user(t, email); u.PasswordHash != nil || u.EmailVerifiedAt != nil || h.factors(t, email) != 1 {
+			t.Fatalf("the account changed before anyone proved the mailbox: %+v", u)
+		}
+		must(t, h.svc.VerifyEmail(ctx, verification))
+		if u := h.user(t, email); u.PasswordHash != nil || u.EmailVerifiedAt == nil || h.factors(t, email) != 0 {
+			t.Fatalf("the first proof: %+v, factors %d", u, h.factors(t, email))
 		}
 	})
 }

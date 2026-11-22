@@ -2375,24 +2375,34 @@ A security review with running tests found five ways around the account boundari
     whose `email` is not the account's current one, and the passwordless `verify-email` and
     `reset-password` codes likewise (`spendFor`). Magic links and sign-in codes already resolve the
     account by the address they were sent to.
-- **A registration of an address nobody verified takes the account; a verification token confirms
-  only the password it was issued with.** A second registration of an existing unverified address
-  was dropped silently, and the verification link then confirmed the *first* registrant's password
-  (decision 68 keeps a registration's password on its own verification). Whoever registered an
-  address first had their password confirmed by the owner's click. Now `Register`, for an account
-  that is unverified, has a password and is not disabled, replaces the password hash and display
-  name, removes what the earlier registrant could act with (factors, the plugins' access rows,
-  sessions: the removal `ProveEmail` does, without marking the account verified), deletes the
-  outstanding verification tokens and sends a new one; the answer is the same 202 and every path
-  hashes the password once. The update is conditional on the account being unverified, so a
-  verification that wins the race keeps its account. The token is now `<nonce>.<binding>`, the
-  binding being 128 bits of `Pepper.Hash("email_verify_bind", nonce NUL password_hash)`;
-  `VerifyEmail` recomputes it against the account's current hash and refuses a mismatch. The stored
-  row is unchanged (the keyed hash of the whole token), so no schema change; tokens issued before
-  this release have no binding and verify as before until they expire (24 h), and none can be made
-  since the stored hash covers the whole token. An unverified account *without* a password (a
-  directory or provider created it) is not touched by a registration: its owner proves the mailbox
-  by reset or an email code, which is the full first proof.
+- **Two registrations of an address nobody verified confirm neither password; a verification
+  token confirms only the password it was issued with.** A second registration of an existing
+  unverified address was dropped silently, and the verification link then confirmed the *first*
+  registrant's password (decision 68 keeps a registration's password on its own verification).
+  Whoever registered an address first had their password confirmed by the owner's click. Letting
+  the latest registration win instead only swaps the order: whoever registers *after* the owner,
+  before the click, is confirmed. Only the mailbox tells the two apart, so `Register`, for an
+  address whose account is unverified and not disabled, always sends a new verification message
+  (the earlier tokens are deleted) and:
+  - when the password is the one the account has (the same person registering twice), changes
+    nothing else: the link confirms that registration as before;
+  - when the account has another password, keeps neither: the stored hash and display name are
+    removed with what their holder could act with (factors, the plugins' access rows, sessions:
+    the removal `ProveEmail` does, without marking the account verified) and the new password is
+    not stored. The link is then a plain proof of the mailbox (an account without a password gets
+    the full first proof), and its owner sets a password by reset;
+  - when the account has no password (a directory or a provider created it), stores none: the link
+    is the mailbox's first proof, which ends that party's hold (above).
+
+  The answer is the same 202 and every path costs one Argon2id computation (a verify where the
+  stored hash is compared, a hash elsewhere). The removal is conditional on the account being
+  unverified, so a verification that wins the race keeps its account. The token is now
+  `<nonce>.<binding>`, the binding being 128 bits of
+  `Pepper.Hash("email_verify_bind", nonce NUL password_hash)`; `VerifyEmail` recomputes it against
+  the account's current hash and refuses a mismatch, so a token never confirms a password set
+  after it was issued. The stored row is unchanged (the keyed hash of the whole token), so no
+  schema change; tokens issued before this release have no binding and verify as before until
+  they expire (24 h), and none can be made since the stored hash covers the whole token.
 - **An SSO sign-in completes only in the browser that started it.** The state lived only in the
   cache, so an attacker could start a sign-in as themselves and have a victim's browser complete it
   (login CSRF). `POST /sso/sign-in` now sets a cookie holding a random nonce the state keeps, and
@@ -2431,29 +2441,36 @@ Security review (rule 6), per item:
   tells them from the mailbox owner's): they can no longer be renamed off a verified domain, which
   is the step that moved them onto another person's address. Residual: an unverified account at an
   address its owner has not claimed yet stays the creating organization's until the owner proves
-  the mailbox (reset, email code, magic link; a plain registration of that address changes
-  nothing, by design, so that nobody can detach a directory's accounts anonymously). An
+  the mailbox (reset, email code, magic link, or the verification message a registration of that
+  address sends; the registration itself changes nothing, so nobody detaches a directory's
+  accounts anonymously). `ChangeEmail` onto a vouched address is a first proof for an unverified
+  account, with its removals. An
   organization that verified a domain speaks for every mailbox on it, as before. Tests:
   `TestADirectoryVouchesOnlyForItsOrganizationsDomains`,
   `TestTheFirstProofOfTheMailboxEndsADirectorysHoldOnTheAccount` (scim),
   `TestAProviderVouchesOnlyForItsOrganizationsDomains` (sso),
   `TestTokensSentToAnAddressDieWhenTheAccountLeavesIt` (identity),
   `TestACodeSentToAnAddressDiesWhenTheAccountLeavesIt` (passwordless); all failed before.
-- *Registration.* The second registration can be anyone's, so it is given nothing the first did
-  not have: it replaces a password nobody proved and removes access, never grants any, and the
-  account stays unverified until the mailbox answers. Accepted cost: anyone who knows an unverified
-  account's address can invalidate its password and sessions by registering it again (the holder
-  recovers by verifying or by reset); hosts with `RequireVerifiedEmail` (the default) have no
-  sessions on unverified accounts to lose. Residual, as in decision 68: the owner of a mailbox who
-  presses a verification link for a registration they did not make confirms that registrant's
-  password; with two registrations in flight the latest message is the live one. Considered and
-  not done: treating the first password reset after such a confirmation as a full first proof. It
-  would remove the MFA factors of every account that registered by form and never reset, at the
-  first reset, which lets a mailbox compromise bypass MFA; that is worse than the residual. The
-  binding compare is constant time; the binding context is not a stored format. Tests:
-  `TestASecondRegistrationOfAnUnverifiedAddressTakesItsPlace`,
+- *Registration.* A registration can be anyone's, so it is given nothing: it never sets a password
+  on an existing account and never grants access, only removes a password nobody proved, and the
+  account stays unverified until the mailbox answers. Comparing the submitted password with the
+  stored hash answers nothing to the caller (same 202, a message to the mailbox either way).
+  Accepted costs: anyone who knows an unverified account's address can remove its password and
+  sessions by registering it with another password (the holder recovers by verifying and a
+  reset; hosts with `RequireVerifiedEmail`, the default, have no sessions on unverified accounts
+  to lose); a person who registers twice with two passwords verifies and then resets; and the
+  paths differ in the writes they do after the Argon2id computation, a delta the register rate
+  limit covers as it did for the taken path. Residual, as in decision 68: the owner of a mailbox
+  who presses the link of a single, uncontested registration they did not make confirms that
+  registrant's password. Considered and not done: treating the first password reset after a
+  confirmed registration as a full first proof. It would remove the MFA factors of every account
+  that registered by form and never reset, at its first reset, which lets a mailbox compromise
+  bypass MFA; that is worse than the residual. The binding compare is constant time; the binding
+  context is not a stored format. Tests:
+  `TestTwoRegistrationsOfAnUnverifiedAddressConfirmNeitherPassword`,
   `TestAVerificationTokenConfirmsOnlyThePasswordItWasIssuedWith` (failed before),
-  `TestRegisteringAnAddressWithoutAPasswordChangesNothing`,
+  `TestRegisteringAgainWithTheSamePasswordKeepsTheRegistration`,
+  `TestRegisteringAnAddressWithoutAPasswordStoresNone`,
   `TestAVerificationTokenOfAnEarlierReleaseStillVerifies`.
 - *Browser binding.* The nonce is 128 random bits, compared in constant time, stored with the
   state (encrypted in the cache) and consumed with it; a state without one (started before the
@@ -2464,7 +2481,8 @@ Security review (rule 6), per item:
   resolved; a superadmin is exempt as everywhere. A role's permissions can grow later only through
   a role change, which the same guard covers. Providers and connections configured before this
   release keep their roles and tokens: review `jit.roles` naming `owner` or `admin`, and rotate
-  directory tokens an administrator created. Tests:
+  directory tokens an administrator created. Residual: a directory token outlives a later
+  demotion of whoever obtained it; an owner rotates or decommissions it. Tests:
   `TestAProvidersRolesStayWithinItsConfigurersAuthority`,
   `TestADirectoryIsConnectedOnlyByWhoCouldGrantEveryRole` (HTTP; both failed before).
 - *OIDC and domains.* The two OIDC checks only refuse more. Displacing an unverified claim gives

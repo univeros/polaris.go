@@ -85,8 +85,8 @@ func (s *Service) dropAccess(ctx context.Context, userID string) error {
 
 // ChangeEmail moves the account to another address for a trusted caller (a directory renaming an
 // account it owns), which decides whether the move is allowed at all. verified says whether the
-// caller vouches for the new mailbox: the account is verified when it does and unverified when it
-// does not, whatever it was before. The reset and verification tokens sent to the old address are
+// caller vouches for the new mailbox: the account is verified when it does (for an unverified one
+// that is its first proof, ProveEmail) and unverified when it does not, whatever it was before. The reset and verification tokens sent to the old address are
 // removed: a token is for the mailbox it was sent to. A taken address is ErrEmailTaken.
 func (s *Service) ChangeEmail(ctx context.Context, userID, email string, verified bool) (model.User, error) {
 	email = NormalizeEmail(email)
@@ -96,14 +96,10 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, email string, verifie
 		if err != nil {
 			return err
 		}
-		now := s.now()
 		next = user
-		next.Email, next.UpdatedAt = email, now
-		switch {
-		case !verified:
+		next.Email, next.UpdatedAt = email, s.now()
+		if !verified {
 			next.EmailVerifiedAt = nil
-		case user.EmailVerifiedAt == nil:
-			next.EmailVerifiedAt = &now
 		}
 		if err := s.repos.Users.Update(ctx, user, next); err != nil {
 			return err
@@ -111,7 +107,13 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, email string, verifie
 		if _, err := s.repos.PasswordResets.DeleteByUser(ctx, userID); err != nil {
 			return err
 		}
-		_, err = s.repos.EmailVerifications.DeleteByUser(ctx, userID)
+		if _, err := s.repos.EmailVerifications.DeleteByUser(ctx, userID); err != nil {
+			return err
+		}
+		if verified && next.EmailVerifiedAt == nil {
+			// The caller's word is the mailbox's first proof, with what a first proof removes.
+			next, _, err = s.ProveEmail(ctx, userID, false)
+		}
 		return err
 	})
 	if errors.Is(err, store.ErrDuplicate) {

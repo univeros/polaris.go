@@ -72,8 +72,9 @@ registration instead: an account with a password is marked verified and keeps ev
 
 A `verify-email` or `reset-password` code is for the address it was sent to: when the account has
 moved to another address since (a SCIM directory renamed it), the code answers
-`passwordless/code_invalid`. A new registration of an address nobody verified removes the codes
-and links pending for the earlier one (core's `POST /auth/register`).
+`passwordless/code_invalid`. A registration of an unverified address with another password than
+the account has removes that password and the codes and links pending for the account (core's
+`POST /auth/register`); a `verify-email` code then proves the mailbox and confirms no password.
 
 Opening a magic link spends nothing: email security scanners follow links with GET, so the GET
 answers a page (no JavaScript, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`) whose one

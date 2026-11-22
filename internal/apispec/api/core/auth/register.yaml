@@ -22,9 +22,11 @@ domain:
     Registers the user and triggers email verification. Always returns a generic
     202 message regardless of whether the address already exists
     (anti-enumeration); a verification email is sent for a new account, and for
-    an address registered before and never verified: the new registration takes
-    that account (its password replaces the stored one, what the earlier
-    registrant held is removed, the earlier verification tokens stop working).
+    an address whose account nobody verified (the earlier verification tokens
+    stop working). When that account has another password than the one
+    submitted, neither is kept: the stored password and what its holder had
+    (sessions, factors, keys) are removed, and after verifying the mailbox's
+    owner sets a password with a reset.
     A 422 is returned only for invalid input or a password-policy failure,
     which is about the submitted input, not account existence.
 

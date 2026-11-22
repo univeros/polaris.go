@@ -37,7 +37,7 @@ func TestRegistrationEndpoint(t *testing.T) {
 		a.c.Post("/auth/register", map[string]any{"email": authEmail, "password": authPassword})
 		authStatusIs(t, a.c.Post("/auth/register", map[string]any{"email": authEmail, "password": authPassword}), http.StatusAccepted)
 		// The answer is the same and there is one account; the address was never verified, so the
-		// second registration took the first one's place and sent its own message (decision 74).
+		// registration (the same password) sent a new message for the same account (decision 74).
 		regs := authEventsOf[event.UserRegistered](a.srv)
 		if len(regs) != 2 || regs[0].UserID != regs[1].UserID {
 			t.Fatalf("user.registered events: %+v", regs)
