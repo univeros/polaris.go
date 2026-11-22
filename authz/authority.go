@@ -131,6 +131,12 @@ func (s *Resolver) resolve(ctx context.Context, userID, organizationID string) (
 		if err != nil {
 			return Authority{}, err
 		}
+		// Only the system role (no organization) is the platform superadmin (isSuperadmin above);
+		// an organization's own role with that slug is an ordinary role and must not carry the
+		// override into the authority or the roles claim minted from it.
+		if role.Slug == RoleSuperadmin {
+			continue
+		}
 		if !slices.Contains(a.Roles, role.Slug) {
 			a.Roles = append(a.Roles, role.Slug)
 		}
