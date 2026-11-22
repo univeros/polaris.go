@@ -76,18 +76,15 @@ func Text(template string, data map[string]any) string {
 	return b.String()
 }
 
-// scalar renders a scalar v as template text: strings as is, true "1", false "", integers in
-// decimal, floats in the shortest form without an exponent. ok is false for nil and non-scalar
+// scalar renders a scalar v as template text: strings as is, booleans "true" and "false",
+// integers in decimal, floats in the shortest form without an exponent. ok is false for nil and non-scalar
 // values.
 func scalar(v any) (string, bool) {
 	switch v := v.(type) {
 	case string:
 		return v, true
 	case bool:
-		if v {
-			return "1", true
-		}
-		return "", true
+		return strconv.FormatBool(v), true
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return fmt.Sprint(v), true
 	case float32:
