@@ -25,10 +25,6 @@ var (
 	errSessionNotFound = errors.New("No live session of this device has this id.")
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
 const tableSessions = "auth_refresh_tokens"
 
 // devices holds the accounts signed in on each device. Only the SHA-256 of a device id is stored.
@@ -141,8 +137,8 @@ func (d *devices) list(ctx context.Context, deviceID, currentSessionID string) (
 			"session_id":   row.String("session_id"),
 			"user":         map[string]any{"id": u.ID, "email": u.Email, "display_name": u.DisplayName},
 			"last_method":  row.String("last_method"),
-			"signed_in_at": signedIn.UTC().Format(dateAtom),
-			"last_seen":    seen.UTC().Format(dateAtom),
+			"signed_in_at": signedIn.UTC().Format(time.RFC3339),
+			"last_seen":    seen.UTC().Format(time.RFC3339),
 			"current":      row.String("session_id") == currentSessionID,
 		})
 	}

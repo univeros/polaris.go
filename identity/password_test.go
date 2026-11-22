@@ -51,10 +51,15 @@ func TestNormalizeEmailTrimsAndLowersASCIIOnly(t *testing.T) {
 	for in, want := range map[string]string{
 		"  ADA@Example.com ":    "ada@example.com",
 		"\t\n\r\x00\x0Ba@B.c\n": "a@b.c",
-		"ÉLODIE@Example.COM":    "Élodie@example.com", // strtolower is ASCII only
+		"ÉLODIE@Example.COM":    "Élodie@example.com", // lowercasing is ASCII only
 		" a@b.c ":               " a@b.c ",            // trim does not strip Unicode spaces
 		"A\xffB@x":              "a\xffb@x",           // invalid UTF-8 kept byte for byte
 		"already@normalized.io": "already@normalized.io",
+		"\fA@B.c\f":             "\fa@b.c\f", // form feed is not trimmed
+		"İ@X.io":                "İ@x.io",    // no Unicode case mapping (İ stays)
+		"\x0B\x00\x00A@B.c":     "a@b.c",
+		"a @b.c":                "a @b.c", // inner bytes are never touched
+		"":                      "",
 	} {
 		if got := NormalizeEmail(in); got != want {
 			t.Errorf("NormalizeEmail(%q) = %q, want %q", in, got, want)

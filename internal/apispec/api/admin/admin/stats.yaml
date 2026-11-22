@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Admin\Http\StatsEndpoint
   description: >
     Totals and the last day, week and month from the audit tables (sign-ups and sign-ins from
     polaris_audit_event, active users from polaris_audit_activity). Needs read on the instance.
@@ -21,7 +20,7 @@ output:
   status: 200
   example:
     data:
-      generated_at: "2026-09-11T10:00:00+00:00"
+      generated_at: "2026-09-11T10:00:00Z"
       totals:
         users: 120
         organizations: 8

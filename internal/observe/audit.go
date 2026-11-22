@@ -7,6 +7,7 @@ package observe
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/event"
@@ -18,9 +19,6 @@ import (
 type AuditWriter interface {
 	Insert(ctx context.Context, entry model.AuditLogEntry) error
 }
-
-// dateAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
-const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // AuditLog returns the listener that persists every core event to the append-only audit log.
 // Each event maps to a whitelist: the actor, the organization, the client IP and user agent when
@@ -70,7 +68,7 @@ func auditRecord(e event.Event) (model.AuditLogEntry, bool) {
 	case event.UserLocked:
 		var until *string
 		if e.Until != nil {
-			s := e.Until.Format(dateAtom)
+			s := e.Until.UTC().Format(time.RFC3339)
 			until = &s
 		}
 		actor, ip, meta = &e.UserID, e.IP, []field{{"until", until}}

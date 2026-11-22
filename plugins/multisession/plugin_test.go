@@ -182,6 +182,13 @@ func TestPlugin(t *testing.T) {
 		if l[0].(map[string]any)["current"] != true || l[1].(map[string]any)["current"] != false {
 			t.Fatalf("current %v", l)
 		}
+		for _, item := range l {
+			for _, key := range []string{"signed_in_at", "last_seen"} {
+				if s, _ := item.(map[string]any)[key].(string); !regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$`).MatchString(s) {
+					t.Fatalf("%s is RFC 3339 UTC: %q", key, s)
+				}
+			}
+		}
 		want(t, h.send(http.MethodGet, "/multi-session/list", req{token: graceAccess}), 403, "no device")
 		want(t, h.send(http.MethodGet, "/multi-session/list", req{token: h.data(forged)["access_token"].(string), device: dev}), 403, "a session of another device")
 		want(t, h.send(http.MethodGet, "/multi-session/list", req{token: graceAccess, cookie: dev}), 200, "the cookie works as the header")

@@ -76,7 +76,7 @@ curl -s $B/api/projects -H "$H"
 
 ```sh
 curl -s -X POST $B/orgs/$ORG/invites -H "$H" -H "$J" -d '{"email":"bob@acme.test","role_slugs":["viewer"]}'
-# {"data":{"email":"bob@acme.test","expires_at":"2026-11-29T07:33:58+00:00","id":"01a2022d-13e6-…","role_slugs":["viewer"]}}
+# {"data":{"email":"bob@acme.test","expires_at":"2026-11-29T07:33:58Z","id":"01a2022d-13e6-…","role_slugs":["viewer"]}}
 # the server log: ... to=bob@acme.test template=org_invite context="map[organization_id:… token:28C7uRRe…]"
 ```
 

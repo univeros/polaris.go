@@ -16,7 +16,6 @@ input:
     default: { type: boolean, rules: [optional] }    # true makes this factor the default
 
 domain:
-  class: Polaris\Http\Auth\UpdateFactorEndpoint
   description: >
     Updates one of the authenticated user's factors. An omitted label is left
     unchanged while an empty label clears it; default=true makes the factor

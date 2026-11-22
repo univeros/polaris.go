@@ -16,7 +16,6 @@ input:
     domainId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Sso\Http\Organization\VerifyDomainEndpoint
   description: >
     Looks for the token in the DNS TXT record _polaris.<domain>, then in
     https://<domain>/.well-known/polaris-sso.txt; a verified domain stays verified. Recorded as
@@ -29,7 +28,7 @@ output:
       id: "018f..."
       domain: "acme.example"
       verified: true
-      verified_at: "2026-09-11T10:00:00+00:00"
+      verified_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: unauthorized }

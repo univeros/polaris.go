@@ -9,9 +9,9 @@ import (
 // types the success responses of the OpenAPI document. Every key of an object example is
 // required; scalars take their JSON type; the items of an array are merged, so a key missing from
 // some items is optional and a key null in some is nullable; a value null wherever it appears is a
-// nullable string; an empty array has untyped items.
+// nullable string; an empty array has untyped items; an empty object has no properties.
 //
-// The zero value is the untyped schema (encoded [], as the exported documents hold it).
+// The zero value is the untyped schema, encoded {} (any value).
 type jsonSchema struct {
 	types      []string // "object", "array" or the scalar types; empty when untyped
 	properties []property
@@ -43,9 +43,6 @@ func exampleSchema(value any) jsonSchema {
 func infer(value any) jsonSchema {
 	switch v := value.(type) {
 	case Object:
-		if len(v) == 0 { // an empty mapping is an empty list (see Object)
-			return inferList(nil)
-		}
 		s := jsonSchema{types: []string{"object"}}
 		for _, m := range v {
 			s.properties = append(s.properties, property{m.Key, infer(m.Value)})
@@ -156,7 +153,9 @@ func (s jsonSchema) object() Object {
 		for _, p := range s.properties {
 			properties = append(properties, Member{p.name, p.schema.object()})
 		}
-		o = append(o, Member{"properties", properties})
+		if len(properties) > 0 {
+			o = append(o, Member{"properties", properties})
+		}
 		if len(s.required) > 0 {
 			o = append(o, Member{"required", slices.Clone(s.required)})
 		}

@@ -48,7 +48,7 @@ func (p *Plugin) serveDeviceVerify(ctx context.Context, in *endpoint.Input) endp
 	}
 	return noStore(endpoint.Data(http.StatusOK, map[string]any{
 		"user_code": device.UserCode, "client": c.publicView(), "scopes": p.scopes.described(device.Scopes),
-		"expires_at": atom(device.ExpiresAt),
+		"expires_at": timestamp(device.ExpiresAt),
 	}))
 }
 

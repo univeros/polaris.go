@@ -8,7 +8,86 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/univeros/polaris.go/store"
 )
+
+func TestALimitIsADecimalInteger(t *testing.T) {
+	for _, v := range []any{"0", "x", 3.5, "-1", " 7 ", "7 ", "2.9", "1e2", "+3", "0x10", json.Number("2.5"), json.Number("1e2"), true,
+		"99999999999999999999"} {
+		if _, ok := positiveInt(v, DefaultLimit); ok {
+			t.Fatalf("positiveInt(%#v) accepted", v)
+		}
+	}
+}
+
+func TestProviderInputTakesJSONObjectsAndListsOnly(t *testing.T) {
+	base := func(extra map[string]any) map[string]any {
+		body := map[string]any{"type": "oidc", "name": "x", "issuer": "https://idp", "config": map[string]any{"client_id": "c"},
+			"redirect_uris": []any{"https://app.example/done"}}
+		for k, v := range extra {
+			body[k] = v
+		}
+		return body
+	}
+	for name, c := range map[string]struct {
+		extra map[string]any
+		want  string
+	}{
+		"config as a list":           {map[string]any{"config": []any{}}, "config must be an object."},
+		"config as a string":         {map[string]any{"config": "x"}, "config must be an object."},
+		"attributes as a list":       {map[string]any{"attributes": []any{}}, "attributes must map field names to claim or attribute names."},
+		"jit as a list":              {map[string]any{"jit": []any{}}, "jit must be an object."},
+		"jit.enabled as a string":    {map[string]any{"jit": map[string]any{"enabled": "yes"}}, "jit.enabled must be a boolean."},
+		"jit.roles as a string":      {map[string]any{"jit": map[string]any{"roles": "member"}}, "jit.roles must be a list of role slugs."},
+		"redirect_uris as an object": {map[string]any{"redirect_uris": map[string]any{"0": "https://app.example/done"}}, "redirect_uris must be a list of http(s) URLs."},
+	} {
+		if _, errs := providerInput(base(c.extra), nil); !slices.Contains(errs, c.want) {
+			t.Fatalf("%s: %v", name, errs)
+		}
+	}
+	if p, errs := providerInput(base(map[string]any{"attributes": map[string]any{}, "jit": map[string]any{}}), nil); errs != nil || len(p.Attributes) != 0 || p.JIT.Enabled {
+		t.Fatalf("empty objects: %+v %v", p, errs)
+	}
+}
+
+func TestProviderRowsAreStandardJSONAndOldRowsStillRead(t *testing.T) {
+	p := Provider{Type: TypeOIDC, Name: "Ünï", Config: map[string]any{"client_id": "c/é", "scopes": "openid"}, Attributes: map[string]string{},
+		RedirectURIs: []string{"https://app.example/done"}}
+	row, err := providerRow(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row["config"] != `{"client_id":"c/é","scopes":"openid"}` || row["attributes"] != `{}` || row["jit"] != `{"enabled":false,"roles":[]}` ||
+		row["redirect_uris"] != `["https://app.example/done"]` {
+		t.Fatalf("row %v", row)
+	}
+	// Rows written by earlier releases: slashes escaped, non-ASCII as \u escapes, an empty object as [].
+	old := store.Row{"id": "p1", "type": TypeSAML, "name": "Old", "issuer": "https://idp", "enabled": true,
+		"config":        `{"sso_url":"https:\/\/idp.example\/sso","certificate":"MIIC","idp_initiated":true,"x":"Ünï 😀"}`,
+		"attributes":    `[]`,
+		"jit":           `{"enabled":true,"roles":["member"]}`,
+		"redirect_uris": `["https:\/\/app.example\/done"]`,
+		"created_at":    "2026-11-20 18:32:59", "updated_at": "2026-11-20 18:32:59"}
+	got := hydrateProvider(old)
+	if got.Setting("sso_url") != "https://idp.example/sso" || !got.Flag("idp_initiated") || got.Setting("x") != "Ünï 😀" ||
+		len(got.Attributes) != 0 || !got.JIT.Enabled || !slices.Equal(got.JIT.Roles, []string{"member"}) ||
+		!slices.Equal(got.RedirectURIs, []string{"https://app.example/done"}) {
+		t.Fatalf("an old row %+v", got)
+	}
+}
+
+func TestTimestampsAreRFC3339InUTC(t *testing.T) {
+	at := time.Date(2026, 11, 20, 18, 32, 59, 0, time.FixedZone("x", 3600))
+	m := Provider{CreatedAt: at, UpdatedAt: at}.Map()
+	d := Domain{VerifiedAt: &at, CreatedAt: at}.Map()
+	for _, v := range []any{m["created_at"], m["updated_at"], d["verified_at"], d["created_at"]} {
+		if v != "2026-11-20T17:32:59Z" {
+			t.Fatalf("timestamp %v", v)
+		}
+	}
+}
 
 func TestProviderInputIsValidated(t *testing.T) {
 	if _, errs := providerInput(map[string]any{"type": "ldap"}, nil); !slices.Equal(errs, []string{"type must be saml or oidc."}) {
@@ -49,12 +128,9 @@ func TestProviderInputIsValidated(t *testing.T) {
 		patched.Attributes["email"] != "mail" || !patched.JIT.Enabled || patched.Config[secretKey] != nil || patched.Config["client_id"] != "c" {
 		t.Fatalf("patched %+v %v (the stored secret is never resealed)", patched, errs)
 	}
-	saml, errs := providerInput(map[string]any{"type": "saml", "name": "IdP", "issuer": "https://idp", "config": []any{}, "redirect_uris": []any{"https://x.example"}}, nil)
-	if !slices.Contains(errs, "config.sso_url is required.") || saml.Config == nil {
-		t.Fatalf("an empty config list: %v", errs)
-	}
-	for raw, want := range map[string]bool{"https://idp.example/sso": true, "nope": false, "javascript:alert(1)": true, "https://": false,
-		"https://a b": false, "urn:x": true, "1http://x": false} {
+	for raw, want := range map[string]bool{"https://idp.example/sso": true, "http://idp.example:8080/sso?x=1": true, "nope": false,
+		"javascript:alert(1)": false, "https://": false, "https://a b": false, "https://idp.example/a b": false, "urn:x": false,
+		"1http://x": false, "https://idp.example/\u00e9": false, "https://idp.example/\x00": false, "HTTPS://IDP.EXAMPLE": true} {
 		if validURL(raw) != want {
 			t.Fatalf("validURL(%q) != %v", raw, want)
 		}
@@ -82,33 +158,13 @@ func TestTheProblemsAndTheirTypes(t *testing.T) {
 }
 
 func TestHelpers(t *testing.T) {
-	for v, want := range map[any]int{nil: DefaultLimit, "": DefaultLimit, "5": 5, " 7 ": 7, json.Number("3"): 3, "2.9": 2} {
+	for v, want := range map[any]int{nil: DefaultLimit, "": DefaultLimit, "5": 5, json.Number("3"): 3, "500": MaxLimit} {
 		if got, ok := positiveInt(v, DefaultLimit); !ok || got != want {
 			t.Fatalf("positiveInt(%v) = %d", v, got)
 		}
 	}
-	for _, v := range []any{"0", "x", 3.5, "-1"} {
-		if _, ok := positiveInt(v, DefaultLimit); ok {
-			t.Fatalf("positiveInt(%v) accepted", v)
-		}
-	}
-	if l, ok := listOf(map[string]any{"b": 2, "a": 1}); !ok || !slices.Equal(l, []any{1, 2}) {
-		t.Fatalf("listOf %v", l)
-	}
-	if _, ok := listOf("x"); ok {
-		t.Fatal("listOf a string")
-	}
 	if !audienceHas([]any{"x", "c"}, "c") || audienceHas(5, "c") || !audienceHas("c", "c") {
 		t.Fatal("audienceHas")
-	}
-	if s, _ := escapedJSON(object{{"name", "\u00dcn\u00ef/\U0001F600"}}); s != `{"name":"\u00dcn\u00ef\/\ud83d\ude00"}` {
-		t.Fatalf("escapedJSON %s", s)
-	}
-	if s, _ := escapedJSON(object{}); s != "[]" {
-		t.Fatalf("an empty object is written [] %s", s)
-	}
-	if _, err := escapedJSON(object{{"x", make(chan int)}}); err == nil {
-		t.Fatal("an unencodable value")
 	}
 	if nonNil(nil) == nil || optional("") != nil || *optional("x") != "x" || nullable("") != nil {
 		t.Fatal("nil helpers")

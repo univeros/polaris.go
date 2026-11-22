@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"github.com/univeros/polaris.go/internal/strutil"
 )
 
 // MinAppKeyBytes is the shortest accepted APP_KEY: every key derived from it (peppers, the MFA
@@ -49,7 +51,7 @@ func SecretsFromLookup(lookup LookupFunc) (Secrets, error) {
 	v := make(map[string]string, len(secretEnv))
 	for _, key := range secretEnv {
 		raw, _ := lookup(key)
-		v[key] = strings.Trim(raw, " \t\n\r\x00\x0B") // space, tab, LF, CR, NUL, vertical tab
+		v[key] = strutil.Trim(raw)
 	}
 	s := Secrets{
 		AppKey:               v["APP_KEY"],

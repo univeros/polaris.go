@@ -63,6 +63,13 @@ proves nothing more, so it is left out: the envelope lists, and its `mfa_token` 
 other factors (and recovery codes). When no other factor is left the sign-in answers 403
 `passwordless/mfa_same_channel`: the user signs in with the password, or adds another factor.
 
+An email code or magic link sign-in, and a reset code, prove the mailbox. For an account nobody
+had proven (registered but never verified) that is the first proof (`Identity.ProveEmail`): the
+account becomes verified and what could sign in before goes, since whoever created it may not own
+the mailbox: the password (a reset then sets the new one), MFA factors, passkeys, provider links,
+API keys, OAuth grants, the confirmed phone, every session. A `verify-email` code confirms the
+registration instead: an account with a password is marked verified and keeps everything.
+
 Opening a magic link spends nothing: email security scanners follow links with GET, so the GET
 answers a page (no JavaScript, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`) whose one
 button posts back to the same URL, and that POST spends the link.
@@ -90,6 +97,9 @@ second factor delivers where the sign-in did), `…/phone_taken` (409). Go error
 - A front end that opened the magic link with a GET and expected the 302 (v0.4 and earlier) now gets
   the page: let the browser show it, or POST to the link yourself.
 - Erasing a user deletes its pending links and codes and its verified phone (`event.UserDeleted`).
+- The secrets' `data` column is written as standard JSON (`{}` when empty); rows written by earlier
+  releases (`\/`, `\uXXXX`, `[]`) still read, so links and tokens issued before an upgrade keep
+  working.
 
 ## Example
 

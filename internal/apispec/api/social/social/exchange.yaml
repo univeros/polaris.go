@@ -16,7 +16,6 @@ input:
     code: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Social\Http\ExchangeEndpoint
   description: >
     The code the callback appended to redirect_uri, valid once for 60 seconds. After a sign-in it answers
     core's login envelope (amr ["social:<provider>"]), or core's mfa_required ticket to complete at

@@ -14,7 +14,6 @@ input:
     key: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\ApiKeys\Http\VerifyEndpoint
   description: >
     For an application that proxies requests and checks keys itself: whether the key authenticates right
     now (not revoked, expired or past its rotation grace), and when it does, its owner, the user it acts

@@ -17,8 +17,10 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// blankSet is the bytes a name is trimmed of: space, tab, newline, carriage return, NUL and
-// vertical tab (not the other Unicode spaces).
+// blankSet is the bytes a key name is trimmed of: space, tab, newline, carriage return, NUL and
+// vertical tab (not the other Unicode spaces). Kept rather than strings.TrimSpace because the name
+// is stored: the same input keeps storing the same name it did in earlier releases, and NUL never
+// reaches the column.
 const blankSet = " \t\n\r\x00\x0B"
 
 const msgBadScope = `scope must be "instance" or an organization id.`
@@ -105,7 +107,7 @@ func (p *Plugin) stats(ctx context.Context, _ *endpoint.Input) endpoint.Result {
 		return out
 	}
 	data := map[string]any{
-		"generated_at": now.Format(dateAtom),
+		"generated_at": timestamp(now),
 		"totals": map[string]any{
 			"users":           count("auth_users", store.Criteria{}),
 			"organizations":   count("auth_organizations", store.Criteria{"status": model.OrganizationStatusActive}),

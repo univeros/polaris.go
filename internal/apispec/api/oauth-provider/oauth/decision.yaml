@@ -15,7 +15,6 @@ input:
     approve: { type: "?boolean", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\DecisionEndpoint
   description: >
     The signed-in user decides on the parked request: approve true records the consent (scopes
     remembered for the client), mints the code and answers the redirect URI with code, state and iss

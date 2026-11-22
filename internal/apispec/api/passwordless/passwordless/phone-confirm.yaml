@@ -17,7 +17,6 @@ input:
     code: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Passwordless\Http\PhoneConfirmEndpoint
   description: >
     Spends the code POST /phone/add sent to the caller and makes the number the caller's verified
     phone (replacing the one they had). Each number belongs to one account.

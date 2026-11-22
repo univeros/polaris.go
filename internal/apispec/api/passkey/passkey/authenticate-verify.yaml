@@ -16,7 +16,6 @@ input:
     credential: { type: object, rules: [required] }   # the PublicKeyCredential JSON (credential.toJSON()), or its string
 
 domain:
-  class: Polaris\Passkey\Http\AuthenticateVerifyEndpoint
   description: >
     Verifies the assertion against its challenge, the relying party, the allowed origins, the stored
     public key and the signature counter, and answers core's login envelope (amr ["passkey"]). An

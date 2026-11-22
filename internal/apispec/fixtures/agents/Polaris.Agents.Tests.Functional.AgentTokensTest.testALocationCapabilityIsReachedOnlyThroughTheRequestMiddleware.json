@@ -482,7 +482,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "\"invite\" runs at its location, https://host.polaris.test/invite, not here.",
                 "error": "capability_not_granted",

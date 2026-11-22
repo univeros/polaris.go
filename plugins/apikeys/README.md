@@ -46,6 +46,9 @@ Every field is optional; the zero value is the defaults.
 Create body: `name` (required, ≤ 80), `permissions` (subset of what the caller holds in the active
 organization), `organization_id` (makes it the organization's key; needs `org.update`), `environment`
 (`live`/`test`), `rate_limit` (`{"window": seconds, "max": requests}`), `expires_at`, `metadata`.
+Each is read as its JSON type: `name` a string, `permissions` a list, `rate_limit` and `metadata`
+objects (`[]` is refused); anything else is 422 `invalid_input`. Times are answered in RFC 3339, UTC
+(`2026-11-22T10:00:00Z`); `expires_at` accepts any RFC 3339 offset.
 
 ## Events and permissions
 

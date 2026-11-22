@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -13,24 +14,20 @@ import (
 // them.
 var RuleNames = []string{"required", "optional", "string", "email", "max", "in", "regex", "password_policy", "e164", "suspended"}
 
-// e164 is /^\+[1-9]\d{1,14}$/ with PCRE's "$" (a final newline passes).
-var e164 = func() *regexp.Regexp {
-	re, err := compilePCRE(`/^\+[1-9]\d{1,14}$/`)
-	if err != nil {
-		panic(err)
-	}
-	return re
-}()
+// e164 is a "+", a non-zero digit and 1 to 14 more digits, nothing after.
+var e164 = regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
 
 // Rule is one parsed rule: a name and an optional argument after the first colon ("max:320",
 // "in:totp,sms", "regex:/^[a-z0-9-]+$/").
 type Rule struct {
 	text, name, arg string
+	limit           int            // the argument of a max rule
 	re              *regexp.Regexp // compiled argument of a regex rule
 }
 
 // ParseRule parses one rule, failing on an unknown name, a max, in or regex rule without an
-// argument, or a regex rule whose pattern Go cannot compile.
+// argument, a max rule whose argument is not a whole number of characters ("max:320"), or a
+// regex rule whose pattern Go cannot compile.
 func ParseRule(text string) (Rule, error) {
 	name, arg, _ := strings.Cut(text, ":")
 	if !slices.Contains(RuleNames, name) {
@@ -40,8 +37,15 @@ func ParseRule(text string) (Rule, error) {
 		return Rule{}, fmt.Errorf("Rule %q needs an argument.", name)
 	}
 	rule := Rule{text: text, name: name, arg: arg}
+	if name == "max" {
+		n, err := strconv.Atoi(arg)
+		if err != nil || arg[0] < '0' || arg[0] > '9' {
+			return Rule{}, fmt.Errorf("Rule %q needs a whole number of characters (\"max:320\").", text)
+		}
+		rule.limit = n
+	}
 	if name == "regex" {
-		re, err := compilePCRE(arg)
+		re, err := compileDelimited(arg)
 		if err != nil {
 			return Rule{}, fmt.Errorf("Rule %q: %w", text, err)
 		}
@@ -109,8 +113,7 @@ func (r Rule) check(field string, present bool, value any) (string, bool) {
 	case "email":
 		return field + " must be a valid email address.", isString && IsEmail(s)
 	case "max":
-		limit := leadingInt(r.arg)
-		return fmt.Sprintf("%s must be at most %d characters.", field, limit), isString && utf8.RuneCountInString(s) <= limit
+		return fmt.Sprintf("%s must be at most %d characters.", field, r.limit), isString && utf8.RuneCountInString(s) <= r.limit
 	case "in":
 		return fmt.Sprintf("%s must be one of %s.", field, r.arg), isString && slices.Contains(strings.Split(r.arg, ","), s)
 	case "regex":
@@ -121,27 +124,12 @@ func (r Rule) check(field string, present bool, value any) (string, bool) {
 	return "", true
 }
 
-// leadingInt is the integer s starts with (after ASCII whitespace and an optional sign), 0 when
-// there is none: "max:10abc" limits to 10.
-func leadingInt(s string) int {
-	s = strings.TrimLeft(s, " \t\n\r\v\f")
-	n, sign, i := 0, 1, 0
-	if i < len(s) && (s[i] == '+' || s[i] == '-') {
-		if s[i] == '-' {
-			sign = -1
-		}
-		i++
-	}
-	for ; i < len(s) && s[i] >= '0' && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i]-'0')
-	}
-	return sign * n
-}
-
-// compilePCRE compiles a delimited PCRE-style pattern ("/^[a-z]+$/i") with Go's regexp: the delimiters and
-// the i, m, s, U, u and D modifiers are honoured, and without m or D a "$" also matches before a
-// final newline, as in PCRE. Constructs RE2 lacks (lookaround, backreferences) fail to compile.
-func compilePCRE(pattern string) (*regexp.Regexp, error) {
+// compileDelimited compiles a regex rule's delimited pattern ("/^[a-z]+$/i") with Go's regexp, with
+// Go's semantics: "$" is the end of the text unless the m modifier makes it the end of a line. The
+// modifiers i, m, s and U set the flags of the same names; u and D are accepted and change nothing
+// (patterns are UTF-8, and "$" already matches only at the end). Constructs RE2 lacks (lookaround,
+// backreferences) fail to compile.
+func compileDelimited(pattern string) (*regexp.Regexp, error) {
 	if pattern == "" {
 		return nil, fmt.Errorf("empty pattern")
 	}
@@ -170,52 +158,18 @@ func compilePCRE(pattern string) (*regexp.Regexp, error) {
 		return nil, fmt.Errorf("no ending delimiter %q found", closing)
 	}
 	body, modifiers := pattern[1:end], pattern[end+1:]
-	flags, dollarEndOnly := "", false
+	flags := ""
 	for _, m := range modifiers {
 		switch m {
 		case 'i', 'm', 's', 'U':
 			flags += string(m)
-		case 'D':
-			dollarEndOnly = true
-		case 'u':
+		case 'u', 'D':
 		default:
 			return nil, fmt.Errorf("unsupported modifier %q", m)
 		}
-	}
-	if !dollarEndOnly && !strings.ContainsRune(flags, 'm') {
-		body = pcreDollar(body)
 	}
 	if flags != "" {
 		body = "(?" + flags + ")" + body
 	}
 	return regexp.Compile(body)
-}
-
-// pcreDollar rewrites every "$" anchor outside a character class to also match before a final
-// newline.
-func pcreDollar(body string) string {
-	var b strings.Builder
-	inClass := false
-	for i := 0; i < len(body); i++ {
-		c := body[i]
-		switch {
-		case c == '\\' && i+1 < len(body):
-			b.WriteString(body[i : i+2])
-			i++
-		case c == '[' && !inClass:
-			inClass = true
-			// A "]" right after "[" or "[^" is a literal member, not the end of the class.
-			lead := len(body[i:]) - len(strings.TrimPrefix(strings.TrimPrefix(body[i+1:], "^"), "]")) - 1
-			b.WriteString(body[i : i+lead+1])
-			i += lead
-		case c == ']' && inClass:
-			inClass = false
-			b.WriteByte(c)
-		case c == '$' && !inClass:
-			b.WriteString(`(?:\n?\z)`)
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String()
 }

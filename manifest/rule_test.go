@@ -107,17 +107,17 @@ func TestValidateValueKinds(t *testing.T) {
 		{[]string{"max:3"}, "äöü", ""},
 		{[]string{"max:3"}, "äöüx", "f must be at most 3 characters."},
 		{[]string{"max:3"}, float64(1), "f must be at most 3 characters."},
-		{[]string{"max:3abc"}, "abcd", "f must be at most 3 characters."},
-		{[]string{"max:abc"}, "a", "f must be at most 0 characters."},
 		{[]string{"in:a, b"}, " b", ""},
 		{[]string{"in:a,b"}, "b ", "f must be one of a,b."},
 		{[]string{"in:1,2"}, float64(1), "f must be one of 1,2."},
-		{[]string{"regex:/^[a-z]+$/"}, "abc\n", ""}, // PCRE "$" also matches before a final newline
+		{[]string{"regex:/^[a-z]+$/"}, "abc\n", "f has an invalid format."}, // "$" is the end of the text
 		{[]string{"regex:/^[a-z]+$/D"}, "abc\n", "f has an invalid format."},
+		{[]string{"regex:/^[a-z]+$/m"}, "abc\n", ""}, // multi-line: "$" is an end of line
 		{[]string{"regex:/^[a-z]+$/i"}, "ABC", ""},
 		{[]string{"regex:#^a/b$#"}, "a/b", ""},
 		{[]string{"regex:/^[a-z]+$/"}, true, "f has an invalid format."},
-		{[]string{"e164"}, "+15551234567\n", ""}, // the pattern has no D modifier
+		{[]string{"e164"}, "+15551234567\n", "f must be an E.164 phone number."},
+		{[]string{"e164"}, "+15551234567", ""},
 		{[]string{"e164"}, "+0555", "f must be an E.164 phone number."},
 		{[]string{"email"}, float64(1), "f must be a valid email address."},
 		{[]string{"password_policy", "suspended", "optional"}, "x", ""},
@@ -140,9 +140,51 @@ func TestValidateValueKinds(t *testing.T) {
 }
 
 func TestParseRuleRegexDelimiters(t *testing.T) {
-	for _, text := range []string{"regex:abc", "regex:/abc", "regex:/abc/q", "regex:/(?<=a)b/"} {
+	for _, text := range []string{"regex:abc", "regex:/abc", "regex:/abc/q", "regex:/(?<=a)b/", "max:3abc", "max:abc", "max:-1", "max:+3", "max: 3"} {
 		if _, err := ParseRule(text); err == nil {
 			t.Errorf("%s: want an error", text)
+		}
+	}
+}
+
+// TestEmailRuleEdgeCases pins the edges of Polaris's email rule. The accepted set is a contract:
+// a narrower rule would lock out accounts whose addresses passed it, a wider one would let in
+// addresses that never did. The case of letters never matters to the rule (stored addresses are
+// lowercased by identity.NormalizeEmail, which never changes what the rule accepts).
+func TestEmailRuleEdgeCases(t *testing.T) {
+	long := func(c string, n int) string { return strings.Repeat(c, n) }
+	for in, want := range map[string]bool{
+		"ADA@EXAMPLE.COM":            true,
+		"a+tag@b.co":                 true,
+		"a.b.c@d.e":                  true,
+		`""@b.co`:                    true,  // an empty quoted local part
+		`"a b"@b.co`:                 false, // a space inside quotes must be escaped
+		"a@[1.2.3.4]":                true,
+		"a@[01.2.3.4]":               false, // no leading zeros in an IPv4 literal
+		"a@[IPV6:::1]":               true,  // the IPv6 tag in any case
+		"a@[::1]":                    false, // an IPv6 literal needs its tag
+		"postmaster@[IPv6:0::0]":     true,
+		" ada@example.com":           false, // nothing is trimmed: callers trim first
+		"ada@example.com ":           false,
+		"ada@example.com\r\n":        false,
+		"ada@example.com\x00":        false,
+		"a@b..com":                   false,
+		"a@b-.com":                   false,
+		"a@-b.com":                   false,
+		"a@b":                        false, // one label is not a host name
+		"a@b.com.":                   false,
+		"a@xn--.com":                 false,
+		"a@B_C.com":                  false,
+		"a(comment)@b.co":            false, // no comments
+		"é@b.co":                     false, // ASCII only
+		"a@münchen.de":               false, // IDNs in their xn-- form only
+		long("a", 64) + "@b.co":      true,
+		long("a", 65) + "@b.co":      false,
+		"a@" + long("b", 63) + ".co": true,
+		"a@" + long("b", 64) + ".co": false,
+	} {
+		if got := IsEmail(in); got != want {
+			t.Errorf("IsEmail(%q) = %v, want %v", in, got, want)
 		}
 	}
 }

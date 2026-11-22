@@ -73,7 +73,7 @@ Under `polaris.Config.PathPrefix` + `/auth/ui` (`ui.Prefix`):
 | `/mfa` | the factors of the sign-in under way | `POST /auth/mfa/challenge` (send a code), `/auth/mfa/verify` (a code or a recovery code) |
 | `/sign-up` | the form | `POST /auth/register`, then `/check-email` whatever the outcome |
 | `/check-email` | paste the code, or ask again | `POST /auth/email/verify/resend` |
-| `/verify` | `?token=` verifies at once; else the form | `POST /auth/email/verify` |
+| `/verify` | `?token=` from the email: a page with one button (opening the link verifies nothing, mail scanners follow links); else the form for the code | `POST /auth/email/verify` |
 | `/forgot` | the form | `POST /auth/password/forgot`; the same answer for every address |
 | `/reset` | `?token=` from the email, or paste the code | `POST /auth/password/reset`; every session ends |
 | `/sign-out` | a confirmation | `POST /auth/logout`, the cookies cleared |
@@ -110,6 +110,13 @@ A sign-in opens core's session (the same refresh-token family, rotation and reus
 
 `RequireSignIn` turns the 401 of a GET or HEAD into a redirect to `/refresh`, which renews the
 session or asks for a sign-in, then returns to the same URL.
+
+`/refresh` rotates the refresh token on a GET, so it renews only when the browser says the
+navigation is its user's or this origin's (`Sec-Fetch-Site: same-origin` or `none`, or no such
+header). A navigation another site started (a link or redirect from elsewhere, `cross-site` or
+`same-site`) gets a page with one "Continue" link (messages `refresh_title`, `refresh_intro`);
+following it renews the session. Without this, another site could send the browser here twice with
+the same cookie, which reads as a reused refresh token and ends the session.
 
 ## Security notes
 

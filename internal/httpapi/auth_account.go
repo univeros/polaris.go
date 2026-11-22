@@ -3,9 +3,11 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"unicode/utf8"
+
+	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/internal/strutil"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/identity"
@@ -38,8 +40,8 @@ func authPolicy(err error) (endpoint.Result, bool) {
 }
 
 func (a *authAPI) register(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := authTrim(authString(in, "email"))
-	password := authString(in, "password")
+	email := strutil.Trim(in.String("email"))
+	password := in.String("password")
 	if email == "" || password == "" {
 		return endpoint.Unprocessable([]string{"An email and password are required."})
 	}
@@ -47,7 +49,7 @@ func (a *authAPI) register(ctx context.Context, in *endpoint.Input) endpoint.Res
 		return endpoint.Unprocessable([]string{authInvalidEmail})
 	}
 	displayName, _ := in.Value("display_name").(string)
-	displayName = authTrim(displayName)
+	displayName = strutil.Trim(displayName)
 	if utf8.RuneCountInString(displayName) > authDisplayNameMax {
 		return endpoint.Unprocessable([]string{"The display name is too long."})
 	}
@@ -61,7 +63,7 @@ func (a *authAPI) register(ctx context.Context, in *endpoint.Input) endpoint.Res
 }
 
 func (a *authAPI) verifyEmail(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	secret := authTrim(authString(in, "token"))
+	secret := strutil.Trim(in.String("token"))
 	if secret == "" {
 		return endpoint.Unprocessable([]string{"A verification token is required."})
 	}
@@ -75,7 +77,7 @@ func (a *authAPI) verifyEmail(ctx context.Context, in *endpoint.Input) endpoint.
 }
 
 func (a *authAPI) resendVerification(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := authTrim(authString(in, "email"))
+	email := strutil.Trim(in.String("email"))
 	if email == "" || !manifest.IsEmail(email) {
 		return endpoint.Unprocessable([]string{authInvalidEmail})
 	}
@@ -86,7 +88,7 @@ func (a *authAPI) resendVerification(ctx context.Context, in *endpoint.Input) en
 }
 
 func (a *authAPI) forgotPassword(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := authTrim(authString(in, "email"))
+	email := strutil.Trim(in.String("email"))
 	if email == "" || !manifest.IsEmail(email) {
 		return endpoint.Unprocessable([]string{authInvalidEmail})
 	}
@@ -97,8 +99,8 @@ func (a *authAPI) forgotPassword(ctx context.Context, in *endpoint.Input) endpoi
 }
 
 func (a *authAPI) resetPassword(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	secret := authTrim(authString(in, "token"))
-	newPassword := authString(in, "new_password")
+	secret := strutil.Trim(in.String("token"))
+	newPassword := in.String("new_password")
 	if secret == "" || newPassword == "" {
 		return endpoint.Unprocessable([]string{"A token and new password are required."})
 	}
@@ -120,8 +122,8 @@ func (a *authAPI) changePassword(ctx context.Context, in *endpoint.Input) endpoi
 	if !ok {
 		return endpoint.Unauthorized()
 	}
-	current := authString(in, "current_password")
-	newPassword := authString(in, "new_password")
+	current := in.String("current_password")
+	newPassword := in.String("new_password")
 	if current == "" || newPassword == "" {
 		return endpoint.Unprocessable([]string{"The current and new passwords are required."})
 	}

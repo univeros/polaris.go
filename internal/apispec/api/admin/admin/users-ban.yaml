@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Users\BanUserEndpoint
   description: >
     Disables the account and ends every session (core's disable); banning yourself is refused.
     Needs manage; recorded as admin.user_banned.

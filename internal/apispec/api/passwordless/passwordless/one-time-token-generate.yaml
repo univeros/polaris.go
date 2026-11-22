@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Passwordless\Http\OneTimeTokenGenerateEndpoint
   description: >
     A token valid once for 3 minutes; POST /one-time-token/verify turns it into a new session that
     inherits this one's amr, mfa, auth_time and organization. Only a live session may generate one

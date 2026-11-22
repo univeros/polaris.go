@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Mfa\ListFactorsEndpoint
   description: >
     The factors without their secrets or destinations. Needs read.
 
@@ -26,9 +25,9 @@ output:
         type: "totp"
         label: "Phone"
         is_default: true
-        confirmed_at: "2026-09-11T10:00:00+00:00"
+        confirmed_at: "2026-09-11T10:00:00Z"
         last_used_at: null
-        created_at: "2026-09-11T10:00:00+00:00"
+        created_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: admin_unauthorized }

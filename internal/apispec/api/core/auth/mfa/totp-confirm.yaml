@@ -16,7 +16,6 @@ input:
     code: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Auth\TotpConfirmEndpoint
   description: >
     Verifies the authenticator code against the named pending TOTP factor and
     marks it confirmed. When this is the user's FIRST confirmed factor, the

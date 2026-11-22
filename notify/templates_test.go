@@ -54,7 +54,7 @@ func TestScalarsRenderAsTextAndOthersAsJSON(t *testing.T) {
 		"b_true": true, "c_false": false, "d_float": 1.5, "e_whole": 2.0, "f_int64": int64(-7),
 		"g_nil": nil, "h_list": []string{"x/y", "<z>"}, "i_uint": uint8(3),
 	})
-	want := "Notification: custom\nb_true: 1\nc_false: \nd_float: 1.5\ne_whole: 2\nf_int64: -7\ng_nil: null\nh_list: [\"x/y\",\"<z>\"]\ni_uint: 3\n"
+	want := "Notification: custom\nb_true: true\nc_false: false\nd_float: 1.5\ne_whole: 2\nf_int64: -7\ng_nil: null\nh_list: [\"x/y\",\"<z>\"]\ni_uint: 3\n"
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}

@@ -2,6 +2,7 @@ package mfa
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -86,6 +87,48 @@ func (s *Service) Verify(ctx context.Context, userID, factorID, code string, pur
 	return factorID, nil
 }
 
+// verifyCounted is Verify behind the per-user attempt limit of the gate and step-up: every
+// attempt is counted before its code is checked, and one that clears resets the count. After
+// auth.lockout.max_attempts attempts that did not clear, every code (a right one, a recovery code)
+// is refused as ErrInvalidOTP, checked against nothing, until auth.lockout.lock_duration has
+// passed since the first of them. The password lockout does not cover this step: the login_mfa
+// ticket is stateless, and whoever holds the password can mint another.
+func (s *Service) verifyCounted(ctx context.Context, userID, factorID, code string, purpose ChallengePurpose) (string, error) {
+	key := "mfa.verify.acct." + userID
+	if err := s.reserveAttempt(ctx, key); err != nil {
+		return "", err
+	}
+	verified, err := s.Verify(ctx, userID, factorID, code, purpose)
+	if err != nil {
+		return "", err
+	}
+	if err := s.cache.Delete(ctx, key); err != nil {
+		return "", fmt.Errorf("mfa: reset second-factor attempts: %w", err)
+	}
+	return verified, nil
+}
+
+// reserveAttempt counts one attempt under key, or returns ErrInvalidOTP when the limit is spent.
+// Like the send budget, the cache read-modify-write is atomic within the process, not across
+// replicas; the per-IP rate limit bounds the residual.
+func (s *Service) reserveAttempt(ctx context.Context, key string) error {
+	now := s.clock.Now().Unix()
+	s.quotaMu.Lock()
+	defer s.quotaMu.Unlock()
+	b, err := s.readBudget(ctx, key, now, s.lockout.Duration)
+	if err != nil {
+		return err
+	}
+	if b.Count >= s.lockout.MaxAttempts {
+		return ErrInvalidOTP
+	}
+	raw, _ := json.Marshal(sendBudget{Count: b.Count + 1, Start: b.Start}) // cannot fail
+	if err := s.cache.Set(ctx, key, raw, s.lockout.Duration); err != nil {
+		return fmt.Errorf("mfa: count second-factor attempt: %w", err)
+	}
+	return nil
+}
+
 // LoginChallenge is the MFA-required outcome of a password login: no session yet, a short-lived
 // login_mfa ticket and the factors the client may complete the second step with.
 type LoginChallenge struct {
@@ -116,7 +159,7 @@ func (s *Service) BeginLogin(userID string, confirmed []model.MFAFactor) (LoginC
 // (amr ["pwd","otp"], mfa true, auth_time now). It dispatches event.MFAVerified and
 // event.UserLoggedIn; a refused code dispatches event.MFAVerifyFailed.
 func (s *Service) VerifyLogin(ctx context.Context, userID, factorID, code string, client token.ClientContext) (token.IssuedTokens, error) {
-	verified, err := s.Verify(ctx, userID, factorID, code, PurposeLoginMFA)
+	verified, err := s.verifyCounted(ctx, userID, factorID, code, PurposeLoginMFA)
 	if err != nil {
 		s.verifyFailed(ctx, userID, factorID, err)
 		return token.IssuedTokens{}, err
@@ -146,7 +189,7 @@ func (s *Service) VerifyLogin(ctx context.Context, userID, factorID, code string
 // event.MFAStepUpCompleted; a refused code dispatches event.MFAVerifyFailed. A session that is no
 // longer live fails with the session service's error.
 func (s *Service) VerifyStepUp(ctx context.Context, userID, organizationID, sessionID, factorID, code string) (string, error) {
-	if _, err := s.Verify(ctx, userID, factorID, code, PurposeStepUp); err != nil {
+	if _, err := s.verifyCounted(ctx, userID, factorID, code, PurposeStepUp); err != nil {
 		s.verifyFailed(ctx, userID, factorID, err)
 		return "", err
 	}

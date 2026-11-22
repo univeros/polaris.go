@@ -16,7 +16,6 @@ input:
     purpose: { type: "?string", rules: [optional, "in:sign-in,verify-email,reset-password"] }
 
 domain:
-  class: Polaris\Passwordless\Http\EmailOtpSendEndpoint
   description: >
     Emails a 6-digit code, valid for 5 minutes and 5 attempts, bound to its purpose (sign-in by
     default; verify-email; reset-password) and to the address. It is sent when the purpose applies: an

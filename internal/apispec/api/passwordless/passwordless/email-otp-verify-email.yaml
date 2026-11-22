@@ -16,7 +16,6 @@ input:
     code: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Passwordless\Http\EmailOtpVerifyEmailEndpoint
   description: >
     The code alternative to core's POST /auth/email/verify (which stays as it is): spends a
     verify-email code and marks the address verified.

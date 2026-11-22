@@ -8,7 +8,7 @@
     "paths": {
         "/auth/email/verify/resend": {
             "post": {
-                "operationId": "post_ResendVerificationEndpoint",
+                "operationId": "polaris.auth.email-verify-resend",
                 "summary": "Resend the verification email",
                 "tags": [
                     "auth"
@@ -73,7 +73,7 @@
         },
         "/auth/email/verify": {
             "post": {
-                "operationId": "post_VerifyEmailEndpoint",
+                "operationId": "polaris.auth.email-verify",
                 "summary": "Verify an email address",
                 "tags": [
                     "auth"
@@ -148,7 +148,7 @@
         },
         "/auth/invites/accept": {
             "post": {
-                "operationId": "post_AcceptInviteEndpoint",
+                "operationId": "polaris.auth.invites-accept",
                 "summary": "Accept an organization invitation",
                 "tags": [
                     "auth",
@@ -257,7 +257,7 @@
         },
         "/auth/.well-known/jwks.json": {
             "get": {
-                "operationId": "get_JwksEndpoint",
+                "operationId": "polaris.auth.jwks",
                 "summary": "JWKS document",
                 "tags": [
                     "auth"
@@ -331,7 +331,7 @@
         },
         "/auth/login": {
             "post": {
-                "operationId": "post_LoginEndpoint",
+                "operationId": "polaris.auth.login",
                 "summary": "Authenticate with email and password",
                 "tags": [
                     "auth"
@@ -555,7 +555,7 @@
         },
         "/auth/logout-all": {
             "post": {
-                "operationId": "post_LogoutAllEndpoint",
+                "operationId": "polaris.auth.logout-all",
                 "summary": "Log out everywhere",
                 "tags": [
                     "auth"
@@ -615,7 +615,7 @@
         },
         "/auth/logout": {
             "post": {
-                "operationId": "post_LogoutEndpoint",
+                "operationId": "polaris.auth.logout",
                 "summary": "Log out the current session",
                 "tags": [
                     "auth"
@@ -675,7 +675,7 @@
         },
         "/auth/me": {
             "get": {
-                "operationId": "get_MeEndpoint",
+                "operationId": "polaris.auth.me",
                 "summary": "Read the authenticated identity",
                 "tags": [
                     "auth"
@@ -718,11 +718,11 @@
                                                 },
                                                 "orgs": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 },
                                                 "roles": {
                                                     "type": "array",
-                                                    "items": []
+                                                    "items": {}
                                                 }
                                             },
                                             "required": [
@@ -771,7 +771,7 @@
         },
         "/auth/mfa/challenge": {
             "post": {
-                "operationId": "post_MfaChallengeEndpoint",
+                "operationId": "polaris.auth.mfa.challenge",
                 "summary": "Send a login-gate OTP for a chosen factor",
                 "tags": [
                     "auth",
@@ -885,7 +885,7 @@
         },
         "/auth/mfa/email/confirm": {
             "post": {
-                "operationId": "post_OtpFactorConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.email-confirm",
                 "summary": "Confirm a pending email factor",
                 "tags": [
                     "auth",
@@ -1000,7 +1000,7 @@
         },
         "/auth/mfa/email/enroll": {
             "post": {
-                "operationId": "post_EmailEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.email-enroll",
                 "summary": "Begin email factor enrollment",
                 "tags": [
                     "auth",
@@ -1103,7 +1103,7 @@
         },
         "/auth/mfa/factors/{id}": {
             "delete": {
-                "operationId": "delete_DeleteFactorEndpoint",
+                "operationId": "polaris.auth.mfa.factor-delete",
                 "summary": "Remove an MFA factor",
                 "tags": [
                     "auth",
@@ -1193,7 +1193,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateFactorEndpoint",
+                "operationId": "polaris.auth.mfa.factor-update",
                 "summary": "Update a factor's label or default flag",
                 "tags": [
                     "auth",
@@ -1327,7 +1327,7 @@
         },
         "/auth/mfa/factors": {
             "get": {
-                "operationId": "get_MfaFactorsEndpoint",
+                "operationId": "polaris.auth.mfa.factors-list",
                 "summary": "List the caller's MFA factors",
                 "tags": [
                     "auth",
@@ -1432,7 +1432,7 @@
         },
         "/auth/mfa/recovery-codes/regenerate": {
             "post": {
-                "operationId": "post_RegenerateRecoveryCodesEndpoint",
+                "operationId": "polaris.auth.mfa.recovery-codes-regenerate",
                 "summary": "Regenerate the recovery-code batch",
                 "tags": [
                     "auth",
@@ -1500,7 +1500,7 @@
         },
         "/auth/mfa/sms/confirm": {
             "post": {
-                "operationId": "post_OtpFactorConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.sms-confirm",
                 "summary": "Confirm a pending SMS factor",
                 "tags": [
                     "auth",
@@ -1615,7 +1615,7 @@
         },
         "/auth/mfa/sms/enroll": {
             "post": {
-                "operationId": "post_SmsEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.sms-enroll",
                 "summary": "Begin SMS factor enrollment",
                 "tags": [
                     "auth",
@@ -1720,7 +1720,7 @@
         },
         "/auth/mfa/step-up/challenge": {
             "post": {
-                "operationId": "post_StepUpChallengeEndpoint",
+                "operationId": "polaris.auth.mfa.step-up-challenge",
                 "summary": "Send a step-up OTP for a chosen factor",
                 "tags": [
                     "auth",
@@ -1834,7 +1834,7 @@
         },
         "/auth/mfa/step-up": {
             "post": {
-                "operationId": "post_StepUpVerifyEndpoint",
+                "operationId": "polaris.auth.mfa.step-up",
                 "summary": "Complete a step-up re-authentication",
                 "tags": [
                     "auth",
@@ -1947,7 +1947,7 @@
         },
         "/auth/mfa/totp/confirm": {
             "post": {
-                "operationId": "post_TotpConfirmEndpoint",
+                "operationId": "polaris.auth.mfa.totp-confirm",
                 "summary": "Confirm a pending TOTP factor",
                 "tags": [
                     "auth",
@@ -2062,7 +2062,7 @@
         },
         "/auth/mfa/totp/enroll": {
             "post": {
-                "operationId": "post_TotpEnrollEndpoint",
+                "operationId": "polaris.auth.mfa.totp-enroll",
                 "summary": "Begin TOTP (authenticator app) enrollment",
                 "tags": [
                     "auth",
@@ -2138,7 +2138,7 @@
         },
         "/auth/mfa/verify": {
             "post": {
-                "operationId": "post_MfaVerifyEndpoint",
+                "operationId": "polaris.auth.mfa.verify",
                 "summary": "Verify the MFA code and mint the real session",
                 "tags": [
                     "auth",
@@ -2262,7 +2262,7 @@
         },
         "/auth/password/change": {
             "post": {
-                "operationId": "post_ChangePasswordEndpoint",
+                "operationId": "polaris.auth.password.change",
                 "summary": "Change the password",
                 "tags": [
                     "auth"
@@ -2369,7 +2369,7 @@
         },
         "/auth/password/forgot": {
             "post": {
-                "operationId": "post_ForgotPasswordEndpoint",
+                "operationId": "polaris.auth.password.forgot",
                 "summary": "Request a password reset",
                 "tags": [
                     "auth"
@@ -2434,7 +2434,7 @@
         },
         "/auth/password/reset": {
             "post": {
-                "operationId": "post_ResetPasswordEndpoint",
+                "operationId": "polaris.auth.password.reset",
                 "summary": "Reset the password with a token",
                 "tags": [
                     "auth"
@@ -2526,7 +2526,7 @@
         },
         "/auth/register": {
             "post": {
-                "operationId": "post_RegisterEndpoint",
+                "operationId": "polaris.auth.register",
                 "summary": "Register a new user account",
                 "tags": [
                     "auth"
@@ -2602,7 +2602,7 @@
         },
         "/auth/sessions/{id}": {
             "delete": {
-                "operationId": "delete_RevokeSessionEndpoint",
+                "operationId": "polaris.auth.session-revoke",
                 "summary": "Revoke a session",
                 "tags": [
                     "auth"
@@ -2691,7 +2691,7 @@
         },
         "/auth/sessions": {
             "get": {
-                "operationId": "get_SessionsEndpoint",
+                "operationId": "polaris.auth.sessions-list",
                 "summary": "List active sessions",
                 "tags": [
                     "auth"
@@ -2766,8 +2766,8 @@
                                                 "current": true,
                                                 "ip": "203.0.113.7",
                                                 "user_agent": "Mozilla/5.0 ...",
-                                                "created_at": "2026-06-10T09:00:00+00:00",
-                                                "last_used_at": "2026-06-11T08:30:00+00:00"
+                                                "created_at": "2026-06-10T09:00:00Z",
+                                                "last_used_at": "2026-06-11T08:30:00Z"
                                             }
                                         ]
                                     }
@@ -2790,7 +2790,7 @@
         },
         "/auth/switch-org": {
             "post": {
-                "operationId": "post_SwitchOrgEndpoint",
+                "operationId": "polaris.auth.switch-org",
                 "summary": "Switch the active organization",
                 "tags": [
                     "auth"
@@ -2912,7 +2912,7 @@
         },
         "/auth/token/refresh": {
             "post": {
-                "operationId": "post_RefreshTokenEndpoint",
+                "operationId": "polaris.auth.token-refresh",
                 "summary": "Rotate the refresh token",
                 "tags": [
                     "auth"
@@ -3013,7 +3013,7 @@
         },
         "/orgs": {
             "post": {
-                "operationId": "post_CreateOrganizationEndpoint",
+                "operationId": "polaris.orgs.create",
                 "summary": "Create an organization",
                 "tags": [
                     "orgs"
@@ -3139,7 +3139,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListOrganizationsEndpoint",
+                "operationId": "polaris.orgs.list",
                 "summary": "List the organizations the caller belongs to",
                 "tags": [
                     "orgs"
@@ -3218,7 +3218,7 @@
         },
         "/orgs/{id}": {
             "delete": {
-                "operationId": "delete_DeleteOrganizationEndpoint",
+                "operationId": "polaris.orgs.delete",
                 "summary": "Soft-delete the organization",
                 "tags": [
                     "orgs"
@@ -3309,7 +3309,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ReadOrganizationEndpoint",
+                "operationId": "polaris.orgs.read",
                 "summary": "Read the organization profile",
                 "tags": [
                     "orgs"
@@ -3414,7 +3414,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateOrganizationEndpoint",
+                "operationId": "polaris.orgs.update",
                 "summary": "Update (rename) the organization",
                 "tags": [
                     "orgs"
@@ -3550,7 +3550,7 @@
         },
         "/orgs/{id}/invites/{inviteId}": {
             "delete": {
-                "operationId": "delete_RevokeInviteEndpoint",
+                "operationId": "polaris.orgs.invite-revoke",
                 "summary": "Revoke a pending invitation",
                 "tags": [
                     "orgs",
@@ -3651,7 +3651,7 @@
         },
         "/orgs/{id}/invites": {
             "post": {
-                "operationId": "post_CreateInviteEndpoint",
+                "operationId": "polaris.orgs.invites-create",
                 "summary": "Create (or refresh) a membership invitation",
                 "tags": [
                     "orgs",
@@ -3750,7 +3750,7 @@
                                         "role_slugs": [
                                             "member"
                                         ],
-                                        "expires_at": "2026-06-18T12:00:00+00:00"
+                                        "expires_at": "2026-06-18T12:00:00Z"
                                     }
                                 }
                             }
@@ -3799,7 +3799,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListInvitesEndpoint",
+                "operationId": "polaris.orgs.invites-list",
                 "summary": "List pending invitations",
                 "tags": [
                     "orgs",
@@ -3884,8 +3884,8 @@
                                                 "member"
                                             ],
                                             "invited_by": "018f6f2a-1111-7222-8333-0123456789ab",
-                                            "expires_at": "2026-06-18T12:00:00+00:00",
-                                            "created_at": "2026-06-11T12:00:00+00:00"
+                                            "expires_at": "2026-06-18T12:00:00Z",
+                                            "created_at": "2026-06-11T12:00:00Z"
                                         }
                                     ]
                                 }
@@ -3917,7 +3917,7 @@
         },
         "/orgs/{id}/members/{userId}": {
             "delete": {
-                "operationId": "delete_RemoveMemberEndpoint",
+                "operationId": "polaris.orgs.member-remove",
                 "summary": "Remove a member from the organization",
                 "tags": [
                     "orgs",
@@ -4026,7 +4026,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_ChangeMemberStatusEndpoint",
+                "operationId": "polaris.orgs.member-status-update",
                 "summary": "Change a member's status (suspend or reactivate)",
                 "tags": [
                     "orgs",
@@ -4174,7 +4174,7 @@
         },
         "/orgs/{id}/members/{userId}/roles": {
             "patch": {
-                "operationId": "patch_ChangeMemberRolesEndpoint",
+                "operationId": "polaris.orgs.member-roles-update",
                 "summary": "Replace a member's roles",
                 "tags": [
                     "orgs",
@@ -4327,7 +4327,7 @@
         },
         "/orgs/{id}/members": {
             "get": {
-                "operationId": "get_ListMembersEndpoint",
+                "operationId": "polaris.orgs.members-list",
                 "summary": "List the organization's members",
                 "tags": [
                     "orgs",
@@ -4455,7 +4455,7 @@
         },
         "/orgs/{id}/roles/{roleId}": {
             "delete": {
-                "operationId": "delete_DeleteRoleEndpoint",
+                "operationId": "polaris.orgs.role-delete",
                 "summary": "Delete a custom role",
                 "tags": [
                     "orgs",
@@ -4554,7 +4554,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateRoleEndpoint",
+                "operationId": "polaris.orgs.role-update",
                 "summary": "Update a role",
                 "tags": [
                     "orgs",
@@ -4721,7 +4721,7 @@
         },
         "/orgs/{id}/roles": {
             "post": {
-                "operationId": "post_CreateRoleEndpoint",
+                "operationId": "polaris.orgs.roles-create",
                 "summary": "Create a custom role",
                 "tags": [
                     "orgs",
@@ -4886,7 +4886,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ListRolesEndpoint",
+                "operationId": "polaris.orgs.roles-list",
                 "summary": "List the organization's roles",
                 "tags": [
                     "orgs",
@@ -5027,7 +5027,7 @@
         },
         "/permissions": {
             "get": {
-                "operationId": "get_ListPermissionsEndpoint",
+                "operationId": "polaris.permissions.list",
                 "summary": "List the permission catalog",
                 "tags": [
                     "permissions"
@@ -5108,7 +5108,7 @@
         },
         "/users/{id}": {
             "delete": {
-                "operationId": "delete_DeleteUserEndpoint",
+                "operationId": "polaris.users.delete",
                 "summary": "Delete (anonymize) a user account",
                 "tags": [
                     "users"
@@ -5196,7 +5196,7 @@
                 }
             },
             "get": {
-                "operationId": "get_ReadUserEndpoint",
+                "operationId": "polaris.users.read",
                 "summary": "Read a user",
                 "tags": [
                     "users"
@@ -5298,7 +5298,7 @@
                 }
             },
             "patch": {
-                "operationId": "patch_UpdateUserEndpoint",
+                "operationId": "polaris.users.update",
                 "summary": "Update a user's profile",
                 "tags": [
                     "users"
@@ -5428,7 +5428,7 @@
         },
         "/users/{id}/disable": {
             "post": {
-                "operationId": "post_DisableUserEndpoint",
+                "operationId": "polaris.users.disable",
                 "summary": "Disable a user account",
                 "tags": [
                     "users"
@@ -5531,7 +5531,7 @@
         },
         "/users/{id}/enable": {
             "post": {
-                "operationId": "post_EnableUserEndpoint",
+                "operationId": "polaris.users.enable",
                 "summary": "Re-enable a user account",
                 "tags": [
                     "users"

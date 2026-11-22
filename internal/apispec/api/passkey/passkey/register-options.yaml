@@ -14,7 +14,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Passkey\Http\RegisterOptionsEndpoint
   description: >
     PublicKeyCredentialCreationOptionsJSON for the caller: the relying party, the user, a challenge valid
     for five minutes, a discoverable credential (residentKey required) with the configured user

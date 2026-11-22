@@ -19,13 +19,9 @@ func noStore(r endpoint.Result) endpoint.Result {
 // refuse answers an OAuth refusal: an RFC 9457 problem whose error is the RFC 6749 code, with
 // error_description.
 func refuse(e *Error) endpoint.Result {
-	words := strings.Fields(strings.ReplaceAll(e.Code, "_", " "))
-	for i, w := range words {
-		words[i] = strings.ToUpper(w[:1]) + w[1:]
-	}
 	res := noStore(endpoint.Result{Status: e.Status, Problem: true, Body: map[string]any{
 		"type":              endpoint.ProblemTypes + "oauth/" + e.Code,
-		"title":             strings.Join(words, " "),
+		"title":             problemTitle(e.Code),
 		"status":            e.Status,
 		"detail":            e.Description,
 		"error":             e.Code,
@@ -36,6 +32,22 @@ func refuse(e *Error) endpoint.Result {
 		res = res.WithHeader("WWW-Authenticate", `Basic realm="oauth"`)
 	}
 	return res
+}
+
+// acronyms are the words of an error code a title writes in capitals.
+var acronyms = map[string]string{"dpop": "DPoP", "id": "ID"}
+
+// problemTitle is an error code as a sentence: "invalid_dpop_proof" is "Invalid DPoP proof".
+func problemTitle(code string) string {
+	words := strings.Split(code, "_")
+	for i, w := range words {
+		if a, ok := acronyms[w]; ok {
+			words[i] = a
+		} else if i == 0 && w != "" {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
 }
 
 // fail answers err: an OAuth refusal as such, anything else a logged 500.

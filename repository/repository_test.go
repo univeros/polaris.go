@@ -192,7 +192,7 @@ func TestZeroValuesWriteTheColumnDefaults(t *testing.T) {
 	if got := r.Invitations.toRow(model.Invitation{})["role_ids"]; got != "[]" {
 		t.Errorf("role_ids = %v", got)
 	}
-	if got := r.AuditLog.toRow(model.AuditLogEntry{})["metadata"]; got != "[]" {
+	if got := r.AuditLog.toRow(model.AuditLogEntry{})["metadata"]; got != "{}" {
 		t.Errorf("metadata = %v", got)
 	}
 	got := r.Users.toRow(model.User{CreatedAt: time.Date(2026, 6, 7, 12, 0, 0, 999, time.FixedZone("CEST", 7200))})["created_at"]

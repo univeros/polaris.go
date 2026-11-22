@@ -179,6 +179,12 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 	return p.endpoints(), nil
 }
 
+// EraseAccess implements wiring.AccessEraser: the passkeys registered before anyone proved the
+// user's mailbox go with its first proof.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	return p.deleteForUser(ctx, userID)
+}
+
 // Listeners keep a passkey as a sign-in credential when core removes its factor, and erase an
 // erased user's passkeys.
 func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {

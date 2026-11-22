@@ -20,7 +20,6 @@ input:
     client_assertion: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\IntrospectEndpoint
   description: >
     RFC 7662, for an authenticated client: active false, or active true with client_id, token_type,
     scope, sub, iss, iat, exp, jti, and aud, org, cnf, act when the token carries them.

@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Admin\AdminDeleteConnectionEndpoint
   description: >
     The connection, its external ids and its provenance; the provisioned users stay. Needs own on the
     instance or on the connection's organization; recorded as scim.connection_decommissioned.

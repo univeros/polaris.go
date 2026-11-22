@@ -18,7 +18,6 @@ input:
     Signature: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Flow\SloRedirectEndpoint
   description: >
     An IdP's LogoutRequest (signed: SigAlg and Signature over the query, or an enveloped signature)
     ends every session of the named user and is answered with the LogoutResponse (302 to the IdP);

@@ -3,12 +3,13 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
 	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/univeros/polaris.go/internal/services"
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
@@ -29,8 +30,6 @@ import (
 const (
 	orgMsgNotActiveOrg = "That organization is not your active organization."
 	orgMsgOrgNotFound  = "The organization does not exist."
-	// orgAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
-	orgAtom = "2006-01-02T15:04:05-07:00"
 )
 
 // orgAPI serves the routes over the graph's services.
@@ -200,7 +199,8 @@ func orgList[T any](s []T) []T {
 	return s
 }
 
-func orgTime(t time.Time) string { return t.UTC().Format(orgAtom) }
+// orgTime is how a timestamp reaches a client: RFC 3339 in UTC, "Z", whole seconds.
+func orgTime(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
 func orgView(o model.Organization) map[string]any {
 	return map[string]any{"id": o.ID, "name": o.Name, "slug": o.Slug, "status": o.Status}
@@ -243,10 +243,10 @@ func (a orgAPI) createOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	return endpoint.Data(http.StatusCreated, map[string]any{"id": org.ID, "name": org.Name, "slug": org.Slug, "role": authz.RoleOwner})
 }
 
-// orgSlugPattern reports whether s is lowercase ASCII letters, digits and hyphens, allowing one
-// trailing newline (the accepted set is part of the contract; existing slugs may carry it).
+// orgSlugPattern reports whether s is lowercase ASCII letters, digits and hyphens and nothing else
+// (before decision 64 one trailing newline passed too). Only new slugs are checked, so a stored
+// slug that carries one keeps working.
 func orgSlugPattern(s string) bool {
-	s = strings.TrimSuffix(s, "\n")
 	return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz0123456789-") == ""
 }
 

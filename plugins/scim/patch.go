@@ -40,7 +40,7 @@ func parsePatch(body map[string]any) ([]operation, error) {
 		if path != "" && !pathPattern.MatchString(path) {
 			return nil, invalid("The path is not supported.", TypeInvalidPath)
 		}
-		if path == "" && name != "remove" && !isArray(m["value"]) {
+		if _, isObject := m["value"].(map[string]any); path == "" && name != "remove" && !isObject {
 			return nil, invalid("An operation without a path takes an object value.", TypeInvalidValue)
 		}
 		ops = append(ops, operation{op: name, path: path, value: m["value"]})
@@ -84,13 +84,4 @@ func stripURN(path string) string {
 		return path[i+1:]
 	}
 	return path
-}
-
-// isArray reports whether a decoded JSON value is an object or a list.
-func isArray(v any) bool {
-	switch v.(type) {
-	case map[string]any, []any:
-		return true
-	}
-	return false
 }

@@ -36,7 +36,7 @@ type ciba struct {
 func (b *ciba) view(p pollable) map[string]any {
 	return map[string]any{
 		"id": p.ID, "client_id": p.ClientID, "scopes": list(p.Scopes), "binding_message": null(p.BindingMessage),
-		"status": p.Status, "expires_at": atom(p.ExpiresAt), "created_at": atom(p.CreatedAt),
+		"status": p.Status, "expires_at": timestamp(p.ExpiresAt), "created_at": timestamp(p.CreatedAt),
 	}
 }
 

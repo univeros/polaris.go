@@ -123,7 +123,7 @@ func TestCoreEventsBecomeCataloguedEventsWithActorSubjectAndContext(t *testing.T
 	if up.Name != UserSignedUp || up.ActorID != "u1" || up.ActorType != ActorUser || up.SubjectID != "u1" || !reflect.DeepEqual(up.Data, map[string]any{"email": "ada@example.com"}) {
 		t.Fatalf("signed up %+v", up)
 	}
-	if up.Map()["occurred_at"] != "2026-09-11T10:00:00+00:00" {
+	if up.Map()["occurred_at"] != "2026-09-11T10:00:00Z" {
 		t.Fatalf("occurred_at %v", up.Map()["occurred_at"])
 	}
 	if in.Name != SessionSignedIn || in.SessionID != "s1" || in.IP != "203.0.113.7" || in.UserAgent != "Mozilla/5.0" || !reflect.DeepEqual(in.Data["amr"], []string{"pwd", "otp"}) {
@@ -345,7 +345,7 @@ func TestTheHashIsOverTheCanonicalForm(t *testing.T) {
 
 func TestRetentionPolicyValidatesDurations(t *testing.T) {
 	pol, err := Retention{}.parse()
-	if err != nil || pol.keepUntil(SessionSignedIn, at("2026-09-11T10:00:00Z")).Format(dateAtom) != "2026-06-13T10:00:00+00:00" {
+	if err != nil || pol.keepUntil(SessionSignedIn, at("2026-09-11T10:00:00Z")).Format(time.RFC3339) != "2026-06-13T10:00:00Z" {
 		t.Fatalf("default %v", err)
 	}
 	p, err := parsePeriod("P1Y2M1W3DT4H5M6S")
@@ -537,26 +537,26 @@ func TestWritesOncePerIntervalFromTheLiveSessionEvents(t *testing.T) {
 		if !ok {
 			return ""
 		}
-		return v.Format(dateAtom)
+		return v.Format(time.RFC3339)
 	}
 	a.Listen(ctx, event.UserRegistered{UserID: "u1"})
 	if last() != "" {
 		t.Fatal("registering is not activity")
 	}
 	a.Listen(ctx, event.UserLoggedIn{UserID: "u1", SessionID: "s1"})
-	if last() != "2026-09-11T10:00:00+00:00" {
+	if last() != "2026-09-11T10:00:00Z" {
 		t.Fatal(last())
 	}
 	clk.Advance(time.Minute)
 	a.Listen(ctx, event.TokenRefreshed{UserID: "u1"})
-	if last() != "2026-09-11T10:00:00+00:00" {
+	if last() != "2026-09-11T10:00:00Z" {
 		t.Fatal("inside the interval: no write")
 	}
 	clk.Advance(10 * time.Minute)
 	a.Listen(ctx, event.MFAVerified{UserID: "u1"})
 	a.Listen(ctx, event.MFAStepUpCompleted{UserID: "u2"})
 	a.Listen(ctx, event.OrganizationSwitched{UserID: "u3"})
-	if last() != "2026-09-11T10:11:00+00:00" {
+	if last() != "2026-09-11T10:11:00Z" {
 		t.Fatal("after the interval: one row updated", last())
 	}
 	if n, _ := db.Count(ctx, TableActivity, map[string]any{"user_id": "u1"}); n != 1 {

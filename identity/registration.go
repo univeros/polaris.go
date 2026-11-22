@@ -72,7 +72,8 @@ func (s *Service) Register(ctx context.Context, email, password, displayName str
 	return nil
 }
 
-// VerifyEmail confirms an email address from its token and dispatches event.UserEmailVerified.
+// VerifyEmail confirms an email address from its token (ProveEmail, confirming the registration)
+// and dispatches event.UserEmailVerified.
 // It is idempotent: a token that matched a real challenge succeeds again
 // once the user is verified, even consumed or expired. Otherwise an unknown, consumed or expired
 // token returns ErrInvalidVerificationToken.
@@ -101,19 +102,20 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string) error {
 		return refuse(ErrInvalidVerificationToken, msgExpiredVerify)
 	}
 
-	verified, consumed := user, challenge
-	verified.EmailVerifiedAt, verified.UpdatedAt = &now, now
+	consumed := challenge
 	consumed.ConsumedAt = &now
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
-		if err := s.repos.Users.Update(ctx, user, verified); err != nil {
+		if err := s.repos.EmailVerifications.Update(ctx, challenge, consumed); err != nil {
 			return err
 		}
-		return s.repos.EmailVerifications.Update(ctx, challenge, consumed)
+		// The link confirms the registration that set the password; an account without one (it
+		// was not created by registering) is the mailbox owner's from here.
+		_, _, err := s.ProveEmail(ctx, user.ID, true)
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("identity: verify email: %w", err)
 	}
-	s.events.Dispatch(ctx, event.UserEmailVerified{UserID: user.ID, Email: user.Email})
 	return nil
 }
 

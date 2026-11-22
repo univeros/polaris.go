@@ -206,7 +206,7 @@ func newAuditLog(db store.Adapter) AuditLog {
 		toRow: func(e model.AuditLogEntry) store.Row {
 			metadata := string(e.Metadata)
 			if metadata == "" {
-				metadata = "[]"
+				metadata = "{}"
 			}
 			return store.Row{
 				"id": e.ID, "actor_user_id": store.Nullable(e.ActorUserID), "organization_id": store.Nullable(e.OrganizationID),

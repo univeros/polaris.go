@@ -15,7 +15,6 @@ input:
     factor_id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Auth\StepUpChallengeEndpoint
   description: >
     On a live bearer session, generates and sends a step_up-purpose OTP for
     the named sms or email factor so the user can re-authenticate; returns the

@@ -65,7 +65,14 @@ Register `BaseURL + "/social/<provider>/callback"` at each provider.
 | DELETE | `/social/{provider}` | bearer, step-up gated: unlink (refused if it is your last credential) |
 | POST | `/social/{provider}/token` | bearer, step-up gated: the provider access token, refreshed first if expiring |
 
-Compare the returned `state` with the one `start` answered before exchanging the code.
+Compare the returned `state` with the one `start` answered before exchanging the code. The
+authorization `url` carries its parameters form-encoded (RFC 6749 §4.1.1: a space is `+`).
+Timestamps (`created_at`, `updated_at`, `expires_at`) are RFC 3339 in UTC (`2026-11-20T18:32:59Z`).
+
+An `id_token` must name its key (`kid`) in the provider's JWKS (`keys` an array, RFC 7517). The
+key's `alg` must be the token's; a key without `alg` verifies the algorithm its type implies (RSA
+RS256, EC P-256 ES256, OKP Ed25519 EdDSA) and any other key without `alg` verifies nothing. A
+provider's subject is its id as a string or a JSON number; a boolean or null names no account.
 
 ## Events and permissions
 
@@ -79,6 +86,23 @@ With `plugins/audit` registered they become audit rows (`Plugin.AuditNames`). No
 `state_invalid`, `token_invalid`, `email_required`, `code_invalid`, `invalid_input` (422),
 `provider_error`, `account_disabled`, `email_unverified` (403), `account_exists`, `account_linked`,
 `email_mismatch`, `last_credential`, `no_refresh` (409), `not_linked` (404).
+
+## An email the provider does not vouch for
+
+A provider that returns an address without saying it verified it (`email_verified` false or
+missing) proves nothing about who owns the mailbox, so nothing is created in that address's name:
+
+- with `Auth.Flows.RequireVerifiedEmail` on (the default), the sign-up answers `email_unverified`
+  and leaves **no account and no link** behind. The person signs up with the address another way
+  (registration, an email code) and links the provider from their account;
+- with it off, the account is created unverified and signs in. When someone later proves the
+  mailbox (a verification link on an account without a password, a password reset, an email code or
+  magic link, a trusted provider, SSO), that first proof removes the provider link with everything
+  else that could sign in before it (`Identity.ProveEmail`); the owner links the provider again
+  from their account.
+
+A trusted provider's verified email linking to an unverified account is such a first proof: the
+password, factors, passkeys, keys, other providers' links and sessions of the unproven account go.
 
 ## Host integration
 

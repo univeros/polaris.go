@@ -16,7 +16,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Admin\AdminListProvidersEndpoint
   description: >
     Oldest first, cursor-paginated, never the secrets; an organization-scoped operator sees their
     organization's. Needs read.

@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -86,19 +87,6 @@ func TestFilterAndPatch(t *testing.T) {
 	})
 }
 
-func TestStripSlashesAndBooleans(t *testing.T) {
-	for in, want := range map[string]string{`a\"b`: `a"b`, `a\\b`: `a\b`, `a\0b`: "a\x00b", `ab\`: "ab", "plain": "plain"} {
-		if got := stripSlashes(in); got != want {
-			t.Fatalf("stripSlashes(%q) = %q, want %q", in, got, want)
-		}
-	}
-	for v, want := range map[any]bool{true: true, false: false, "True": true, " yes ": true, "on": true, "0": false, "no": false, 3: false} {
-		if truthy(v) != want {
-			t.Fatalf("truthy(%v) != %v", v, want)
-		}
-	}
-}
-
 // FuzzFilter: the parser never panics, and what it accepts re-parses to the same clauses when
 // written back in the canonical form.
 func FuzzFilter(f *testing.F) {
@@ -120,14 +108,14 @@ func FuzzFilter(f *testing.F) {
 				t.Fatalf("%q: operator %q", raw, c.operator)
 			}
 			if strings.ContainsRune(c.value, 0) {
-				return // NUL has no escape in the canonical form
+				t.Fatalf("%q: NUL accepted", raw)
 			}
 			attr := c.attribute
 			if attr == "" || attr != strings.ToLower(attr) {
 				t.Fatalf("%q: attribute %q", raw, attr)
 			}
-			escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(c.value)
-			parts[i] = attr + " " + c.operator + ` "` + escaped + `"`
+			quoted, _ := json.Marshal(c.value)
+			parts[i] = attr + " " + c.operator + " " + string(quoted)
 		}
 		again, err := parseFilter(strings.Join(parts, " and "))
 		if err != nil || !reflect.DeepEqual(again, parsed) {

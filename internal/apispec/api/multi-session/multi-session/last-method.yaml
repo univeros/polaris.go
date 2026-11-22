@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\MultiSession\Http\LastMethodEndpoint
   description: >
     The amr method (pwd, magic_link, email_otp, phone, sso, anonymous, ...) the device's most recent
     sign-in used, for the client to pre-select its button; null for a device the server does not know.

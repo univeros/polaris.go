@@ -241,7 +241,7 @@
                     "last_sync_at": null,
                     "decommissioned_at": null,
                     "created_by": "01a09363-cd24-7a75-a8e9-8bc38104c027",
-                    "created_at": "2026-09-12T02:13:06+00:00",
+                    "created_at": "2026-09-12T02:13:06Z",
                     "sync": {
                         "users": 0,
                         "groups": 0,
@@ -297,7 +297,7 @@
                     "last_sync_at": null,
                     "decommissioned_at": null,
                     "created_by": "01a09363-cd24-7a75-a8e9-8bc38104c027",
-                    "created_at": "2026-09-12T02:13:06+00:00",
+                    "created_at": "2026-09-12T02:13:06Z",
                     "sync": {
                         "users": 0,
                         "groups": 0,
@@ -864,8 +864,8 @@
                 ],
                 "meta": {
                     "resourceType": "User",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                 },
                 "externalId": "okta-bob"
@@ -991,8 +991,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                         },
                         "externalId": "okta-bob"
@@ -1053,8 +1053,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-cd24-7a75-a8e9-8bc38104c027"
                         }
                     },
@@ -1086,8 +1086,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                         },
                         "externalId": "okta-bob"
@@ -1150,8 +1150,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                         },
                         "externalId": "okta-bob"
@@ -1206,8 +1206,8 @@
                 ],
                 "meta": {
                     "resourceType": "User",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                 },
                 "externalId": "okta-bob"
@@ -1309,8 +1309,8 @@
                 ],
                 "meta": {
                     "resourceType": "User",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                 },
                 "externalId": "okta-bob"
@@ -1404,8 +1404,8 @@
                 ],
                 "meta": {
                     "resourceType": "User",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                 },
                 "externalId": "okta-bob-2"
@@ -1459,8 +1459,8 @@
                 ],
                 "meta": {
                     "resourceType": "Group",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce58-7498-81ad-5f9e51241301"
                 },
                 "externalId": "okta-eng"
@@ -1516,8 +1516,8 @@
                 ],
                 "meta": {
                     "resourceType": "User",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-ce55-757c-9bd1-10aed1e10dde"
                 },
                 "externalId": "okta-bob-2"
@@ -1600,8 +1600,8 @@
                         ],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce58-7498-81ad-5f9e51241301"
                         },
                         "externalId": "okta-eng"
@@ -1651,8 +1651,8 @@
                         ],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce4f-7b7d-80f0-701d3224a918"
                         }
                     },
@@ -1665,8 +1665,8 @@
                         "members": [],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce4f-7c75-80f0-701d32ab82f1"
                         }
                     },
@@ -1685,8 +1685,8 @@
                         ],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce4f-7c85-80f0-701d333d751a"
                         }
                     },
@@ -1705,8 +1705,8 @@
                         ],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce58-7498-81ad-5f9e51241301"
                         },
                         "externalId": "okta-eng"
@@ -1767,8 +1767,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-cd24-7a75-a8e9-8bc38104c027"
                         }
                     }
@@ -1831,8 +1831,8 @@
                 ],
                 "meta": {
                     "resourceType": "Group",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce58-7498-81ad-5f9e51241301"
                 },
                 "externalId": "okta-eng"
@@ -1882,8 +1882,8 @@
                 ],
                 "meta": {
                     "resourceType": "Group",
-                    "created": "2026-09-12T02:13:06+00:00",
-                    "lastModified": "2026-09-12T02:13:06+00:00",
+                    "created": "2026-09-12T02:13:06Z",
+                    "lastModified": "2026-09-12T02:13:06Z",
                     "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce58-7498-81ad-5f9e51241301"
                 }
             }
@@ -1930,8 +1930,8 @@
                         ],
                         "meta": {
                             "resourceType": "Group",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Groups/01a09363-ce4f-7c85-80f0-701d333d751a"
                         }
                     }
@@ -2184,8 +2184,8 @@
                         ],
                         "meta": {
                             "resourceType": "User",
-                            "created": "2026-09-12T02:13:06+00:00",
-                            "lastModified": "2026-09-12T02:13:06+00:00",
+                            "created": "2026-09-12T02:13:06Z",
+                            "lastModified": "2026-09-12T02:13:06Z",
                             "location": "https://app.example/auth/scim/v2/01a09363-ce53-7137-936b-a22c1922d0ad/Users/01a09363-cd24-7a75-a8e9-8bc38104c027"
                         }
                     }
@@ -2228,10 +2228,10 @@
                     "name": "Okta",
                     "status": "active",
                     "deprovision": "deactivate",
-                    "last_sync_at": "2026-09-12T02:13:07+00:00",
+                    "last_sync_at": "2026-09-12T02:13:07Z",
                     "decommissioned_at": null,
                     "created_by": "01a09363-cd24-7a75-a8e9-8bc38104c027",
-                    "created_at": "2026-09-12T02:13:06+00:00",
+                    "created_at": "2026-09-12T02:13:06Z",
                     "sync": {
                         "users": 0,
                         "groups": 0,

@@ -17,7 +17,6 @@ input:
     input: { type: "?object", rules: [optional] }
 
 domain:
-  class: Polaris\Agents\Http\ExecuteEndpoint
   description: >
     The agent must hold a live grant for the capability (named by its JWT's capabilities claim when it
     restricts them; carried as a permission by its access token's scopes), its owner must still hold the

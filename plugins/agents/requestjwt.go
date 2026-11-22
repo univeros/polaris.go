@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -25,7 +26,6 @@ const (
 	maxRequestJWT       = 8192
 	maxJWTCapabilities  = 50
 	replayPrefix        = "polaris.agents.jti."
-	isoDate             = "2006-01-02T15:04:05-0700"
 	maxJTI              = 256
 	forbiddenKeyHeaders = "jku x5u jwk x5c"
 )
@@ -111,31 +111,31 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 }
 
 // decode verifies the signature and the time claims, with 60 s of leeway: nbf and iat not after
-// now, exp after now. The error texts are the ones clients of earlier releases already see.
+// now, exp after now.
 func (j *requestJWTs) decode(raw string, jwk map[string]any) (map[string]any, error) {
 	verify, err := verifierOf(jwk)
 	if err != nil {
-		return nil, fmt.Errorf("the agent's key could not be read")
+		return nil, errors.New("the agent's key could not be read")
 	}
 	parts := strings.Split(raw, ".")
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || !verify([]byte(parts[0]+"."+parts[1]), sig) {
-		return nil, fmt.Errorf("Signature verification failed")
+		return nil, errors.New("the signature does not verify")
 	}
 	claims := decodeJSONSegment(parts[1])
 	if claims == nil {
-		return nil, fmt.Errorf("Syntax error, malformed JSON")
+		return nil, errors.New("the claims are not a JSON object")
 	}
 	now := j.clock.Now()
 	limit := now.Add(requestLeeway).Unix()
 	if v, ok := number(claims["nbf"]); ok && int64(v) > limit {
-		return nil, fmt.Errorf("Cannot handle token with nbf prior to %s", time.Unix(int64(v), 0).UTC().Format(isoDate))
+		return nil, fmt.Errorf("the token is not valid before %s", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
 	if v, ok := number(claims["iat"]); ok && int64(v) > limit {
-		return nil, fmt.Errorf("Cannot handle token with iat prior to %s", time.Unix(int64(v), 0).UTC().Format(isoDate))
+		return nil, fmt.Errorf("the token was issued in the future (%s)", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
 	if v, ok := number(claims["exp"]); ok && float64(now.Add(-requestLeeway).Unix()) >= v {
-		return nil, fmt.Errorf("Expired token")
+		return nil, errors.New("the token has expired")
 	}
 	return claims, nil
 }

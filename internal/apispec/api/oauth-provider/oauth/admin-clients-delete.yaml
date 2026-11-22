@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\OAuth\Http\Admin\AdminDeleteClientEndpoint
   description: >
     The client and its tokens go. Needs own on the client's organization (or the instance). Recorded as
     oauth.client_deleted.

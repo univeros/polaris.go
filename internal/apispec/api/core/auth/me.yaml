@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\MeEndpoint
   description: >
     Returns the authenticated user's identity record. The orgs and roles
     fields are returned as empty collections in the current implementation.

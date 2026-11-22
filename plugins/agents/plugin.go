@@ -143,10 +143,7 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 		var err error
 		switch e := e.(type) {
 		case event.UserDeleted:
-			err = errors.Join(
-				p.s.eraseWhere(ctx, store.Criteria{"owner_type": OwnerUser, "owner_id": e.UserID}, store.Criteria{"created_by": e.UserID}),
-				deleteHosts(ctx, p.s.db, store.Criteria{"owner_type": OwnerUser, "owner_id": e.UserID}),
-				deleteHosts(ctx, p.s.db, store.Criteria{"created_by": e.UserID}))
+			err = p.EraseAccess(ctx, e.UserID)
 		case event.OrganizationDeleted:
 			err = errors.Join(
 				p.s.eraseWhere(ctx, store.Criteria{"organization_id": e.OrganizationID}),
@@ -160,6 +157,16 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 			p.s.log.ErrorContext(ctx, "agents: cleaning up after "+e.EventName()+" failed", "error", err)
 		}
 	}}
+}
+
+// EraseAccess implements wiring.AccessEraser: the agents and hosts the user owns or registered.
+// They go when the user is erased, and with the first proof of the user's mailbox (an agent
+// registered before it does not act for the mailbox's owner).
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	return errors.Join(
+		p.s.eraseWhere(ctx, store.Criteria{"owner_type": OwnerUser, "owner_id": userID}, store.Criteria{"created_by": userID}),
+		deleteHosts(ctx, p.s.db, store.Criteria{"owner_type": OwnerUser, "owner_id": userID}),
+		deleteHosts(ctx, p.s.db, store.Criteria{"created_by": userID}))
 }
 
 func deleteHosts(ctx context.Context, db store.Adapter, c store.Criteria) error {

@@ -161,7 +161,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_scope",
-                "title": "Invalid Scope",
+                "title": "Invalid scope",
                 "status": 400,
                 "detail": "The client may not ask for \"members.read\".",
                 "error": "invalid_scope",
@@ -210,7 +210,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "redirect_uris: http is accepted for loopback only; use https.",
                 "error": "invalid_client_metadata",
@@ -260,7 +260,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A public client cannot use client_credentials.",
                 "error": "invalid_client_metadata",
@@ -553,7 +553,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
                 "detail": "The client assertion needs a jti, and one not used before.",
                 "error": "invalid_client",
@@ -603,7 +603,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
                 "detail": "The client assertion needs sub = the client, aud = this endpoint or issuer, and exp.",
                 "error": "invalid_client",
@@ -653,12 +653,12 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
-                "detail": "The client assertion does not verify: Signature verification failed",
+                "detail": "The client assertion does not verify: the signature does not verify",
                 "error": "invalid_client",
-                "error_description": "The client assertion does not verify: Signature verification failed",
-                "message": "The client assertion does not verify: Signature verification failed"
+                "error_description": "The client assertion does not verify: the signature does not verify",
+                "message": "The client assertion does not verify: the signature does not verify"
             }
         }
     }

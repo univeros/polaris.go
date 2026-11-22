@@ -116,8 +116,8 @@ func diff(t *testing.T, path string, got, want any) {
 
 func TestObjectEncoding(t *testing.T) {
 	cases := map[string]Object{
-		`[]`:               {},
-		`{"a":1,"b":[]}`:   {{"a", 1}, {"b", Object{}}},
+		`{}`:               {},
+		`{"a":1,"b":{}}`:   {{"a", 1}, {"b", Object{}}},
 		`{"b":2,"a":null}`: {{"b", 2}, {"a", nil}},
 	}
 	for want, o := range cases {

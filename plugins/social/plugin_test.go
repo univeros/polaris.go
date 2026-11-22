@@ -2,8 +2,14 @@ package social
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -633,9 +639,9 @@ func TestProviderTokensRefreshWhenExpiringAndAnyOAuth2ServerWorksFromItsDefiniti
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-43", "email": "zoe@example.com", "verified": false, "name": "Zoe"})
 	s = h.restart("acme")
 	_, err = h.callback("acme", map[string]any{"code": "good", "state": s.State})
-	refused(t, err, kindEmailUnverified, "signed up unverified: core requires a verified email to sign in")
-	if _, err := h.srv.Graph().Repos().Users.ByEmail(h.ctx, "zoe@example.com"); err != nil {
-		t.Fatal("the account exists, to verify")
+	refused(t, err, kindEmailUnverified, "the provider does not vouch for the address and core requires a verified email to sign in")
+	if _, err := h.srv.Graph().Repos().Users.ByEmail(h.ctx, "zoe@example.com"); err == nil {
+		t.Fatal("no account is created in the name of an address nobody proved (decision 68)")
 	}
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-42", "email": "eve@example.com", "verified": true, "name": "Eve"})
 	eve := userOf(h.signIn("acme", ""))["id"].(string)
@@ -725,7 +731,7 @@ func TestTheProxyForwardsASignedStateAndRefusesAnUnsignedOne(t *testing.T) {
 		t.Fatalf("the provider sends the browser to the stable origin: %v %v", started, err)
 	}
 	forward, err := stable.callback("google", map[string]any{"code": "good", "state": started.State})
-	if err != nil || forward != "https://pr-42.preview.example/auth/social/google/callback?code=good&state="+rawURLEncode(started.State) {
+	if err != nil || forward != "https://pr-42.preview.example/auth/social/google/callback?code=good&state="+url.QueryEscape(started.State) {
 		t.Fatalf("forwarded with everything the provider sent: %q %v", forward, err)
 	}
 	parts := strings.Split(started.State, ".")
@@ -799,9 +805,111 @@ func TestCatalogProfiles(t *testing.T) {
 	if p := (Profile{Name: "  " + strings.Repeat("é", 130)}).normalized(); len([]rune(p.Name)) != 118 {
 		t.Fatalf("a name fits core's display name: %d", len([]rune(p.Name)))
 	}
-	if str(true) != "1" || str(1.5) != "1.5" {
-		t.Fatal("str reads profile scalars")
+	if str(jsonNumber("12345678901234567890")) != "12345678901234567890" || str(1.5) != "1.5" || str("s") != "s" {
+		t.Fatal("str reads profile strings and numbers")
 	}
+	if str(true) != "" || str(false) != "" || str(nil) != "" || str([]any{"x"}) != "" {
+		t.Fatal("a boolean, null or collection is no text: never \"1\"")
+	}
+	if text(" \t\n") != "" || text(" a ") != " a " {
+		t.Fatal("text: a string with something besides white space")
+	}
+}
+
+func TestATokenResponsesExpiresInIsANumber(t *testing.T) {
+	for raw, want := range map[any]int{json.Number("3599"): 3599, "30": 30} {
+		tok, err := tokensOf(map[string]any{"access_token": "a", "expires_in": raw})
+		if err != nil || tok.expiresIn == nil || *tok.expiresIn != want {
+			t.Fatalf("%v: %+v %v", raw, tok, err)
+		}
+	}
+	for _, raw := range []any{"soon", " 30 ", "1e3", json.Number("1.5"), true} {
+		if tok, err := tokensOf(map[string]any{"access_token": "a", "expires_in": raw}); err != nil || tok.expiresIn != nil {
+			t.Fatalf("%v: %+v %v", raw, tok, err)
+		}
+	}
+}
+
+// The authorization request carries its parameters form-encoded (RFC 6749 §4.1.1, Appendix B):
+// a space is "+".
+func TestTheAuthorizationRequestIsFormEncoded(t *testing.T) {
+	google, _ := catalog("google", "")
+	u := (&provider{def: google, clientID: "c id"}).authorizationURL("https://app.example/cb?x=1", "s~t", nil, "", "n")
+	for _, want := range []string{"client_id=c+id", "redirect_uri=https%3A%2F%2Fapp.example%2Fcb%3Fx%3D1", "scope=openid+email+profile", "state=s~t"} {
+		if !strings.Contains(u, want) {
+			t.Fatalf("%s lacks %s", u, want)
+		}
+	}
+}
+
+func TestAccountTimestampsAreRFC3339InUTC(t *testing.T) {
+	at := time.Date(2026, 11, 20, 18, 32, 59, 0, time.FixedZone("x", 3600))
+	w := account{CreatedAt: at, UpdatedAt: at}.wire()
+	if w["created_at"] != "2026-11-20T17:32:59Z" || w["updated_at"] != "2026-11-20T17:32:59Z" {
+		t.Fatalf("wire %v", w)
+	}
+}
+
+func TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies(t *testing.T) {
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	edPub, _, _ := ed25519.GenerateKey(rand.Reader)
+	for name, c := range map[string]struct {
+		key  any
+		want string
+	}{
+		"RSA": {&rsaKey.PublicKey, "RS256"}, "EC P-256": {&p256.PublicKey, "ES256"}, "OKP Ed25519": {edPub, "EdDSA"},
+		"EC P-384": {&p384.PublicKey, ""}, "symmetric": {[]byte("secret"), ""},
+	} {
+		got, err := algorithmOf(jose.JSONWebKey{Key: c.key})
+		if got != c.want || (c.want == "") != (err != nil) {
+			t.Fatalf("%s: %q %v", name, got, err)
+		}
+	}
+	now := time.Now()
+	sign := func(alg jose.SignatureAlgorithm, key any, kid, claims string) string {
+		opts := &jose.SignerOptions{}
+		if kid != "" {
+			opts = opts.WithHeader("kid", kid)
+		}
+		s, _ := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: key}, opts)
+		jws, _ := s.Sign([]byte(claims))
+		raw, _ := jws.CompactSerialize()
+		return raw
+	}
+	keys := []jose.JSONWebKey{{Key: &rsaKey.PublicKey, KeyID: "rsa"}, {Key: &p256.PublicKey, KeyID: "ec"}, {Key: &p384.PublicKey, KeyID: "p384"}}
+	valid := fmt.Sprintf(`{"exp":%d}`, now.Unix()+60)
+	for name, c := range map[string]struct {
+		token, err string
+	}{
+		"RS256 by an RSA key":          {sign(jose.RS256, rsaKey, "rsa", valid), ""},
+		"ES256 by a P-256 key":         {sign(jose.ES256, p256, "ec", valid), ""},
+		"RS384 by an RSA key":          {sign(jose.RS384, rsaKey, "rsa", valid), "the key's algorithm is not the token's (alg)"},
+		"ES384 by a key without alg":   {sign(jose.ES384, p384, "p384", valid), "the key names no alg and its type implies none"},
+		"no kid":                       {sign(jose.RS256, rsaKey, "", valid), "the token names no key (kid)"},
+		"a kid the set does not carry": {sign(jose.RS256, rsaKey, "other", valid), "no key in the key set has the token's kid"},
+		"a wrong signature":            {sign(jose.RS256, otherRSAKey(t), "rsa", valid), "the signature does not verify"},
+		"not yet valid":                {sign(jose.RS256, rsaKey, "rsa", fmt.Sprintf(`{"nbf":%d}`, now.Unix()+600)), "the token is not valid yet (nbf)"},
+		"issued in the future":         {sign(jose.RS256, rsaKey, "rsa", fmt.Sprintf(`{"iat":%d}`, now.Unix()+600)), "the token was issued in the future (iat)"},
+		"expired":                      {sign(jose.RS256, rsaKey, "rsa", fmt.Sprintf(`{"exp":%d}`, now.Unix()-600)), "the token has expired"},
+		"claims not an object":         {sign(jose.RS256, rsaKey, "rsa", `[1]`), "the claims are not a JSON object"},
+	} {
+		_, err := verifyJWT(c.token, keys, now)
+		if (c.err == "" && err != nil) || (c.err != "" && (err == nil || err.Error() != c.err)) {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
+// otherRSAKey is an RSA key the key set does not hold.
+func otherRSAKey(t *testing.T) *rsa.PrivateKey {
+	t.Helper()
+	k, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return k
 }
 
 // A provider's email_verified is true only when the provider plainly says so: anything else,

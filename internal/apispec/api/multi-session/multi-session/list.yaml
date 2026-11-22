@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\MultiSession\Http\ListEndpoint
   description: >
     The device is the X-Polaris-Device header (or the polaris_ms_device cookie) a sign-in answered; the
     bearer's session must be one of the device's. Every live session of the device, the most recent
@@ -25,8 +24,8 @@ output:
       - session_id: "018f..."
         user: { id: "018f...", email: "ada@example.com", display_name: "Ada" }
         last_method: magic_link
-        signed_in_at: "2026-10-09T10:00:00+00:00"
-        last_seen: "2026-10-09T10:05:00+00:00"
+        signed_in_at: "2026-10-09T10:00:00Z"
+        last_seen: "2026-10-09T10:05:00Z"
         current: true
 
 errors:

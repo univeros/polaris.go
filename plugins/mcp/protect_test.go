@@ -251,7 +251,7 @@ func TestAMissingScopeIsInsufficientScopeNamingTheMissingOnes(t *testing.T) {
 	pr := c.local(func(cfg *ProtectConfig) { cfg.Scopes = []string{"org.read", "deploy", "members.read"} })
 	resp, body := through(pr, request(issue(t, c.now(), map[string]any{"scope": "org.read openid"}, "test", issuerKey()), "Bearer", "", nil))
 	want := `Bearer error="insufficient_scope", scope="deploy members.read", resource_metadata="` + testMetadata + `"`
-	if resp.StatusCode != 403 || resp.Header.Get("WWW-Authenticate") != want || body["title"] != "Insufficient Scope" ||
+	if resp.StatusCode != 403 || resp.Header.Get("WWW-Authenticate") != want || body["title"] != "Insufficient scope" ||
 		body["type"] != "https://polaris.univeros.io/problems/mcp/insufficient_scope" {
 		t.Fatalf("got %d %v %v", resp.StatusCode, resp.Header, body)
 	}

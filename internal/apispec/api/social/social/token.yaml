@@ -15,7 +15,6 @@ input:
     provider: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Social\Http\TokenEndpoint
   description: >
     The provider access token the user granted, so the application can call the provider's API on their
     behalf; refreshed first when it expires within a minute and the provider gave a refresh token.
@@ -24,7 +23,7 @@ domain:
 output:
   status: 200
   example:
-    data: { access_token: "<opaque>", expires_at: "2026-10-09T11:00:00+00:00", scopes: [repo] }
+    data: { access_token: "<opaque>", expires_at: "2026-10-09T11:00:00Z", scopes: [repo] }
 
 errors:
   - { status: 401, code: unauthorized }

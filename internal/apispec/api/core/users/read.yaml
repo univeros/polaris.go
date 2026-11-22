@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Users\ReadUserEndpoint
   description: >
     Self-access works without any permission key; reading another user
     requires the admin-scoped users.read key (held only by superadmin),

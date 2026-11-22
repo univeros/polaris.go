@@ -507,7 +507,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
                 "detail": "Unknown client, or one that does not authenticate with a key.",
                 "error": "invalid_client",
@@ -656,7 +656,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {

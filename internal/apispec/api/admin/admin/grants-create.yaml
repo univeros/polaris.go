@@ -17,7 +17,6 @@ input:
     expires_at: { type: string, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Grants\CreateGrantEndpoint
   description: >
     One grant per user: a new grant replaces the previous one. scope is instance or an
     organization id (an organization-scoped owner grants on their organization only). Needs own;
@@ -33,7 +32,7 @@ output:
       scope: "instance"
       granted_by: "018f..."
       expires_at: null
-      created_at: "2026-09-11T10:00:00+00:00"
+      created_at: "2026-09-11T10:00:00Z"
 
 errors:
   - { status: 401, code: admin_unauthorized }

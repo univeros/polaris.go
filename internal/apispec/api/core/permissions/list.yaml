@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Orgs\ListPermissionsEndpoint
   description: >
     Returns the full permission catalog (Polaris core plus any
     host-contributed keys), for building role-management UIs. Authenticated

@@ -18,7 +18,6 @@ input:
     password: { type: string, rules: [required], sensitive: true }
 
 domain:
-  class: Polaris\Http\Auth\LoginEndpoint
   description: >
     Verifies the password with timing parity for unknown accounts and tracks
     failed attempts (repeated failures lock the account for

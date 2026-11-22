@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\DeleteUserEndpoint
   description: >
     Deprovisions the member as the connection says: deactivated (the account banned, every session ended, a membership the connection created removed) or, with deprovision delete, anonymised. 204. Recorded as scim.user_deactivated or scim.user_deleted.
 

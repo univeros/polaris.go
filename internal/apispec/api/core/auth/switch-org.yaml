@@ -14,13 +14,13 @@ input:
     organization_id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Http\Auth\SwitchOrgEndpoint
   description: >
     Re-scopes the current session to an organization the caller is an active
     member of, returning a fresh access token carrying that org's
     org/roles/scope claims. The live session is re-pointed too, so subsequent
     refreshes stay scoped to the new org. A soft-deleted org is
-    indistinguishable from an unknown one (404).
+    indistinguishable from an unknown one (404). A session an organization's
+    identity provider opened (amr sso) stays in that organization: 403.
 
 output:
   status: 200
@@ -34,7 +34,7 @@ output:
 errors:
   - { status: 401, code: unauthorized }
   - { status: 401, code: session_ended }   # the session was revoked mid-flight
-  - { status: 403, code: forbidden }       # not an active member of that organization
+  - { status: 403, code: forbidden }       # not an active member of that organization, or an SSO session
   - { status: 404, code: not_found }       # unknown or soft-deleted organization
   - { status: 422, code: validation_failed }
 

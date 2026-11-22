@@ -20,7 +20,6 @@ input:
     client_assertion: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\RevokeEndpoint
   description: >
     RFC 7009: the authenticated client's own access token (by its jti) or refresh token (its family
     with it) stops; an unknown token is not an error. Recorded as oauth.token_revoked.

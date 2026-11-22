@@ -15,7 +15,6 @@ input:
     factorId: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Mfa\RemoveFactorEndpoint
   description: >
     Removes one factor as the user could; the last confirmed factor under enforced MFA is 409
     (reset the MFA instead). Needs manage; recorded as admin.mfa_factor_removed.

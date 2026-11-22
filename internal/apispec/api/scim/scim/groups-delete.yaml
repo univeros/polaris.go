@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\DeleteGroupEndpoint
   description: >
     A custom role and its assignments; a system role is refused. 204. Recorded as scim.group_deleted.
 

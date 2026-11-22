@@ -17,10 +17,11 @@ input:
     new_password: { type: string, rules: [required, password_policy], sensitive: true }
 
 domain:
-  class: Polaris\Http\Auth\ResetPasswordEndpoint
   description: >
     Sets a new password from a single-use reset token, then revokes every
-    session (logout everywhere) as account-takeover containment. A bad,
+    session (logout everywhere) as account-takeover containment. The token
+    proves the mailbox: an unverified account becomes verified, and what could
+    sign in to it before (factors, provider links, passkeys, keys) is removed. A bad,
     expired, or replayed token returns a generic 401 invalid_token; a
     password-policy failure returns 422 with the violations.
 

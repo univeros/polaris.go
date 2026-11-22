@@ -16,7 +16,6 @@ input:
     email: { type: string, rules: [required, email, "max:320"] }
 
 domain:
-  class: Polaris\Http\Auth\ResendVerificationEndpoint
   description: >
     Re-issues an email-verification challenge. Always returns a generic 202
     whether or not the account exists; internally the message is resent only

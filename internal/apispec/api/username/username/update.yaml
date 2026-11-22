@@ -15,7 +15,6 @@ input:
     display_username: { type: "?string", rules: [optional, "max:64"] }
 
 domain:
-  class: Polaris\Username\Http\UpdateEndpoint
   description: >
     The username must pass the plugin's rules (length, characters, reserved names) and be free without
     regard to case; it is stored lowercased, display_username keeps the case the user wants (the

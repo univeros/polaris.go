@@ -4,7 +4,7 @@
 //
 // A spec's route name comes from its file path ("auth/login.yaml" is "polaris.auth.login",
 // a plugin's "agents/execute.yaml" is "polaris.agents.execute"); endpoints register under it.
-// domain.class is kept only for the exports.
+// The route name is also the OpenAPI operationId and the "name" of the JSON manifest's entries.
 //
 // Load core's directory first, then each plugin's, in registration order:
 //

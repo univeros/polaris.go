@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Mcp\Http\ProtectedResourceEndpoint
   description: >
     Where a client sent here by the WWW-Authenticate challenge of /mcp finds the authorization server
     (core's issuer, whose /.well-known/oauth-authorization-server the oauth plugin serves), the scopes

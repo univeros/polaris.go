@@ -16,7 +16,6 @@ input:
     members: { type: "?array", rules: [optional] }
 
 domain:
-  class: Polaris\Scim\Http\Resources\CreateGroupEndpoint
   description: >
     A custom role of the organization (an empty permission set until an organization admin fills it) with its members (ids of members). Recorded as scim.group_created.
 

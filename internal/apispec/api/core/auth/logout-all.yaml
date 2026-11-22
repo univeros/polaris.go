@@ -13,7 +13,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Auth\LogoutAllEndpoint
   description: >
     Revokes every session for the authenticated user (the sub from the access
     token), for example after a security scare. Emits auth.sessions_revoked

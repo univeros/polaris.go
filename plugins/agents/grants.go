@@ -65,9 +65,7 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 		}
 		var raw any
 		if isObj {
-			if c, ok := obj["constraints"]; ok && (isMap(c) || isList(c)) {
-				raw = c
-			}
+			raw = obj["constraints"]
 		}
 		parsed, err := parseConstraints(raw)
 		if err != nil {
@@ -102,8 +100,7 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 	return out, nil
 }
 
-func isMap(v any) bool  { _, ok := v.(map[string]any); return ok }
-func isList(v any) bool { _, ok := v.([]any); return ok }
+func isMap(v any) bool { _, ok := v.(map[string]any); return ok }
 
 // withinPolicy: none asked (the policy's applies), or the same kind and field, no larger, and no
 // longer a window than the policy's. The policy's budget is a ceiling the asker cannot raise.
@@ -249,6 +246,34 @@ func (s *service) permissionsOf(ctx context.Context, a Agent) ([]string, error) 
 		}
 	}
 	return out, err
+}
+
+// ClientPermissions implements oauth.ClientAuthority: an agent's own token (client credentials)
+// may carry the permissions its live grants require and the user it acts as holds now; an
+// inactive agent holds none. owned is false when clientID is not an agent.
+func (p *Plugin) ClientPermissions(ctx context.Context, clientID string) ([]string, bool, error) {
+	a, found, err := p.s.agent(ctx, clientID)
+	if err != nil || !found {
+		return nil, false, err
+	}
+	if !a.Active() {
+		return nil, true, nil
+	}
+	granted, err := p.s.permissionsOf(ctx, a)
+	if err != nil {
+		return nil, true, err
+	}
+	held := []string{}
+	for _, permission := range granted {
+		ok, err := p.s.ownerHolds(ctx, a, permission)
+		if err != nil {
+			return nil, true, err
+		}
+		if ok {
+			held = append(held, permission)
+		}
+	}
+	return held, true, nil
 }
 
 // ownerHolds reports whether the user the agent acts as holds the permission now, in its

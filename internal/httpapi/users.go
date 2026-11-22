@@ -8,6 +8,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/pipeline"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/token"
@@ -89,6 +90,9 @@ func (a orgAPI) switchOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	access, err := services.Of(a.g).Sessions.SwitchOrganization(ctx, userID, orgID, sessionID)
 	if errors.Is(err, session.ErrInvalidGrant) {
 		return endpoint.Error(http.StatusUnauthorized, "session_ended", "The session is no longer active.")
+	}
+	if errors.Is(err, session.ErrOrganizationBound) {
+		return endpoint.Forbidden(pipeline.MsgOrganizationBound)
 	}
 	if err != nil {
 		return a.fail(ctx, err)

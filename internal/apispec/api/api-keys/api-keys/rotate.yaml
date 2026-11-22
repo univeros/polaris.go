@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\ApiKeys\Http\RotateEndpoint
   description: >
     A successor key with the same owner, name, permissions, rate limit, expiry and metadata and a new
     secret (in this response only); the key named keeps authenticating for the grace window
@@ -41,8 +40,8 @@ output:
       grace_until: null
       expires_at: null
       last_used_at: null
-      created_at: "2026-10-10T11:00:00+00:00"
-      updated_at: "2026-10-10T11:00:00+00:00"
+      created_at: "2026-10-10T11:00:00Z"
+      updated_at: "2026-10-10T11:00:00Z"
       key: "pk_live_..."
 
 errors:

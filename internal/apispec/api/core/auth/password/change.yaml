@@ -17,7 +17,6 @@ input:
     new_password: { type: string, rules: [required, password_policy], sensitive: true }
 
 domain:
-  class: Polaris\Http\Auth\ChangePasswordEndpoint
   description: >
     Changes the password for the authenticated user after re-verifying the
     current password. Every other session is revoked; the caller's current

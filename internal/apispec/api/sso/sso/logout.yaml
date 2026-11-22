@@ -17,7 +17,6 @@ input:
     post_logout_uri: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Flow\LogoutEndpoint
   description: >
     Every session of the caller ends; url is where the browser goes so the IdP ends its own session
     (a SAML LogoutRequest, or the OIDC end-session endpoint), null when the provider offers none. The

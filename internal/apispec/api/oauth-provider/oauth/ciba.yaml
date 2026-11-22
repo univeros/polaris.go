@@ -22,7 +22,6 @@ input:
     resource: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\OAuth\Http\CibaEndpoint
   description: >
     OpenID CIBA, poll mode, for a client with the ciba grant: login_hint is the user's email,
     binding_message short text the user sees; the client polls the token endpoint with auth_req_id at

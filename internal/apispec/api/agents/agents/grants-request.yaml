@@ -18,7 +18,6 @@ input:
     binding_message: { type: "?string", rules: [optional, "max:160"] }
 
 domain:
-  class: Polaris\Agents\Http\RequestGrantsEndpoint
   description: >
     capabilities names them (a name, or {name, constraints} with max, min, in, not_in, pattern per
     argument and budget: {count} or {amount, field}, window). What the policy auto-approves (the risk
@@ -31,7 +30,7 @@ output:
   status: 200
   example:
     agent_id: "018f..."
-    agent_capability_grants: [{ id: "018f...", agent_id: "018f...", capability: "deploy.staging", constraints: {}, budget: { kind: count, total: 100, remaining: 100, field: null }, status: active, granted_by: null, approved_via: auto, approval_id: null, expires_at: null, created_at: "2026-10-10T10:00:00+00:00", updated_at: "2026-10-10T10:00:00+00:00" }]
+    agent_capability_grants: [{ id: "018f...", agent_id: "018f...", capability: "deploy.staging", constraints: {}, budget: { kind: count, total: 100, remaining: 100, field: null }, status: active, granted_by: null, approved_via: auto, approval_id: null, expires_at: null, created_at: "2026-10-10T10:00:00Z", updated_at: "2026-10-10T10:00:00Z" }]
     approval: { id: "018f...", method: device_authorization, strength: step_up, user_code: "BCDF-GHJK", verification_uri: "https://app.example.com/agents/approve", verification_uri_complete: "https://app.example.com/agents/approve?user_code=BCDF-GHJK", expires_in: 600, interval: 5, binding_message: null }
 
 errors:

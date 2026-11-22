@@ -10,6 +10,7 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -134,7 +135,7 @@ func (s *Service) ListOrganizations(ctx context.Context, userID string) ([]model
 // UpdateOrganization renames org (as read by the caller) and dispatches
 // event.OrganizationUpdated. The name is trimmed; empty or over 160 characters is ErrInvalid.
 func (s *Service) UpdateOrganization(ctx context.Context, org model.Organization, name, actorUserID string) (model.Organization, error) {
-	name = trimEdges(name)
+	name = strutil.Trim(name)
 	if name == "" || utf8.RuneCountInString(name) > maxOrgName {
 		return model.Organization{}, refuse(ErrInvalid, MsgOrgName)
 	}

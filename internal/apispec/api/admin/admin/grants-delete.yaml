@@ -14,7 +14,6 @@ input:
     id: { type: string, rules: [required] }
 
 domain:
-  class: Polaris\Admin\Http\Grants\DeleteGrantEndpoint
   description: >
     Needs own on the instance; recorded as admin.grant_deleted.
 

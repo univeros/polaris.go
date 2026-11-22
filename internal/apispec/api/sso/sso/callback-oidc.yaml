@@ -16,10 +16,10 @@ input:
     error: { type: "?string", rules: [optional] }
 
 domain:
-  class: Polaris\Sso\Http\Flow\OidcCallbackEndpoint
   description: >
     Exchanges the code with the provider, verifies the id_token (issuer, audience, nonce, signature,
-    expiry), resolves or provisions the user, ensures the membership, opens an organization-scoped
+    expiry), resolves or provisions the user (an existing account only when the organization
+    provisioned it or verified its email domain), ensures the membership, opens an organization-scoped
     session and sends the browser to the application's redirect_uri with sso_code. Rejections are
     sso/assertion_invalid; the reason is in the audit trail (sso.assertion_rejected).
 

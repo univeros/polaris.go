@@ -16,7 +16,6 @@ input:
     limit: { type: integer, rules: [optional] }
 
 domain:
-  class: Polaris\Admin\Http\Organizations\ListOrganizationsEndpoint
   description: >
     Oldest first; status is active or suspended; cursor and limit as /admin/users. Needs read on
     the instance.
@@ -30,8 +29,8 @@ output:
         slug: "acme-rockets"
         status: "active"
         created_by: "018f..."
-        created_at: "2026-09-11T10:00:00+00:00"
-        updated_at: "2026-09-11T10:00:00+00:00"
+        created_at: "2026-09-11T10:00:00Z"
+        updated_at: "2026-09-11T10:00:00Z"
     next_cursor: null
 
 errors:

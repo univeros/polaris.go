@@ -22,12 +22,7 @@ const (
 	maxBudget      = math.MaxInt64 / 2
 )
 
-var (
-	fieldName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]{0,79}$`)
-	// numericString is a decimal number, optionally signed, with an optional exponent, between
-	// optional whitespace.
-	numericString = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\n\r\v\f]*$`)
-)
+var fieldName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]{0,79}$`)
 
 // Budget is what a grant may spend: Count executions, or an Amount summed from one argument
 // (Field), optionally within a Window that becomes the grant's lifetime.
@@ -70,25 +65,15 @@ type constraints struct {
 	budget *budget
 }
 
-// parseConstraints validates constraints written by an agent or an owner: argument → operators,
-// plus "budget". An empty list [] is no constraint, as an empty object is.
+// parseConstraints validates constraints written by an agent or an owner: a JSON object mapping
+// an argument to an object of operators, plus "budget". null is no constraint.
 func parseConstraints(raw any) (constraints, error) {
 	out := constraints{fields: map[string]map[string]any{}}
-	var m map[string]any
-	switch v := raw.(type) {
-	case nil:
+	if raw == nil {
 		return out, nil
-	case map[string]any:
-		m = v
-	case []any:
-		if len(v) > maxConstrained {
-			return out, refuse(ErrInvalidInput, fmt.Sprintf("At most %d arguments may be constrained.", maxConstrained))
-		}
-		if len(v) > 0 {
-			return out, refuse(ErrInvalidInput, "Constraints map an argument name to an object of operators.")
-		}
-		return out, nil
-	default:
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
 		return out, refuse(ErrInvalidInput, "Constraints map an argument name to an object of operators.")
 	}
 	if len(m) > maxConstrained {
@@ -97,7 +82,7 @@ func parseConstraints(raw any) (constraints, error) {
 	for _, field := range sortedKeys(m) {
 		ops := m[field]
 		if field == "budget" {
-			spec, ok := asSpec(ops)
+			spec, ok := ops.(map[string]any)
 			if !ok {
 				return out, refuse(ErrInvalidInput, "budget is an object: {count} or {amount, field}, with an optional window.")
 			}
@@ -109,12 +94,8 @@ func parseConstraints(raw any) (constraints, error) {
 			continue
 		}
 		opMap, isMap := ops.(map[string]any)
-		list, isList := ops.([]any)
-		if !fieldName.MatchString(field) || (!isMap && !isList) {
+		if !fieldName.MatchString(field) || !isMap {
 			return out, refuse(ErrInvalidInput, "Constraints map an argument name to an object of operators.")
-		}
-		if isList && len(list) > 0 {
-			return out, refuse(ErrUnknownConstraintOperator, fmt.Sprintf(`Unknown constraint operator "?" on "%s"; known: max, min, in, not_in, pattern, and budget.`, field))
 		}
 		parsed := map[string]any{}
 		for _, op := range sortedKeys(opMap) {
@@ -130,16 +111,6 @@ func parseConstraints(raw any) (constraints, error) {
 		out.fields[field] = parsed
 	}
 	return out, nil
-}
-
-func asSpec(v any) (map[string]any, bool) {
-	switch v := v.(type) {
-	case map[string]any:
-		return v, true
-	case []any:
-		return map[string]any{}, true
-	}
-	return nil, false
 }
 
 // parseBudget validates {count: N} or {amount: N, field: argument}, with an optional window.
@@ -239,7 +210,7 @@ func violations(fields map[string]map[string]any, args map[string]any) []Violati
 func satisfies(op string, want, actual any) bool {
 	switch op {
 	case "max", "min":
-		a, ok := numeric(actual)
+		a, ok := number(actual) // a JSON number: a numeric string is not bounded, so it violates
 		w, _ := number(want)
 		if !ok {
 			return false
@@ -297,18 +268,6 @@ func number(v any) (float64, bool) {
 	return 0, false
 }
 
-// numeric reads a number, or a numeric string (numericString), and its value.
-func numeric(v any) (float64, bool) {
-	if s, ok := v.(string); ok {
-		if !numericString.MatchString(s) {
-			return 0, false
-		}
-		f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-		return f, err == nil
-	}
-	return number(v)
-}
-
 // wholeNumber reads an integer: a JSON number written without fraction or exponent.
 func wholeNumber(v any) (int64, bool) {
 	switch v := v.(type) {
@@ -335,24 +294,21 @@ func scalar(v any) bool {
 	return false
 }
 
-// identical is strict equality over decoded JSON scalars: same kind and same value, so an integer
-// never equals a float or a string.
+// identical is equality over decoded JSON scalars: same JSON type and same value. JSON has one
+// number type, so 1, 1.0 and 1e0 are equal; integers are compared exactly, other numbers by their
+// float64 value. A number never equals a string.
 func identical(a, b any) bool {
-	ka, kb := kind(a), kind(b)
-	if ka != kb {
-		return false
+	x, xNum := number(a)
+	y, yNum := number(b)
+	if !xNum || !yNum {
+		return !xNum && !yNum && a == b
 	}
-	switch ka {
-	case "int":
-		x, _ := wholeNumber(a)
-		y, _ := wholeNumber(b)
-		return x == y
-	case "float":
-		x, _ := number(a)
-		y, _ := number(b)
-		return x == y
+	if i, ok := wholeNumber(a); ok {
+		if j, ok := wholeNumber(b); ok {
+			return i == j
+		}
 	}
-	return a == b
+	return x == y
 }
 
 func kind(v any) string {

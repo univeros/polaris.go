@@ -12,7 +12,6 @@ input:
   source: none
 
 domain:
-  class: Polaris\Http\Orgs\ListOrganizationsEndpoint
   description: >
     Returns the organizations in which the authenticated caller holds an
     active membership, restricted to active (not soft-deleted) organizations.
