@@ -65,13 +65,15 @@ weekly `fuzz` workflow) actually fuzzes. A failing input lands in the package's
 
 ## API stability
 
-[API.md](API.md) says what a host or a plugin may rely on in v0.x: the host surface (package
-`polaris`, plugin constructors, `store/sqlstore`, `polaristest`, ...), the plugin SDK (`wiring`,
-`endpoint`, `manifest`, `event`, `token`) and the types they name. `scripts/api-stable.txt` is the
-machine-readable list. `make apicheck` (a CI job on every pull request) fails on an incompatible
-change to a stable name unless `docs/decisions.md` gains an entry with a "Breaking" line. Adding a
-field, a method, an option or a constant is not breaking. Anything not listed may change in a minor
-release.
+[API.md](API.md) is the promise: every exported name of every package outside `internal/` is the
+API, covered by semantic versioning from `v1.0.0`. So before you export a name, decide that it is
+for hosts or plugin authors; what only Polaris uses goes under `internal/` or stays unexported.
+`make apicheck` (a CI job on every pull request) compares every public package with the base:
+before `v1.0.0` an incompatible change needs an entry in `docs/decisions.md` with a "Breaking"
+line and a **Breaking** line in the CHANGELOG; from `v1.0.0` it is refused (deprecate instead; a
+removal waits for `/v2`). Adding a field, a function, a method on a struct or on one of `wiring`'s
+sealed service interfaces, an option or a constant is not breaking; adding a method to any other
+interface is.
 
 New exported names need a doc comment, and the main uses a runnable `Example`. If you change what a
 host writes, keep [llms.txt](llms.txt) current: `llms_test.go` compiles its snippets.

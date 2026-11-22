@@ -29,13 +29,6 @@ func (p PasswordPolicy) Validate(ctx context.Context, password string) []string 
 	return violations
 }
 
-func (p PasswordPolicy) enforce(ctx context.Context, password string) error {
-	if v := p.Validate(ctx, password); len(v) > 0 {
-		return &PasswordError{Violations: v}
-	}
-	return nil
-}
-
 // NormalizeEmail canonicalizes an email so one address always maps to one stored value and one
 // lookup key: surrounding whitespace trimmed, ASCII letters lowercased, every other byte (non-ASCII letters included) kept as it
 // is. The result is stored, so it must stay byte for byte what earlier releases stored for the

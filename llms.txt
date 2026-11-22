@@ -294,5 +294,5 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.
 - `internal/apispec/api/**.yaml` — every route: method, path, auth, permissions, input, output, errors.
-- `API.md` — what is stable in v0.x (the host surface, the plugin SDK) and what may change.
+- `API.md` — the Go API promise: every exported name outside `internal/` (the host surface, the plugin SDK, the ports), and the deprecation policy.
 - `docs/decisions.md` — every design decision, with the reason.

@@ -4,9 +4,29 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
+
+const password = "correct horse battery staple"
+
+var ctx = context.Background()
+
+func isErr(t *testing.T, err, want error) {
+	t.Helper()
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+}
+
+func TestErrorCarriesItsMessageAndMatchesItsKind(t *testing.T) {
+	var err error = &Error{Kind: ErrConflict, Message: "You cannot disable yourself."}
+	isErr(t, err, ErrConflict)
+	if err.Error() != "You cannot disable yourself." {
+		t.Fatal(err)
+	}
+}
 
 type breached bool
 

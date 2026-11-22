@@ -209,14 +209,14 @@ func TestSignUp(t *testing.T) {
 | [Website docs](https://polaris.univeros.io/docs/go/) | The same guides, rendered |
 | [`plugins/<id>/README.md`](plugins) | Per plugin: configuration, routes, events, permissions, problems |
 | [pkg.go.dev](https://pkg.go.dev/github.com/univeros/polaris.go) | Every exported identifier, with runnable examples |
-| [`API.md`](API.md) | What is stable: the host surface, the plugin SDK |
+| [`API.md`](API.md) | The Go API promise: the host surface, the plugin SDK, the deprecation policy |
 | [`docs/decisions.md`](docs/decisions.md) | Every design decision, with the reason |
 
 ## Stability
 
-Polaris is pre-1.0. The host surface and the plugin SDK listed in [`API.md`](API.md) only change with
-a recorded decision and a release note, and CI checks every pull request for incompatible changes to
-them. Stored data (password hashes, encrypted secrets, issued tokens, the schema) stays readable
+Polaris is pre-1.0. The Go API ([`API.md`](API.md): every exported name outside `internal/`) only
+changes with a recorded decision and a release note, and CI checks every pull request for
+incompatible changes to it; from 1.0 on it does not break. Stored data (password hashes, encrypted secrets, issued tokens, the schema) stays readable
 across releases. [`CHANGELOG.md`](CHANGELOG.md) says what changes in each release;
 [`docs/v1.md`](docs/v1.md) what 1.0 still requires.
 

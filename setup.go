@@ -7,8 +7,8 @@ import (
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/internal/services"
 
-	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/authz"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"

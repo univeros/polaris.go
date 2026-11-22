@@ -30,7 +30,7 @@ func Authority(ctx context.Context) (authz.Authority, bool) {
 	return a, ok
 }
 
-type gateAdapter struct{ gate *authz.Gate }
+type gateAdapter struct{ gate Gate }
 
 func (a gateAdapter) Authority(ctx context.Context, t *token.Token) (pipeline.Authority, error) {
 	return a.gate.Authority(ctx, Caller(t))
@@ -85,7 +85,7 @@ func (g *Graph) Pipeline(endpoints map[string]endpoint.Endpoint, opts ...Pipelin
 		MFATickets:       ticketAdapter{g},
 		StepUp:           g.mfa,
 		Denylist:         denylistAdapter{g},
-		Gate:             gateAdapter{g.gate},
+		Gate:             gateAdapter{g.Gate()},
 		RateStore:        g.rateStore,
 		PluginMiddleware: middleware,
 		Clock:            g.clock,

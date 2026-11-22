@@ -1,0 +1,13 @@
+endpoint:
+  method: GET
+  path: /notes/whoami
+  summary: Who the caller is
+  tags: [notes]
+  auth: bearer
+  effect: read
+
+output:
+  status: 200
+
+domain:
+  description: A route of a third-party plugin.

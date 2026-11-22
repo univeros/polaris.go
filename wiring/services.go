@@ -6,18 +6,26 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/identity"
+	iauthz "github.com/univeros/polaris.go/internal/authz"
+	iidentity "github.com/univeros/polaris.go/internal/identity"
+	imfa "github.com/univeros/polaris.go/internal/mfa"
+	iorgs "github.com/univeros/polaris.go/internal/orgs"
 	"github.com/univeros/polaris.go/internal/services"
+	isession "github.com/univeros/polaris.go/internal/session"
 	"github.com/univeros/polaris.go/mfa"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/token"
 )
 
 // The core services as a plugin sees them: only the methods plugins call, so the services behind
-// them can change without breaking a plugin (API.md §2). A method is added here when a plugin needs
-// it; removing or changing one is a breaking change. The types they name (model.User,
-// authz.Authority, …) are stable with them.
+// them can change without breaking a plugin. Polaris implements these interfaces and plugins only
+// call them, so they are sealed (the unexported method): a 1.x release may add a method to one,
+// and never removes or changes one (API.md). A test double embeds the interface
+// (struct{ wiring.Identity }) and overrides what the test calls. The types they name (model.User,
+// authz.Authority, …) are public with them.
 
 // Identity manages accounts. Every path that creates or deletes an account goes through
 // InsertUser and OnUserDeleted, so the host's hooks run.
@@ -35,7 +43,7 @@ type Identity interface {
 	// the first proof of an account (first true) it marks the account verified and removes what
 	// could act as it before: password, factors, the plugins' AccessEraser rows, sessions.
 	// confirmsRegistration (a registration's own verification message) keeps a password and then
-	// removes nothing. See identity.Service.ProveEmail.
+	// removes nothing.
 	ProveEmail(ctx context.Context, userID string, confirmsRegistration bool) (user model.User, first bool, err error)
 	// Login checks a password sign-in: tokens, or an MFA challenge.
 	Login(ctx context.Context, email, password string, client token.ClientContext) (identity.LoginResult, error)
@@ -45,6 +53,8 @@ type Identity interface {
 	DisableUser(ctx context.Context, actorUserID, userID string) error
 	EnableUser(ctx context.Context, actorUserID, userID string) error
 	AnonymizeUser(ctx context.Context, actorUserID, userID string) error
+
+	sealed()
 }
 
 // Sessions issues and revokes sessions (refresh-token families).
@@ -57,6 +67,8 @@ type Sessions interface {
 	Revoke(ctx context.Context, userID, sessionID string) (bool, error)
 	RevokeAll(ctx context.Context, userID, reason string) (int, error)
 	RevokeFamily(ctx context.Context, familyID, reason string) error
+
+	sealed()
 }
 
 // MFA reads and changes a user's factors and gates sign-ins on them.
@@ -70,6 +82,8 @@ type MFA interface {
 	ConfirmFactor(ctx context.Context, factor model.MFAFactor) (mfa.ConfirmResult, error)
 	UpdateFactor(ctx context.Context, userID, factorID string, label *string, makeDefault bool) (model.MFAFactor, error)
 	RemoveFactor(ctx context.Context, userID, factorID string) error
+
+	sealed()
 }
 
 // Orgs manages organizations and their members.
@@ -80,32 +94,44 @@ type Orgs interface {
 	// orgs.ErrConflict when fn left the organization without an active owner.
 	KeepOwner(ctx context.Context, organizationID string, fn func(ctx context.Context) error) error
 	DeleteOrganization(ctx context.Context, org model.Organization, actorUserID string) error
+
+	sealed()
 }
 
 // Denylist answers whether a user's access tokens issued at a time are revoked.
 type Denylist interface {
 	IsRevoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error)
+
+	sealed()
 }
 
 // Catalog lists the permission keys: core's, Config.Permissions and the plugins'.
 type Catalog interface {
 	Permissions() []authz.Permission
+
+	sealed()
 }
 
 // Resolver resolves a user's roles and permissions in an organization.
 type Resolver interface {
 	Resolve(ctx context.Context, userID, organizationID string) (authz.Authority, error)
+
+	sealed()
 }
 
 // Gate authorizes a caller, delegation included.
 type Gate interface {
 	Allows(ctx context.Context, c authz.Caller, permissions ...string) (bool, error)
 	Authority(ctx context.Context, c authz.Caller) (authz.Authority, error)
+
+	sealed()
 }
 
 // Principals builds the session principal (roles, scope) a token is minted for.
 type Principals interface {
 	Resolve(ctx context.Context, userID, organizationID string) (token.SessionPrincipal, error)
+
+	sealed()
 }
 
 // Pepper is the keyed hash of stored secrets (API keys, client secrets, one-time codes): the
@@ -115,38 +141,66 @@ type Pepper interface {
 	Hash(context, value string) string
 	// Matches reports, in constant time, whether value re-hashed for context equals hash.
 	Matches(context, value, hash string) bool
+
+	sealed()
 }
+
+// The concrete services, sealed: each embeds the service and adds the unexported method that
+// keeps the interface Polaris's to implement.
+type (
+	identityService   struct{ *iidentity.Service }
+	sessionsService   struct{ *isession.Service }
+	mfaService        struct{ *imfa.Service }
+	orgsService       struct{ *iorgs.Service }
+	denylistService   struct{ *isession.Denylist }
+	catalogService    struct{ authz.Catalog }
+	resolverService   struct{ *iauthz.Resolver }
+	gateService       struct{ *iauthz.Gate }
+	principalsService struct{ *iauthz.Principals }
+	pepperService     struct{ *security.Pepper }
+)
+
+func (identityService) sealed()   {}
+func (sessionsService) sealed()   {}
+func (mfaService) sealed()        {}
+func (orgsService) sealed()       {}
+func (denylistService) sealed()   {}
+func (catalogService) sealed()    {}
+func (resolverService) sealed()   {}
+func (gateService) sealed()       {}
+func (principalsService) sealed() {}
+func (pepperService) sealed()     {}
 
 func init() {
 	services.Bind(func(graph any) *services.Services { return graph.(*Graph).core })
 }
 
 // Identity returns the account service.
-func (g *Graph) Identity() Identity { return g.core.Identity }
+func (g *Graph) Identity() Identity { return identityService{g.core.Identity} }
 
 // Sessions returns the session service.
-func (g *Graph) Sessions() Sessions { return g.core.Sessions }
+func (g *Graph) Sessions() Sessions { return sessionsService{g.core.Sessions} }
 
 // MFA returns the MFA service.
-func (g *Graph) MFA() MFA { return g.core.MFA }
+func (g *Graph) MFA() MFA { return mfaService{g.core.MFA} }
 
 // Orgs returns the organization service.
-func (g *Graph) Orgs() Orgs { return g.core.Orgs }
+func (g *Graph) Orgs() Orgs { return orgsService{g.core.Orgs} }
 
 // Denylist returns the access-token denylist.
-func (g *Graph) Denylist() Denylist { return g.core.Denylist }
+func (g *Graph) Denylist() Denylist { return denylistService{g.core.Denylist} }
 
 // Catalog returns the permission catalog (core, Config.Permissions, plugins).
-func (g *Graph) Catalog() Catalog { return g.core.Catalog }
+func (g *Graph) Catalog() Catalog { return catalogService{g.core.Catalog} }
 
 // Resolver returns the authority resolver.
-func (g *Graph) Resolver() Resolver { return g.core.Resolver }
+func (g *Graph) Resolver() Resolver { return resolverService{g.core.Resolver} }
 
 // Gate returns the authorization gate.
-func (g *Graph) Gate() Gate { return g.core.Gate }
+func (g *Graph) Gate() Gate { return gateService{g.core.Gate} }
 
 // Principals returns the session principal resolver.
-func (g *Graph) Principals() Principals { return g.core.Principals }
+func (g *Graph) Principals() Principals { return principalsService{g.core.Principals} }
 
 // Pepper returns the keyed hash of stored secrets.
-func (g *Graph) Pepper() Pepper { return g.core.Pepper }
+func (g *Graph) Pepper() Pepper { return pepperService{g.core.Pepper} }

@@ -20,9 +20,10 @@ lint:
 vuln:
 	GOVULNCHECK=$(GOVULNCHECK) scripts/govulncheck.sh
 
-# apicheck fails on an incompatible change to the stable API (scripts/api-stable.txt) since BASE,
-# unless docs/decisions.md records it.
-BASE ?= origin/main
+# apicheck fails on an incompatible change to the Go API (every exported name outside internal/,
+# API.md) since BASE, the latest tag by default. Before v1.0.0 a break passes when
+# docs/decisions.md records it; from v1.0.0 on it is refused (scripts/apicheck.sh).
+BASE ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo origin/main)
 apicheck:
 	APIDIFF=$(APIDIFF) scripts/apicheck.sh $(BASE)
 

@@ -3,11 +3,83 @@
 What changes for an application (a "host") or a plugin author in each release of Polaris for Go.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html), with the pre-1.0 rule that a minor
-release may break what [API.md](API.md) does not mark stable, and breaks a stable name only with a
+release may break the Go API ([API.md](API.md): every exported name outside `internal/`) only with a
 decision in [docs/decisions.md](docs/decisions.md) ("decision N" below). Breaking changes are
 marked **Breaking**.
 
 ## [Unreleased]
+
+### Added
+
+- `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
+  `PreviousLegacyKeyID`, a second kid `VerifyJWT` accepts for each key; `config.Secrets.LegacyKeyID`
+  and `PreviousLegacyKeyID` (decision 73).
+- `APP_KEY` is fixed for the life of a deployment in 1.x: `config.Secrets`, SECURITY.md
+  ("Operating Polaris") and docs/stored-formats.md say what depends on it and what changing it
+  invalidates (decision 73).
+
+### Changed
+
+- **Breaking** (Go API, decision 70): from v1.0.0 every exported name outside `internal/` is the
+  API ([API.md](API.md)), so what only Polaris used left the public packages. Nothing API.md listed
+  as the host surface or the plugin SDK is removed; this affects code that imported one of the
+  "public but not stable" packages for a concrete service. Use `polaris.Users` / `Orgs` /
+  `Sessions` from a host and `wiring.Graph`'s `Identity()`, `Sessions()`, `MFA()`, `Orgs()`,
+  `Gate()`, `Resolver()`, `Principals()`, `Denylist()` from a plugin. Removed:
+  - `identity`: `Service`, `New`, `Config`, `Sessions`, `MFAGate`, `MFATickets`,
+    `AuthorityResolver`, `NewUser`, `ImportedUser`, `UserView`, `ErrInvalidConfig`.
+  - `session`: `Service`, `New`, `Config`, `Issuer`, `PrincipalResolver`, `UserPrincipals`,
+    `Denylist`, `NewDenylist`, `MFATickets`, `NewMFATickets`, `PurposeLoginMFA`, `ReservedClaim`,
+    `ErrInvalidConfig`.
+  - `mfa`: `Service`, `New`, `Config`, `Sessions`, `Tickets`, `PrincipalResolver`, `TOTP`,
+    `NewTOTP`, `TOTPProvider`, `QRRenderer`, `SVGQRCode`, `TOTPEnrollResult`, `OTPEnrollResult`,
+    `OTPChallengeResult`, `ManagedFactorView`, `ManagedViewOf`, `RecoveryCodeCount`,
+    `ErrInvalidConfig`.
+  - `orgs`: `Service`, `New`, `Config`, `Sessions`, `Invitation`, `InvitationTTL`, `Role`,
+    `NewRole`, `RoleChanges`, `ErrInvalidConfig`, and the message constants `MsgAlreadyMember`,
+    `MsgBadStatus`, `MsgInvalidInvitation`, `MsgInvitationEmail`, `MsgInvitationNotFound`,
+    `MsgInvitationNotYetUsed`, `MsgLastActiveOwner`, `MsgLastOwner`, `MsgMemberNotFound`,
+    `MsgMemberSuspended`, `MsgMembershipExists`, `MsgOrgName`, `MsgOrganizationNotFound`,
+    `MsgOwnMembershipSuspend`, `MsgOwnerModify`, `MsgOwnerRemove`, `MsgOwnerRole`,
+    `MsgOwnerStatus`, `MsgRoleName`, `MsgRoleNotFound`, `MsgRoleSlug`, `MsgRoleSlugReserved`,
+    `MsgRolesRequired`, `MsgSlugTaken`, `MsgSlugUnderivable`, `MsgSystemRole`, `MsgUserNotFound`.
+  - `authz`: `Resolver`, `NewResolver`, `Gate`, `NewGate`, `EscalationGuard`,
+    `NewEscalationGuard`, `Principals`, `NewPrincipals`, `Seed`.
+  - `notify`: `Listener`, `Users`.
+
+  What stays in those packages is what a plugin sees: `identity.LoginResult`, `PasswordError`,
+  `PasswordPolicy`, `NormalizeEmail` and the sentinels; `session.Info`; `mfa.FactorType`,
+  `LoginChallenge`, `FactorView`, `ViewOf`, …; `orgs.Member`, `Error`; `authz.Authority`, `Caller`,
+  `Catalog`, the permission keys and role slugs. The wire messages and behaviour are unchanged.
+- **Breaking** (Go API, decision 70): `wiring.Identity`, `Sessions`, `MFA`, `Orgs`, `Denylist`,
+  `Catalog`, `Resolver`, `Gate`, `Principals` and `Pepper` are sealed (an unexported method): only
+  Polaris implements them, so a 1.x release can add a method without breaking a plugin. A test
+  double that implemented one embeds it instead (`struct{ wiring.Identity }`). Every other exported
+  interface is frozen for v1.
+- `make apicheck` compares every public package with the base (was: the names in
+  `scripts/api-stable.txt`, now removed), and refuses an incompatible change outright once the
+  base is `v1.0.0` or later. [API.md](API.md) is the v1 promise, with the deprecation policy: added
+  and deprecated in 1.x, removed only in v2.
+- **Client-visible:** without `AUTH_JWT_KID` the `kid` of new tokens and of the JWKS is the RFC 7638
+  thumbprint of the public key (base64url, 43 characters), not the SHA-256 hex of the PEM text, so
+  re-encoding the same key no longer changes it. Nothing issued before stops verifying: the server
+  still accepts tokens naming the old `kid`, and `/auth/.well-known/jwks.json` publishes each key a
+  second time under its old `kid` (same key material), after the keys under their new kids, for
+  verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
+  `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
+
+
+## [0.6.0] - 2026-11-22
+
+The last v0.x feature release before 1.0: the wire speaks plain Go (decisions 64 and 65), the host
+API gains what everyday programs needed (decision 66), and an audit-chain hang is fixed (decision
+72). **Run `Migrate` after upgrading** (it now also seeds the audit chain's lock row). Many entries
+are **Client-visible**: timestamps end in `Z`, empty objects are `{}`, request bodies are typed
+strictly (422 on a wrong JSON type), OpenAPI `operationId`s are the route names, JWT and schema
+error texts are new, and SCIM, agents and OAuth inputs follow their RFCs. Read Changed before
+upgrading a client. New for hosts: `SignIn.OrganizationID`, `Orgs().Invite`,
+`sqlstore.Store.Conn`/`Tx`/`AfterCommit`/`Close`, two-phase event delivery
+(`Config.TxListeners`), `polaris.DevEnv`, `polaristest.Hasher`, `Polaris.Wrap`.
 
 ### Added
 
@@ -26,22 +98,8 @@ marked **Breaking**.
   minor gets Critical and High fixes for 3 months after a new minor, and each fix is a GitHub
   security advisory with a CVE. [docs/stored-formats.md](docs/stored-formats.md) lists the stored
   data and tokens every 1.x release keeps reading (decision 71).
-- `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
-  `PreviousLegacyKeyID`, a second kid `VerifyJWT` accepts for each key; `config.Secrets.LegacyKeyID`
-  and `PreviousLegacyKeyID` (decision 73).
-- `APP_KEY` is fixed for the life of a deployment in 1.x: `config.Secrets`, SECURITY.md
-  ("Operating Polaris") and docs/stored-formats.md say what depends on it and what changing it
-  invalidates (decision 73).
 
 ### Changed
-
-- **Client-visible:** without `AUTH_JWT_KID` the `kid` of new tokens and of the JWKS is the RFC 7638
-  thumbprint of the public key (base64url, 43 characters), not the SHA-256 hex of the PEM text, so
-  re-encoding the same key no longer changes it. Nothing issued before stops verifying: the server
-  still accepts tokens naming the old `kid`, and `/auth/.well-known/jwks.json` publishes each key a
-  second time under its old `kid` (same key material), after the keys under their new kids, for
-  verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
-  `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
 
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
   (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
@@ -541,7 +599,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/univeros/polaris.go/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
