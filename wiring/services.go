@@ -29,6 +29,14 @@ type Identity interface {
 	// OnUserDeleted runs the host's OnUserDeleted hook; call it inside the transaction that removes
 	// the account, so a hook error rolls the removal back.
 	OnUserDeleted(ctx context.Context, userID string) error
+	// ProveEmail records that the caller established control of the account's mailbox; every
+	// path that does (a link or code sent there, a trusted provider, the identity provider of the
+	// organization that verified the domain) calls it instead of writing email_verified_at. On
+	// the first proof of an account (first true) it marks the account verified and removes what
+	// could act as it before: password, factors, the plugins' AccessEraser rows, sessions.
+	// confirmsRegistration (a registration's own verification message) keeps a password and then
+	// removes nothing. See identity.Service.ProveEmail.
+	ProveEmail(ctx context.Context, userID string, confirmsRegistration bool) (user model.User, first bool, err error)
 	// Login checks a password sign-in: tokens, or an MFA challenge.
 	Login(ctx context.Context, email, password string, client token.ClientContext) (identity.LoginResult, error)
 	// SetPassword sets the password for a trusted caller, as a reset does: the policy applies

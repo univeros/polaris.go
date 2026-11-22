@@ -34,6 +34,7 @@ var English = map[string]string{
 	"resent":            "If the address is registered and not yet verified, a new message is on its way.",
 	"verify_title":      "Verify your email",
 	"verify_intro":      "Paste the code from the message we sent you.",
+	"verify_confirm":    "Confirm that this email address is yours. If you did not create an account, close this page.",
 	"verified_title":    "Email verified",
 	"verified":          "Your email address is verified. You can sign in now.",
 	"forgot_title":      "Reset your password",

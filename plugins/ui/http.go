@@ -293,14 +293,15 @@ func (p *Plugin) resend(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, rep.status, "check-email", v)
 }
 
-// verifyPage verifies the token of an email link at once (a verification is idempotent and signs
-// nobody in); without one it asks for the code.
+// verifyPage never verifies: mail scanners follow a message's links with GET, and would confirm
+// a registration its recipient never made. With the token of an email link it answers a page
+// whose one button posts the token (the CSRF-guarded POST verifies); without one it asks for the
+// code.
 func (p *Plugin) verifyPage(w http.ResponseWriter, r *http.Request) {
-	if token := r.URL.Query().Get("token"); token != "" {
-		p.verifyToken(w, r, token)
-		return
-	}
-	p.render(w, r, http.StatusOK, "verify", p.newView(w, r, "verify_title"))
+	v := p.newView(w, r, "verify_title")
+	v.Token = r.URL.Query().Get("token")
+	v.TokenGiven = v.Token != ""
+	p.render(w, r, http.StatusOK, "verify", v)
 }
 
 func (p *Plugin) verify(w http.ResponseWriter, r *http.Request) {

@@ -320,6 +320,11 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 	if email == "" {
 		return nil, refuse(kindEmailRequired, "The provider shared no email address; grant the email scope or use another provider.")
 	}
+	if !prof.EmailVerified && p.g.Auth().Flows.RequireVerifiedEmail {
+		// No session would open, and an account and a link made now would wait, in the address's
+		// name, for whoever proves the mailbox later: nothing is created.
+		return nil, p.reject(ctx, id, "the provider does not vouch for the email address", client, kindEmailUnverified)
+	}
 	var u model.User
 	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		var err error
@@ -344,18 +349,14 @@ func (p *Plugin) linkTrusted(ctx context.Context, u model.User, id string, prof 
 		return nil, refuse(kindAccountExists, "An account with this email exists; sign in and link the provider from your account.")
 	}
 	err := p.g.DB().Tx(ctx, func(ctx context.Context) error {
-		if u.EmailVerifiedAt == nil {
-			// Whoever registered the address did not own it: the provider just proved it.
-			claimed, err := p.claim(ctx, u)
-			if err != nil {
-				return err
-			}
-			u = claimed
-			if err := p.unlinkAll(ctx, u.ID); err != nil {
-				return err
-			}
+		// Whoever registered an unverified address did not prove it; the provider just did: the
+		// first proof removes what could sign in before (the other providers' links included).
+		proven, _, err := p.g.Identity().ProveEmail(ctx, u.ID, false)
+		if err != nil {
+			return err
 		}
-		_, err := p.link(ctx, u.ID, id, prof, t)
+		u = proven
+		_, err = p.link(ctx, u.ID, id, prof, t)
 		return err
 	})
 	if err != nil {

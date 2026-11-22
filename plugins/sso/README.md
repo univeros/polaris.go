@@ -40,8 +40,48 @@ across replicas (its `Add` must be atomic).
    `302 <redirect_uri>?sso_code=…`. Tokens never travel in a URL.
 3. `POST /sso/exchange {code}` answers core's login envelope, once, within a minute.
 
-An IdP signs in only the organization's members or users whose email is on one of its verified
-domains.
+### Whose accounts an IdP signs in
+
+Whoever runs an organization's IdP can assert any email, and any user can create an organization and
+configure one. So a provider signs in an **existing** account only when the organization owns it:
+
+- one of its providers created it just in time (recorded in `polaris_sso_account`), or
+- one of its SCIM directories created it (`plugins/scim`), or
+- the account's email is on a domain the organization verified.
+
+Being a member is not enough: joining an organization does not hand it the account. Anything else
+answers `sso/user_unknown`. An unverified account on a verified domain becomes verified by the
+sign-in, as the mailbox's first proof (`Identity.ProveEmail`: what could sign in before goes). A platform
+superadmin never signs in through an organization's IdP.
+
+Upgrading from v0.5.0 or earlier: accounts a provider created before the record existed sign in
+again once the organization verifies their email domain. Where it cannot (contractors on public
+mail domains), record them from code, only for accounts the organization's IdP created:
+
+```go
+err := sso.Of(p.Graph()).MarkProvisioned(ctx, organizationID, userID)
+```
+
+### What an SSO session may do
+
+The session is bound to the provider's organization (`amr` holds `"sso"`, `Principal.OrganizationBound`
+is true), because the IdP's operator is not the account holder:
+
+- `POST /auth/switch-org` to another organization answers 403;
+- every route that needs no permission and writes, destroys or is a step-up route answers 403: the
+  password, MFA factors and recovery codes, passkeys, API keys, provider links, phone numbers,
+  agents and OAuth consent, creating or joining an organization, the profile, deleting the account,
+  logout-everywhere, the MFA step-up;
+- it reads (`/auth/me`, lists), logs out (`/auth/logout`, `/sso/logout`), refreshes, and does what
+  its roles in the organization allow, step-up routes with a permission included (the IdP sign-in
+  is the recent authentication there);
+- it never carries the superadmin override.
+
+A user who needs those routes signs in to the account itself (password, passkey, email code). A
+host route behind `p.Protect` that acts on the user's account, or on data outside the
+organization, should refuse `Principal.OrganizationBound` too.
+
+An IdP's LogoutRequest ends the sessions of the accounts the organization owns (the rule above).
 
 ## Routes
 
@@ -91,8 +131,8 @@ fire. Uses core's `org.update`.
 
 `https://polaris.univeros.io/problems/sso/provider_not_found` (404), `…/sso/provider_disabled` (403),
 `…/sso/assertion_invalid` (403, a rejected assertion or token: the detail is generic, the reason is
-`Event.Data["reason"]` of `sso.assertion_rejected`), `…/sso/user_unknown` (403, no account and JIT
-off), `…/sso/account_disabled` (403), `…/sso/membership_suspended` (403), `…/sso/code_invalid` (422),
+`Event.Data["reason"]` of `sso.assertion_rejected`), `…/sso/user_unknown` (403: no account and JIT
+off, or an existing account the organization does not own), `…/sso/account_disabled` (403), `…/sso/membership_suspended` (403), `…/sso/code_invalid` (422),
 `…/sso/invalid_input` (422). Organization routes add `…/sso/forbidden` (403, not your active
 organization), `…/sso/not_found` (404), `…/sso/conflict` (409, the domain is already claimed) and
 `…/sso/domain_unverified` (422). Admin routes answer the admin plugin's problems.

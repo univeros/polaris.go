@@ -176,6 +176,45 @@ func TestSwitchOrganizationRescopesTheSession(t *testing.T) {
 	})
 }
 
+// A session an organization's identity provider opened (amr sso) stays that organization's: it
+// does not switch, a step-up does not turn it into the account holder's, and it never carries the
+// superadmin override.
+func TestAnIdentityProvidersSessionStaysBoundToItsOrganization(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(db, "2026-06-07 12:00:00")
+		s := h.service(t)
+		p := principal()
+		p.AMR, p.Roles, p.Scope = []string{token.AMRSSO}, []string{"superadmin"}, []string{"users.manage"}
+		issued, err := s.Issue(ctx, p, token.ClientContext{})
+		must(t, err)
+		if roles := strs(h.issuer.claim(0, "roles")); len(roles) != 0 || h.issuer.claim(0, "scope") != nil {
+			t.Fatalf("the override rode along: %v %v", roles, h.issuer.claim(0, "scope"))
+		}
+		if _, err := s.SwitchOrganization(ctx, "user-1", "org-2", issued.SessionID); !errors.Is(err, ErrOrganizationBound) {
+			t.Fatalf("switch: %v", err)
+		}
+		if *h.family(t, issued.SessionID)[0].OrganizationID != "org-1" {
+			t.Fatal("the session moved")
+		}
+		_, err = s.SwitchOrganization(ctx, "user-1", "org-1", issued.SessionID)
+		must(t, err)
+		_, err = s.StepUp(ctx, "user-1", "org-1", issued.SessionID)
+		must(t, err)
+		if amr := *h.family(t, issued.SessionID)[0].AMR; amr != "sso,otp" {
+			t.Fatalf("a step-up unbound the session: amr %q", amr)
+		}
+		if _, err := s.SwitchOrganization(ctx, "user-1", "org-2", issued.SessionID); !errors.Is(err, ErrOrganizationBound) {
+			t.Fatalf("switch after a step-up: %v", err)
+		}
+		_, err = s.Refresh(ctx, issued.RefreshToken, token.ClientContext{})
+		must(t, err)
+		last := len(h.issuer.claims) - 1
+		if amr := strs(h.issuer.claim(last, "amr")); h.issuer.claim(last, "org") != "org-1" || !slices.Contains(amr, token.AMRSSO) {
+			t.Fatalf("after a refresh: amr %v org %v", amr, h.issuer.claim(last, "org"))
+		}
+	})
+}
+
 func TestStepUpAndSwitchRejectAnEndedSession(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		h := newHarness(db, "2026-06-07 12:00:00")

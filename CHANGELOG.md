@@ -9,8 +9,55 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- For plugin authors: `wiring.Identity.ProveEmail`, the optional `wiring.AccessEraser` (a plugin
+  that stores a way to act as a user removes it on the mailbox's first proof),
+  `token.Token.OrganizationBound`, `token.AMRSSO`, `authz.Caller.OrganizationBound`,
+  `pipeline.DeniesBound`, `session.ErrOrganizationBound`. For hosts:
+  `Principal.OrganizationBound`, `sso.Plugin.MarkProvisioned`.
+- `oauth.ClientAuthority`: a plugin whose OAuth clients act as themselves says which permissions
+  such a client holds (`plugins/agents` implements it with `Plugin.ClientPermissions`).
+
 ### Security
 
+- sso: a provider signs in an existing account only when its organization owns the account: one of
+  its providers created it just in time, one of its SCIM directories created it, or the account's
+  email domain is verified for the organization. Being a member of the organization is no longer
+  enough. **Breaking, client-visible:** other accounts answer 403 `sso/user_unknown`, including
+  accounts a provider created before this release: verify the organization's email domain, or
+  record them with `sso.Of(g).MarkProvisioned(ctx, organizationID, userID)`. An IdP LogoutRequest
+  ends sessions under the same rule. A platform superadmin no longer signs in through an
+  organization's provider.
+- sso: the session a provider opens is bound to the provider's organization (`amr` holds `sso`;
+  sessions opened before the upgrade included). **Client-visible:** `POST /auth/switch-org` to
+  another organization answers 403, and so does every route reserved to the account holder: the
+  password, MFA factors and step-up, passkeys, API keys, provider links, phone numbers, agents,
+  OAuth consent, creating or joining an organization, the profile, account deletion and
+  logout-everywhere. Reading, logging out, refreshing and the organization's permissioned routes
+  work as before. A user who needs the others signs in to the account itself. Hosts read
+  `Principal.OrganizationBound` and should refuse it on routes that act on the user's account or
+  on data outside the organization.
+- The first proof of an account's mailbox is one operation on every path (`Identity.ProveEmail`):
+  a password reset, a passwordless email code or magic link, a trusted social link and an SSO
+  sign-in on a verified domain, for an account whose email was never verified, mark it verified
+  and remove what could act as it before: the password, MFA factors and recovery codes, passkeys,
+  provider links, API keys, OAuth grants, agents, the confirmed phone and every session. Before,
+  each path removed a different part, and a provider account linked to an unverified account kept
+  signing in after the mailbox's owner took the account over. **Client-visible:** a password reset
+  (core's and the passwordless code) now verifies an unverified account (`email_verified` true,
+  `user.email_verified` dispatched); a verification link or code on an account that has no
+  password removes the same things; with a password it confirms the registration and removes
+  nothing, as before.
+- social: a sign-up whose provider does not vouch for the email creates no account and no link
+  when unverified accounts cannot sign in (`RequireVerifiedEmail`, the default). It answered 403
+  `social/email_unverified` before too, but left both behind in the address's name.
+  **Client-visible:** the address stays free to register; the person signs up another way and
+  links the provider from their account.
+- ui: opening the email verification link no longer verifies (mail scanners follow links).
+  **Client-visible:** `GET /auth/ui/verify?token=…` answers a page with one button, and its
+  CSRF-guarded POST verifies. New message key `verify_confirm`; a host template replacing
+  `verify.html` keeps working and may use `.TokenGiven`.
 - `plugins/oauth`: a scope that is a permission name (`org.read`, one of your
   `Config.Permissions`) is put in an access token only if the token's subject holds that
   permission when the token is minted: at issue, on every refresh and on a token exchange. A user
@@ -51,11 +98,6 @@ marked **Breaking**.
 - `verify`, `mcp.Protect`: a failed fetch of the issuer's JWK Set is remembered for 5 seconds, so
   requests answer 503 at once while the issuer is down instead of waiting for one another's
   timeout (decision 69).
-
-### Added
-
-- `oauth.ClientAuthority`: a plugin whose OAuth clients act as themselves says which permissions
-  such a client holds (`plugins/agents` implements it with `Plugin.ClientPermissions`).
 
 ## [0.5.0] - 2026-11-22
 

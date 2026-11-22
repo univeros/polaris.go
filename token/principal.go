@@ -39,5 +39,24 @@ func (t *Token) Delegation() (permissions []string, ok bool) {
 	return slices.Clone(t.delegation.permissions), true
 }
 
+// AMRSSO is the authentication method (amr) of a session an organization's identity provider
+// opened (plugins/sso).
+const AMRSSO = "sso"
+
+// OrganizationBound reports whether t is a session an organization's identity provider opened
+// (amr holds AMRSSO). Whoever runs that provider can open such a session for any account the
+// organization owns, so it speaks for the user in its organization only: it cannot switch
+// organization, use the routes reserved to the account holder (pipeline.DeniesBound), or carry
+// the superadmin override.
+func (t *Token) OrganizationBound() bool {
+	switch amr := t.claims["amr"].(type) {
+	case []any:
+		return slices.Contains(amr, any(AMRSSO))
+	case []string:
+		return slices.Contains(amr, AMRSSO)
+	}
+	return false
+}
+
 // Organization returns the org claim, "" when absent or null.
 func (t *Token) Organization() string { s, _ := t.claims["org"].(string); return s }

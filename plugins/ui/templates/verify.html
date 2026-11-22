@@ -1,10 +1,11 @@
 {{define "content"}}
-<p>{{.T.verify_intro}}</p>
+<p>{{if .TokenGiven}}{{.T.verify_confirm}}{{else}}{{.T.verify_intro}}{{end}}</p>
 <form method="post" action="{{.Base}}/verify">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
-<label for="token">{{.T.code}}</label>
+{{if .TokenGiven}}<input type="hidden" name="token" value="{{.Token}}">
+<button type="submit" autofocus>{{.T.verify}}</button>{{else}}<label for="token">{{.T.code}}</label>
 <input id="token" name="token" type="text" autocomplete="one-time-code" required maxlength="512" value="{{.Token}}" autofocus>
-<button type="submit">{{.T.verify}}</button>
+<button type="submit">{{.T.verify}}</button>{{end}}
 </form>
 <p><a href="{{.Base}}/check-email">{{.T.resend_title}}</a></p>
 {{end}}

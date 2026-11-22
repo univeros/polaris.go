@@ -1312,6 +1312,135 @@ erasure. It is keyed by address, not user id, and `event.UserDeleted` does not c
 (the row is already a tombstone when it is dispatched); erasing it needs the address passed along
 or a retention prune, a separate change.
 
+## 68. 2026-11-22 — Account boundaries: what an organization's IdP may reach, the first proof of a mailbox, verification links
+
+Three ways across an account's boundary, found by a security review with running tests, all
+closed. Each is client-visible; the changelog lists what a host or client sees.
+
+- **sso: an organization's IdP signs in only the accounts the organization owns (supersedes the
+  rule of #43).** #43 let a provider sign in an existing account that was "already a member of that
+  organization or its email domain is verified for it". Membership was the mistake: any user can
+  create an organization, configure an IdP that asserts any email, and invite people; a person who
+  accepted became an account that organization's IdP could open, with a session like any other.
+  Now a provider signs in an existing account only when (`owns`) one of the organization's
+  providers created it just in time (a new table, `polaris_sso_account`, written with the account),
+  one of its SCIM directories created it (`scim.Plugin.Provisioned`: the provenance row carries the
+  account's creation time, the test SCIM's own `owns` already used), or the account's email domain
+  is verified for the organization. Anything else answers `sso/user_unknown`. An IdP LogoutRequest
+  ends sessions under the same rule (it was "members"). An unverified account on a verified domain
+  is proven by the sign-in (below). **Break, deliberate:** accounts a provider created before this
+  release have no record; they sign in again once the organization verifies their domain, or the
+  host records them (`sso.Plugin.MarkProvisioned`). No heuristic can tell them from a member who
+  signed up alone, so none is tried. Run `Migrate` (one new table).
+- **sso: the session an IdP opens is bound to its organization.** Even for an account the
+  organization owns, whoever runs the IdP is not the account holder, and #43's session was a full
+  one: fresh `auth_time`, no MFA gate, free to `switch-org` to any other organization of the user
+  and to change the password, factors and keys. The binding is the session's `amr` holding `sso`
+  (already stored on the refresh-token row and minted into every access token, so there is no
+  schema change and sessions issued before the upgrade are bound too); `token.Token.OrganizationBound`
+  reads it. Enforced in four places: `session.SwitchOrganization` refuses another organization
+  (`ErrOrganizationBound`, 403); `session.StepUp` keeps `sso` in the amr (`sso,otp`), so proving a
+  factor does not unbind it; the pipeline's authorization step refuses a bound session
+  (`pipeline.DeniesBound`) on every route that needs no permission and writes, destroys or is a
+  step-up route, which is the rule that already keeps delegated credentials off the account
+  holder's routes (`pipeline.DeniesDelegate`), minus logging out of the session itself; and
+  neither the token (`session.Mint`) nor `authz.Gate` (`Caller.OrganizationBound`) gives a bound
+  session the superadmin override, while the provider refuses to sign a superadmin in at all.
+  Routes with a permission stay open to it in its organization, step-up ones included: the IdP
+  sign-in is the recent authentication there, and nowhere else, since it cannot leave. The rule is
+  by route shape, not a list, so a new self-service route is closed to bound sessions by default.
+  Hosts see `Principal.OrganizationBound`. Consequence accepted: a user whose only way in is the
+  IdP cannot enroll a factor, mint an API key, approve an OAuth client or register an agent; they
+  sign in to the account itself for that. Reads without a permission (`/auth/me`, the lists of the
+  user's sessions, organizations, factors, keys) stay open.
+- **One operation for the first proof of a mailbox: `identity.Service.ProveEmail`.** An account
+  can exist before anyone proved its address (a registration never verified; a social sign-up
+  whose provider did not vouch for the email). Whoever made it may not own the mailbox, and each
+  path that later proved the mailbox cleaned up a different subset: the verification link and the
+  password reset nothing (the reset did not even mark the account verified), a passwordless
+  sign-in the password, a trusted social link the password, the sessions and the other provider
+  links. So a provider account linked before the proof stayed a way into the account after its
+  owner verified it or reset its password. Now every path calls `ProveEmail` (through
+  `wiring.Identity`, decision 51) and nothing else writes `email_verified_at` on an existing
+  account: core's verification link and reset, passwordless email codes, magic links and reset
+  codes, the trusted social link, SSO. On the first proof of an account it marks it verified and,
+  in one transaction, drops the password and lockout state, the MFA factors, recovery codes and
+  pending challenges, what the plugins hold (a new optional interface, `wiring.AccessEraser`:
+  social links, passkeys, API keys, OAuth consents, tokens and codes, agents and hosts, the
+  passwordless phone and pending secrets; each reuses its erasure code, run inside the
+  transaction rather than from an event), and every session; then dispatches
+  `user.email_verified`. On a proven account it does nothing. A reset then sets the new password
+  in the same transaction. One distinction is kept, as a parameter: a registration's own
+  verification message (core's link, the passwordless `verify-email` code) confirms the
+  registration, so when the account has a password it is marked verified and nothing is removed
+  (removing would add nothing: whoever holds that password could put it all back, and dropping
+  the password would break every registration); an account without a password has no
+  registration to confirm and gets the full first proof.
+- **social: no account and no link for an email the provider does not vouch for, when no session
+  opens.** With `RequireVerifiedEmail` (the default) the sign-up committed the account and the link
+  and then refused the session, leaving both waiting in the address's name. It now refuses first
+  (`social/email_unverified`, same status; nothing written). With `RequireVerifiedEmail` off the
+  account is created and signs in as before, and the first proof removes the link.
+- **ui: opening the verification link verifies nothing.** `GET /auth/ui/verify?token=` verified at
+  once (#57 reasoned that verification is idempotent and signs nobody in). Mail scanners follow
+  links, so a registration made with someone else's address was confirmed by that person's mail
+  system. The GET now renders the page with the token in a hidden field and one button; the
+  CSRF-guarded POST verifies, as #61 did for magic links. Core has no GET verification route
+  (`POST /auth/email/verify` only). A host template overriding `verify.html` keeps working (its
+  field arrives filled).
+
+Security review (rule 6), per item:
+
+- *IdP ownership.* Only refuses more, except SCIM-created accounts, accepted on the record SCIM's
+  own ownership check trusts. `MarkProvisioned` is in-process, for the host. Residual: an
+  organization that verified a domain can sign in every account on it, by design (it controls
+  those mailboxes). Tests: `TestAMembershipDoesNotLetTheOrganizationsIdPSignTheMemberIn` (failed
+  before: the member was signed in), `TestTheAccountsAnOrganizationProvisionedAreItsIdPsToSignIn`,
+  `TestAnOrganizationsIdPCannotClaimOutsideAccounts` (unchanged, passes).
+- *Bound sessions.* The marker is inside the signed token and on the server-side session row; a
+  client cannot remove it, refresh restores it from the row, step-up preserves it. Paths that mint
+  a session or a credential from a session (multi-session switch, one-time tokens, OAuth consent,
+  API keys, agents) are all permission-less writes and so refused. Residual: a service that
+  resolves an actor's authority itself from the user id does not see the binding; with the
+  sign-in refusal and the refusals above that leaves reads by an account made superadmin while its
+  bound session lives. Tests: `TestAnSSOSessionStaysInItsOrganization` (HTTP; failed before:
+  switch-org, password change, factor enrolment, account deletion all answered 200),
+  `TestAnSSOSessionCarriesNoSuperadminOverride` (failed before),
+  `TestAnIdentityProvidersSessionStaysBoundToItsOrganization`, `TestAuthorization` (bound cases),
+  `TestAnOrganizationBoundCallerNeverHoldsTheSuperadminOverride`.
+- *First proof.* One transaction: a failure in any plugin's removal rolls the proof back
+  (`TestAFailedFirstProofChangesNothing`); concurrent proofs run the removal once (a conditional
+  update claims it); sessions are revoked last because the denylist watermark is in the cache.
+  Nothing is weakened: every path removes at least what it removed before. Residual, inherent to
+  confirming a registration by link: a person who confirms a registration they did not make
+  leaves its password holder in control; the page says so. Tests:
+  `TestAnUnvouchedEmailLeavesNoAccountAndNoLink` and
+  `TestTheFirstProofOfTheMailboxRemovesWhatCameBefore` (social, HTTP; both failed before: the
+  account and link were created, and the link survived the owner's reset and signed in),
+  `TestTheFirstProofOfAMailboxRemovesEveryWayIn` and
+  `TestConfirmingARegistrationKeepsWhatItsPasswordHolderHas` (every plugin booted, a row in every
+  access table), `TestAResetIsTheFirstProofOfAnUnprovenMailbox`,
+  `TestTheVerificationLinkConfirmsARegistration`, passwordless
+  `TheFirstProofOfTheMailboxRemovesWhatCameBefore`.
+- *Verification page.* The token stays in the page the link already names; the POST needs the
+  same-origin `Origin` and the signed double-submit token of #57. A scanner that also submits
+  forms would still verify (none known to by default). Test:
+  `TestOpeningTheVerificationLinkVerifiesNothing` (failed before: the GET verified).
+
+Contract fixtures replay unchanged (no recorded exchange crossed these boundaries); the route
+specs of the changed routes describe the new behaviour. Breaking for `make apicheck` only: the
+narrow interface `wiring.Identity` gains `ProveEmail`, which API.md §2 allows without notice (only
+Polaris implements those interfaces). Otherwise the API is additive (`wiring.Identity.ProveEmail`,
+`wiring.AccessEraser`, `token.AMRSSO`, `Token.OrganizationBound`, `authz.Caller.OrganizationBound`,
+`polaris.Principal.OrganizationBound`, `pipeline.DeniesBound`, `session.ErrOrganizationBound`,
+`sso.Plugin.MarkProvisioned`, `sso.TableAccounts`, `scim.Plugin.Provisioned`,
+`identity.Config.OnEmailProven`).
+
+Left open: existing databases may hold provider links made before this release on unverified
+accounts; they go at the account's first proof. On accounts already verified they cannot be told
+from the owner's own links by Polaris; a host can list the `polaris_social_account` rows created
+before their account's `email_verified_at`. Bound sessions keep the permission-less reads.
+
 ## 67. 2026-11-22 — Only the system role is the superadmin
 
 The security review for v1 (docs/v1.md 4.2) found that the platform superadmin was recognised by

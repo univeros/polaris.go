@@ -633,9 +633,9 @@ func TestProviderTokensRefreshWhenExpiringAndAnyOAuth2ServerWorksFromItsDefiniti
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-43", "email": "zoe@example.com", "verified": false, "name": "Zoe"})
 	s = h.restart("acme")
 	_, err = h.callback("acme", map[string]any{"code": "good", "state": s.State})
-	refused(t, err, kindEmailUnverified, "signed up unverified: core requires a verified email to sign in")
-	if _, err := h.srv.Graph().Repos().Users.ByEmail(h.ctx, "zoe@example.com"); err != nil {
-		t.Fatal("the account exists, to verify")
+	refused(t, err, kindEmailUnverified, "the provider does not vouch for the address and core requires a verified email to sign in")
+	if _, err := h.srv.Graph().Repos().Users.ByEmail(h.ctx, "zoe@example.com"); err == nil {
+		t.Fatal("no account is created in the name of an address nobody proved (decision 68)")
 	}
 	h.rec.On("https://acme.example/oauth/me", map[string]any{"id": "acme-42", "email": "eve@example.com", "verified": true, "name": "Eve"})
 	eve := userOf(h.signIn("acme", ""))["id"].(string)
