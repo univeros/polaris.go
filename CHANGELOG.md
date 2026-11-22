@@ -9,21 +9,47 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
+Drop-in sign-in pages, users brought over with their existing passwords, middleware for every Go
+router, and token verification in your other services. No breaking change: the stable API
+([API.md](API.md)), the routes, the database schema and every stored format are unchanged, so an
+upgrade is `go get github.com/univeros/polaris.go@v0.4.0`.
+
 ### Added
 
-- `SECURITY.md`: how to report a vulnerability privately, and what happens next.
-- This changelog. Each GitHub Release now carries its version's section as release notes.
 - `plugins/ui`: server-rendered sign-in, MFA, sign-up, email verification, forgot / reset password,
   sign-out and OAuth consent / device pages under `/auth/ui`, without JavaScript;
-  `RequireSignIn(p.Protect(h))` for your own pages; `examples/webapp` (decision 57).
+  `RequireSignIn(p.Protect(h))` for your own pages; `examples/webapp` (decision 57). The pages
+  serve one configured origin (`ui.Config.BaseURL`, default `AUTH_ISSUER`), so they work behind a
+  TLS-terminating proxy. Passkey, social and magic-link buttons are not in the pages yet.
 - `wiring.HandlerProvider`: a plugin serves HTML pages under its own path prefix.
 - `oauth.PageProvider`: a plugin (`ui`) fills the `ConsentURL` and `DeviceURL` you left empty.
+- `p.Users().Import(ctx, polaris.ImportedUser{…})`: create an account with the password hash your
+  previous system stored. The user signs in with the password they already have, and that first
+  sign-in rehashes it to Argon2id. Verified (never created): bcrypt, Argon2id/Argon2i, Django and
+  passlib PBKDF2-SHA256/512 and scrypt, Firebase's scrypt. Cost parameters are bounded; imports go
+  through `Hooks.OnUserCreated` and join `sqlstore.WithTx` (decision 56).
+- `security.HashChecker` and `security.ErrUnsupportedHash`: an optional method on a custom
+  `Hasher` that `Import` uses to refuse a hash it could not verify.
 - `p.Require(permissions...)`, `Protect` as `func(http.Handler) http.Handler` middleware, and
   `p.Authenticate` for routes open to anonymous callers (a token that does not verify is still
   401). `polaris.RequireKind` and `polaris.RequireOrganization` (decision 55).
 - Package `verify`: checks Polaris access tokens in another Go service against the issuer's JWK Set
-  (RS256 and EdDSA only, typ, iss, aud, exp, scopes). It cannot see revocations or permission
-  changes until a token expires; see its package documentation (decision 55).
+  (RS256 and EdDSA only, typ, iss, aud, exp, scopes; ID tokens and DPoP-bound tokens refused). It
+  cannot see revocations or permission changes until a token expires; see its package
+  documentation (decision 55).
+- Runnable examples: `examples/agents`, `mcp`, `b2b`, `signin-methods`, `hooks` and `webapp`, each
+  with a curl walkthrough and a test that keeps it working.
+- `SECURITY.md`, `CONTRIBUTING.md`, this changelog, and `docs/v1.md` (what 1.0 requires). Each
+  GitHub Release now carries its version's section as release notes.
+
+### Changed
+
+- The code reads as a Go library: comments, internal names and test names no longer refer to the
+  PHP project (decision 58). No behaviour changed.
+- The `cache.ErrInvalidKey` message says "contains a reserved character" (was "reserved by
+  PSR-16"). Match the error with `errors.Is`, not its text.
 
 ### Fixed
 
@@ -145,7 +171,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/univeros/polaris.go/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/univeros/polaris.go/compare/v0.2.0...v0.2.1
