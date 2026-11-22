@@ -63,7 +63,7 @@
         {
             "issuer": "https://auth.polaris.test",
             "ttl": 900,
-            "regenerate": true,
+            "regenerate": false,
             "name": "rs256-microseconds-no-audience",
             "alg": "RS256",
             "keys": "rsa",
@@ -102,7 +102,7 @@
         {
             "issuer": "https://auth.polaris.test",
             "ttl": 60,
-            "regenerate": true,
+            "regenerate": false,
             "name": "eddsa-escaping",
             "alg": "EdDSA",
             "keys": "eddsa",

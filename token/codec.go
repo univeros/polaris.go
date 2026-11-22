@@ -109,23 +109,23 @@ func New(cfg Config) (*Codec, error) {
 	}, nil
 }
 
-// now is the clock at the microsecond precision of date claims.
+// now is the clock at microsecond precision (date claims are minted as whole seconds).
 func (c *Codec) now() time.Time { return c.clock.Now().Truncate(time.Microsecond) }
 
 // Issue mints a signed JWT carrying claims. The header is {"typ":"JWT","alg":…,"kid":…};
 // the payload starts with the managed iss, iat, nbf, exp (and aud when configured), then
-// claims in order. Caller-supplied iss/aud/iat/nbf/exp and empty names are dropped; sub and
-// jti must be strings.
+// claims in order. iat, nbf and exp are whole seconds, exp = iat + TTL. Caller-supplied
+// iss/aud/iat/nbf/exp and empty names are dropped; sub and jti must be strings.
 func (c *Codec) Issue(claims Claims) (string, error) {
 	if c.sign == nil {
 		return "", fmt.Errorf("%w: a private key is required to generate a token (set AUTH_JWT_PRIVATE_KEY)", ErrInvalidConfig)
 	}
-	now := c.now()
+	now := c.now().Unix()
 	payload := Claims{}.
 		With("iss", c.issuer).
-		With("iat", encodeInstant(now)).
-		With("nbf", encodeInstant(now)).
-		With("exp", encodeInstant(now.Add(c.ttl)))
+		With("iat", now).
+		With("nbf", now).
+		With("exp", now+int64(c.ttl/time.Second))
 	if c.audience != "" {
 		payload = payload.With("aud", c.audience)
 	}
