@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -148,10 +149,65 @@ type tokens struct {
 	issuer   string
 	settings settings
 	clock    clock.Clock
+	scopes   *scopes
+	// authority resolves what a user holds in an organization (authz.Resolver.Resolve).
+	authority func(ctx context.Context, userID, organizationID string) (authz.Authority, error)
+	// owners are the plugins that own clients acting as themselves (plugins/agents).
+	owners []ClientAuthority
+}
+
+// ClientAuthority is implemented by a plugin whose OAuth clients act as themselves with
+// permissions of their own (plugins/agents: an autonomous agent acts as its owner within its
+// grants). The provider asks every registered plugin that implements it before it puts a
+// permission scope in a client_credentials token.
+type ClientAuthority interface {
+	// ClientPermissions returns the permissions the client holds now; owned is false when the
+	// client is not this plugin's.
+	ClientPermissions(ctx context.Context, clientID string) (permissions []string, owned bool, err error)
+}
+
+// held narrows a grant's scopes to what its subject may carry: a permission scope stays only if
+// the subject holds the permission now. A user holds what their roles grant in the grant's
+// organization. A client acting as itself holds what the plugin that owns it says
+// (ClientAuthority), else only the permissions an operator listed in the scopes of a client
+// marked trusted. Every other scope passes. A scope in a token is read by services that cannot
+// ask the database (package verify, mcp.Protect), so it must never exceed the subject's authority.
+func (t *tokens) held(ctx context.Context, c Client, g Grant) ([]string, error) {
+	if len(t.scopes.permissions(g.Scopes)) == 0 {
+		return g.Scopes, nil
+	}
+	holds := func(name string) bool { return c.Trusted && slices.Contains(c.Scopes, name) }
+	if g.UserID != "" {
+		a, err := t.authority(ctx, g.UserID, g.OrganizationID)
+		if err != nil {
+			return nil, err
+		}
+		holds = func(name string) bool { return a.Allows(name) }
+	} else {
+		for _, owner := range t.owners {
+			permissions, owned, err := owner.ClientPermissions(ctx, c.ClientID)
+			if err != nil {
+				return nil, err
+			}
+			if owned {
+				holds = func(name string) bool { return slices.Contains(permissions, name) }
+				break
+			}
+		}
+	}
+	out := []string{}
+	for _, name := range g.Scopes {
+		if !t.scopes.permission[name] || holds(name) {
+			out = append(out, name)
+		}
+	}
+	return out, nil
 }
 
 // issue mints the token response for a grant: the access token, a refresh token when a user is
 // behind the grant and the client may refresh, an ID token when openid was granted to a user.
+// Every grant comes through here, so this is where permission scopes are bounded (held): the
+// refresh token keeps the grant, each access token carries what the subject holds when it is minted.
 func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, error) {
 	now := t.clock.Now()
 	expiresAt := now.Add(time.Duration(t.settings.accessTTL) * time.Second)
@@ -159,9 +215,13 @@ func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, e
 	if g.FamilyID == "" && refreshable {
 		g.FamilyID = repository.NewID()
 	}
+	held, err := t.held(ctx, c, g)
+	if err != nil {
+		return TokenResponse{}, err
+	}
 	access := record{
 		ID: repository.NewID(), Kind: kindAccess, ClientID: c.ClientID, UserID: g.UserID,
-		OrganizationID: g.OrganizationID, Scopes: list(g.Scopes), FamilyID: g.FamilyID, Resource: g.Resource,
+		OrganizationID: g.OrganizationID, Scopes: list(held), FamilyID: g.FamilyID, Resource: g.Resource,
 		DPoPJKT: g.DPoPJKT, Actor: g.Actor, AuthTime: g.AuthTime, ExpiresAt: expiresAt, CreatedAt: now,
 	}
 	if err := t.insert(ctx, access); err != nil {

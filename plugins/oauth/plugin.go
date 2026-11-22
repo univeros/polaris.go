@@ -92,7 +92,13 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	p.graph, p.issuer = g, g.Auth().Issuer
 	p.scopes = newScopes(g.Catalog(), p.settings.scopes)
 	p.clients = &clients{db: g.DB(), pepper: g.Pepper(), scopes: p.scopes, settings: p.settings, cache: g.Cache(), once: once, clock: g.Clock(), log: g.Logger()}
-	p.tokens = &tokens{db: g.DB(), pepper: g.Pepper(), codec: g.Tokens(), repos: g.Repos(), issuer: p.issuer, settings: p.settings, clock: g.Clock()}
+	p.tokens = &tokens{db: g.DB(), pepper: g.Pepper(), codec: g.Tokens(), repos: g.Repos(), issuer: p.issuer, settings: p.settings, clock: g.Clock(),
+		scopes: p.scopes, authority: g.Resolver().Resolve}
+	for _, plugin := range g.Plugins() {
+		if owner, ok := plugin.(ClientAuthority); ok {
+			p.tokens.owners = append(p.tokens.owners, owner)
+		}
+	}
 	p.codes = &codes{db: g.DB(), pepper: g.Pepper(), ttl: time.Duration(p.settings.codeTTL) * time.Second, clock: g.Clock()}
 	p.consents = &consents{db: g.DB(), clock: g.Clock()}
 	p.authorization = &authorization{clients: p.clients, scopes: p.scopes, codes: p.codes, consents: p.consents,

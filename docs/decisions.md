@@ -1466,3 +1466,100 @@ organization roles slugged "superadmin" (`SELECT * FROM auth_roles WHERE slug = 
 organization_id IS NOT NULL`) and review their audit log for what such members did. Tests:
 `TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin` (authz, every backend) and the
 reserved-slug refusal in `TestCreateRoleRefusals` (orgs).
+
+## 69. 2026-11-22 — Authorization bounds: OAuth scopes, operator reach, second-factor attempts
+
+Seven findings of a security review, each reproduced by a failing test before its fix. Released
+as v0.5.1.
+
+- **oauth: a permission scope is granted only to a subject that holds the permission.** A scope
+  that is a permission name was granted to whoever asked: on consent, on the device and CIBA
+  grants, on a token exchange and to `client_credentials`, limited only by the client's own
+  `scopes` list (empty: every scope). The host was not affected, because its resolver intersects
+  the token's scopes with the user's authority on every request (a client acting as itself
+  resolves to nothing). A service that checks tokens without the database (`verify.Require`,
+  `mcp.Protect`) had only the `scope` claim, and with a caller-chosen `resource` as `aud` it
+  accepted a permission scope the subject never held. Now `tokens.issue`, which every grant goes
+  through, keeps a permission scope in the access token only if the subject holds the permission
+  at that moment: a user, by `authz.Resolver` in the token's organization; a client acting as
+  itself, only when an operator registered it `trusted` with the permission in its `scopes`, or
+  when a plugin that owns the client answers for it (`oauth.ClientAuthority`, new: `plugins/agents`
+  answers the permissions of the agent's live grants that its owner holds). The refresh token
+  keeps the consented scopes and each refresh and exchange is bounded again, so a lost permission
+  leaves at the next token and a regained one returns. An organization's client route can no
+  longer change the `scopes` of a trusted client (they are now that client's authority).
+  Non-permission scopes (`openid`, `profile`, `email`, `offline_access`, `Config.Scopes`) are
+  granted as before. **Client-visible:** a token response's `scope` (and the token's) may list
+  fewer scopes than requested, which RFC 6749 §3.3 allows; `PATCH /orgs/{id}/oauth/clients/{id}`
+  answers 400 `invalid_client_metadata` for a changed `scopes` on a trusted client. One agents
+  fixture step is edited (a user without the permission exchanging for `members.read` now gets
+  `"scope": ""`). `oauth.Plugin.IssueTokens` is bounded the same way. The `verify` package
+  documentation said `Claims.Scopes` are the permissions the token was issued with; it now says
+  what a permission scope proves and that any other scope proves only what the client asked for,
+  and `mcp.Protect` says the same.
+  Security review: the bound is in the one function that mints access tokens, so no grant skips
+  it; it only removes scopes. A trusted client's listed scopes are set by an operator (`own`) or
+  the Go API. Left as is, and documented: a non-permission scope of `Config.Scopes` is still
+  granted to any client allowed to ask for it, a self-registered one included, so it is not proof
+  of authority for a remote verifier. Tests: `TestAClientHoldsNoPermissionScopeOfItsOwn`,
+  `TestAUsersPermissionScopesAreBoundedByTheirAuthority` (issue, refresh, exchange),
+  `TestOnlyAnOperatorChangesATrustedClientsScopes`, `TestAnAgentsOwnTokenIsBoundedByItsOwnersAuthority`;
+  the oauth fixtures replay unchanged.
+- **admin: `Manage` on an account does not reach up.** Ban, unban, set password, remove a factor,
+  reset MFA and delete checked only the caller's `Manage` capability, so an operator with the
+  `admin` role could set the password or reset the MFA of an `owner` operator or a superadmin and
+  sign in as them; impersonation already refused a superadmin. Now one helper, `manageUser`, used
+  by those six routes: below `RoleOwner`, the target may not be a superadmin (whatever the
+  account's status, so a disabled one cannot be unbanned from below) nor hold an operator grant of
+  the caller's role or above. **Client-visible:** such a request answers 403 `admin/forbidden`.
+  Session revocation (`Support`) and member-role changes are unchanged: they do not give the
+  caller the target's credentials. Security review: only refuses more; an owner's reach is
+  unchanged. Test: `TestOnlyAnOwnerManagesAnEqualOrHigherOperatorOrASuperadmin` (admin key and
+  admin user against an owner, a peer admin and a disabled superadmin, six actions each; a support
+  operator's account and an owner caller still pass). The admin fixtures replay unchanged.
+- **mfa: second-factor attempts are limited per user.** Wrong codes at `/auth/mfa/verify` and
+  step-up were limited per IP only (`mfa_confirm`); the password lockout counts password failures,
+  and the `login_mfa` ticket is stateless, so whoever held the password could mint tickets and
+  keep guessing TOTP or recovery codes from many addresses. Now `VerifyLogin` and `VerifyStepUp`
+  count every attempt of the user before checking it (in the cache, as the OTP send budget is) and
+  a code that clears resets the count: after `auth.lockout.max_attempts` attempts that did not
+  clear, every code, a right one and a recovery code included, is refused as a wrong one
+  (`ErrInvalidOTP`, the same 422) until `auth.lockout.lock_duration` has passed since the first.
+  No new setting. **Client-visible:** a user who mistypes the second factor five times waits up to
+  15 minutes (defaults) and sees the wrong-code answer meanwhile. Security review: the refusal
+  discloses nothing a wrong code does not; the counter is atomic within a process and, like the
+  send budget, not across replicas (the per-IP limit bounds the residual). Whoever holds the
+  password can make the second step unavailable for the window, as with the password lockout.
+  Test: `TestRepeatedWrongSecondFactorCodesCloseTheGateForAWhile`.
+- **mfa: an OTP attempt is reserved before the compare.** `VerifyOTP` read the challenge, compared
+  the code, and only then spent an attempt, so requests in flight together could each get a
+  compare beyond `max_attempts`. Now the conditional UPDATE (`attempts < max_attempts`) runs first
+  and the code is compared only if it applied, as `plugins/passwordless` does; a right code spends
+  an attempt too. Test: `TestACorrectCodeIsRefusedWhenTheBudgetWasSpentAfterTheRead` (the budget
+  is spent between this request's read and its compare; memory and SQLite).
+- **ui: `/refresh` does not rotate for a navigation another site started.** `GET /auth/ui/refresh`
+  rotates the refresh token and the cookie is `SameSite=Lax`, so another site could navigate the
+  browser there; two such navigations carrying the same cookie read as a reused token and end the
+  session family. Now a request whose `Sec-Fetch-Site` is neither `same-origin` nor `none` gets a
+  page with one link to the same URL (messages `refresh_title`, `refresh_intro`), and following it
+  renews the session. Chosen over a reuse grace period in core, which would weaken reuse
+  detection for every client. **Client-visible:** a user who arrives from a link on another site
+  with an expired access cookie sees that page once instead of being returned at once. A browser
+  that sends no `Sec-Fetch-Site` is served as before. Security review: refuses more; the link is
+  built from the validated `return_to`. Test: `TestANavigationFromAnotherSiteDoesNotRotateTheRefreshToken`.
+- **agents: a request JWT's `aud` is compared with the configured origin.** On the plugin's own
+  routes the expected `aud` was built from the request's `Host` header and `r.TLS`, so a JWT an
+  agent signed for another server was accepted when that server forwarded it with its own `Host`.
+  Now it is the called path on `Config.BaseURL`'s origin (default: the oauth plugin's base URL),
+  as `plugins/ui` does; a TLS-terminating proxy no longer needs `r.TLS` set for these routes.
+  Host routes behind `Protect` / `Guard` still compare with the URL as requested (a bound
+  `Protect` may be mounted at any URL), which the README now states. Requiring `htm` was
+  considered and left optional: `jti` is single-use and existing agents may omit it.
+  **Client-visible:** an agent that reached Polaris under a host name other than the base URL's
+  now gets `aud_mismatch`. Test: `TestARequestJWTForAnotherOriginIsRefusedWhateverTheHostHeader`.
+- **verify, mcp.Protect: a failed JWK Set fetch is remembered for 5 seconds.** The fetch runs under
+  a mutex, so while the issuer was down every request waited for the one before it to time out.
+  Now a failure is kept for `jwtverify.FailureBackoff` and requests that need a fetch answer
+  `ErrUnavailable` (503) at once; a fetch that failed because its own request was cancelled is
+  not remembered. A cached set inside its TTL keeps verifying as before. Test:
+  `TestAFailedJWKSFetchIsRememberedBriefly`.
