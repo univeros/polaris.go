@@ -92,21 +92,11 @@ func (s *Store) tableSteps(m schema.Model, live *LiveTable) ([]step, error) {
 		}
 	}
 	created := len(steps) > 0
-	for _, f := range m.Fields {
-		if _, ok := live.Column(f.Column); ok {
-			continue
-		}
-		def, err := addableColumn(m.Table, f, d)
-		if err != nil {
-			return nil, err
-		}
-		steps = append(steps, step{table: m.Table,
-			statement: "ALTER TABLE " + quote(m.Table, d) + " ADD COLUMN " + quote(f.Column, d) + " " + def,
-			change:    m.Table + ": added column " + f.Column,
-			done: func(t *LiveTable) bool {
-				return t != nil && slices.ContainsFunc(t.Columns, func(c LiveColumn) bool { return c.Name == f.Column })
-			}})
+	columns, err := columnSteps(m, live, d)
+	if err != nil {
+		return nil, err
 	}
+	steps = append(steps, columns...)
 	for _, idx := range m.Indexes {
 		if live.hasIndex(idx) {
 			continue
@@ -129,6 +119,31 @@ func (s *Store) tableSteps(m schema.Model, live *LiveTable) ([]step, error) {
 		steps = append(steps, step{table: m.Table, statement: dropIndex(m.Table, name, d),
 			change: m.Table + ": dropped index " + name,
 			done:   func(t *LiveTable) bool { return !t.hasIndexNamed(name) }})
+	}
+	return steps, nil
+}
+
+// columnSteps adds the columns of m that live lacks, or refuses one that cannot be added safely.
+func columnSteps(m schema.Model, live *LiveTable, d store.Dialect) ([]step, error) {
+	var steps []step
+	for _, f := range m.Fields {
+		if _, ok := live.Column(f.Column); ok {
+			continue
+		}
+		def, err := addableColumn(m.Table, f, d)
+		if err != nil {
+			return nil, err
+		}
+		steps = append(steps, step{table: m.Table,
+			statement: "ALTER TABLE " + quote(m.Table, d) + " ADD COLUMN " + quote(f.Column, d) + " " + def,
+			change:    m.Table + ": added column " + f.Column,
+			done: func(t *LiveTable) bool {
+				if t == nil {
+					return false
+				}
+				_, ok := t.Column(f.Column)
+				return ok
+			}})
 	}
 	return steps, nil
 }
