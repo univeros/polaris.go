@@ -1,7 +1,6 @@
 package passwordless
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -9,10 +8,7 @@ import (
 	"fmt"
 	"github.com/univeros/polaris.go/wiring"
 	"math/big"
-	"strconv"
-	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/repository"
@@ -179,7 +175,10 @@ func (s *secrets) spend(ctx context.Context, row store.Row) (secret, bool, error
 }
 
 func (s *secrets) insert(ctx context.Context, kind, identifier, userID, hash string, ttl time.Duration, data any, attempts int) error {
-	encoded, err := escapedJSON(data)
+	if data == nil {
+		data = struct{}{}
+	}
+	encoded, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
@@ -190,38 +189,7 @@ func (s *secrets) insert(ctx context.Context, kind, identifier, userID, hash str
 	}
 	return s.db.Insert(ctx, TableSecrets, store.Row{
 		"id": repository.NewID(), "kind": kind, "identifier_hash": s.identifier(identifier), "user_id": user,
-		"secret_hash": hash, "attempts": attempts, "data": encoded, "expires_at": now.Add(ttl),
+		"secret_hash": hash, "attempts": attempts, "data": string(encoded), "expires_at": now.Add(ttl),
 		"used_at": nil, "created_at": now,
 	})
 }
-
-// escapedJSON encodes v with slashes escaped ("\/") and every non-ASCII character as a \uXXXX
-// escape (surrogate pairs above the BMP); nil is "[]". It is the form the data column has always
-// held, so rows written by earlier releases and new ones read the same.
-func escapedJSON(v any) (string, error) {
-	if v == nil {
-		return "[]", nil
-	}
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return "", err
-	}
-	var out strings.Builder
-	for _, r := range strings.TrimSuffix(b.String(), "\n") {
-		switch {
-		case r == '/':
-			out.WriteString(`\/`)
-		case r < 0x80:
-			out.WriteRune(r)
-		default:
-			for _, u := range utf16.Encode([]rune{r}) {
-				out.WriteString(`\u` + leftPad(strconv.FormatUint(uint64(u), 16)))
-			}
-		}
-	}
-	return out.String(), nil
-}
-
-func leftPad(hex string) string { return strings.Repeat("0", 4-len(hex)) + hex }

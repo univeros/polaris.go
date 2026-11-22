@@ -2,7 +2,6 @@ package scim
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/univeros/polaris.go/wiring"
 	"slices"
@@ -113,6 +112,10 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 	if err != nil {
 		return model.User{}, err
 	}
+	active, err := activeOf(body)
+	if err != nil {
+		return model.User{}, err
+	}
 	taken := conflict("A member with this userName exists.")
 	user, err := d.repos.Users.ByEmail(ctx, email)
 	exists := err == nil
@@ -164,7 +167,7 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 	if joined {
 		d.events.Dispatch(ctx, event.MemberJoined{OrganizationID: conn.OrganizationID, UserID: user.ID, Email: user.Email})
 	}
-	if body["active"] == false {
+	if !active {
 		if err := d.setMembershipActive(ctx, conn, user, false); err != nil {
 			return model.User{}, err
 		}
@@ -178,10 +181,14 @@ func (d *directory) replaceUser(ctx context.Context, conn Connection, user model
 	if err != nil {
 		return model.User{}, err
 	}
+	active, err := activeOf(body)
+	if err != nil {
+		return model.User{}, err
+	}
 	ext := externalIDOf(body)
 	parts := namePartsOf(body)
 	return d.writeUser(ctx, conn, user, userChange{email: &email, displayName: displayNameOf(body), setName: true, parts: &parts,
-		externalID: &ext, active: body["active"] != false, setActive: true})
+		externalID: &ext, active: active, setActive: true})
 }
 
 // patchUser applies PatchOp operations on active, userName, displayName, name.* and externalId;
@@ -190,7 +197,11 @@ func (d *directory) patchUser(ctx context.Context, conn Connection, user model.U
 	var c userChange
 	for _, op := range ops {
 		if v := op.scalar("active"); v != nil {
-			c.active, c.setActive = truthy(v), true
+			active, ok := v.(bool)
+			if !ok {
+				return model.User{}, errActive
+			}
+			c.active, c.setActive = active, true
 		}
 		if v, ok := op.scalar("userName").(string); ok {
 			email, err := validEmail(v)
@@ -400,7 +411,7 @@ func (d *directory) userResource(ctx context.Context, conn Connection, user mode
 		"emails":      []map[string]any{{"value": user.Email, "primary": true}},
 		"active":      user.Status != model.UserStatusDisabled && found && m.Status == model.MembershipStatusActive,
 		"groups":      groups,
-		"meta": map[string]any{"resourceType": KindUser, "created": atom(user.CreatedAt), "lastModified": atom(user.UpdatedAt),
+		"meta": map[string]any{"resourceType": KindUser, "created": timestamp(user.CreatedAt), "lastModified": timestamp(user.UpdatedAt),
 			"location": location + "/Users/" + user.ID},
 	}
 	ext, err := d.resources.externalID(ctx, conn, KindUser, user.ID)
@@ -532,19 +543,22 @@ func nonBlank(s string) *string {
 	return &s
 }
 
-// truthy reads a directory's boolean leniently: true for true, 1 and "1", "true", "on", "yes"
-// in any case (surrounding blanks ignored); false otherwise.
-func truthy(v any) bool {
-	switch v := v.(type) {
+var errActive = invalid("active must be a JSON boolean (true or false).", TypeInvalidValue)
+
+// activeOf is a POST or PUT body's active (RFC 7643 §4.1.1): a JSON boolean, true when absent or
+// null.
+func activeOf(body map[string]any) (bool, error) {
+	switch v := body["active"].(type) {
+	case nil:
+		return true, nil
 	case bool:
-		return v
-	case json.Number:
-		return v.String() == "1"
-	case string:
-		switch strings.ToLower(trimBlank(v)) {
-		case "1", "true", "on", "yes":
-			return true
-		}
+		return v, nil
 	}
-	return false
+	return false, errActive
 }
+
+// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
+// (not the other Unicode spaces strings.TrimSpace strips). It trims what is stored or compared
+// with stored values (names, external ids, a connection's name, ids, cursors), so values written
+// by earlier releases keep matching.
+func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }

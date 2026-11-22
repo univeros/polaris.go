@@ -145,7 +145,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=3cfd7bbc284d4ce7f1b7d68a121d04f0",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=3cfd7bbc284d4ce7f1b7d68a121d04f0",
                     "state": "3cfd7bbc284d4ce7f1b7d68a121d04f0"
                 }
             }
@@ -216,7 +216,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=2e940b2ec67d0d6d7e49a72bc280f9da",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=2e940b2ec67d0d6d7e49a72bc280f9da",
                     "state": "2e940b2ec67d0d6d7e49a72bc280f9da"
                 }
             }
@@ -290,7 +290,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=d81908d664d637a9363577ca3a6d3840",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=d81908d664d637a9363577ca3a6d3840",
                     "state": "d81908d664d637a9363577ca3a6d3840"
                 }
             }
@@ -364,7 +364,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser%20user%3Aemail&state=664afd0dfa385f35da9927e62929c55c",
+                    "url": "https://github.com/login/oauth/authorize?client_id=github-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgithub%2Fcallback&response_type=code&scope=read%3Auser+user%3Aemail&state=664afd0dfa385f35da9927e62929c55c",
                     "state": "664afd0dfa385f35da9927e62929c55c"
                 }
             }

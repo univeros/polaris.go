@@ -48,7 +48,7 @@ func delegatedAgent(a *agentsCase) {
 	a.status(a.c.Get("/orgs/"+orgID+"/members", contracttest.Bearer(tok)), 200, "members.read")
 	a.status(a.c.Get("/orgs/"+orgID+"/roles", contracttest.Bearer(tok)), 403, "roles.read was not granted")
 	a.equal(a.data(a.c.Get("/auth/me", contracttest.Bearer(tok)))["id"], userID, "me is Ada")
-	executed := a.json(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}))
+	executed := a.json(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}))
 	a.equal(executed["data"], map[string]any{"members": 1, "agent": id}, "executed")
 	a.equal(a.data(a.bearer(tok, "GET", "/agents/session", nil))["authenticated_via"], "oauth", "via")
 	a.equal(a.data(a.bearer(tok, "GET", "/agents/receipts/"+str(obj(executed["receipt"])["id"])+"/verify", nil))["valid"], true, "the agent verifies its own receipt")
@@ -87,7 +87,7 @@ func autonomousAgent(a *agentsCase) {
 	a.status(a.c.Get("/orgs/"+orgID+"/roles", contracttest.Bearer(tok)), 403, "roles")
 	a.status(a.c.Post("/orgs", map[string]any{"name": "Evil"}, contracttest.Bearer(tok)), 403, "a permissionless write")
 	a.status(a.c.Post("/agents/register", map[string]any{"name": "Child", "mode": "delegated", "auth": "client_secret"}, contracttest.Bearer(tok)), 403, "an agent never registers an agent")
-	executed := a.json(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}))
+	executed := a.json(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}))
 	a.equal(obj(executed["receipt"])["seq"], 1, "seq")
 
 	a.c.Post("/agents/"+id+"/suspend", nil, contracttest.Bearer(session))
@@ -96,7 +96,7 @@ func autonomousAgent(a *agentsCase) {
 	a.status(a.c.Get("/auth/me", contracttest.Bearer(tok)), 200, "resumed")
 	a.c.Delete("/agents/grants/"+str(at(agent["grants"], 0)["id"]), contracttest.Bearer(session))
 	a.status(a.c.Get("/orgs/"+orgID+"/members", contracttest.Bearer(tok)), 403, "revoked grant")
-	a.agentsProblem(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": []any{}}), 403, "capability_not_granted", "", "revoked grant")
+	a.agentsProblem(a.bearer(tok, "POST", "/agents/execute", map[string]any{"capability": "members.list", "arguments": map[string]any{}}), 403, "capability_not_granted", "", "revoked grant")
 
 	events := a.audited(agents.EventExecuted)
 	a.equal([]any{events[0].ActorType, events[0].ActorID, events[0].SubjectID}, []any{"agent", id, userID}, "audit")

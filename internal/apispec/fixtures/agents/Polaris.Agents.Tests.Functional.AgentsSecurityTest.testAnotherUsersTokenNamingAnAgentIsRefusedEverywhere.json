@@ -455,7 +455,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -482,7 +482,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -528,7 +528,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -562,7 +562,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -596,7 +596,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_jwt",
-                "title": "Invalid Jwt",
+                "title": "Invalid JWT",
                 "status": 401,
                 "detail": "The token's subject is neither the agent nor the user the agent acts for.",
                 "error": "invalid_jwt",
@@ -666,7 +666,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {

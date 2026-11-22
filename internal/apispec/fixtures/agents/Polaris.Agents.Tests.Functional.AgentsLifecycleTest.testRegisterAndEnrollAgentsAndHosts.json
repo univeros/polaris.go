@@ -441,7 +441,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_input",
-                "title": "Invalid Input",
+                "title": "Invalid input",
                 "status": 422,
                 "detail": "delegated_token authenticates a delegated agent only: an autonomous agent needs a key or a secret.",
                 "error": "agents_invalid_input",
@@ -622,7 +622,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/not_found",
-                "title": "Not Found",
+                "title": "Not found",
                 "status": 404,
                 "detail": "The agent does not exist.",
                 "error": "agents_not_found",
@@ -921,7 +921,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_input",
-                "title": "Invalid Input",
+                "title": "Invalid input",
                 "status": 422,
                 "detail": "name is required, at most 160 characters.",
                 "error": "agents_invalid_input",
@@ -1205,7 +1205,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/agent_inactive",
-                "title": "Agent Inactive",
+                "title": "Agent inactive",
                 "status": 401,
                 "detail": "The agent is suspended.",
                 "error": "agent_suspended",

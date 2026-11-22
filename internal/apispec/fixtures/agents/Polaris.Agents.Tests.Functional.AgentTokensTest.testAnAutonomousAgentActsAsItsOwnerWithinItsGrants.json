@@ -368,7 +368,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_scope",
-                "title": "Invalid Scope",
+                "title": "Invalid scope",
                 "status": 400,
                 "detail": "The client may not ask for \"org.update\".",
                 "error": "invalid_scope",
@@ -588,7 +588,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -699,7 +699,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/agent_inactive",
-                "title": "Agent Inactive",
+                "title": "Agent inactive",
                 "status": 401,
                 "detail": "The agent is suspended.",
                 "error": "agent_suspended",
@@ -898,7 +898,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -922,7 +922,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "The agent holds no active grant for \"members.list\".",
                 "error": "capability_not_granted",

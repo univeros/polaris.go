@@ -140,7 +140,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgoogle%2Fcallback&response_type=code&scope=openid%20email%20profile&state=556c4b714e3974fca9845d867c90fc40&access_type=offline&prompt=select_account&code_challenge=8y_8La3GeHOK-V_QKIcKbzZDYyCN7TllK8fozScOdf4&code_challenge_method=S256&nonce=2688c8dcf533f4c267ec35879a6bf56d",
+                    "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgoogle%2Fcallback&response_type=code&scope=openid+email+profile&state=556c4b714e3974fca9845d867c90fc40&access_type=offline&prompt=select_account&code_challenge=8y_8La3GeHOK-V_QKIcKbzZDYyCN7TllK8fozScOdf4&code_challenge_method=S256&nonce=2688c8dcf533f4c267ec35879a6bf56d",
                     "state": "556c4b714e3974fca9845d867c90fc40"
                 }
             }
@@ -443,7 +443,7 @@
             },
             "body": {
                 "data": {
-                    "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgoogle%2Fcallback&response_type=code&scope=openid%20email%20profile&state=03948d48fb39d6c85a0774261542360f&access_type=offline&prompt=select_account&code_challenge=Aoq2Ivn6wS7DDuQEMz5yr_UQ8D36ISPJuaLKoRqpXGw&code_challenge_method=S256&nonce=2ebb16aad7b1839bee1f234daf926a3a",
+                    "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client&redirect_uri=https%3A%2F%2Fauth.polaris.test%2Fsocial%2Fgoogle%2Fcallback&response_type=code&scope=openid+email+profile&state=03948d48fb39d6c85a0774261542360f&access_type=offline&prompt=select_account&code_challenge=Aoq2Ivn6wS7DDuQEMz5yr_UQ8D36ISPJuaLKoRqpXGw&code_challenge_method=S256&nonce=2ebb16aad7b1839bee1f234daf926a3a",
                     "state": "03948d48fb39d6c85a0774261542360f"
                 }
             }

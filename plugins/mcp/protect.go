@@ -325,12 +325,20 @@ func (e *refusal) write(w http.ResponseWriter) {
 	writeJSON(w, e.status, "application/problem+json", body, h)
 }
 
-// title turns a snake_case name into words with their first letter upper-cased:
-// "insufficient_scope" is "Insufficient Scope".
+// acronyms are the words of a problem name a title writes in capitals.
+var acronyms = map[string]string{
+	"api": "API", "dpop": "DPoP", "id": "ID", "ip": "IP", "jwt": "JWT", "mcp": "MCP", "mfa": "MFA",
+	"oidc": "OIDC", "otp": "OTP", "saml": "SAML", "scim": "SCIM", "sso": "SSO", "uri": "URI", "url": "URL",
+}
+
+// title is a snake_case problem name as a sentence: "insufficient_scope" is "Insufficient
+// scope", "invalid_dpop_proof" is "Invalid DPoP proof".
 func title(name string) string {
 	words := strings.Split(name, "_")
 	for i, w := range words {
-		if w != "" {
+		if a, ok := acronyms[w]; ok {
+			words[i] = a
+		} else if i == 0 && w != "" {
 			words[i] = strings.ToUpper(w[:1]) + w[1:]
 		}
 	}

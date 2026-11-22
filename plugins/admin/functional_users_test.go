@@ -140,7 +140,7 @@ func TestAdminKeysGrantsAndStats(t *testing.T) {
 		created := data(t, f.c.Post("/admin/keys", map[string]any{"name": "CI", "role": "support", "ip_allowlist": []string{"10.0.0.0/8"}, "expires_at": "2030-01-01T00:00:00+00:00"}, as(owner)))
 		secret, _ := created["key"].(string)
 		want(t, strings.HasPrefix(secret, admin.KeyPrefix) && created["name"] == "CI" && created["role"] == "support" && created["scope"] == "instance" &&
-			reflect.DeepEqual(created["ip_allowlist"], []any{"10.0.0.0/8"}) && created["expires_at"] == "2030-01-01T00:00:00+00:00", "created %v", created)
+			reflect.DeepEqual(created["ip_allowlist"], []any{"10.0.0.0/8"}) && created["expires_at"] == "2030-01-01T00:00:00Z", "created %v", created)
 		problem(t, f.c.Get("/admin/users", as(secret)), 401, "admin_unauthorized") // the test client has no address
 
 		problem(t, f.c.Get("/admin/users", as(ada)), 401, "admin_unauthorized")

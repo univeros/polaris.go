@@ -21,7 +21,7 @@ const (
 // keyed hash.
 func (s *service) createHost(ctx context.Context, owner Host, name any, defaults []any) (Host, string, error) {
 	n, _ := name.(string)
-	n = strings.Trim(n, " \t\n\r\x00\x0B")
+	n = strings.TrimSpace(n)
 	if n == "" || utf8.RuneCountInString(n) > 160 {
 		return Host{}, "", refuse(ErrInvalidInput, "name is required, at most 160 characters.")
 	}

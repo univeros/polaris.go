@@ -13,9 +13,8 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
+// timestamp is the wire form of a time: RFC 3339 in UTC, to the second ("2026-09-11T10:00:00Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
 // Page sizes of the decision list.
 const (
@@ -99,7 +98,7 @@ func decisionView(r store.Row) map[string]any {
 	return map[string]any{
 		"id": r.String("id"), "kind": r.String("kind"), "email": null(r.String("email")), "ip": null(r.String("ip")),
 		"score": r.Int("score"), "action": r.String("action"), "enforced": r.Bool("enforced"),
-		"signals": stringList(r, "signals"), "reasons": stringList(r, "reasons"), "created_at": created.Format(dateAtom),
+		"signals": stringList(r, "signals"), "reasons": stringList(r, "reasons"), "created_at": timestamp(created),
 	}
 }
 
@@ -127,7 +126,7 @@ type IPRule struct {
 // Map is the rule's wire shape.
 func (r IPRule) Map() map[string]any {
 	return map[string]any{"id": r.ID, "cidr": r.CIDR, "action": r.Action, "note": null(r.Note),
-		"created_by": null(r.CreatedBy), "created_at": r.CreatedAt.Format(dateAtom)}
+		"created_by": null(r.CreatedBy), "created_at": timestamp(r.CreatedAt)}
 }
 
 // IPRules stores the instance's allow and block rules; the first match in creation order wins.

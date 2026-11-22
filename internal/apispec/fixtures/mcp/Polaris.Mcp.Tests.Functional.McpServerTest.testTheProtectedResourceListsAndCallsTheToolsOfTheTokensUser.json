@@ -5021,7 +5021,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/mcp/insufficient_scope",
-                "title": "Insufficient Scope",
+                "title": "Insufficient scope",
                 "status": 403,
                 "detail": "The token lacks the scopes org.read.",
                 "error": "mcp_insufficient_scope",
@@ -5070,7 +5070,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/mcp/legacy_protocol",
-                "title": "Legacy Protocol",
+                "title": "Legacy protocol",
                 "status": 400,
                 "detail": "This server speaks MCP 2026-07-28 (stateless); the session-based protocol is not served.",
                 "error": "mcp_legacy_protocol",

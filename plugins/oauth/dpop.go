@@ -67,7 +67,7 @@ func (d *dpop) verify(ctx context.Context, proof, method, url, accessToken strin
 		return "", dpopInvalid("The key could not be read.")
 	}
 	if ka, ok := jwk["alg"].(string); ok && ka != alg {
-		return "", dpopInvalid("The proof does not verify: Incorrect key for this algorithm")
+		return "", dpopInvalid("The proof does not verify: the key's alg is not the token's alg")
 	}
 	now := d.clock.Now()
 	claims, err := verifySigned(proof, alg, key, now, 0)

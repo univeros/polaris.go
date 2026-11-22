@@ -5,10 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -63,20 +63,26 @@ func (p *Plugin) call(ctx context.Context, rt *manifest.Route, args map[string]a
 	for k, v := range args {
 		rest[k] = v
 	}
-	path := pathParam.ReplaceAllStringFunc(rt.Path, func(m string) string {
-		name := m[1 : len(m)-1]
-		v := scalar(rest[name])
-		delete(rest, name)
-		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20") // RFC 3986 percent-encoding: a space is %20
-	})
+	path, escaped, err := fillPath(rt.Path, rest)
+	if err != nil {
+		return wiring.ToolResult{}, err
+	}
 	u, _ := url.Parse(strings.TrimRight(p.cfg.BaseURL, "/"))
-	u.Path = strings.TrimRight(p.g.Config().PathPrefix, "/") + path
+	prefix := strings.TrimRight(p.g.Config().PathPrefix, "/")
+	u.Path, u.RawPath = prefix+path, prefix+escaped
 	var body []byte
 	switch rt.Input.Source {
 	case manifest.SourceQuery:
 		q := url.Values{}
 		for k, v := range rest {
-			q.Set(k, scalar(v))
+			if v == nil {
+				continue
+			}
+			s, ok := scalar(v)
+			if !ok {
+				return wiring.ToolResult{}, invalidArgument(k)
+			}
+			q.Set(k, s)
 		}
 		u.RawQuery = q.Encode()
 	case manifest.SourceBody:
@@ -125,20 +131,45 @@ func decoded(raw []byte) any {
 	return v
 }
 
-// scalar reads a JSON scalar as text: a string as is, a number in its JSON form, true as "1";
-// false and anything else are "".
-func scalar(v any) string {
+// scalar is a JSON string, number or boolean as the text a path or query carries: a string as
+// is, a number in decimal, a boolean as "true" or "false"; ok is false for anything else.
+func scalar(v any) (string, bool) {
 	switch s := v.(type) {
 	case string:
-		return s
+		return s, true
 	case json.Number:
-		return s.String()
+		return s.String(), true
 	case float64:
-		return fmt.Sprint(s)
+		return strconv.FormatFloat(s, 'f', -1, 64), true
 	case bool:
-		if s {
-			return "1"
-		}
+		return strconv.FormatBool(s), true
 	}
-	return ""
+	return "", false
+}
+
+// fillPath substitutes the route's {parameters} with the arguments of the same name, removing
+// them from args: path is the decoded path, escaped the same path with each value escaped as one
+// segment (RFC 3986 §3.3). A parameter without a string, number or boolean value is invalid
+// params.
+func fillPath(pattern string, args map[string]any) (path, escaped string, err error) {
+	var p, e strings.Builder
+	last := 0
+	for _, m := range pathParam.FindAllStringSubmatchIndex(pattern, -1) {
+		name := pattern[m[2]:m[3]]
+		v, ok := scalar(args[name])
+		if !ok {
+			return "", "", invalidArgument(name)
+		}
+		delete(args, name)
+		p.WriteString(pattern[last:m[0]] + v)
+		e.WriteString(pattern[last:m[0]] + url.PathEscape(v))
+		last = m[1]
+	}
+	p.WriteString(pattern[last:])
+	e.WriteString(pattern[last:])
+	return p.String(), e.String(), nil
+}
+
+func invalidArgument(name string) *rpcError {
+	return newError(codeInvalidParams, http.StatusBadRequest, "Invalid argument %q: a string, a number or a boolean is required.", name)
 }

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -165,7 +166,7 @@ func (r *renderer) render(ctx context.Context, key, locale string, vars map[stri
 	for name, value := range vars {
 		s := scalar(value)
 		plain = append(plain, "{"+name+"}", s)
-		escaped = append(escaped, "{"+name+"}", htmlEscaper.Replace(s))
+		escaped = append(escaped, "{"+name+"}", html.EscapeString(s))
 	}
 	p, e := strings.NewReplacer(plain...), strings.NewReplacer(escaped...)
 	return Template{Subject: p.Replace(tpl.Subject), Text: p.Replace(tpl.Text), HTML: e.Replace(tpl.HTML)}, nil
@@ -181,20 +182,14 @@ func (r *renderer) bundled(key, locale string) (Template, bool) {
 	return Template{Subject: subject, Text: text, HTML: html}, true
 }
 
-// htmlEscaper escapes &, <, >, " and ' (as &#039;) for HTML text and attribute values.
-var htmlEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#039;")
-
-// scalar renders a scalar variable as text: true is "1", false is "", numbers in their shortest
+// scalar renders a scalar variable as text: a bool as "true" or "false", numbers in their shortest
 // plain form (no exponent); anything else (nil, lists, maps) is "".
 func scalar(v any) string {
 	switch v := v.(type) {
 	case string:
 		return v
 	case bool:
-		if v {
-			return "1"
-		}
-		return ""
+		return strconv.FormatBool(v)
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return fmt.Sprint(v)
 	case float32:

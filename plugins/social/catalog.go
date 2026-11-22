@@ -252,8 +252,9 @@ func at(v any, path ...any) any {
 	return v
 }
 
-// str reads a decoded JSON scalar from a provider's profile as text: a string as is, a number
-// in its shortest form, true as "1"; false, null and anything else as "".
+// str reads an identifier or a message from a provider's JSON as text: a string as is, a number
+// as its JSON text (providers send numeric ids). Anything else (a boolean, null, a list or an
+// object) names nothing and reads as "", so a subject is never made up from a non-identifier.
 func str(v any) string {
 	switch v := v.(type) {
 	case string:
@@ -262,18 +263,14 @@ func str(v any) string {
 		return v.String()
 	case float64:
 		return fmt.Sprint(v)
-	case bool:
-		if v {
-			return "1"
-		}
 	}
 	return ""
 }
 
-// text is a string with something besides spaces in it, else "".
+// text is a string with something besides white space in it, else "".
 func text(v any) string {
 	s, ok := v.(string)
-	if !ok || strings.ReplaceAll(s, " ", "") == "" {
+	if !ok || strings.TrimSpace(s) == "" {
 		return ""
 	}
 	return s

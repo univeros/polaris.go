@@ -73,7 +73,7 @@ func (a *Activity) touch(ctx context.Context, userID string) error {
 			return err
 		}
 	}
-	return a.cache.Set(ctx, key, []byte(now.Format(dateAtom)), a.interval)
+	return a.cache.Set(ctx, key, []byte(timestamp(now)), a.interval)
 }
 
 // LastActiveAt returns the user's last recorded activity; ok false when none.

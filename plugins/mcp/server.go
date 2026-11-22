@@ -319,6 +319,10 @@ func (s *session) callTool(ctx context.Context, params map[string]any) (map[stri
 		return nil, newError(codeInvalidParams, http.StatusBadRequest, "Tool not found: \"%s\".", name)
 	}
 	res, err := tools[i].Call(ctx, args)
+	var rerr *rpcError
+	if errors.As(err, &rerr) {
+		return nil, rerr
+	}
 	if err != nil {
 		return nil, s.internal(ctx, "tools/call", err)
 	}

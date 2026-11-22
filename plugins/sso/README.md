@@ -65,6 +65,11 @@ Organization admins (bearer, `org.update` in the active organization), under `/o
 | POST | `/domains/{domainId}/verify` | verify through the DNS TXT record `_polaris.<domain>` or `https://<domain>/.well-known/polaris-sso.txt` |
 | DELETE | `/domains/{domainId}` | delete |
 
+A provider's body is strict JSON: `config`, `attributes` and `jit` are objects, `redirect_uris` a
+list, `enabled` and `jit.enabled` booleans; every URL (`sso_url`, `slo_url`, `slo_response_url`,
+the redirect URIs) is an absolute `http(s)` URL with a host, in printable ASCII. `limit` on the
+operators' list is a decimal integer. Timestamps are RFC 3339 in UTC (`2026-11-20T18:32:59Z`).
+
 The OIDC client secret is encrypted at rest and never returned (`client_secret_set`). Operators (admin
 plugin principals): `GET /admin/sso/providers` (admin `read`), `DELETE /admin/sso/providers/{id}`
 (admin `own`). Without the admin plugin these answer 401.
@@ -72,12 +77,17 @@ plugin principals): `GET /admin/sso/providers` (admin `read`), `DELETE /admin/ss
 ## What is checked
 
 OIDC (`HTTPOIDC`): discovery cached an hour, the code flow with PKCE (S256) and a nonce,
-`client_secret_post`, the `id_token` signed by a key of the provider's JWKS, within a minute of leeway,
-its issuer, audience and nonce. SAML (`DefaultSAML`, `github.com/crewjam/saml`): exactly one
-assertion, signed on the response or the assertion by the provider's certificate (read from what the
-signature covers), its issuer, audience, `Destination` and `Recipient`, `InResponseTo`, the conditions
-with three minutes of skew, and the assertion id kept until it expires so a replay is refused. An IdP's
-`LogoutRequest` must be signed. Outbound requests (OIDC, the domain's well-known file) connect to
+`client_secret_post`, the `id_token` signed by the key of the provider's JWKS its `kid` names (the
+JWKS `keys` is an array, RFC 7517), within a minute of leeway, its issuer, audience and nonce. The
+key's `alg` must be the token's; a key without `alg` verifies the algorithm its type implies (RSA
+RS256, EC P-256 ES256, OKP Ed25519 EdDSA) and any other key without `alg` verifies nothing. SAML
+(`DefaultSAML`, `github.com/crewjam/saml`): exactly one assertion, signed on the response or the
+assertion by the provider's certificate (read from what the signature covers), its issuer, audience,
+`Destination` and `Recipient`, `InResponseTo`, the conditions with three minutes of skew, and the
+assertion id kept until it expires so a replay is refused. An IdP's `LogoutRequest` must be signed.
+The certificate's validity dates are not checked: it only carries the key the organization
+configured, which is the trust anchor (as in most SAML service providers); an IdP rotating its key is
+a configuration change. Outbound requests (OIDC, the domain's well-known file) connect to
 public addresses only and never follow redirects, because an organization admin names those hosts.
 
 ## Events and permissions

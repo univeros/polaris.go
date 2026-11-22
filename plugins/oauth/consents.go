@@ -20,7 +20,7 @@ type Consent struct {
 func (c Consent) view() map[string]any {
 	return map[string]any{
 		"id": c.ID, "client_id": c.ClientID, "organization_id": null(c.OrganizationID),
-		"scopes": list(c.Scopes), "granted_at": atom(c.GrantedAt), "updated_at": atom(c.UpdatedAt),
+		"scopes": list(c.Scopes), "granted_at": timestamp(c.GrantedAt), "updated_at": timestamp(c.UpdatedAt),
 	}
 }
 

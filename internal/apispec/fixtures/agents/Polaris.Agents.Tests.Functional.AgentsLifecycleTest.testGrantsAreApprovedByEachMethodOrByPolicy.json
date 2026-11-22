@@ -406,7 +406,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_found",
-                "title": "Capability Not Found",
+                "title": "Capability not found",
                 "status": 404,
                 "detail": "Unknown capability \"nope\".",
                 "error": "capability_not_found",
@@ -469,7 +469,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/unknown_constraint_operator",
-                "title": "Unknown Constraint Operator",
+                "title": "Unknown constraint operator",
                 "status": 400,
                 "detail": "Unknown constraint operator \"between\" on \"format\"; known: max, min, in, not_in, pattern, and budget.",
                 "error": "unknown_constraint_operator",
@@ -603,7 +603,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/not_found",
-                "title": "Not Found",
+                "title": "Not found",
                 "status": 404,
                 "detail": "No pending approval has this code.",
                 "error": "agents_not_found",
@@ -1213,7 +1213,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/invalid_input",
-                "title": "Invalid Input",
+                "title": "Invalid input",
                 "status": 422,
                 "detail": "decision is approve or deny; constraints, when given, an object.",
                 "error": "agents_invalid_input",
@@ -1435,7 +1435,7 @@
             },
             "body": {
                 "capability": "members.list",
-                "arguments": []
+                "arguments": {}
             }
         },
         "response": {
@@ -1459,7 +1459,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "title": "Capability not granted",
                 "status": 403,
                 "detail": "The agent holds no active grant for \"members.list\".",
                 "error": "capability_not_granted",

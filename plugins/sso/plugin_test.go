@@ -149,8 +149,8 @@ func TestProvidersKeepTheSecretEncryptedAndAreListed(t *testing.T) {
 	if !storetest.JSONNormalized(u.srv.DB.Dialect()) {
 		check(t, strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "stored bytes: %s", row.String("config"))
 	}
-	check(t, stored("redirect_uris", `["https:\/\/app.example\/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
-		stored("attributes", `{"email":"email"}`), "stored in the escaped JSON form: %v", row)
+	check(t, stored("redirect_uris", `["https://app.example/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
+		stored("attributes", `{"email":"email"}`), "stored in standard JSON: %v", row)
 	secret, err := providers.Secret(p)
 	check(t, secret == "shh" && err == nil, "secret %q %v", secret, err)
 	m := p.Map()

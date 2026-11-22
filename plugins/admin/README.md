@@ -68,8 +68,10 @@ operator acts on that organization only. Roles, each including the ones before i
 | GET, POST | `/admin/grants` | list / create operator grants (`Own`) |
 | DELETE | `/admin/grants/{id}` | revoke a grant (`Own`) |
 
-Lists are cursor-paginated: `cursor` (the previous page's `next_cursor`), `limit` (default
-`admin.DefaultLimit`, at most `admin.MaxLimit`).
+Lists are cursor-paginated: `cursor` (the previous page's `next_cursor`), `limit` (a positive
+integer written in digits only, default `admin.DefaultLimit`, at most `admin.MaxLimit`; `1.5`,
+`1e1` or ` 2` answer 422). Times are RFC 3339 in UTC (`2026-09-11T10:00:00Z`); a time sent with an
+offset is accepted and answered in UTC.
 
 ## Events and permissions
 

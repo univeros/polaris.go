@@ -29,15 +29,13 @@ func (e execution) view() map[string]any {
 	return map[string]any{"data": e.result, "receipt": map[string]any{"id": e.receipt.ID, "seq": e.receipt.Seq, "hash": e.receipt.Hash}}
 }
 
-// arguments reads the arguments of a call: an object, or nothing (an empty list [] included).
+// arguments reads the arguments of a call: a JSON object, or nothing (null).
 func arguments(v any) (map[string]any, bool) {
 	switch v := v.(type) {
 	case nil:
 		return map[string]any{}, true
 	case map[string]any:
 		return v, true
-	case []any:
-		return map[string]any{}, len(v) == 0
 	}
 	return nil, false
 }

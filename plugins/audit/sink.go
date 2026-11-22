@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -93,11 +94,12 @@ func (f *FileSink) Write(_ context.Context, events ...Event) error {
 	}
 	var b bytes.Buffer
 	for _, e := range events {
-		line, err := canonicalJSON(e.Map())
+		line, err := json.Marshal(e)
 		if err != nil {
-			return err
+			return fmt.Errorf("audit: encode: %w", err)
 		}
-		b.WriteString(line + "\n")
+		b.Write(line)
+		b.WriteByte('\n')
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -129,15 +131,10 @@ func (s WebhookSink) Write(ctx context.Context, events ...Event) error {
 	if len(events) == 0 {
 		return nil
 	}
-	list := make([]any, len(events))
-	for i, e := range events {
-		list[i] = e.Map()
-	}
-	encoded, err := canonicalJSON(map[string]any{"events": list})
+	body, err := json.Marshal(map[string][]Event{"events": events})
 	if err != nil {
-		return err
+		return fmt.Errorf("audit: encode: %w", err)
 	}
-	body := []byte(encoded)
 	client, attempts, sleep := s.Client, s.Attempts, s.Sleep
 	if client == nil {
 		client = http.DefaultClient

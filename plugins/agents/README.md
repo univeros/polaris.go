@@ -99,7 +99,14 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 - To push a CIBA approval, listen to `agents.EventGrantRequested`. `Plugin.Receipts` and
   `Plugin.VerifyReceipt` read and check the chain from code.
 - `Input` is checked by a built-in JSON Schema subset: an unsupported keyword fails `polaris.New`, `format`
-  is not checked, `pattern` is RE2.
+  is not checked, `pattern` is RE2. A refusal's `errors` name the JSON Pointer and the rule
+  (`/amount: must be at most 100`, `missing required properties: to`).
+- Input is read as its JSON type: `arguments` and `constraints` are objects (`[]` is refused),
+  `capabilities` is a list, `after` and `limit` are integers. `max` and `min` bound JSON numbers (a
+  numeric string violates them); `in` and `not_in` compare numbers by value (`1` is `1.0`).
+- Times are RFC 3339 in UTC (`2026-11-22T10:00:00Z`), except a receipt's `created_at`, which its
+  hash and signature cover: it keeps the form every receipt was hashed in (`+00:00`), and a verifier
+  hashes it as sent.
 
 ## Example
 

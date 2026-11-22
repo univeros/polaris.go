@@ -1,13 +1,6 @@
 package sso
 
-import (
-	"bytes"
-	"encoding/json"
-	"strconv"
-	"strings"
-	"time"
-	"unicode/utf16"
-)
+import "time"
 
 // Provider types.
 const (
@@ -84,7 +77,7 @@ func (p Provider) Map() map[string]any {
 		"config": config, "attributes": attributes,
 		"jit":           map[string]any{"enabled": p.JIT.Enabled, "roles": nonNil(p.JIT.Roles)},
 		"redirect_uris": nonNil(p.RedirectURIs), "enabled": p.Enabled, "created_by": nullable(p.CreatedBy),
-		"created_at": atom(p.CreatedAt), "updated_at": atom(p.UpdatedAt),
+		"created_at": timestamp(p.CreatedAt), "updated_at": timestamp(p.UpdatedAt),
 	}
 }
 
@@ -110,7 +103,7 @@ type Domain struct {
 func (d Domain) Map() map[string]any {
 	var verifiedAt any
 	if d.VerifiedAt != nil {
-		verifiedAt = atom(*d.VerifiedAt)
+		verifiedAt = timestamp(*d.VerifiedAt)
 	}
 	return map[string]any{
 		"id": d.ID, "organization_id": d.OrganizationID, "provider_id": d.ProviderID, "domain": d.Domain,
@@ -119,15 +112,12 @@ func (d Domain) Map() map[string]any {
 			"dns":   map[string]any{"record": DNSRecord + "." + d.Domain, "type": "TXT", "value": d.Token},
 			"https": map[string]any{"url": "https://" + d.Domain + WellKnownPath, "body": d.Token},
 		},
-		"verified": d.VerifiedAt != nil, "verified_at": verifiedAt, "created_at": atom(d.CreatedAt),
+		"verified": d.VerifiedAt != nil, "verified_at": verifiedAt, "created_at": timestamp(d.CreatedAt),
 	}
 }
 
-// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"): the timestamp format
-// the API emits and stored rows keep.
-const dateAtom = "2006-01-02T15:04:05-07:00"
-
-func atom(t time.Time) string { return t.UTC().Format(dateAtom) }
+// timestamp is how the API writes a time: RFC 3339 in UTC, to the second ("…Z").
+func timestamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
 func nullable(s string) any {
 	if s == "" {
@@ -141,66 +131,4 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
-}
-
-// member is one member of an ordered JSON object.
-type member struct {
-	key   string
-	value any
-}
-
-// object is a JSON object written in member order; empty, it is written "[]", the form stored
-// rows hold for an empty object.
-type object []member
-
-// MarshalJSON writes the members in order.
-func (o object) MarshalJSON() ([]byte, error) {
-	if len(o) == 0 {
-		return []byte("[]"), nil
-	}
-	var b bytes.Buffer
-	b.WriteByte('{')
-	for i, m := range o {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		k, _ := json.Marshal(m.key)
-		v, err := json.Marshal(m.value)
-		if err != nil {
-			return nil, err
-		}
-		b.Write(k)
-		b.WriteByte(':')
-		b.Write(v)
-	}
-	b.WriteByte('}')
-	return b.Bytes(), nil
-}
-
-// escapedJSON encodes v with slashes escaped ("\/") and every non-ASCII character as a \uXXXX
-// escape (UTF-16 surrogate pairs above the BMP), HTML characters left as they are. The JSON
-// columns are written in this form, and it must stay byte-identical so that rows written by
-// earlier releases read and compare the same.
-func escapedJSON(v any) (string, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return "", err
-	}
-	var out strings.Builder
-	for _, r := range strings.TrimSuffix(b.String(), "\n") {
-		switch {
-		case r == '/':
-			out.WriteString(`\/`)
-		case r < 0x80:
-			out.WriteRune(r)
-		default:
-			for _, u := range utf16.Encode([]rune{r}) {
-				hex := strconv.FormatUint(uint64(u), 16)
-				out.WriteString(`\u` + strings.Repeat("0", 4-len(hex)) + hex)
-			}
-		}
-	}
-	return out.String(), nil
 }

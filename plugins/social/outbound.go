@@ -3,7 +3,11 @@ package social
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -298,47 +302,61 @@ func (o *outbound) keySet(ctx context.Context, jwksURL string, fresh bool) ([]jo
 	return keys, nil
 }
 
-// verifyJWT verifies a JWT against a key set: a compact JWS whose kid names a key
-// of the set of the header's algorithm (a key without alg is RS256), a valid signature, a JSON
-// object payload, and nbf / iat / exp within a minute of leeway.
+// algorithmOf is the algorithm a key verifies: its alg or, for a key without one, the algorithm
+// its type implies (RSA RS256, EC P-256 ES256, OKP Ed25519 EdDSA). Any other key without alg
+// verifies nothing: guessing would let one key serve algorithms it was not published for.
+func algorithmOf(k jose.JSONWebKey) (string, error) {
+	if k.Algorithm != "" {
+		return k.Algorithm, nil
+	}
+	switch key := k.Key.(type) {
+	case *rsa.PublicKey:
+		return string(jose.RS256), nil
+	case *ecdsa.PublicKey:
+		if key.Curve == elliptic.P256() {
+			return string(jose.ES256), nil
+		}
+	case ed25519.PublicKey:
+		return string(jose.EdDSA), nil
+	}
+	return "", errors.New("the key names no alg and its type implies none")
+}
+
+// verifyJWT verifies a JWT against a key set: a compact JWS whose kid names a key of the set
+// verifying the header's algorithm (algorithmOf), a valid signature, a JSON object payload, and
+// nbf / iat / exp within a minute of leeway.
 func verifyJWT(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {
 	jws, err := jose.ParseSignedCompact(raw, idTokenAlgorithms)
 	if err != nil {
 		return nil, err
 	}
 	if len(jws.Signatures) != 1 {
-		return nil, fmt.Errorf("one signature expected")
+		return nil, errors.New("one signature expected")
 	}
 	h := jws.Signatures[0].Header
 	if h.KeyID == "" {
-		return nil, errUnknownKey{`"kid" empty, unable to lookup correct key`}
+		return nil, errors.New("the token names no key (kid)")
 	}
-	var key *jose.JSONWebKey
-	for i := range keys {
-		if keys[i].KeyID == h.KeyID {
-			key = &keys[i]
-			break
-		}
+	i := slices.IndexFunc(keys, func(k jose.JSONWebKey) bool { return k.KeyID == h.KeyID })
+	if i < 0 {
+		return nil, errUnknownKey{"no key in the key set has the token's kid"}
 	}
-	if key == nil {
-		return nil, errUnknownKey{`"kid" invalid, unable to lookup correct key`}
-	}
-	alg := key.Algorithm
-	if alg == "" {
-		alg = string(jose.RS256)
+	alg, err := algorithmOf(keys[i])
+	if err != nil {
+		return nil, err
 	}
 	if alg != h.Algorithm {
-		return nil, fmt.Errorf("incorrect key for this algorithm")
+		return nil, errors.New("the key's algorithm is not the token's (alg)")
 	}
-	payload, err := jws.Verify(key.Key)
+	payload, err := jws.Verify(keys[i].Key)
 	if err != nil {
-		return nil, fmt.Errorf("signature verification failed")
+		return nil, errors.New("the signature does not verify")
 	}
 	dec := json.NewDecoder(bytes.NewReader(payload))
 	dec.UseNumber()
 	var claims map[string]any
 	if err := dec.Decode(&claims); err != nil || claims == nil {
-		return nil, fmt.Errorf("the payload is not a JSON object")
+		return nil, errors.New("the claims are not a JSON object")
 	}
 	for _, c := range []string{"nbf", "iat", "exp"} {
 		if _, ok := number(claims[c]); claims[c] != nil && !ok {
@@ -348,13 +366,13 @@ func verifyJWT(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]an
 	ts := float64(now.Unix())
 	nbf, hasNbf := number(claims["nbf"])
 	if hasNbf && math.Floor(nbf) > ts+idTokenLeeway {
-		return nil, fmt.Errorf("cannot handle token prior to its nbf")
+		return nil, errors.New("the token is not valid yet (nbf)")
 	}
 	if iat, ok := number(claims["iat"]); !hasNbf && ok && math.Floor(iat) > ts+idTokenLeeway {
-		return nil, fmt.Errorf("cannot handle token prior to its iat")
+		return nil, errors.New("the token was issued in the future (iat)")
 	}
 	if exp, ok := number(claims["exp"]); ok && ts-idTokenLeeway >= exp {
-		return nil, fmt.Errorf("expired token")
+		return nil, errors.New("the token has expired")
 	}
 	return claims, nil
 }

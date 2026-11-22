@@ -76,7 +76,19 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
   membership this connection created is removed) or `scim.DeprovisionDelete` (the account is
   anonymised).
 - Filters accept what directories send: `attr eq|co|sw "value"` joined by `and`; anything else is
-  `invalidFilter`.
+  `invalidFilter`. The value is a JSON string (RFC 7644 §3.4.2.2): JSON escapes are decoded, an
+  unknown escape, a raw control character or a NUL is `invalidFilter`.
+- Input follows RFC 7643/7644 strictly; a non-conforming value is a 400 `invalidValue`:
+  `active` is a JSON boolean (`"True"`, `"false"`, `1` are refused, in POST, PUT and PATCH);
+  `members` is a list of `{"value": id}` objects (not bare ids, not `{}`); `startIndex` and `count`
+  are integers (decimal digits, an optional sign; below 1 reads as 1, a negative count as 0, at most
+  `scim.MaxCount`); a PATCH operation without a `path` carries an object. The admin listing's `limit`
+  is a positive integer (422 otherwise).
+  Microsoft Entra ID sends `active` as the strings `"True"`/`"False"` in PATCH unless the
+  enterprise application opts into its SCIM 2.0 compliant behaviour: add `?aadOptscim062020` to
+  the Tenant URL. Without it, Entra's deactivations answer 400 and accounts are not deprovisioned.
+- Timestamps (`meta.created`, `meta.lastModified`, a connection's `created_at`, `last_sync_at`,
+  `decommissioned_at`) are RFC 3339 in UTC with `Z`.
 - The built-in owner, admin and member roles take members but are never renamed or deleted.
 - A User's `displayName` and `name.formatted` are the account's display name; `name.givenName` and
   `name.familyName` are kept per connection as the directory sent them (for accounts it manages),

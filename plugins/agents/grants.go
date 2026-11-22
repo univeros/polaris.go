@@ -65,9 +65,7 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 		}
 		var raw any
 		if isObj {
-			if c, ok := obj["constraints"]; ok && (isMap(c) || isList(c)) {
-				raw = c
-			}
+			raw = obj["constraints"]
 		}
 		parsed, err := parseConstraints(raw)
 		if err != nil {
@@ -102,8 +100,7 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 	return out, nil
 }
 
-func isMap(v any) bool  { _, ok := v.(map[string]any); return ok }
-func isList(v any) bool { _, ok := v.([]any); return ok }
+func isMap(v any) bool { _, ok := v.(map[string]any); return ok }
 
 // withinPolicy: none asked (the policy's applies), or the same kind and field, no larger, and no
 // longer a window than the policy's. The policy's budget is a ceiling the asker cannot raise.

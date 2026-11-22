@@ -75,16 +75,26 @@ func (e *Error) code() string {
 	return "agents_" + e.Type
 }
 
-// problem is the RFC 9457 body.
-func (e *Error) problem() map[string]any {
-	title := strings.Split(e.Type, "_")
-	for i, w := range title {
-		if w != "" {
-			title[i] = strings.ToUpper(w[:1]) + w[1:]
+// acronyms are the words of a problem type a title writes in capitals.
+var acronyms = map[string]string{"dpop": "DPoP", "id": "ID", "jwt": "JWT"}
+
+// title is a snake_case problem type as a sentence: "invalid_jwt" is "Invalid JWT".
+func title(typ string) string {
+	words := strings.Split(typ, "_")
+	for i, w := range words {
+		if a, ok := acronyms[w]; ok {
+			words[i] = a
+		} else if i == 0 && w != "" {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
 		}
 	}
+	return strings.Join(words, " ")
+}
+
+// problem is the RFC 9457 body.
+func (e *Error) problem() map[string]any {
 	body := map[string]any{
-		"type": endpoint.ProblemTypes + "agents/" + e.Type, "title": strings.Join(title, " "),
+		"type": endpoint.ProblemTypes + "agents/" + e.Type, "title": title(e.Type),
 		"status": e.Status(), "detail": e.Detail, "error": e.code(), "message": e.Detail,
 	}
 	for k, v := range e.Extra {

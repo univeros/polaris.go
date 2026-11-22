@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -161,9 +162,14 @@ func TestDispatchHelpers(t *testing.T) {
 	if decoded(nil) != nil || decoded([]byte("plain")) != "plain" || decoded([]byte("null")) != "null" {
 		t.Error("decoded")
 	}
-	for v, want := range map[any]string{"a": "a", json.Number("3"): "3", 1.5: "1.5", true: "1", false: "", nil: ""} {
-		if got := scalar(v); got != want {
+	for v, want := range map[any]string{"a": "a", json.Number("3"): "3", 1.5: "1.5", 1e21: "1000000000000000000000", true: "true", false: "false"} {
+		if got, ok := scalar(v); !ok || got != want {
 			t.Errorf("scalar(%v) = %q", v, got)
+		}
+	}
+	for _, v := range []any{nil, map[string]any{}, []any{"a"}} {
+		if _, ok := scalar(v); ok {
+			t.Errorf("scalar(%v) is not a scalar", v)
 		}
 	}
 	if text("x") != "x" || text(map[string]any{"a": 1}) != "{\n    \"a\": 1\n}" {
@@ -171,5 +177,53 @@ func TestDispatchHelpers(t *testing.T) {
 	}
 	if d := definition(wiring.Tool{}); d["inputSchema"] == nil {
 		t.Error("a tool without a schema gets an object schema")
+	}
+}
+
+// A path parameter is one escaped path segment (RFC 3986 §3.3), sent once, never twice escaped;
+// a value that is not a string, number or boolean is invalid params.
+func TestToolArgumentsFillThePathOnce(t *testing.T) {
+	rest := map[string]any{"id": "a b/c", "n": json.Number("7"), "x": 1}
+	raw, escaped, err := fillPath("/orgs/{id}/members/{n}", rest)
+	if err != nil || raw != "/orgs/a b/c/members/7" || escaped != "/orgs/a%20b%2Fc/members/7" || len(rest) != 1 {
+		t.Errorf("fillPath %q %q %v %v", raw, escaped, rest, err)
+	}
+	for name, args := range map[string]map[string]any{
+		"absent": {},
+		"null":   {"id": nil},
+		"object": {"id": map[string]any{"a": 1}},
+		"list":   {"id": []any{"a"}},
+	} {
+		_, _, err := fillPath("/orgs/{id}", args)
+		var rerr *rpcError
+		if !errors.As(err, &rerr) || rerr.code != codeInvalidParams || !strings.Contains(rerr.message, "id") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	p := testPlugin(t)
+	var rt *manifest.Route
+	for _, r := range p.g.Manifest().Routes() {
+		if r.Input.Source == manifest.SourceQuery {
+			rt = r
+		}
+	}
+	if rt == nil {
+		t.Fatal("no route reads the query")
+	}
+	_, err = p.call(context.Background(), rt, map[string]any{"limit": []any{1}}, caller{})
+	var rerr *rpcError
+	if !errors.As(err, &rerr) || rerr.code != codeInvalidParams {
+		t.Errorf("a list as a query value: %v", err)
+	}
+}
+
+func TestProblemTitlesAreSentences(t *testing.T) {
+	for name, want := range map[string]string{
+		"unauthorized": "Unauthorized", "insufficient_scope": "Insufficient scope",
+		"invalid_dpop_proof": "Invalid DPoP proof", "mfa_same_channel": "MFA same channel", "unknown_user_id": "Unknown user ID",
+	} {
+		if got := title(name); got != want {
+			t.Errorf("title(%q) = %q, want %q", name, got, want)
+		}
 	}
 }

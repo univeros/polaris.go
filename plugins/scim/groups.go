@@ -224,7 +224,7 @@ func (d *directory) groupResource(ctx context.Context, conn Connection, role mod
 		"id":          role.ID,
 		"displayName": role.Name,
 		"members":     members,
-		"meta": map[string]any{"resourceType": KindGroup, "created": atom(role.CreatedAt), "lastModified": atom(role.UpdatedAt),
+		"meta": map[string]any{"resourceType": KindGroup, "created": timestamp(role.CreatedAt), "lastModified": timestamp(role.UpdatedAt),
 			"location": location + "/Groups/" + role.ID},
 	}
 	ext, err := d.resources.externalID(ctx, conn, KindGroup, role.ID)
@@ -299,23 +299,17 @@ func membersOf(body map[string]any) ([]string, error) {
 	return memberIDs(body["members"])
 }
 
-// memberIDs reads a members list: {value} objects or bare ids.
+// memberIDs reads a members list (RFC 7643 §4.2): a JSON list of {"value": id} objects.
 func memberIDs(raw any) ([]string, error) {
-	bad := invalid("members must be a list of {value}.", TypeInvalidValue)
+	bad := invalid(`members must be a list of {"value": id}.`, TypeInvalidValue)
 	list, ok := raw.([]any)
 	if !ok {
-		if obj, isObj := raw.(map[string]any); isObj && len(obj) == 0 {
-			return nil, nil // an empty object is read as the empty list
-		}
 		return nil, bad
 	}
 	ids := make([]string, 0, len(list))
 	for _, item := range list {
-		v := item
-		if m, isMap := item.(map[string]any); isMap {
-			v = m["value"]
-		}
-		id, _ := v.(string)
+		m, _ := item.(map[string]any)
+		id, _ := m["value"].(string)
 		if id == "" {
 			return nil, bad
 		}

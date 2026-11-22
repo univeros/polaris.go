@@ -495,7 +495,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_grant",
-                "title": "Invalid Grant",
+                "title": "Invalid grant",
                 "status": 400,
                 "detail": "The authorization code was already used; the tokens it issued are revoked.",
                 "error": "invalid_grant",
@@ -569,7 +569,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_grant",
-                "title": "Invalid Grant",
+                "title": "Invalid grant",
                 "status": 400,
                 "detail": "The refresh token was already used; every token of its family is revoked.",
                 "error": "invalid_grant",

@@ -56,7 +56,7 @@ func (s *service) dispatch(ctx context.Context, events ...Event) {
 // the organization's client routes never see it); the secret is returned for client_secret.
 func (s *service) createAgent(ctx context.Context, fields map[string]any, owner Agent) (Agent, string, error) {
 	name, _ := fields["name"].(string)
-	name = strings.Trim(name, " \t\n\r\x00\x0B")
+	name = strings.TrimSpace(name)
 	mode, auth := fields["mode"], fields["auth"]
 	if mode == nil {
 		mode = ModeDelegated

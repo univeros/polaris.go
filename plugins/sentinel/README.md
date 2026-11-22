@@ -52,6 +52,9 @@ Guarded by default (middleware, before core's endpoint; all POST): `/auth/regist
 | DELETE | `/admin/sentinel/ip-rules/{id}` | remove a rule (admin `own`) |
 | POST | `/admin/sentinel/unblock` | clear the counters of `{identifier}` (an email or an IP; admin `support`) |
 
+`limit` is a positive integer in digits only (`1.5`, `1e1` or ` 2` answer 422). Times are RFC 3339
+in UTC (`2026-09-11T10:00:00Z`).
+
 ## Events and permissions
 
 `sentinel.evaluated` (`sentinel.Evaluated`, whenever a signal spoke; never the password nor the

@@ -487,7 +487,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/registration_disabled",
-                "title": "Registration Disabled",
+                "title": "Registration disabled",
                 "status": 403,
                 "detail": "Dynamic client registration is off on this server; ask an operator or an organization admin for a client.",
                 "error": "registration_disabled",
@@ -821,7 +821,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 401,
                 "detail": "Introspection is for clients that authenticate (RFC 7662 \u00a72.1).",
                 "error": "invalid_client",
@@ -1121,7 +1121,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "The document's client_id must be its own URL.",
                 "error": "invalid_client_metadata",
@@ -1168,7 +1168,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A special-use name cannot host a client ID metadata URL.",
                 "error": "invalid_client_metadata",
@@ -1215,7 +1215,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A special-use or numeric address cannot host a client ID metadata URL.",
                 "error": "invalid_client_metadata",
@@ -1262,7 +1262,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A special-use or numeric address cannot host a client ID metadata URL.",
                 "error": "invalid_client_metadata",
@@ -1309,7 +1309,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A special-use name cannot host a client ID metadata URL.",
                 "error": "invalid_client_metadata",
@@ -1356,7 +1356,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "A special-use or numeric address cannot host a client ID metadata URL.",
                 "error": "invalid_client_metadata",
@@ -1403,7 +1403,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client",
-                "title": "Invalid Client",
+                "title": "Invalid client",
                 "status": 400,
                 "detail": "Unknown client.",
                 "error": "invalid_client",
@@ -1592,7 +1592,7 @@
             },
             "body": {
                 "type": "https://polaris.univeros.io/problems/oauth/invalid_client_metadata",
-                "title": "Invalid Client Metadata",
+                "title": "Invalid client metadata",
                 "status": 400,
                 "detail": "Unknown scope \"nothing\".",
                 "error": "invalid_client_metadata",

@@ -8,10 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-var (
-	roleSlug  = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
-	urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*$`)
-)
+var roleSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 // providerInput validates a provider from a request body: the new provider's fields, or the
 // errors (the first is the problem's detail). With existing (a PATCH), absent fields keep the
@@ -47,15 +44,18 @@ func providerInput(body map[string]any, existing *Provider) (Provider, []string)
 		errs = append(errs, "issuer is required (the IdP entity id, or the OIDC issuer URL).")
 	}
 
-	config, isMap := asMap(body["config"])
-	if !isMap && keep("config") {
+	config, isMap := body["config"].(map[string]any)
+	switch {
+	case !isMap && keep("config"):
 		config = withoutSecret(cur.Config) // the stored secret stays as it is
+	case !isMap && body["config"] != nil:
+		errs = append(errs, "config must be an object.")
 	}
 	p.Config, errs = configOf(typ, config, errs)
 
 	p.Attributes = map[string]string{}
 	if attributes, ok := body["attributes"].(map[string]any); ok || !keep("attributes") {
-		if list, isList := body["attributes"].([]any); isList && len(list) > 0 {
+		if !ok && body["attributes"] != nil {
 			errs = append(errs, "attributes must map field names to claim or attribute names.")
 		}
 		for _, field := range sortedAnyKeys(attributes) {
@@ -70,9 +70,19 @@ func providerInput(body map[string]any, existing *Provider) (Provider, []string)
 		p.Attributes = cur.Attributes
 	}
 
-	if jit, ok := asMap(body["jit"]); ok || !keep("jit") {
-		p.JIT.Enabled = jit["enabled"] == true
-		roles, _ := jit["roles"].([]any)
+	if jit, ok := body["jit"].(map[string]any); ok || !keep("jit") {
+		if !ok && body["jit"] != nil {
+			errs = append(errs, "jit must be an object.")
+		}
+		enabled, isBool := jit["enabled"].(bool)
+		if !isBool && jit["enabled"] != nil {
+			errs = append(errs, "jit.enabled must be a boolean.")
+		}
+		p.JIT.Enabled = enabled
+		roles, isList := jit["roles"].([]any)
+		if !isList && jit["roles"] != nil {
+			errs = append(errs, "jit.roles must be a list of role slugs.")
+		}
 		p.JIT.Roles = []string{}
 		for _, r := range roles {
 			slug, ok := r.(string)
@@ -86,18 +96,22 @@ func providerInput(body map[string]any, existing *Provider) (Provider, []string)
 		p.JIT = cur.JIT
 	}
 
-	uris, ok := listOf(body["redirect_uris"])
-	if !ok && keep("redirect_uris") {
+	uris, ok := body["redirect_uris"].([]any)
+	valid := true
+	switch {
+	case !ok && keep("redirect_uris"):
 		uris = make([]any, len(cur.RedirectURIs))
 		for i, u := range cur.RedirectURIs {
 			uris[i] = u
 		}
+	case !ok && body["redirect_uris"] != nil:
+		errs = append(errs, "redirect_uris must be a list of http(s) URLs.")
+		valid = false
 	}
 	p.RedirectURIs = []string{}
-	valid := true
 	for _, u := range uris {
 		s, ok := u.(string)
-		if !ok || !validURL(s) || !(strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")) {
+		if !ok || !validURL(s) {
 			errs = append(errs, "redirect_uris must be a list of http(s) URLs.")
 			valid = false
 			break
@@ -135,7 +149,7 @@ func configOf(typ string, config map[string]any, errs []string) (map[string]any,
 		for _, k := range []string{"sso_url", "slo_url", "slo_response_url"} {
 			if v, set := clean[k]; set {
 				if s, ok := v.(string); !ok || !validURL(s) {
-					errs = append(errs, "config."+k+" must be a URL.")
+					errs = append(errs, "config."+k+" must be an http(s) URL.")
 				}
 			}
 		}
@@ -165,49 +179,20 @@ func configOf(typ string, config map[string]any, errs []string) (map[string]any,
 	return clean, errs
 }
 
-// validURL is the URL check the provider routes apply: printable ASCII only (no spaces or
-// controls), a scheme, and a host for the web schemes (an opaque part or a path for the others).
+// validURL is the check for every URL a provider names (the SAML endpoints the browser is sent
+// to, the redirect URIs a sign-in ends on): an absolute http or https URL with a host, as
+// net/url parses it, written in printable ASCII (RFC 3986: spaces, controls and other characters
+// are percent-encoded).
 func validURL(s string) bool {
-	if strings.ContainsFunc(s, func(r rune) bool { return r <= ' ' || r == 0x7f || r > 0x7e }) {
+	if strings.ContainsFunc(s, func(r rune) bool { return r <= ' ' || r >= 0x7f }) {
 		return false
 	}
 	u, err := url.Parse(s)
-	if err != nil || !urlScheme.MatchString(u.Scheme) {
+	if err != nil {
 		return false
 	}
-	switch strings.ToLower(u.Scheme) {
-	case "http", "https":
-		return u.Host != ""
-	}
-	return u.Host != "" || u.Opaque != "" || u.Path != ""
-}
-
-// asMap is a JSON object, or an empty one for a JSON list (a client may send [] for an empty
-// object); ok is false otherwise.
-func asMap(v any) (map[string]any, bool) {
-	switch m := v.(type) {
-	case map[string]any:
-		return m, true
-	case []any:
-		return map[string]any{}, true
-	}
-	return map[string]any{}, false
-}
-
-// listOf is a JSON list, or an object's values in key order (an object is read as the list of
-// its values, so {"0": a, "1": b} is [a, b]).
-func listOf(v any) ([]any, bool) {
-	switch l := v.(type) {
-	case []any:
-		return l, true
-	case map[string]any:
-		out := make([]any, 0, len(l))
-		for _, k := range sortedAnyKeys(l) {
-			out = append(out, l[k])
-		}
-		return out, true
-	}
-	return nil, false
+	scheme := strings.ToLower(u.Scheme)
+	return (scheme == "http" || scheme == "https") && u.Host != ""
 }
 
 func sortedAnyKeys(m map[string]any) []string {
@@ -230,5 +215,7 @@ func withoutSecret(config map[string]any) map[string]any {
 }
 
 // trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
-// (not the other Unicode spaces strings.TrimSpace strips).
+// (not the other Unicode spaces strings.TrimSpace strips). It trims what is stored and compared
+// with stored values (a provider's name and issuer, a claimed domain), so it keeps the set
+// earlier releases trimmed: the same input keeps naming the same row.
 func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }
