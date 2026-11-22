@@ -2,6 +2,7 @@ package polaris
 
 import (
 	"context"
+	"net/http"
 	"slices"
 
 	"github.com/univeros/polaris.go/authz"
@@ -84,6 +85,43 @@ func PrincipalFrom(ctx context.Context) (Principal, bool) {
 		p.Roles, p.Permissions = slices.Clone(a.Roles), slices.Clone(a.Scope)
 	}
 	return p, true
+}
+
+// RequireKind returns middleware admitting only principals of one of kinds (KindUser to keep API
+// keys, OAuth clients and agents off a route). Put it behind Protect, Require or Authenticate: a
+// request without a principal is answered 401, one of another kind 403.
+//
+//	mux.Handle("POST /api/billing", p.Require()(polaris.RequireKind(polaris.KindUser)(billing)))
+func RequireKind(kinds ...Kind) func(http.Handler) http.Handler {
+	allowed := slices.Clone(kinds)
+	return requirePrincipal("This route is not open to this kind of credential.", func(tok *token.Token) bool {
+		return slices.Contains(allowed, token.KindOf(tok))
+	})
+}
+
+// RequireOrganization admits only principals acting in an organization (OrganizationID set).
+// Put it behind Protect, Require or Authenticate: a request without a principal is answered 401,
+// one without an active organization 403.
+func RequireOrganization(next http.Handler) http.Handler {
+	return requirePrincipal("This route needs an active organization.", func(tok *token.Token) bool {
+		return tok.Organization() != ""
+	})(next)
+}
+
+// requirePrincipal admits a request whose principal satisfies ok; it reads the token, no database.
+func requirePrincipal(refusal string, ok func(*token.Token) bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch tok := endpoint.Token(r.Context()); {
+			case tok == nil:
+				endpoint.Write(w, endpoint.Unauthorized().WithHeader("WWW-Authenticate", "Bearer"))
+			case !ok(tok):
+				endpoint.Write(w, endpoint.Forbidden(refusal))
+			default:
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
 }
 
 // Can reports whether principal holds every one of permissions in its active organization,

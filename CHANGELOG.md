@@ -13,6 +13,18 @@ marked **Breaking**.
 
 - `SECURITY.md`: how to report a vulnerability privately, and what happens next.
 - This changelog. Each GitHub Release now carries its version's section as release notes.
+- `p.Require(permissions...)`, `Protect` as `func(http.Handler) http.Handler` middleware, and
+  `p.Authenticate` for routes open to anonymous callers (a token that does not verify is still
+  401). `polaris.RequireKind` and `polaris.RequireOrganization` (decision 55).
+- Package `verify`: checks Polaris access tokens in another Go service against the issuer's JWK Set
+  (RS256 and EdDSA only, typ, iss, aud, exp, scopes). It cannot see revocations or permission
+  changes until a token expires; see its package documentation (decision 55).
+
+### Fixed
+
+- Nested guards (`Authenticate` then `Require`, or `Protect` inside `Protect`) resolve the
+  credential and run plugin middleware once per request; an API key's rate limit was counted
+  twice.
 
 ## [0.3.1] - 2026-11-22
 

@@ -740,6 +740,64 @@ What a client reads from the server said "Polaris for PHP" (#53 follow-up). Brea
   (tests, a `replace`). Nothing to bump at release time.
 - The MCP and agents contract fixtures and the OpenAPI goldens are edited to match.
 
+## 55. 2026-11-22 — Host middleware, optional authentication, and `verify` for other services
+
+Two things a Go service needs were missing from the host surface: middleware in the shape routers
+chain, with optional authentication, and a way for another service, without the auth database, to
+accept Polaris tokens.
+
+- `p.Require(permissions...)` is `func(http.Handler) http.Handler`, exactly `Protect(next,
+  permissions...)`. `p.Authenticate(next)` is Protect without permissions for a route open to
+  everyone: no credential passes anonymous (`PrincipalFrom` reports false); a credential that does
+  not verify, a resolver's refusal, a denylisted token, or a Bearer/DPoP header no resolver took is
+  401, never downgraded to anonymous. Another scheme (a proxy's Basic credentials) is not a Polaris
+  credential and passes anonymous. `Protect` is unchanged.
+- A guard behind another guard that found a principal checks only its permissions
+  (`pipeline.Protect`/`Authenticate` mark the request): `r.Use(p.Authenticate)` plus
+  `r.With(p.Require("x"))` resolves the bearer and runs plugin middleware once per request, where
+  nested Protects used to repeat them (an API key's rate limit was counted twice). Config.Middleware
+  still wraps each guard.
+- `polaris.RequireKind(kinds...)` and `polaris.RequireOrganization` read only what the principal
+  already carries (no query): 401 without a principal, 403 otherwise. A step-up requirement was
+  left out: it needs the pipeline's step-up check plumbed to host routes; no policy language.
+- New package `verify` (stable, API.md §1): `New(Config)`, `Verifier.Verify(ctx, raw)`,
+  `Verifier.Require(scopes...)`, `ClaimsFrom`, `Claims`, `ErrInvalidToken`, `ErrUnavailable`. It
+  accepts session JWTs (typ JWT) and the oauth plugin's at+jwt tokens, RS256 or EdDSA only, and
+  answers like the host (401 / 403 with the RFC 6750 challenge) plus 503 when the issuer's keys
+  cannot be read, so an outage does not look like a bad token. With no `Audiences` it accepts only
+  tokens without an aud (session tokens while AUTH_AUDIENCE is unset), the rule `token.Codec.Parse`
+  applies; OAuth tokens need the service's resource in `Audiences`. A missing typ is refused (Polaris
+  always writes one).
+- Its documented limit: no revocation, denylist, disabled users, suspended memberships, agent kill
+  switch or permission changes until the token expires; `Claims.Scopes` are the permissions at
+  issue. The access token lifetime (AUTH_ACCESS_TOKEN_TTL, 15 min by default) bounds it; actions
+  that must see a revocation at once go through the host's `Protect`.
+- The verifier is shared, not duplicated: `plugins/mcp`'s token verifier and JWK Set cache moved to
+  `internal/jwtverify` unchanged but for three settings: the algorithm allow-list, a typ-required
+  switch, and the no-audience rule above (mcp keeps its list, accepts an absent typ, and always has
+  its Resource as an audience; its refusal messages are the same). `mcp.Protect`'s tests and fixtures pass
+  unchanged; `mcp.MinJWKSRefetch` and `mcp.DefaultJWKSTTL` are the shared constants.
+- `verify` fetches the JWK Set with `netguard.NoRedirects(cfg.HTTPClient)`, as `oauth` and `sso`
+  do: by default public addresses only, never a redirect; a host with an issuer on a private
+  network passes its own client. `mcp.Protect` keeps its own default client (its behaviour is
+  unchanged).
+
+Security review (rule 6): no check is weakened. `verify` adds checks over the moved verifier (an
+RS256/EdDSA allow-list before any key lookup, typ required, aud refused when none is configured,
+cnf-bound tokens refused because accepting them without the proof would make a DPoP token a bearer
+one). Keys come only from the configured https URL, are bounded to 64 KiB, cached for a TTL and
+never used past it; an unknown kid refetches at most once a minute, so a forged kid is no fetch
+amplifier. alg none, HS256 keyed with the public key, ES256 under an RSA kid and an RS256 token
+naming the Ed25519 kid are tested refusals; `FuzzVerify` covers arbitrary headers and claims signed
+with the issuer's key. Optional authentication shares Protect's chain (resolvers, plugin middleware,
+denylist), so the only new branch is "no credential at all", which carries no principal. An OpenID
+ID token is typ JWT, signed by the same key, with aud its client_id, so `verify` accepts a typ JWT
+token only when it carries the `roles` list every session access token carries (empty when the
+user has no role) and an ID token never does: a positive session marker, not a deny-list of ID
+token claims an ID token may lack. `mcp.Protect` keeps accepting typ JWT without that marker for
+now (its behaviour is not changed here), so a resource whose audience equals a client_id accepts
+that client's ID tokens there.
+
 ## 56. 2026-11-22 — Import users with their password hashes
 
 Adopting Polaris should not mean a password reset for every existing user. A host can now bring

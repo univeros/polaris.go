@@ -127,6 +127,25 @@ func (p *Pipeline) authenticate(next http.Handler) http.Handler {
 	})
 }
 
+// mayAuthenticate is authenticate for a route open to anonymous callers: no credential passes
+// without a principal; a credential that does not verify is refused like authenticate refuses it.
+func (p *Pipeline) mayAuthenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tok, err := p.resolve(r)
+		switch {
+		case err == nil && tok != nil:
+			next.ServeHTTP(w, r.WithContext(endpoint.WithToken(r.Context(), tok)))
+		case err == nil && !tokenScheme.MatchString(r.Header.Get("Authorization")):
+			next.ServeHTTP(w, r)
+		default:
+			unauthorized(w)
+		}
+	})
+}
+
+// tokenScheme matches an Authorization header presenting a token (Bearer or DPoP, any case).
+var tokenScheme = regexp.MustCompile(`(?i)^(Bearer|DPoP)(\s|$)`)
+
 func (p *Pipeline) resolve(r *http.Request) (*token.Token, error) {
 	for _, resolver := range p.opts.BearerResolvers {
 		if tok, err := resolver.Resolve(r); err != nil || tok != nil {

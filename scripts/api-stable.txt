@@ -16,6 +16,7 @@ polaristest
 agent
 cli
 telemetry/otel
+verify
 plugins/*
 model
 schema
