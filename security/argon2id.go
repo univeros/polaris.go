@@ -37,6 +37,9 @@ const (
 //
 // Zero fields take the defaults (64 MiB, t=4, p=1). Verify accepts every hash PHP's
 // password_verify accepts from Polaris: Argon2id and Argon2i (v=19) and bcrypt ($2a$, $2b$, $2y$).
+// It also verifies, never creates, the formats accounts are imported with (SupportedHashFormats:
+// Django's and passlib's PBKDF2-SHA256/512 and scrypt, Firebase's scrypt); NeedsRehash is true for
+// all of them, so the first successful sign-in stores an Argon2id hash instead.
 // It is safe for concurrent use.
 type Argon2id struct {
 	Memory  uint32 // KiB
@@ -44,7 +47,10 @@ type Argon2id struct {
 	Threads uint8  // lanes
 }
 
-var _ PasswordHasher = Argon2id{}
+var (
+	_ PasswordHasher = Argon2id{}
+	_ HashChecker    = Argon2id{}
+)
 
 func (a Argon2id) params() (memory, time uint32, threads uint8) {
 	memory, time, threads = a.Memory, a.Time, a.Threads
@@ -90,7 +96,25 @@ func (Argon2id) Verify(plain, hash string) bool {
 		// $2x$ (crypt_blowfish's bug-compatible mode) is not emulated and never matches.
 		return verifyBcrypt(plain, hash)
 	}
-	return false
+	h, err := parseImported(hash)
+	return err == nil && h.verify(plain)
+}
+
+// CheckHash reports whether Verify can verify hash, without a password: nil, or an error
+// matching ErrUnsupportedHash that says why and lists SupportedHashFormats. For Argon2 and bcrypt
+// it is stricter than Verify (memory at most 1 GiB and memory × passes at most 4 GiB; bcrypt cost
+// at most 16), so an import cannot bring a hash whose every sign-in costs minutes.
+func (Argon2id) CheckHash(hash string) error {
+	switch {
+	case strings.HasPrefix(hash, "$argon2id$"):
+		return checkArgon2(hash, "$argon2id")
+	case strings.HasPrefix(hash, "$argon2i$"):
+		return checkArgon2(hash, "$argon2i")
+	case strings.HasPrefix(hash, "$2a$"), strings.HasPrefix(hash, "$2b$"), strings.HasPrefix(hash, "$2y$"):
+		return checkBcrypt(hash)
+	}
+	_, err := parseImported(hash)
+	return err
 }
 
 // NeedsRehash mirrors password_needs_rehash(PASSWORD_ARGON2ID, options): true for any other
@@ -106,15 +130,31 @@ func (a Argon2id) NeedsRehash(hash string) bool {
 
 type argon2Func func(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte
 
-// verifyArgon2 decodes a PHC string the way libargon2's decode_string does (strict decimals
-// without leading zeros, strict unpadded base64, nothing trailing) and recomputes the hash.
+// argon2PHC is a decoded Argon2 PHC string.
+type argon2PHC struct {
+	memory, time, threads uint64
+	salt, want            []byte
+}
+
+// verifyArgon2 decodes a PHC string (parseArgon2) and recomputes the hash.
 func verifyArgon2(plain, hash, prefix string, derive argon2Func) bool {
+	h, ok := parseArgon2(hash, prefix)
+	if !ok {
+		return false
+	}
+	got := derive([]byte(plain), h.salt, uint32(h.time), uint32(h.memory), uint8(h.threads), uint32(len(h.want))) //nolint:gosec // G115: t, m, p bounded above; len(want) is a decoded hash
+	return subtle.ConstantTimeCompare(got, h.want) == 1
+}
+
+// parseArgon2 decodes a PHC string the way libargon2's decode_string does (strict decimals
+// without leading zeros, strict unpadded base64, nothing trailing).
+func parseArgon2(hash, prefix string) (argon2PHC, bool) {
 	s := strings.TrimPrefix(hash, prefix)
 	version := uint64(0x10) // libargon2: an absent v= means version 1.0
 	if rest, ok := strings.CutPrefix(s, "$v="); ok {
 		var good bool
 		if version, s, good = cutDecimal(rest); !good {
-			return false
+			return argon2PHC{}, false
 		}
 	}
 	m, s, ok1 := cutField(s, "$m=")
@@ -122,23 +162,22 @@ func verifyArgon2(plain, hash, prefix string, derive argon2Func) bool {
 	p, s, ok3 := cutField(s, ",p=")
 	if !ok1 || !ok2 || !ok3 || version != argon2Version {
 		// x/crypto/argon2 computes v=19 only; PHP never emits another version.
-		return false
+		return argon2PHC{}, false
 	}
 	rest, ok4 := strings.CutPrefix(s, "$")
 	saltB64, hashB64, ok5 := strings.Cut(rest, "$")
 	if !ok4 || !ok5 {
-		return false
+		return argon2PHC{}, false
 	}
 	salt, err1 := decodePHCBase64(saltB64)
 	want, err2 := decodePHCBase64(hashB64)
 	if err1 != nil || err2 != nil || len(salt) < argon2MinSalt || len(want) < argon2MinHash {
-		return false
+		return argon2PHC{}, false
 	}
 	if t < 1 || t > 1<<32-1 || p < 1 || p > 255 || m > 1<<32-1 || m < argon2MinBlock*p {
-		return false
+		return argon2PHC{}, false
 	}
-	got := derive([]byte(plain), salt, uint32(t), uint32(m), uint8(p), uint32(len(want))) //nolint:gosec // G115: t, m, p bounded above; len(want) is a decoded hash
-	return subtle.ConstantTimeCompare(got, want) == 1
+	return argon2PHC{memory: m, time: t, threads: p, salt: salt, want: want}, true
 }
 
 func cutField(s, label string) (uint64, string, bool) {
