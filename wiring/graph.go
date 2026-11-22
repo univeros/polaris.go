@@ -369,17 +369,28 @@ func (g *Graph) buildTokens() error {
 		Audience:   a.Audience,
 		TTL:        a.AccessToken.TTL,
 		Clock:      g.clock,
+		// Tokens from releases before decision 73 name the key by its legacy default kid.
+		LegacyKeyID: s.LegacyKeyID(),
 	}
 	if s.JWTPreviousPublicKey != "" {
 		codecCfg.PreviousPublicKey, codecCfg.PreviousKeyID = s.JWTPreviousPublicKey, s.PreviousKeyID()
+		codecCfg.PreviousLegacyKeyID = s.PreviousLegacyKeyID()
 	}
 	var err error
 	if g.tokens, err = token.New(codecCfg); err != nil {
 		return fmt.Errorf("polaris: AUTH_JWT_* keys: %w", err)
 	}
+	// The keys under their kids first, then under their legacy kids (same key material) for
+	// verifiers holding tokens or a key set from before decision 73.
 	keys := []token.PublicKey{{KeyID: s.KeyID(), PEM: s.JWTPublicKey}}
 	if s.JWTPreviousPublicKey != "" {
 		keys = append(keys, token.PublicKey{KeyID: s.PreviousKeyID(), PEM: s.JWTPreviousPublicKey})
+	}
+	if kid := s.LegacyKeyID(); kid != "" {
+		keys = append(keys, token.PublicKey{KeyID: kid, PEM: s.JWTPublicKey})
+	}
+	if kid := s.PreviousLegacyKeyID(); kid != "" {
+		keys = append(keys, token.PublicKey{KeyID: kid, PEM: s.JWTPreviousPublicKey})
 	}
 	if g.jwks, err = token.NewJWKSet(codecCfg.Algorithm, keys...); err != nil {
 		return fmt.Errorf("polaris: JWKS: %w", err)

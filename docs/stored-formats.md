@@ -8,9 +8,18 @@ if the current code no longer verifies the old bytes (and, where minting is dete
 longer mints the same bytes). Changing a format means adding the new one and keeping the old one
 readable, with a decision entry; a vector is never edited to make a test pass.
 
-Everything keyed by `APP_KEY` (peppered digests, encrypted secrets) is readable only under the
-same `APP_KEY`: there is no key rotation for it, so a new `APP_KEY` strands all of it. Rotating the
-JWT signing key is supported (`AUTH_JWT_PREVIOUS_PUBLIC_KEY`, `AUTH_JWT_PREVIOUS_KID`).
+**`APP_KEY` is fixed for the life of a deployment in 1.x** (decision 73). Everything keyed by it is
+readable only under the same `APP_KEY`: the peppered digests (refresh tokens, API keys, operator
+and SCIM tokens, OAuth client secrets, codes and refresh tokens, recovery codes, verification,
+reset, invitation and passwordless tokens, OTP codes) and the encrypted secrets (TOTP, SSO client
+secrets, social tokens, audit drain secrets). Changing it invalidates all of them: sessions end,
+keys and secrets stop matching, TOTP factors must be enrolled again. There is no key ring in 1.x;
+one (`APP_KEY_PREVIOUS`) can be added in a 1.x minor without a format change, because the
+encrypter's payload starts with a version byte (a new byte can name the key, the `0x01` payloads
+still read) and a peppered lookup can try the digest under each key. The HKDF info strings
+(`polaris:pepper:` + context, and `polaris:encrypter:mfa` for every encrypted secret, not only MFA)
+are frozen: changing one changes the key. Rotating the JWT signing key is supported
+(`AUTH_JWT_PREVIOUS_PUBLIC_KEY`, `AUTH_JWT_PREVIOUS_KID`).
 
 "Transient" means the value lives for minutes (a cache entry, a cookie, a short-lived code): a
 format change there only fails the flows in progress during a rollout. It is still pinned where
@@ -26,7 +35,8 @@ the cost was small.
 | TOTP | the encrypted secret above; `auth_mfa_factors.last_used_at` | Base32 secret (20 random bytes; longer secrets of earlier releases verify); RFC 6238 codes with the configured algorithm, digits and period; `last_used_at` holds the start of the last accepted time step (the replay fence); `otpauth://` URI | `TestMatchesTheRfc6238Sha1Vector`, `TestCodesEqualKnownAnswersForEveryAlgorithm`, `TestAnEarlierReleasesLongSecretKeepsVerifying`, `TestProvisioningURIIsByteIdenticalToKnownAnswers` (`mfa`) |
 | Access tokens (JWT) | handed to clients | JWS compact, header `{"typ":"JWT","alg","kid"}` (RS256 or EdDSA), claims as `token.Claims` orders them (`iat`/`nbf`/`exp` may be fractional) | `testdata/vectors/jwt.json`: `TestJWTVectors` (`token`) mints byte for byte and accepts or refuses at recorded instants; also the JWKS document |
 | MFA tickets | handed to clients (minutes) | An access-token JWT with `purpose: "login_mfa"` and, when restricted, `mfa_factors` | `jwt.json` case `rs256-purpose-ticket` (`TestJWTVectors`) |
-| Default `kid` | every JWT header and the JWKS, when `AUTH_JWT_KID` is unset | SHA-256 hex of the public key as configured: the PEM text with its edges trimmed, or the raw 32-byte EdDSA key | `TestTheDefaultKeyIDIsTheRecordedOne` (`config`, decision 71). Derived from the PEM text, not the key: re-encoding the same key changes it (see decision 71) |
+| Default `kid` | every JWT header and the JWKS, when `AUTH_JWT_KID` (or `AUTH_JWT_PREVIOUS_KID`, for the previous key) is unset | RFC 7638 JWK thumbprint of the public key, unpadded base64url SHA-256 of `{"e","kty","n"}` (RS256) or `{"crv","kty","x"}` (EdDSA); it depends on the key, not on how the PEM is encoded (decision 73) | `TestThumbprintIsRFC7638` (`token`, the RFC 7638 §3.1 and RFC 8037 A.3 examples), `TestTheDefaultKeyIDIsTheThumbprint` (`config`, the test keys) |
+| Legacy default `kid` (accepted and published, never minted) | tokens and cached key sets from releases before decision 73 | SHA-256 hex of the public key as configured: the PEM text with its edges trimmed, or the raw 32-byte EdDSA key. `VerifyJWT` accepts it for the key it belongs to, and the JWKS publishes each key a second time under it (same key material), after the keys under their kids. None when the kid is explicit | `TestTheLegacyKeyIDIsTheRecordedOne` (`config`, recorded by decision 71), `TestVerifyJWTAcceptsTheLegacyKeyIDOfEachConfiguredKey` (`token`), `TestTheLegacyDefaultKidKeepsVerifying` (`internal/httpapi`) |
 | OAuth access tokens (`at+jwt`) and ID tokens | handed to clients and resource servers | JWS with `typ` `at+jwt` or `JWT`, verified with 60 s leeway, with the current or previous key | `testdata/vectors/oauth-jwt.json`: `TestOAuthJWTVectors` (`token`) |
 | DPoP-bound tokens | `polaris_oauth_token.dpop_jkt`, `polaris_oauth_code.dpop_jkt`, the `cnf.jkt` claim | RFC 7638 JWK thumbprint (base64url SHA-256) | The RFC 7638 example thumbprint in `plugins/oauth`, `plugins/mcp` and `agent` tests. Proofs are not stored; their replay entries are transient |
 | Agent receipts | `polaris_agent_receipt.hash`, `.prev_hash`, `.signature`; exported to agents | `hash` = SHA-256 hex over the receipt's canonical JSON (keys sorted, `/` unescaped, non-ASCII as `\uXXXX`, `created_at` as `…+00:00`); `signature` = a `receipt+jwt` JWS over `{iss, iat, receipt_hash, receipt_id, agent_id, seq}` | `testdata/vectors/receipt.json`: `TestReceiptVectors` (`token`); `agent/testdata/receipt-chains.json`: `TestReceiptsSignedByAnEarlierServerVerify` (`agent`) and `TestRecordedReceiptChainsHashAsTheyWereIssued` (`plugins/agents`, decision 71); `TestAReceiptHashesItsCreationTimeInTheIssuedForm` |

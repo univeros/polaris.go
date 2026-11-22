@@ -2269,3 +2269,76 @@ a check, a comparison or a token path; the diff of each moved file is its packag
 declarations lifted to the public package. The sealing wrappers embed the same service values the
 accessors returned. The gate adapter of the pipeline now goes through `Graph.Gate()`, the same
 `*authz.Gate`.
+
+## 73. 2026-11-22 — The default JWT kid is the RFC 7638 thumbprint; APP_KEY is fixed in 1.x
+
+Decision 71 left two items for the owner before 1.0 (`docs/v1.md`, "Decisions to make before
+1.0"). The owner's delegate decided both.
+
+- **The default `kid` is the RFC 7638 JWK thumbprint of the public key.** Until now, without
+  `AUTH_JWT_KID`, the `kid` was the SHA-256 hex of the public key *as configured*: the PEM text
+  (edges trimmed) or the raw EdDSA key. Re-encoding the same key (CRLF line ends, another line
+  wrap, a certificate instead of an SPKI block) changed the `kid`, and with it every issued token's
+  and every cached key set's view of the key. From now on `config.Secrets.KeyID` (and
+  `PreviousKeyID`) default to `token.Thumbprint`: unpadded base64url SHA-256 of
+  `{"e":…,"kty":"RSA","n":…}` for RS256 and `{"crv":"Ed25519","kty":"OKP","x":…}` for EdDSA, the
+  form the agents SDK, DPoP and `plugins/agents` already use. It depends on the key only. Pinned by
+  `TestThumbprintIsRFC7638` (`token`, the RFC 7638 §3.1 RSA example and the RFC 8037 A.3 Ed25519
+  example, plus a CRLF re-encoding) and `TestTheDefaultKeyIDIsTheThumbprint` (`config`, the test
+  keys of `testdata/vectors/keys.json`). `config` infers the algorithm from the key's form (an
+  EdDSA key is 32 raw bytes, never a PEM); an unparseable key has no thumbprint and `KeyID` is "",
+  which `token.New` reports when the graph is built.
+
+  *Upgrade without a rollover (AGENT.md rule 5).* Every deployment that relied on the default
+  changes `kid` once, at the upgrade. So that nothing issued or cached before stops verifying:
+  - The codec accepts the legacy value for the key it belongs to. `token.Config` gains
+    `LegacyKeyID` and `PreviousLegacyKeyID`; `VerifyJWT` maps either to its key (previous first, as
+    before), and a legacy kid presented with the other key fails the signature check. The wiring
+    sets them from `config.Secrets.LegacyKeyID` / `PreviousLegacyKeyID`, which are the old
+    derivation (`TestTheDefaultKeyIDIsTheRecordedOne` becomes `TestTheLegacyKeyIDIsTheRecordedOne`,
+    same recorded values). Session tokens (`Parse`) never looked at `kid` and are unaffected.
+  - The JWKS publishes each key under its new kid and then, as a second entry with identical key
+    material, under its legacy kid: `[current, previous, current-legacy, previous-legacy]`.
+    Verifiers elsewhere (`verify`, `mcp.Protect`, other services) holding a token that names the
+    old kid find it; a verifier that cached the old document and meets a new kid refetches, as it
+    does at any rotation.
+  - Tokens are minted with the new kid only.
+  - An explicit `AUTH_JWT_KID` / `AUTH_JWT_PREVIOUS_KID` is used as it is and gets no alias: it
+    never changed.
+  The aliases are not time-limited: they cost one JWKS entry per key, and a token naming the old
+  kid can be a long-lived OAuth or ID token or an agent receipt signature. They go away with
+  the key: once a pre-upgrade key is neither the current nor the previous key, neither it nor its
+  alias is published or accepted. Rejected:
+  keeping the PEM hash and recommending `AUTH_JWT_KID` (the trap stays the default); switching
+  without aliases (every deployment's outstanding tokens and every downstream cache break at the
+  upgrade, against rule 5).
+
+  Client-visible: new tokens carry a different `kid`, and the JWKS gains one entry per key. The
+  four recorded fixtures that fetch the JWKS (`JwksEndpointTest` ×2,
+  `AuthMiddlewareTest::testAPublicPathSkipsAuthentication`, the OAuth discovery flow) gain the
+  alias entry; `kid`, `n` and `e` are masked in the comparison, so the count of entries is what
+  they pin. `TestTheLegacyDefaultKidKeepsVerifying` (`internal/httpapi`) boots a server and checks
+  the JWKS order and key material, that a token minted with the legacy kid verifies, that new
+  tokens carry the thumbprint, and that an explicit kid has no alias.
+
+- **`APP_KEY` is fixed for the life of a deployment in 1.x.** It keys the pepper of every stored
+  lookup digest (refresh tokens, API keys, operator and SCIM tokens, OAuth client secrets, codes,
+  device codes and refresh tokens, recovery codes, verification, reset, invitation and passwordless
+  tokens, agent host tokens) and the encrypter of every stored secret (TOTP, SSO client secrets,
+  social tokens, audit drain secrets). Changing it invalidates all of them. That is now written
+  where operators look: the `config.Secrets` doc, SECURITY.md ("Operating Polaris"), and
+  docs/stored-formats.md. A key ring (`APP_KEY_PREVIOUS`) stays possible in a 1.x minor without a
+  format change: the encrypter's payload starts with a version byte (`0x01` today; a new byte can
+  name the key, the `0x01` payloads keep reading), and a peppered lookup can compute the digest
+  under each key and match either, rehashing on a match under the old one. Nothing is built for it
+  now. The HKDF info strings are frozen: `polaris:pepper:` + context, and `polaris:encrypter:mfa`
+  for every encrypted secret (a misnomer, decision 71, kept because changing it changes the key).
+
+Security review (AGENT.md rule 6; `token`, `config`, the key wiring): an alias entry in the JWKS
+adds no key, only a second name for a key already published, so a verifier trusts nothing it did
+not trust before. Accepting a legacy kid maps only to a key the deployment configured (the current
+or the previous public key); the signature is still checked with that key, a legacy kid presented
+with the other key fails, and an unknown kid is still refused. The legacy value is derived from the
+public key, which is public; no secret enters a kid. Algorithm and issuer checks are unchanged.
+`Thumbprint` parses the key with the same parsers the codec uses (RSA SPKI, PKCS #1 or certificate;
+a canonical, non-small-order Ed25519 point). Fuzz targets unchanged and passing.

@@ -45,6 +45,12 @@ type Config struct {
 	// PreviousKeyID with it. Set both or neither. Session tokens (Parse, Verify) never use it.
 	PreviousPublicKey string
 	PreviousKeyID     string
+	// LegacyKeyID and PreviousLegacyKeyID are a second kid VerifyJWT accepts for PublicKey and for
+	// PreviousPublicKey: the kid an earlier release derived by default for that key (decision 73),
+	// so tokens it minted keep verifying. Minted tokens carry KeyID only. Optional;
+	// PreviousLegacyKeyID needs PreviousPublicKey.
+	LegacyKeyID         string
+	PreviousLegacyKeyID string
 	// TTL is the lifetime of minted tokens, in whole seconds.
 	TTL time.Duration
 	// Clock stamps and checks iat/nbf/exp; nil means clock.System.
@@ -64,6 +70,8 @@ type Codec struct {
 	verify   verifyFunc
 	prevKID  string
 	prevVer  verifyFunc // nil outside a rotation
+	// legacyKID and prevLegacyKID are the accepted earlier-release kids; "" when unset.
+	legacyKID, prevLegacyKID string
 }
 
 // New validates cfg and parses its keys. Errors wrap ErrInvalidConfig and name the fix.
@@ -88,6 +96,9 @@ func New(cfg Config) (*Codec, error) {
 	if (cfg.PreviousPublicKey == "") != (cfg.PreviousKeyID == "") {
 		return nil, fmt.Errorf("%w: set both the previous public key and its kid, or neither (AUTH_JWT_PREVIOUS_PUBLIC_KEY, AUTH_JWT_PREVIOUS_KID)", ErrInvalidConfig)
 	}
+	if cfg.PreviousLegacyKeyID != "" && cfg.PreviousPublicKey == "" {
+		return nil, fmt.Errorf("%w: a legacy kid for the previous key needs the previous public key (AUTH_JWT_PREVIOUS_PUBLIC_KEY)", ErrInvalidConfig)
+	}
 	if cfg.PreviousPublicKey != "" {
 		if prevVer, err = newVerifier(cfg.Algorithm, cfg.PreviousPublicKey); err != nil {
 			return nil, fmt.Errorf("previous key: %w", err)
@@ -106,6 +117,7 @@ func New(cfg Config) (*Codec, error) {
 	return &Codec{
 		alg: cfg.Algorithm, kid: cfg.KeyID, issuer: cfg.Issuer, audience: cfg.Audience,
 		ttl: cfg.TTL, clock: clk, sign: sign, verify: verify, prevKID: cfg.PreviousKeyID, prevVer: prevVer,
+		legacyKID: cfg.LegacyKeyID, prevLegacyKID: cfg.PreviousLegacyKeyID,
 	}, nil
 }
 

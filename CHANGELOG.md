@@ -9,6 +9,15 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
+  `PreviousLegacyKeyID`, a second kid `VerifyJWT` accepts for each key; `config.Secrets.LegacyKeyID`
+  and `PreviousLegacyKeyID` (decision 73).
+- `APP_KEY` is fixed for the life of a deployment in 1.x: `config.Secrets`, SECURITY.md
+  ("Operating Polaris") and docs/stored-formats.md say what depends on it and what changing it
+  invalidates (decision 73).
+
 ### Changed
 
 - **Breaking** (Go API, decision 70): from v1.0.0 every exported name outside `internal/` is the
@@ -51,6 +60,14 @@ marked **Breaking**.
   `scripts/api-stable.txt`, now removed), and refuses an incompatible change outright once the
   base is `v1.0.0` or later. [API.md](API.md) is the v1 promise, with the deprecation policy: added
   and deprecated in 1.x, removed only in v2.
+- **Client-visible:** without `AUTH_JWT_KID` the `kid` of new tokens and of the JWKS is the RFC 7638
+  thumbprint of the public key (base64url, 43 characters), not the SHA-256 hex of the PEM text, so
+  re-encoding the same key no longer changes it. Nothing issued before stops verifying: the server
+  still accepts tokens naming the old `kid`, and `/auth/.well-known/jwks.json` publishes each key a
+  second time under its old `kid` (same key material), after the keys under their new kids, for
+  verifiers holding old tokens or a cached key set. An explicit `AUTH_JWT_KID` or
+  `AUTH_JWT_PREVIOUS_KID` is unchanged and gets no alias (decision 73).
+
 
 ## [0.6.0] - 2026-11-22
 

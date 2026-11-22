@@ -72,3 +72,24 @@ Out of scope: vulnerabilities in a host application's own code or configuration 
 dependencies that do not affect Polaris (report those upstream), and denial of service that needs
 traffic volumes a rate limiter in front of the service is expected to absorb. If in doubt, report
 it.
+
+## Operating Polaris
+
+What a deployment must keep, and what it may rotate:
+
+- **`APP_KEY` is fixed for the life of a deployment in 1.x.** Keep it in your secret manager,
+  back it up with the database, and never change it. Polaris derives two keys from it: the pepper
+  behind every stored lookup digest (refresh tokens, API keys, operator keys, SCIM tokens, OAuth
+  client secrets, codes and refresh tokens, recovery codes, email verification, password reset,
+  invitation and passwordless tokens) and the encryption key of every stored secret (TOTP secrets,
+  SSO client secrets, social provider tokens, audit drain secrets). A new `APP_KEY` makes all of
+  them unmatchable or unreadable: every user is signed out, every API key, OAuth client secret and
+  SCIM token stops working, and every TOTP factor must be enrolled again. If `APP_KEY` leaks,
+  replacing it is that reset; there is no other remedy in 1.x. A key ring (`APP_KEY_PREVIOUS`) can
+  be added in a later 1.x release without a format change: encrypted values carry a version byte
+  and a lookup can try both keys ([docs/stored-formats.md](docs/stored-formats.md), decision 73).
+- **The JWT signing key rotates.** Generate a new pair, set it as `AUTH_JWT_PRIVATE_KEY` and
+  `AUTH_JWT_PUBLIC_KEY`, and keep the old public key in `AUTH_JWT_PREVIOUS_PUBLIC_KEY` for at least
+  one access-token lifetime, so tokens it signed keep verifying and the JWKS publishes both. Without
+  `AUTH_JWT_KID` the `kid` is the RFC 7638 thumbprint of the public key; tokens and key sets from
+  releases before decision 73, which named the key by the SHA-256 of its PEM text, keep verifying.
