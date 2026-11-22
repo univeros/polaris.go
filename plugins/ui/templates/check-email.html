@@ -1,0 +1,17 @@
+{{define "content"}}
+<p>{{.T.check_email}}</p>
+<form method="post" action="{{.Base}}/verify">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="token">{{.T.code}}</label>
+<input id="token" name="token" type="text" autocomplete="one-time-code" required maxlength="512">
+<button type="submit">{{.T.verify}}</button>
+</form>
+<h2>{{.T.resend_title}}</h2>
+<form method="post" action="{{.Base}}/check-email">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label for="email">{{.T.email}}</label>
+<input id="email" name="email" type="email" autocomplete="email" required maxlength="320">
+<button type="submit" class="secondary">{{.T.resend}}</button>
+</form>
+<p><a href="{{.Base}}/sign-in">{{.T.back_to_sign_in}}</a></p>
+{{end}}

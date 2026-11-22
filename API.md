@@ -17,7 +17,7 @@ What an application imports. A host never needs another package.
 | Package | Stable names |
 |---|---|
 | `polaris` | `New`, `FromEnv`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Migrate`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Tokens`, `SignIn`, `Users`, `Orgs`, `Sessions` and their methods, `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
-| `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, …) |
+| `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, `ui.Plugin.RequireSignIn`, …) |
 | `store/sqlstore` | `Open`, `New`, `WithTx`, `Store.DB` |
 | `store` | `Dialect` values, `Adapter` (to pass one), `ErrDuplicate` |
 | `polaristest` | `New` and its options, `Server` fields |
@@ -38,7 +38,7 @@ hosts should use keyed struct literals.
 
 ## 2. The plugin SDK (stable, may grow)
 
-What a third-party plugin builds on: `wiring` (`Plugin` and its optional interfaces, `Graph` and its
+What a third-party plugin builds on: `wiring` (`Plugin` and its optional interfaces, `HandlerProvider` for HTML pages included, `Graph` and its
 read-only accessors, `Hooks`, `User`, `Tool*`, `Ports`), `endpoint` (`Endpoint`, `Input`, `Result`,
 the request-context accessors, envelope and problem helpers), `manifest` (`Route`, `Load`, input
 rules), `event` (`Event`, `Listener`, `Dispatcher`, `Bus`, the core event types and names) and

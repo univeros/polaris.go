@@ -80,3 +80,13 @@ type Ports struct {
 // registration and before core services are built, so before Init: a returned port must work once
 // Init has run (no request arrives earlier). The messaging plugin serves Mailer and SMS this way.
 type PortsProvider interface{ Ports() Ports }
+
+// HandlerProvider serves requests the route manifest does not describe, under one path prefix the
+// plugin owns: HTML pages and forms a browser reads (plugins/ui), which the JSON route specs and
+// the OpenAPI export do not model. prefix is relative to Config.PathPrefix ("/auth/ui"); every
+// request at or under it reaches h instead of the pipeline, inside Config.Middleware like every
+// Polaris route. h brings its own security (CSRF, headers, rate limits through the pipeline's
+// routes). A prefix that overlaps a manifest route or another plugin's fails polaris.New.
+type HandlerProvider interface {
+	Handler(g *Graph) (prefix string, h http.Handler)
+}

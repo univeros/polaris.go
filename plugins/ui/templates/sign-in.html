@@ -1,0 +1,13 @@
+{{define "content"}}
+<form method="post" action="{{.Base}}/sign-in">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input type="hidden" name="return_to" value="{{.ReturnTo}}">
+<label for="email">{{.T.email}}</label>
+<input id="email" name="email" type="email" autocomplete="username" required maxlength="320" value="{{.Email}}" autofocus>
+<label for="password">{{.T.password}}</label>
+<input id="password" name="password" type="password" autocomplete="current-password" required>
+<button type="submit">{{.T.sign_in}}</button>
+</form>
+<p><a href="{{.Base}}/forgot">{{.T.forgot_link}}</a></p>
+<p>{{.T.no_account}} <a href="{{.Base}}/sign-up">{{.T.sign_up}}</a></p>
+{{end}}

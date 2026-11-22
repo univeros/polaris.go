@@ -94,6 +94,7 @@ rules, events and audit as the HTTP routes; the caller is trusted (no permission
 - `plugins/sentinel` — `sentinel.New(sentinel.Config{})`: risk engine on sign-up, sign-in, reset and code sends (captcha, breached passwords, disposable domains, velocity, geo via your `GeoResolver`); observes by default, `Mode: sentinel.Enforce` blocks and challenges.
 - `plugins/sso` — `sso.New(sso.Config{})`: SAML 2.0 and OIDC sign-in per organization, verified domains, single logout; an IdP signs in only members or users on the org's verified domains.
 - `plugins/scim` — `scim.New(scim.Config{})`: SCIM 2.0 provisioning per organization with an org-managed connection token; changes global accounts only when the connection created them.
+- `plugins/ui` — `ui.New(ui.Config{AppName: "Acme", AfterSignIn: "/dashboard"})`: server-rendered sign-in, MFA, sign-up, verification, reset, sign-out and OAuth consent / device pages under `/auth/ui` (no JavaScript); `web.RequireSignIn(p.Protect(h))` for your pages.
 
 ## Agents: declare what agents may do
 
@@ -177,7 +178,7 @@ Go calls on `*polaris.Polaris` return `polaris.ErrNotFound`, `ErrConflict`, `Err
 
 ## Where to look
 
-- `examples/minimal`, `examples/api-keys` — complete programs.
+- `examples/minimal`, `examples/api-keys`, `examples/webapp` (server-rendered pages, `plugins/ui`) — complete programs.
 - `plugins/<id>/README.md` — per plugin: config, routes, events, permissions, problems, hooks.
 - `plugins/agents/example_test.go`, `agent/example_test.go`, `plugins/mcp/example_test.go` — runnable agent flows.
 - `go doc github.com/univeros/polaris.go/<package>` — every exported identifier is documented.

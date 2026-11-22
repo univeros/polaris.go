@@ -1,0 +1,13 @@
+{{define "content"}}
+<p>{{.Intro}}</p>
+<ul class="scopes">{{range .Scopes}}<li>{{.Description}} <code>{{.Name}}</code></li>{{end}}</ul>
+{{if .Redirect}}<p class="hint">{{.Redirect}}</p>{{end}}
+<form method="post" action="{{.Base}}/{{.Page}}">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+{{if .Request}}<input type="hidden" name="request" value="{{.Request}}">{{end}}
+{{if .UserCode}}<input type="hidden" name="user_code" value="{{.UserCode}}">{{end}}
+<button type="submit" name="approve" value="true">{{.T.approve}}</button>
+<button type="submit" name="approve" value="false" class="secondary">{{.T.deny}}</button>
+</form>
+{{if or .Client.Policy .Client.Terms}}<p class="hint">{{if .Client.Policy}}<a href="{{.Client.Policy}}">{{.T.privacy}}</a> {{end}}{{if .Client.Terms}}<a href="{{.Client.Terms}}">{{.T.terms}}</a>{{end}}</p>{{end}}
+{{end}}
