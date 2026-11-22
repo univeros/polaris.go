@@ -38,7 +38,7 @@ func TestRegistration(t *testing.T) {
 			must(t, err)
 			if len(rows) != 1 || rows[0].TokenHash != h.pepper.Hash("email_verify", regs[0].VerificationToken) ||
 				!rows[0].ExpiresAt.Equal(start.Add(24*time.Hour)) || rows[0].IP == nil || *rows[0].IP != client.IP ||
-				rows[0].Email != email || len(regs[0].VerificationToken) != 43 {
+				rows[0].Email != email || len(regs[0].VerificationToken) != 43+1+32 { // nonce "." binding (decision 74)
 				t.Fatalf("challenge %+v", rows)
 			}
 
@@ -61,7 +61,7 @@ func TestRegistration(t *testing.T) {
 
 func TestRegisterIsGenericAndDoesNotDuplicateAnExistingAccount(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
-		h.register(t, email)
+		h.registerAndVerify(t, email)
 		hashes := h.hasher.hashes.Load()
 		must(t, h.svc.Register(ctx, "  ADA@example.com", password, "", client))
 		if n := len(ofType[event.UserRegistered](h.events)); n != 1 {
@@ -209,11 +209,16 @@ func TestConcurrentRegistrationsOfOneAddress(t *testing.T) {
 			})
 		}
 		wg.Wait()
-		if n := len(ofType[event.UserRegistered](h.events)); n != 1 {
+		// One account; each registration that found it unverified took its place (decision 74),
+		// so one verification token is live, whichever registration was last.
+		if n := len(ofType[event.UserRegistered](h.events)); n < 1 {
 			t.Fatalf("registered events %d", n)
 		}
 		if n, _ := h.repos.Users.Count(ctx, nil); n != 1 {
 			t.Fatalf("users %d", n)
+		}
+		if n, _ := h.repos.EmailVerifications.Count(ctx, nil); n != 1 {
+			t.Fatalf("verifications %d", n)
 		}
 	})
 }

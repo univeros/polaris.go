@@ -81,12 +81,13 @@ func (p *Plugin) signIn(ctx context.Context, in *endpoint.Input) endpoint.Result
 	if err != nil {
 		return p.answer(ctx, err)
 	}
-	return endpoint.Data(http.StatusOK, started)
+	return endpoint.Data(http.StatusOK, started).WithHeader("Set-Cookie", p.sp.bindingHeader(started))
 }
 
 // callbackOIDC answers GET /sso/callback/{providerId}: 302 to the application with the code.
 func (p *Plugin) callbackOIDC(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	to, err := p.CompleteOIDC(ctx, in.String("providerId"), in.String("code"), in.String("state"), in.String("error"), endpoint.Client(ctx))
+	state := in.String("state")
+	to, err := p.CompleteOIDC(ctx, in.String("providerId"), in.String("code"), state, p.sp.binding(in.Request, state), in.String("error"), endpoint.Client(ctx))
 	if err != nil {
 		return p.answer(ctx, err)
 	}
@@ -95,7 +96,8 @@ func (p *Plugin) callbackOIDC(ctx context.Context, in *endpoint.Input) endpoint.
 
 // callbackSAML answers POST /sso/callback/{providerId} (the POST binding).
 func (p *Plugin) callbackSAML(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	to, err := p.CompleteSAML(ctx, in.String("providerId"), in.String("SAMLResponse"), in.String("RelayState"), endpoint.Client(ctx))
+	relay := in.String("RelayState")
+	to, err := p.CompleteSAML(ctx, in.String("providerId"), in.String("SAMLResponse"), relay, p.sp.binding(in.Request, relay), endpoint.Client(ctx))
 	if err != nil {
 		return p.answer(ctx, err)
 	}

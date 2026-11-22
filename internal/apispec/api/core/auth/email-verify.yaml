@@ -17,9 +17,10 @@ input:
 domain:
   description: >
     Confirms the email address bound to the single-use verification token.
-    Idempotent: a token for an already-verified user still returns 200. A bad
-    or expired token returns a generic 400 that reveals nothing about which
-    condition failed.
+    Idempotent: a token for an already-verified user still returns 200. The
+    token confirms the registration it was issued for: it is refused once the
+    account's password or address is another one. A bad or expired token
+    returns a generic 400 that reveals nothing about which condition failed.
 
 output:
   status: 200

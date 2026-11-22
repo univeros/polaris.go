@@ -2,6 +2,7 @@ package scim
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"net/http"
 	"slices"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/store"
@@ -200,12 +202,42 @@ func (p *Plugin) createConnection(ctx context.Context, in *endpoint.Input, tok *
 			return invalidInput("sso_provider_id must be one of the organization's providers.")
 		}
 	}
+	if refused := p.mayGrantEveryRole(ctx, orgID); refused != nil {
+		return *refused
+	}
 	conn, secret, err := p.conns.Create(ctx, orgID, name, deprovision, providerID, tok.Subject())
 	if err != nil {
 		return p.failed(ctx, err)
 	}
 	p.recordUser(ctx, AuditConnectionCreated, tok.Subject(), conn, map[string]any{"deprovision": deprovision})
 	return p.respond(ctx, http.StatusCreated, conn, map[string]any{"token": secret, "scim_base_url": p.BaseURL(conn.ID)})
+}
+
+// mayGrantEveryRole refuses a caller who could not grant every role of the organization by hand
+// (the escalation guard role changes go through; a superadmin is exempt). Whoever holds a
+// directory's token puts members into any of those roles, the owners' included, so the token goes
+// only to someone that is no escalation for: in practice an owner.
+func (p *Plugin) mayGrantEveryRole(ctx context.Context, orgID string) *endpoint.Result {
+	roles, err := p.g.Repos().Roles.ListByOrganization(ctx, orgID)
+	if err != nil {
+		r := p.failed(ctx, err)
+		return &r
+	}
+	ids := make([]string, len(roles))
+	for i, role := range roles {
+		ids[i] = role.ID
+	}
+	authority, _ := wiring.Authority(ctx) // none resolved holds nothing
+	err = services.Of(p.g).Escalation.CheckRoles(ctx, authority, ids)
+	if errors.Is(err, authz.ErrForbidden) {
+		r := orgProblem(http.StatusForbidden, "forbidden", "Forbidden", "Connecting a directory takes every permission the organization's roles grant: a directory assigns those roles.")
+		return &r
+	}
+	if err != nil {
+		r := p.failed(ctx, err)
+		return &r
+	}
+	return nil
 }
 
 // ssoProviderOf reports whether providerID is one of the organization's SSO providers; always
@@ -236,6 +268,9 @@ func (p *Plugin) rotateConnection(ctx context.Context, in *endpoint.Input, tok *
 	}
 	if !conn.Active() {
 		return orgProblem(http.StatusConflict, "conflict", "Conflict", "The connection is decommissioned.")
+	}
+	if refused := p.mayGrantEveryRole(ctx, orgID); refused != nil {
+		return *refused
 	}
 	conn, secret, err := p.conns.Rotate(ctx, conn)
 	if err != nil {

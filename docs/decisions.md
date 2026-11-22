@@ -2342,3 +2342,145 @@ with the other key fails, and an unknown kid is still refused. The legacy value 
 public key, which is public; no secret enters a kid. Algorithm and issuer checks are unchanged.
 `Thumbprint` parses the key with the same parsers the codec uses (RSA SPKI, PKCS #1 or certificate;
 a canonical, non-small-order Ed25519 point). Fuzz targets unchanged and passing.
+
+## 74. 2026-11-22 — Account provisioning and email proof: what a directory or an IdP may vouch for, registrations of an unverified address, the browser of an SSO sign-in
+
+A security review with running tests found five ways around the account boundaries of decisions 43,
+61 and 68. All are closed here; each is client-visible and listed in the changelog.
+
+- **A directory or an identity provider vouches for a mailbox only on a domain its organization
+  verified.** Any user can create an organization and configure a SCIM directory or an IdP for it
+  (`org.update`). Both created accounts *verified* for whatever address they named
+  (`scim.createUser`, the sso JIT path), a directory could rename an account it owned to any free
+  address keeping its verification and credentials, and ownership never lapsed: the first proof of
+  decision 68 did nothing on an account already marked verified. So an organization could stage an
+  account under an address it controlled, set a password and keys through that mailbox, then move
+  it onto somebody else's address (or have its IdP assert that address directly) and hold a
+  verified account there. Now:
+  - `scim.createUser` and the sso JIT path mark the account verified only when the address is on a
+    domain verified for the organization; anywhere else the account is created unverified. The sso
+    sign-in of an existing account proves it (`ProveEmail`) only on a verified domain, and the
+    session and the exchange envelope carry the account's own `email_verified`.
+  - A SCIM rename goes through a new `identity.Service.ChangeEmail` (`wiring.Identity.ChangeEmail`),
+    the one place an account's address changes: verified at the new address when the caller
+    vouches (a verified domain), unverified otherwise, and the reset and verification tokens of the
+    old address deleted. A verified account is refused an address outside the verified domains
+    (403 `mutability`); an unverified one moves and stays unverified.
+  - `sso` and `scim` implement `wiring.AccessEraser`: the first proof of the mailbox deletes the
+    `polaris_sso_account` rows and the SCIM provenance rows of the account, so the organization's
+    IdP stops signing it in (`sso/user_unknown`) and the directory stops owning it (membership
+    changes only). SCIM keeps the provenance of an organization that verified the account's domain,
+    which answers for the mailbox; the membership, external id and name parts stay.
+  - A token is for the mailbox it was sent to: `ResetPassword` and `VerifyEmail` refuse a challenge
+    whose `email` is not the account's current one, and the passwordless `verify-email` and
+    `reset-password` codes likewise (`spendFor`). Magic links and sign-in codes already resolve the
+    account by the address they were sent to.
+- **A registration of an address nobody verified takes the account; a verification token confirms
+  only the password it was issued with.** A second registration of an existing unverified address
+  was dropped silently, and the verification link then confirmed the *first* registrant's password
+  (decision 68 keeps a registration's password on its own verification). Whoever registered an
+  address first had their password confirmed by the owner's click. Now `Register`, for an account
+  that is unverified, has a password and is not disabled, replaces the password hash and display
+  name, removes what the earlier registrant could act with (factors, the plugins' access rows,
+  sessions: the removal `ProveEmail` does, without marking the account verified), deletes the
+  outstanding verification tokens and sends a new one; the answer is the same 202 and every path
+  hashes the password once. The update is conditional on the account being unverified, so a
+  verification that wins the race keeps its account. The token is now `<nonce>.<binding>`, the
+  binding being 128 bits of `Pepper.Hash("email_verify_bind", nonce NUL password_hash)`;
+  `VerifyEmail` recomputes it against the account's current hash and refuses a mismatch. The stored
+  row is unchanged (the keyed hash of the whole token), so no schema change; tokens issued before
+  this release have no binding and verify as before until they expire (24 h), and none can be made
+  since the stored hash covers the whole token. An unverified account *without* a password (a
+  directory or provider created it) is not touched by a registration: its owner proves the mailbox
+  by reset or an email code, which is the full first proof.
+- **An SSO sign-in completes only in the browser that started it.** The state lived only in the
+  cache, so an attacker could start a sign-in as themselves and have a victim's browser complete it
+  (login CSRF). `POST /sso/sign-in` now sets a cookie holding a random nonce the state keeps, and
+  the callbacks refuse a state whose browser does not present it: the social plugin's binding of
+  decisions 39 and 50, same attributes (`__Host-` and `SameSite=None; Secure` under an https
+  `Config.BaseURL`, `SameSite=Lax` under http; the scheme is `BaseURL`'s, not the connection's).
+  An IdP-initiated SAML response has no state and no binding, as before, behind `idp_initiated`.
+- **The roles a provider or a directory hands out are within the authority of whoever configures
+  it.** `jit.roles` accepted any slug and a directory assigns any role, so an administrator
+  (`org.update`, not every permission) could have their own IdP or directory make them an owner.
+  `POST`/`PATCH /orgs/{id}/sso/providers` now pass the roles through the escalation guard
+  (`authz.EscalationGuard.CheckRoles`, the rule of role changes and invitations; 403
+  `sso/forbidden`) and refuse a slug the organization does not have (422); a PATCH without `jit`
+  is not checked. Creating a SCIM connection or rotating its token takes the authority to grant
+  every role of the organization (403 `scim/forbidden`): a directory's token is that power, so it
+  goes only to someone for whom it is no escalation. The Go APIs (`Providers().Create`,
+  `Connections().Create`) are the host's and unchecked.
+- **sso, smaller items.** `verifyIDToken` required no `exp`; it does now (OpenID Connect Core §2).
+  The discovery document's `issuer` was not compared with the configured one; it is (Discovery
+  §4.3, a trailing slash aside). An unverified domain claim blocked every other organization from
+  claiming the domain, forever. An expiry would not help (the claimant deletes and claims again),
+  so an unverified claim now reserves nothing: another organization's claim replaces it, a verified
+  domain stays its organization's, and an organization's verification token for a domain is
+  derived (`Pepper.Hash("sso_domain", organization NUL domain)`), the same on every claim, so a
+  displaced organization claims again and verifies with the record it already published. Claims
+  made before this release keep their stored random token. `polaris.SignIn.AMR` documents that
+  `"sso"` yields an organization-bound session.
+
+Security review (rule 6), per item:
+
+- *Vouching and ownership.* Only narrows: accounts are verified in fewer cases, renames refused in
+  more, ownership ends earlier. `ChangeEmail` runs in one transaction with the token deletion; the
+  spend-path checks hold for a token row that survives it (an older release's, a race). The eraser
+  runs inside the first proof's transaction, so a failure rolls the proof back. Accounts created
+  verified by a directory or a provider before this release stay verified and owned (no record
+  tells them from the mailbox owner's): they can no longer be renamed off a verified domain, which
+  is the step that moved them onto another person's address. Residual: an unverified account at an
+  address its owner has not claimed yet stays the creating organization's until the owner proves
+  the mailbox (reset, email code, magic link; a plain registration of that address changes
+  nothing, by design, so that nobody can detach a directory's accounts anonymously). An
+  organization that verified a domain speaks for every mailbox on it, as before. Tests:
+  `TestADirectoryVouchesOnlyForItsOrganizationsDomains`,
+  `TestTheFirstProofOfTheMailboxEndsADirectorysHoldOnTheAccount` (scim),
+  `TestAProviderVouchesOnlyForItsOrganizationsDomains` (sso),
+  `TestTokensSentToAnAddressDieWhenTheAccountLeavesIt` (identity),
+  `TestACodeSentToAnAddressDiesWhenTheAccountLeavesIt` (passwordless); all failed before.
+- *Registration.* The second registration can be anyone's, so it is given nothing the first did
+  not have: it replaces a password nobody proved and removes access, never grants any, and the
+  account stays unverified until the mailbox answers. Accepted cost: anyone who knows an unverified
+  account's address can invalidate its password and sessions by registering it again (the holder
+  recovers by verifying or by reset); hosts with `RequireVerifiedEmail` (the default) have no
+  sessions on unverified accounts to lose. Residual, as in decision 68: the owner of a mailbox who
+  presses a verification link for a registration they did not make confirms that registrant's
+  password; with two registrations in flight the latest message is the live one. Considered and
+  not done: treating the first password reset after such a confirmation as a full first proof. It
+  would remove the MFA factors of every account that registered by form and never reset, at the
+  first reset, which lets a mailbox compromise bypass MFA; that is worse than the residual. The
+  binding compare is constant time; the binding context is not a stored format. Tests:
+  `TestASecondRegistrationOfAnUnverifiedAddressTakesItsPlace`,
+  `TestAVerificationTokenConfirmsOnlyThePasswordItWasIssuedWith` (failed before),
+  `TestRegisteringAnAddressWithoutAPasswordChangesNothing`,
+  `TestAVerificationTokenOfAnEarlierReleaseStillVerifies`.
+- *Browser binding.* The nonce is 128 random bits, compared in constant time, stored with the
+  state (encrypted in the cache) and consumed with it; a state without one (started before the
+  upgrade, at most ten minutes old) is refused. The cookie value is useless without the state it
+  names. Test: `TestASignInCompletesOnlyInTheBrowserThatStartedIt` (HTTP; failed before: the
+  callback answered 302 without the cookie).
+- *Roles.* The check is at configuration time, with the authority the request's authorization step
+  resolved; a superadmin is exempt as everywhere. A role's permissions can grow later only through
+  a role change, which the same guard covers. Providers and connections configured before this
+  release keep their roles and tokens: review `jit.roles` naming `owner` or `admin`, and rotate
+  directory tokens an administrator created. Tests:
+  `TestAProvidersRolesStayWithinItsConfigurersAuthority`,
+  `TestADirectoryIsConnectedOnlyByWhoCouldGrantEveryRole` (HTTP; both failed before).
+- *OIDC and domains.* The two OIDC checks only refuse more. Displacing an unverified claim gives
+  the displacing organization nothing until it verifies, which takes control of the domain's DNS
+  or web root; the derived token is published in DNS anyway and proves nothing by being known.
+  Tests: `TestIDTokenTimeErrorsAreGoNative`, `TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken`
+  (new cases), `TestAnUnverifiedDomainClaimReservesNothing` (failed before).
+
+Contract fixtures: `SsoFlowTest::testSignInThroughOidcAndSamlEndsOnTheApplicationWithACode` gains
+the `Set-Cookie` of each started sign-in and replays with a cookie-keeping client; the others
+replay unchanged. The route specs of the changed routes describe the new behaviour.
+
+Go API. Breaking, recorded here for `make apicheck`: `sso.Plugin.CompleteOIDC` and
+`sso.Plugin.CompleteSAML` take the browser's binding (a new `binding string` parameter after the
+state); `wiring.Identity` gains `ChangeEmail` (a sealed interface, API.md §2). Additive:
+`sso.Started.State` and `Started.Binding`, `sso.Plugin.EraseAccess`, `scim.Plugin.EraseAccess`.
+
+Left open: `docs/v1.md` row 4.2 is the owner's. Accounts a directory or a provider created
+verified before this release are not re-examined (above).

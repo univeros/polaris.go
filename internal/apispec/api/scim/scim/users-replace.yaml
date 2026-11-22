@@ -20,7 +20,7 @@ input:
 
 domain:
   description: >
-    The mapped attributes replaced: the email, the display name, the external id, active (a deactivation ends every session; a reactivation enables the account). Recorded as scim.user_updated, scim.user_deactivated or scim.user_reactivated.
+    The mapped attributes replaced: the email (of an account the connection owns: the account is verified at the new address only on a domain the organization verified, a verified account is refused any other address with 403 mutability, and the reset and verification messages sent to the old address stop working), the display name, the external id, active (a deactivation ends every session; a reactivation enables the account). Recorded as scim.user_updated, scim.user_deactivated or scim.user_reactivated.
 
 output:
   status: 200

@@ -608,6 +608,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {
@@ -661,6 +664,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {
@@ -738,6 +744,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {
@@ -951,6 +960,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {
@@ -1011,6 +1023,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {
@@ -1102,6 +1117,9 @@
             "headers": {
                 "Content-Type": [
                     "application/json"
+                ],
+                "Set-Cookie": [
+                    "__Host-polaris_sso_0123456789abcdef=0123456789abcdef0123456789abcdef; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=None"
                 ]
             },
             "body": {

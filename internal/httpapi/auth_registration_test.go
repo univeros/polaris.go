@@ -36,8 +36,11 @@ func TestRegistrationEndpoint(t *testing.T) {
 	run("testRegisterIsGenericAndDoesNotDuplicateAnExistingAccount", func(t *testing.T, a *authCase) {
 		a.c.Post("/auth/register", map[string]any{"email": authEmail, "password": authPassword})
 		authStatusIs(t, a.c.Post("/auth/register", map[string]any{"email": authEmail, "password": authPassword}), http.StatusAccepted)
-		if n := len(authEventsOf[event.UserRegistered](a.srv)); n != 1 {
-			t.Fatalf("user.registered events: %d", n)
+		// The answer is the same and there is one account; the address was never verified, so the
+		// second registration took the first one's place and sent its own message (decision 74).
+		regs := authEventsOf[event.UserRegistered](a.srv)
+		if len(regs) != 2 || regs[0].UserID != regs[1].UserID {
+			t.Fatalf("user.registered events: %+v", regs)
 		}
 	})
 

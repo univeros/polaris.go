@@ -155,9 +155,11 @@ func (v *service) signInWithEmailCode(ctx context.Context, email, code string) (
 	return v.open(ctx, u, facts{amr: []string{AMREmailOTP}, gate: true, channel: model.FactorEmail, destination: email})
 }
 
-// spendFor spends a code sent to an existing, enabled account.
+// spendFor spends a code sent to an existing, enabled account that still has the address the code
+// went to: the code proves that mailbox, which an account renamed since is not at.
 func (v *service) spendFor(ctx context.Context, kind, email, code string) (model.User, error) {
-	sec, ok, err := v.secrets.spendCode(ctx, kind, identity.NormalizeEmail(email), code)
+	email = identity.NormalizeEmail(email)
+	sec, ok, err := v.secrets.spendCode(ctx, kind, email, code)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -168,7 +170,7 @@ func (v *service) spendFor(ctx context.Context, kind, email, code string) (model
 	if err != nil {
 		return model.User{}, err
 	}
-	if !found || u.Status == model.UserStatusDisabled {
+	if !found || u.Status == model.UserStatusDisabled || u.Email != email {
 		return model.User{}, errCodeInvalid
 	}
 	return u, nil

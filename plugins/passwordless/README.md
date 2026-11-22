@@ -70,6 +70,11 @@ the mailbox: the password (a reset then sets the new one), MFA factors, passkeys
 API keys, OAuth grants, the confirmed phone, every session. A `verify-email` code confirms the
 registration instead: an account with a password is marked verified and keeps everything.
 
+A `verify-email` or `reset-password` code is for the address it was sent to: when the account has
+moved to another address since (a SCIM directory renamed it), the code answers
+`passwordless/code_invalid`. A new registration of an address nobody verified removes the codes
+and links pending for the earlier one (core's `POST /auth/register`).
+
 Opening a magic link spends nothing: email security scanners follow links with GET, so the GET
 answers a page (no JavaScript, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`) whose one
 button posts back to the same URL, and that POST spends the link.

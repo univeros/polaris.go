@@ -89,10 +89,10 @@ func (u *unit) join(userID, organizationID string) {
 func (u *unit) ssoSession(prov sso.Provider, email string) (map[string]any, error) {
 	u.t.Helper()
 	u.oidc.email = email
-	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
+	if _, err := u.start("", prov.ID, ""); err != nil {
 		u.t.Fatal(err)
 	}
-	to, err := u.p.CompleteOIDC(u.ctx, prov.ID, "good", u.oidc.state(), "", u.client)
+	to, err := u.completeOIDC(prov.ID, "good", u.oidc.state(), "")
 	if err != nil {
 		return nil, err
 	}

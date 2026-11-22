@@ -23,7 +23,8 @@ input:
 domain:
   description: >
     The fields given replace the provider's (type cannot change); a config without client_secret keeps
-    the stored one. Recorded as sso.provider_updated.
+    the stored one. A jit given is checked as on creation: its roles exist in the organization and
+    carry no permission the caller lacks (403 sso/forbidden). Recorded as sso.provider_updated.
 
 output:
   status: 200

@@ -110,6 +110,36 @@ func (p *Plugin) Provisioned(ctx context.Context, organizationID string, u model
 	return created.UTC().Truncate(time.Second).Equal(u.CreatedAt.UTC().Truncate(time.Second)), nil
 }
 
+// EraseAccess implements wiring.AccessEraser: the first proof of the account's mailbox ends the
+// hold of the directories that created it (owns, Provisioned), so a directory does not rename,
+// disable or erase an account whose owner has shown up, and its organization's identity provider
+// no longer signs it in. The directory of an organization that verified the account's domain
+// keeps it: that organization answers for the mailbox. The membership and the directory's
+// external id stay.
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	rows, err := p.g.DB().FindMany(ctx, TableProvenance, store.Criteria{"user_id": userID}, store.Query{})
+	if err != nil || len(rows) == 0 {
+		return err
+	}
+	u, err := p.g.Repos().Users.Get(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		kept, err := p.dir.mayLink(ctx, Connection{OrganizationID: row.String("organization_id")}, u.Email)
+		if err != nil {
+			return err
+		}
+		if kept {
+			continue
+		}
+		if _, err := p.g.DB().Delete(ctx, TableProvenance, store.Criteria{"id": row.String("id")}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Of returns the scim plugin registered on g, nil when absent.
 func Of(g *wiring.Graph) *Plugin {
 	p, _ := g.Plugin(ID).(*Plugin)

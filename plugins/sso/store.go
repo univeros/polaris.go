@@ -2,8 +2,6 @@ package sso
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"strings"
 	"time"
 
@@ -11,6 +9,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/security"
 	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // Provider listing bounds for the operators.
@@ -239,9 +238,14 @@ func stringsOf(v any) []string {
 // through DNS or HTTPS, then routing sign-ins. A domain belongs to one organization across the
 // instance.
 type Domains struct {
-	db    store.Adapter
-	clock clock.Clock
+	db     store.Adapter
+	clock  clock.Clock
+	pepper wiring.Pepper
 }
+
+// domainTokenContext is the pepper context of a domain's verification token (Domains.Add). The
+// token is stored with its claim and read from there, so claims made before v1.0.0 keep theirs.
+const domainTokenContext = "sso_domain"
 
 // Find returns the domain id names; ok is false when there is none.
 func (s *Domains) Find(ctx context.Context, id string) (Domain, bool, error) {
@@ -272,16 +276,16 @@ func (s *Domains) ForOrganization(ctx context.Context, organizationID string) ([
 	return out, nil
 }
 
-// Add claims a domain for a provider with a fresh verification token; a domain claimed already
-// fails with store.ErrDuplicate.
+// Add claims a domain for a provider; a domain claimed already fails with store.ErrDuplicate. The
+// verification token is the organization's for that domain, the same on every claim (a keyed hash
+// of both): an organization whose unverified claim gave way to another's claims again and
+// verifies with the record it already published.
 func (s *Domains) Add(ctx context.Context, organizationID, providerID, name string) (Domain, error) {
-	token := make([]byte, 16)
-	if _, err := rand.Read(token); err != nil {
-		return Domain{}, err
-	}
+	name = strings.ToLower(name)
 	d := Domain{
-		ID: repository.NewID(), OrganizationID: organizationID, ProviderID: providerID, Domain: strings.ToLower(name),
-		Token: "polaris-sso-" + hex.EncodeToString(token), CreatedAt: s.clock.Now().UTC().Truncate(time.Second),
+		ID: repository.NewID(), OrganizationID: organizationID, ProviderID: providerID, Domain: name,
+		Token:     "polaris-sso-" + s.pepper.Hash(domainTokenContext, organizationID+"\x00"+name)[:32],
+		CreatedAt: s.clock.Now().UTC().Truncate(time.Second),
 	}
 	return d, s.db.Insert(ctx, TableDomains, store.Row{
 		"id": d.ID, "organization_id": d.OrganizationID, "provider_id": d.ProviderID, "domain": d.Domain,

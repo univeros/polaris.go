@@ -18,7 +18,8 @@ input:
 domain:
   description: >
     A new token, in this response only; the previous one stops at once. A decommissioned connection is
-    refused. Recorded as scim.connection_rotated.
+    refused. The caller must hold every permission the organization's roles grant, as to create
+    one (403 scim/forbidden). Recorded as scim.connection_rotated.
 
 output:
   status: 200

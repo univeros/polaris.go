@@ -16,7 +16,7 @@ input:
 
 domain:
   description: >
-    PatchOp operations (add, replace, remove) on active, userName, displayName, name.formatted, name.givenName, name.familyName and externalId, with a path or as keys of a path-less value. Recorded as the replace.
+    PatchOp operations (add, replace, remove) on active, userName, displayName, name.formatted, name.givenName, name.familyName and externalId, with a path or as keys of a path-less value. userName changes as in the replace. Recorded as the replace.
 
 output:
   status: 200

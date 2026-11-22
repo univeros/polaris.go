@@ -21,7 +21,8 @@ domain:
     The token (pst_ and 256 random bits, stored as a keyed hash) is in this response only, with the
     base URL the directory is configured with. deprovision is deactivate (the default) or delete (an
     anonymisation); sso_provider_id pairs the connection with one of the organization's SSO providers.
-    Recorded as scim.connection_created.
+    The caller must hold every permission the organization's roles grant (403 scim/forbidden
+    otherwise): the directory assigns those roles. Recorded as scim.connection_created.
 
 output:
   status: 201

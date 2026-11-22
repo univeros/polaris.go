@@ -9,11 +9,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
+	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 var hostname = regexp.MustCompile(`^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
@@ -92,6 +96,9 @@ func (p *Plugin) createProvider(ctx context.Context, in *endpoint.Input, tok *to
 	if len(errs) > 0 {
 		return invalidInput(errs[0], errs...)
 	}
+	if refused := p.mayGrant(ctx, orgID, fields.JIT.Roles); refused != nil {
+		return *refused
+	}
 	fields.OrganizationID, fields.CreatedBy = orgID, tok.Subject()
 	prov, err := p.providers.Create(ctx, fields)
 	if err != nil {
@@ -99,6 +106,37 @@ func (p *Plugin) createProvider(ctx context.Context, in *endpoint.Input, tok *to
 	}
 	p.recordUser(ctx, AuditProviderCreated, tok, prov.ID, orgID, map[string]any{"type": prov.Type, "name": prov.Name})
 	return endpoint.Data(http.StatusCreated, prov.Map())
+}
+
+// mayGrant refuses jit.roles the caller could not grant by hand: each must be a role of the
+// organization, and none may carry a permission the caller does not hold (the escalation guard
+// role changes and invitations go through; a superadmin is exempt). Otherwise whoever holds
+// org.update could have their own identity provider provision them as an owner.
+func (p *Plugin) mayGrant(ctx context.Context, orgID string, slugs []string) *endpoint.Result {
+	ids := make([]string, 0, len(slugs))
+	for _, slug := range slugs {
+		role, err := p.g.Repos().Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
+		if errors.Is(err, repository.ErrNotFound) {
+			r := invalidInput("jit.roles names a role the organization does not have: " + slug + ".")
+			return &r
+		}
+		if err != nil {
+			r := p.answer(ctx, err)
+			return &r
+		}
+		ids = append(ids, role.ID)
+	}
+	authority, _ := wiring.Authority(ctx) // none resolved holds nothing: every role with a permission is refused
+	err := services.Of(p.g).Escalation.CheckRoles(ctx, authority, ids)
+	if errors.Is(err, authz.ErrForbidden) {
+		r := ssoProblem(http.StatusForbidden, "forbidden", "Forbidden", authz.MsgEscalation)
+		return &r
+	}
+	if err != nil {
+		r := p.answer(ctx, err)
+		return &r
+	}
+	return nil
 }
 
 // readProvider answers GET /orgs/{id}/sso/providers/{providerId}: with the SP side its IdP needs.
@@ -123,6 +161,11 @@ func (p *Plugin) updateProvider(ctx context.Context, in *endpoint.Input, tok *to
 	fields, errs := providerInput(in.All(), &prov)
 	if len(errs) > 0 {
 		return invalidInput(errs[0], errs...)
+	}
+	if _, given := in.All()["jit"]; given { // a change that leaves jit alone needs no authority over its roles
+		if refused := p.mayGrant(ctx, orgID, fields.JIT.Roles); refused != nil {
+			return *refused
+		}
 	}
 	updated, err := p.providers.Update(ctx, prov, fields)
 	if err != nil {
@@ -187,11 +230,20 @@ func (p *Plugin) addDomain(ctx context.Context, in *endpoint.Input, tok *token.T
 		return invalidInput("provider_id must be one of the organization's providers.")
 	}
 	conflict := ssoProblem(http.StatusConflict, "conflict", "Conflict", "The domain is already claimed.")
-	if _, taken, err := p.domains.FindByName(ctx, name); err != nil || taken {
-		if err != nil {
+	held, taken, err := p.domains.FindByName(ctx, name)
+	if err != nil {
+		return p.answer(ctx, err)
+	}
+	if taken {
+		// A claim nobody verified reserves nothing: another organization's gives way, or anyone
+		// could keep a domain from its owner by claiming it first. The displaced organization
+		// claims again and reads the same token (Domains.Add), so it verifies when its record is up.
+		if held.VerifiedAt != nil || held.OrganizationID == orgID {
+			return conflict
+		}
+		if _, err := p.domains.Delete(ctx, held.ID); err != nil {
 			return p.answer(ctx, err)
 		}
-		return conflict
 	}
 	d, err := p.domains.Add(ctx, orgID, prov.ID, name)
 	if errors.Is(err, store.ErrDuplicate) {
