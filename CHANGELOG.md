@@ -9,6 +9,15 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-22
+
+Security fixes for replicas, account lifecycle and MFA; your own permissions grantable to roles;
+`Migrate` that evolves an existing database. **Run `Migrate` after upgrading**: it adds two
+tables (`polaris_audit_chain`, `polaris_scim_user_name`) and swaps an admin index, and it stops with
+a remedy if your data needs a manual step (see the admin entry under Security). Read the
+**Client-visible** entries under Changed if you have front ends or API clients: the magic-link page,
+429 bodies, `budget_exhausted` and whole-second token timestamps.
+
 ### Added
 
 - Host API for what the examples had to work around (decision 66):
@@ -101,6 +110,12 @@ marked **Breaking**.
   (decision 62).
 
 ### Security
+
+- **Critical:** an organization's owner could create a role slugged `superadmin` and be treated as
+  the platform superadmin (other organizations' members, roles, OAuth clients, SSO providers and
+  audit; platform-only permissions). Only the system superadmin role counts now, and the slug is
+  reserved (decision 67). After upgrading, check for organization roles with that slug:
+  `SELECT * FROM auth_roles WHERE slug = 'superadmin' AND organization_id IS NOT NULL`.
 
 - MFA: a passwordless sign-in and a second factor on the same channel no longer count as two
   factors. After an email code or magic link to an address (or an SMS code to a phone), the
@@ -310,7 +325,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/univeros/polaris.go/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/univeros/polaris.go/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/univeros/polaris.go/compare/v0.3.0...v0.3.1

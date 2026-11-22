@@ -410,3 +410,24 @@ func TestPrincipals(t *testing.T) {
 		}
 	})
 }
+
+// Only the system superadmin role (no organization) is the platform superadmin. An organization's
+// own role that happens to be slugged "superadmin" (created before the slug was reserved) is an
+// ordinary role: it grants its permissions in that organization and nothing more, and the
+// resolved authority never carries the superadmin override.
+func TestAnOrganizationRoleSluggedSuperadminIsNotTheSuperadmin(t *testing.T) {
+	backends(t, func(t *testing.T, _ store.Adapter, r *repository.Repos) {
+		u := member(t, r, org)
+		fake := orgRole(t, r, org, RoleSuperadmin)
+		grant(t, r, fake, OrgRead)
+		assign(t, r, u, org, fake)
+		a, err := NewResolver(r).Resolve(ctx, u, org)
+		must(t, err)
+		if a.IsSuperadmin() || slices.Contains(a.Roles, RoleSuperadmin) || !slices.Equal(a.Scope, []string{OrgRead}) {
+			t.Fatalf("an organization role slugged superadmin resolved as %+v", a)
+		}
+		if a, err = NewResolver(r).Resolve(ctx, u, ""); err != nil || a.IsSuperadmin() {
+			t.Fatalf("without an organization: %+v %v", a, err)
+		}
+	})
+}
