@@ -1077,15 +1077,15 @@ Closes the account-lifecycle items decisions 33 and 35 left open (docs/v1.md §4
   and the audit activity row. Kept, as attribution to the anonymized tombstone id (the audit trail
   keeps it too): `created_by` / `granted_by` / `decided_by` on configuration and approvals, the
   audit events' subject and actor, and a guest row's `converted_user_id`. Client-visible: after an
-  erasure `GET /admin/users/{id}` answers `last_active_at: null` (the admin users fixture is edited at that
-  one step). Guard: `TestErasureRemovesEveryPluginRowOfTheUser` boots every plugin, seeds a row
-  naming the user in every plugin table with a user column (`*user_id`, `*_by`, `owner_id`,
-  `subject_id`, `actor_id`, `local_id`), erases the user and fails on any row left that is not in
-  its retained list; a new table with a user column fails it until covered or listed with a reason
-  (failed before: 13 plugin tables kept the erased user's rows). Security review: deletes only
-  rows naming the erased id; the listeners run after the erasure commits, so a failure is logged
-  and leaves rows behind (as for the plugins that already erased this way), never a half-erased
-  account.
+  erasure `GET /admin/users/{id}` answers `last_active_at: null` (the admin users fixture is
+  edited at that one step). Guard: `TestErasureRemovesEveryPluginRowOfTheUser` boots every
+  plugin, seeds a row naming the user in every plugin table with a user column (`*user_id`,
+  `*_by`, `owner_id`, `subject_id`, `actor_id`, `local_id`), erases the user and fails on any row
+  left that is not in its retained list; a new table with a user column fails it until covered or
+  listed with a reason (failed before: 13 plugin tables kept the erased user's rows). Security
+  review: deletes only rows naming the erased id; the listeners run after the erasure commits, so
+  a failure is logged and leaves rows behind (as for the plugins that already erased this way),
+  never a half-erased account.
 - **MFA: one channel is one factor.** A passwordless sign-in by email code or magic link proves the
   mailbox; an email MFA factor on the same address (an SMS factor on the phone a phone sign-in
   used) proves nothing more, yet it satisfied the gate. Now the passwordless gate offers only the
@@ -1111,8 +1111,9 @@ Closes the account-lifecycle items decisions 33 and 35 left open (docs/v1.md §4
 - **Magic links: opening one spends nothing.** Email security scanners follow links with GET and
   spent the one-time token before the user clicked. `GET /magic-link/verify` now checks the token
   without spending it and answers a static HTML page (no JavaScript; `Cache-Control: no-store`,
-  `Referrer-Policy: no-referrer`, `default-src 'none'; form-action 'self'; frame-ancestors 'none'`)
-  whose one button posts back to the same URL; the new `POST /magic-link/verify`
+  `Referrer-Policy: no-referrer`, a CSP of `default-src 'none'; frame-ancestors 'none'` and
+  `form-action 'self'` plus the redirect URIs' origins, since browsers apply form-action to the
+  POST's redirect) whose one button posts back to the same URL; the new `POST /magic-link/verify`
   (`polaris.passwordless.magic-link-confirm`) spends it and answers the 302 the GET used to. An
   unknown, used or expired token still answers the 422 problem on both. The emailed link, the
   hand-off code and `/magic-link/exchange` are unchanged, so API clients that only send and

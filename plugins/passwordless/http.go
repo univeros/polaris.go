@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -161,7 +162,19 @@ func (v *service) magicLinkOpen(ctx context.Context, in *endpoint.Input) endpoin
 		WithHeader("Cache-Control", "no-store").
 		WithHeader("Referrer-Policy", "no-referrer").
 		WithHeader("X-Content-Type-Options", "nosniff").
-		WithHeader("Content-Security-Policy", "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		WithHeader("Content-Security-Policy", v.magicLinkCSP())
+}
+
+// magicLinkCSP lets the page's form post to Polaris and end, through the POST's redirect, on a
+// redirect URI's origin (browsers apply form-action to that redirect too); nothing else loads.
+func (v *service) magicLinkCSP() string {
+	forms := []string{"'self'"}
+	for _, raw := range v.s.redirectURIs {
+		if u, err := url.Parse(raw); err == nil && u.Scheme != "" && u.Host != "" {
+			forms = append(forms, u.Scheme+"://"+u.Host)
+		}
+	}
+	return "default-src 'none'; form-action " + strings.Join(forms, " ") + "; frame-ancestors 'none'; base-uri 'none'"
 }
 
 // magicLinkConfirm answers POST /magic-link/verify: it spends the link and redirects with the

@@ -182,7 +182,9 @@ func TestPasswordlessFlow(t *testing.T) {
 			status(t, page, 200, who+" opens the link")
 			body, _ := io.ReadAll(page.Body)
 			if !strings.HasPrefix(page.Header.Get("Content-Type"), "text/html") || !strings.Contains(string(body), `<form method="post">`) ||
-				page.Header.Get("Cache-Control") != "no-store" || page.Header.Get("Referrer-Policy") != "no-referrer" {
+				page.Header.Get("Cache-Control") != "no-store" || page.Header.Get("Referrer-Policy") != "no-referrer" ||
+				// the POST redirects to the app: form-action must allow its origin, or browsers block it
+				!strings.Contains(page.Header.Get("Content-Security-Policy"), "form-action 'self' https://app.example;") {
 				t.Fatalf("page %v %s", page.Header, body)
 			}
 		}
