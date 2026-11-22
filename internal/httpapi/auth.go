@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -40,22 +39,6 @@ type authAPI struct{ g *wiring.Graph }
 func (a *authAPI) fail(ctx context.Context, op string, err error) endpoint.Result {
 	a.g.Logger().ErrorContext(ctx, "polaris auth: "+op+" failed", "error", err)
 	return endpoint.Error(http.StatusInternalServerError, "server_error", "The server could not complete the request.")
-}
-
-// authString reads key as a string: strings as they are, numbers in their JSON form, true as "1";
-// anything else (false, null, collections) is "". Clients rely on this lenient reading.
-func authString(in *endpoint.Input, key string) string {
-	switch v := in.Value(key).(type) {
-	case string:
-		return v
-	case json.Number:
-		return v.String()
-	case bool:
-		if v {
-			return "1"
-		}
-	}
-	return ""
 }
 
 // authSubject is the caller's user id and the token's session id; ok is false without a

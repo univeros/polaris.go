@@ -243,10 +243,10 @@ func (a orgAPI) createOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	return endpoint.Data(http.StatusCreated, map[string]any{"id": org.ID, "name": org.Name, "slug": org.Slug, "role": authz.RoleOwner})
 }
 
-// orgSlugPattern reports whether s is lowercase ASCII letters, digits and hyphens, allowing one
-// trailing newline (the accepted set is part of the contract; existing slugs may carry it).
+// orgSlugPattern reports whether s is lowercase ASCII letters, digits and hyphens and nothing else
+// (before decision 64 one trailing newline passed too). Only new slugs are checked, so a stored
+// slug that carries one keeps working.
 func orgSlugPattern(s string) bool {
-	s = strings.TrimSuffix(s, "\n")
 	return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz0123456789-") == ""
 }
 

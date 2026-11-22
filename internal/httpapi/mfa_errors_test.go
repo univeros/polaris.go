@@ -25,7 +25,7 @@ func TestMfaEndpointErrors(t *testing.T) {
 		}
 	}
 	expect("/auth/mfa/totp/confirm", 422, "validation_failed", map[string]any{"factor_id": " ", "code": "123456"})
-	expect("/auth/mfa/totp/confirm", 404, "not_found", map[string]any{"factor_id": "nope", "code": 123456})
+	expect("/auth/mfa/totp/confirm", 404, "not_found", map[string]any{"factor_id": "nope", "code": "123456"})
 	expect("/auth/mfa/sms/confirm", 404, "not_found", map[string]any{"factor_id": "nope", "code": "123456"})
 	expect("/auth/mfa/email/enroll", 422, "validation_failed", map[string]any{"email": "not-an-email"})
 	expect("/auth/mfa/step-up/challenge", 422, "validation_failed", map[string]any{})
@@ -34,14 +34,14 @@ func TestMfaEndpointErrors(t *testing.T) {
 	expect("/auth/mfa/step-up", 404, "not_found", map[string]any{"factor_id": "nope", "code": "123456"})
 	expect("/auth/mfa/step-up", 422, "invalid_code", map[string]any{"type": "recovery", "factor_id": "ignored", "code": "aaaaa-bbbbb"})
 
-	resp := m.c.Patch("/auth/mfa/factors/"+pendingID, map[string]any{"default": "1"}, bearer)
+	resp := m.c.Patch("/auth/mfa/factors/"+pendingID, map[string]any{"default": true}, bearer)
 	if mfaStatus(t, resp, 422); contracttest.JSON(t, resp)["error"] != "invalid_state" {
 		t.Error("making a pending factor the default: want invalid_state")
 	}
 	mfaStatus(t, m.c.Patch("/auth/mfa/factors/nope", map[string]any{"label": "x"}, bearer), 404)
 	mfaStatus(t, m.c.Delete("/auth/mfa/factors/nope", bearer), 404)
 
-	labelled := mfaData(t, m.c.Patch("/auth/mfa/factors/"+pendingID, map[string]any{"label": "Work", "default": 0}, bearer))
+	labelled := mfaData(t, m.c.Patch("/auth/mfa/factors/"+pendingID, map[string]any{"label": "Work", "default": false}, bearer))
 	cleared := mfaData(t, m.c.Patch("/auth/mfa/factors/"+pendingID, map[string]any{"label": ""}, bearer))
 	if labelled["label"] != "Work" || cleared["label"] != nil {
 		t.Errorf("label set %v then cleared %v", labelled, cleared)

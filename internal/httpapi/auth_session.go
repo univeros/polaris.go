@@ -20,8 +20,8 @@ import (
 )
 
 func (a *authAPI) login(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := strutil.Trim(authString(in, "email"))
-	password := authString(in, "password")
+	email := strutil.Trim(in.String("email"))
+	password := in.String("password")
 	if email == "" || password == "" {
 		return endpoint.Unprocessable([]string{"An email and password are required."})
 	}
@@ -73,7 +73,7 @@ func authTokenPair(t token.IssuedTokens) map[string]any {
 }
 
 func (a *authAPI) refresh(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	presented := strutil.Trim(authString(in, "refresh_token"))
+	presented := strutil.Trim(in.String("refresh_token"))
 	if presented == "" {
 		return endpoint.Unprocessable([]string{"A refresh token is required."})
 	}
@@ -166,7 +166,7 @@ func (a *authAPI) revokeSession(ctx context.Context, in *endpoint.Input) endpoin
 	if !ok {
 		return endpoint.Unauthorized()
 	}
-	sessionID := strutil.Trim(authString(in, "id"))
+	sessionID := strutil.Trim(in.String("id"))
 	if sessionID == "" {
 		return endpoint.Unprocessable([]string{"A session id is required."})
 	}
