@@ -1,0 +1,18 @@
+endpoint:
+  method: POST
+  path: /notes
+  summary: Write a note
+  tags: [notes]
+  auth: bearer
+  effect: write
+
+input:
+  source: body
+  fields:
+    body: { type: string, rules: [required, "max:255"] }
+
+output:
+  status: 201
+
+domain:
+  description: A route of a third-party plugin.

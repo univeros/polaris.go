@@ -3,7 +3,7 @@
 What changes for an application (a "host") or a plugin author in each release of Polaris for Go.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html), with the pre-1.0 rule that a minor
-release may break what [API.md](API.md) does not mark stable, and breaks a stable name only with a
+release may break the Go API ([API.md](API.md): every exported name outside `internal/`) only with a
 decision in [docs/decisions.md](docs/decisions.md) ("decision N" below). Breaking changes are
 marked **Breaking**.
 
@@ -25,6 +25,46 @@ marked **Breaking**.
 
 ### Changed
 
+- **Breaking** (Go API, decision 70): from v1.0.0 every exported name outside `internal/` is the
+  API ([API.md](API.md)), so what only Polaris used left the public packages. Nothing API.md listed
+  as the host surface or the plugin SDK is removed; this affects code that imported one of the
+  "public but not stable" packages for a concrete service. Use `polaris.Users` / `Orgs` /
+  `Sessions` from a host and `wiring.Graph`'s `Identity()`, `Sessions()`, `MFA()`, `Orgs()`,
+  `Gate()`, `Resolver()`, `Principals()`, `Denylist()` from a plugin. Removed:
+  - `identity`: `Service`, `New`, `Config`, `Sessions`, `MFAGate`, `MFATickets`,
+    `AuthorityResolver`, `NewUser`, `ImportedUser`, `UserView`, `ErrInvalidConfig`.
+  - `session`: `Service`, `New`, `Config`, `Issuer`, `PrincipalResolver`, `UserPrincipals`,
+    `Denylist`, `NewDenylist`, `MFATickets`, `NewMFATickets`, `PurposeLoginMFA`, `ReservedClaim`,
+    `ErrInvalidConfig`.
+  - `mfa`: `Service`, `New`, `Config`, `Sessions`, `Tickets`, `PrincipalResolver`, `TOTP`,
+    `NewTOTP`, `TOTPProvider`, `QRRenderer`, `SVGQRCode`, `TOTPEnrollResult`, `OTPEnrollResult`,
+    `OTPChallengeResult`, `ManagedFactorView`, `ManagedViewOf`, `RecoveryCodeCount`,
+    `ErrInvalidConfig`.
+  - `orgs`: `Service`, `New`, `Config`, `Sessions`, `Invitation`, `InvitationTTL`, `Role`,
+    `NewRole`, `RoleChanges`, `ErrInvalidConfig`, and the message constants `MsgAlreadyMember`,
+    `MsgBadStatus`, `MsgInvalidInvitation`, `MsgInvitationEmail`, `MsgInvitationNotFound`,
+    `MsgInvitationNotYetUsed`, `MsgLastActiveOwner`, `MsgLastOwner`, `MsgMemberNotFound`,
+    `MsgMemberSuspended`, `MsgMembershipExists`, `MsgOrgName`, `MsgOrganizationNotFound`,
+    `MsgOwnMembershipSuspend`, `MsgOwnerModify`, `MsgOwnerRemove`, `MsgOwnerRole`,
+    `MsgOwnerStatus`, `MsgRoleName`, `MsgRoleNotFound`, `MsgRoleSlug`, `MsgRoleSlugReserved`,
+    `MsgRolesRequired`, `MsgSlugTaken`, `MsgSlugUnderivable`, `MsgSystemRole`, `MsgUserNotFound`.
+  - `authz`: `Resolver`, `NewResolver`, `Gate`, `NewGate`, `EscalationGuard`,
+    `NewEscalationGuard`, `Principals`, `NewPrincipals`, `Seed`.
+  - `notify`: `Listener`, `Users`.
+
+  What stays in those packages is what a plugin sees: `identity.LoginResult`, `PasswordError`,
+  `PasswordPolicy`, `NormalizeEmail` and the sentinels; `session.Info`; `mfa.FactorType`,
+  `LoginChallenge`, `FactorView`, `ViewOf`, …; `orgs.Member`, `Error`; `authz.Authority`, `Caller`,
+  `Catalog`, the permission keys and role slugs. The wire messages and behaviour are unchanged.
+- **Breaking** (Go API, decision 70): `wiring.Identity`, `Sessions`, `MFA`, `Orgs`, `Denylist`,
+  `Catalog`, `Resolver`, `Gate`, `Principals` and `Pepper` are sealed (an unexported method): only
+  Polaris implements them, so a 1.x release can add a method without breaking a plugin. A test
+  double that implemented one embeds it instead (`struct{ wiring.Identity }`). Every other exported
+  interface is frozen for v1.
+- `make apicheck` compares every public package with the base (was: the names in
+  `scripts/api-stable.txt`, now removed), and refuses an incompatible change outright once the
+  base is `v1.0.0` or later. [API.md](API.md) is the v1 promise, with the deprecation policy: added
+  and deprecated in 1.x, removed only in v2.
 - **Client-visible:** every timestamp a plugin route answers is RFC 3339 in UTC with `Z`
   (`2026-11-22T10:00:00Z`, was `+00:00`): admin, api-keys, agents, audit (and its file and webhook
   sinks), multi-session, oauth, passkey, scim, sentinel, social, sso. admin echoed a key's or

@@ -16,13 +16,14 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
   anonymous,multisession,social,passkey,messaging,sentinel,scim,sso}`, the Go agent SDK `agent/`, the
   CLI (`cli`, `cmd/polaris`), `telemetry/otel`, EdDSA keys and JWKS. Security review (#42, #43),
   database matrix (#45), fuzzing (#42), the Go developer surface (#46–#48), API stability (#51:
-  `wiring` hands plugins narrow interfaces; `scripts/api-stable.txt` and `make apicheck` guard the
-  stable surface). Next milestone: `v1.0.0`; what it requires, and what is still open, is
+  `wiring` hands plugins narrow interfaces; #70: every exported name outside `internal/` is the v1
+  API and `make apicheck` guards all of it). Next milestone: `v1.0.0`; what it requires, and what is still open, is
   [`docs/v1.md`](docs/v1.md).
 - Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
   compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`. A host imports only package
   `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`); `wiring`, `endpoint`,
-  `manifest`, `event`, `token` are the plugin SDK; `API.md` says what is stable. Every new path that
+  `manifest`, `event`, `token` are the plugin SDK; `API.md` is the v1 promise (everything
+  exported outside `internal/`; what must stay free to change goes under `internal/`). Every new path that
   creates or deletes an account goes through `Graph.Identity().InsertUser` / `OnUserDeleted` (the
   host's hooks; `TestEveryAccountIsCreatedThroughInsertUser` guards it).
 

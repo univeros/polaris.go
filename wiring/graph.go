@@ -4,7 +4,7 @@
 // It is the plugin SDK, with packages endpoint, manifest, event and token: a plugin implements
 // Plugin (plus the optional interfaces it needs) and receives the *Graph, whose accessor methods
 // expose the services read-only. Hosts use the root package (polaris.New) and never need this one.
-// API.md at the repository root states what is stable.
+// API.md at the repository root is the API promise.
 package wiring
 
 import (
@@ -16,25 +16,25 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
-	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/internal/apispec"
+	"github.com/univeros/polaris.go/internal/authz"
+	"github.com/univeros/polaris.go/internal/identity"
+	"github.com/univeros/polaris.go/internal/mfa"
 	"github.com/univeros/polaris.go/internal/observe"
+	"github.com/univeros/polaris.go/internal/orgs"
 	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/internal/session"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/metrics"
-	"github.com/univeros/polaris.go/mfa"
 	"github.com/univeros/polaris.go/notify"
-	"github.com/univeros/polaris.go/orgs"
 	"github.com/univeros/polaris.go/ratelimit"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/security"
-	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -479,7 +479,7 @@ func (g *Graph) collectListeners() {
 	// ones whose effect leaves the database wait for its commit (Deferred).
 	g.listeners = []event.Listener{
 		observe.AuditLog(g.repos.AuditLog, g.clock, g.logger),
-		g.Deferred(notify.Listener(g.mailer, g.repos.Users, g.logger)),
+		g.Deferred(observe.Mail(g.mailer, g.repos.Users, g.logger)),
 		g.Deferred(observe.Metrics(g.metrics)),
 	}
 	for _, p := range g.plugins {

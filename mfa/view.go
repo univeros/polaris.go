@@ -13,13 +13,6 @@ type FactorView struct {
 	Destination string `json:"destination,omitempty"` // masked; sms and email factors only
 }
 
-// ManagedFactorView is the management-list shape: the login view plus confirmed, since the
-// management list shows pending factors too.
-type ManagedFactorView struct {
-	FactorView
-	Confirmed bool `json:"confirmed"`
-}
-
 // ViewOf returns f's client view, its sms/email destination masked.
 func ViewOf(f model.MFAFactor) FactorView {
 	var destination string
@@ -32,7 +25,9 @@ func ViewOf(f model.MFAFactor) FactorView {
 	return FactorView{ID: f.ID, Type: f.Type, Default: f.IsDefault, Label: deref(f.Label), Destination: MaskDestination(f.Type, destination)}
 }
 
-// ManagedViewOf returns f's management view.
-func ManagedViewOf(f model.MFAFactor) ManagedFactorView {
-	return ManagedFactorView{FactorView: ViewOf(f), Confirmed: f.ConfirmedAt != nil}
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

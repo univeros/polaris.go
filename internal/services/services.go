@@ -1,15 +1,15 @@
 // Package services hands core (package polaris, internal/httpapi, polaristest, cli) the concrete
 // services of a wiring.Graph. Plugins see them only through wiring's narrow interfaces, so the
-// concrete method sets stay free to change (API.md §2).
+// concrete method sets stay free to change (API.md).
 package services
 
 import (
-	"github.com/univeros/polaris.go/authz"
-	"github.com/univeros/polaris.go/identity"
-	"github.com/univeros/polaris.go/mfa"
-	"github.com/univeros/polaris.go/orgs"
+	"github.com/univeros/polaris.go/internal/authz"
+	"github.com/univeros/polaris.go/internal/identity"
+	"github.com/univeros/polaris.go/internal/mfa"
+	"github.com/univeros/polaris.go/internal/orgs"
+	"github.com/univeros/polaris.go/internal/session"
 	"github.com/univeros/polaris.go/security"
-	"github.com/univeros/polaris.go/session"
 )
 
 // Services are the concrete services wiring.New built.

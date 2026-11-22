@@ -27,8 +27,6 @@ var (
 	ErrInvalidProfile = errors.New("identity: invalid profile")
 	// ErrEmailTaken: CreateUser for an email another account holds.
 	ErrEmailTaken = errors.New("identity: email taken")
-	// ErrInvalidConfig: New was given an incomplete Config.
-	ErrInvalidConfig = errors.New("identity: invalid configuration")
 )
 
 // Error is a refusal carrying the client-facing message. It
@@ -43,8 +41,6 @@ func (e *Error) Error() string { return e.Message }
 // Unwrap returns Kind, so errors.Is matches the sentinel.
 func (e *Error) Unwrap() error { return e.Kind }
 
-func refuse(kind error, message string) error { return &Error{Kind: kind, Message: message} }
-
 // PasswordError reports a password that fails the policy; Violations lists each failed rule as
 // the 422 body shows it. It matches ErrInvalidPassword.
 type PasswordError struct{ Violations []string }
@@ -53,21 +49,3 @@ func (e *PasswordError) Error() string { return "The password does not meet the 
 
 // Is reports whether target is ErrInvalidPassword.
 func (e *PasswordError) Is(target error) bool { return target == ErrInvalidPassword }
-
-// Client-facing messages: clients may match on them, so they do not change.
-const (
-	msgInvalidCredentials = "Invalid email or password."
-	msgWrongPassword      = "The current password is incorrect."
-	msgDisabled           = "This account is disabled."
-	msgUnverified         = "Email address is not verified."
-	msgBadVerification    = "The verification token is invalid."
-	msgExpiredVerify      = "The verification token has expired."
-	msgBadReset           = "The reset token is invalid or expired."
-	msgUserNotFound       = "The user does not exist."
-	msgSelfDisable        = "You cannot disable your own account."
-	msgTombstone          = "The account has been anonymized and cannot be re-enabled."
-	msgDisplayNameTooLong = "The display name must be 120 characters or fewer."
-	msgOwnAccountOnly     = "You may only manage your own account."
-	msgInvalidEmail       = "A valid email address is required."
-	msgEmailTaken         = "The email address is already registered."
-)

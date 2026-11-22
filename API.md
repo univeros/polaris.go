@@ -1,67 +1,127 @@
-# API stability (v0.x)
+# The Go API and what v1 promises
 
-Polaris for Go is pre-1.0. This page says what an application or a plugin may rely on, and what may
-still change. Any change to a **stable** name below needs a decision entry in
-`docs/decisions.md` and a note in the release; everything else may change in a minor release.
-`scripts/api-stable.txt` lists the stable names for the machine: `make apicheck` (CI, on every pull
-request) fails on an incompatible change to one of them that `decisions.md` does not record.
+Polaris for Go follows Go's module rules, not a list of its own: **every exported name of every
+package outside `internal/` is the API**, and from `v1.0.0` on it is covered by semantic versioning.
+What you can import is what is promised; nothing is "public but not stable". What Polaris must stay
+free to change lives under `internal/`, where the compiler keeps it out of reach (decision 70).
+
+Until `v1.0.0` is tagged, a release may still break a name; each break is a decision in
+`docs/decisions.md` and a **Breaking** line in [CHANGELOG.md](CHANGELOG.md).
+
 The HTTP routes, the database schema and the stored formats (password hashes, ciphertexts, tokens)
-are a contract of their own: the contract tests replay every route, `testdata/vectors` pins the
-formats, and a change to any of them is a decision in `docs/decisions.md` and a release note (AGENT.md
-rules 4 and 5).
+are contracts of their own, kept by other means: the contract tests replay every route,
+`testdata/vectors` pins the formats, and a change to any of them is a decision and a release note
+(AGENT.md rules 4 and 5).
 
-## 1. The host surface (stable)
+## 1. The promise
 
-What an application imports. A host never needs another package.
+From `v1.0.0`, within major version 1:
 
-| Package | Stable names |
+- **Nothing is removed or changed incompatibly.** A program that compiles against `v1.x` compiles
+  against every later `v1.y`, and what it relied on keeps its documented behaviour.
+- **Things are added.** New packages, functions, methods, struct fields, constants, event types,
+  optional plugin interfaces and `Config` fields arrive in minor releases.
+- **Things are deprecated, not removed.** A name with a better replacement gets a `// Deprecated:`
+  comment that names the replacement, and a CHANGELOG entry. It keeps working for the rest of v1.
+- **A removal needs v2.** An incompatible change ships only as a new major version, whose module
+  path ends in `/v2`; v1 code keeps building against v1.
+
+`make apicheck` holds the module to this (section 6).
+
+What you must do for the promise to hold, as for the Go standard library:
+
+- Use keyed struct literals (`polaris.Config{DB: db}`), so a new field does not break you.
+- Do not implement an interface Polaris implements for you (the sealed ones, section 3); in a test,
+  embed it.
+- Do not depend on what is documented as unspecified, on the text of an error message meant for
+  logs (match errors with `errors.Is` / `errors.As`), or on the order of things documented as
+  unordered. A `switch` over event types or kinds needs a `default`: new ones are added.
+- A security fix may change behaviour when nothing else closes the hole. It is then a decision and
+  a release note, and the Go API still compiles.
+
+Not covered: `internal/…`, the programs (`cmd/polaris`'s `main`, `examples/…`), test files and
+`testdata/`.
+
+## 2. For a host
+
+What an application imports. An everyday host needs nothing else.
+
+| Package | What it is |
 |---|---|
-| `polaris` | `New`, `FromEnv`, `DevEnv` and `EnvDev`, `Config` (every field), `Polaris` (`Handler`, `Protect`, `Require`, `Authenticate`, `Wrap`, `Migrate`, `Prune`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind` and `Kind*`, `RequireKind`, `RequireOrganization`, `Hooks`, `ClaimsInput`, `User`, `NewUser`, `Organization`, `Invitation`, `Tokens`, `SignIn`, `ImportedUser`, `Users`, `Orgs`, `Sessions` and their methods (`Users.Import`, `Orgs.Invite` included), `ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrEmailNotVerified`, `ErrInvalidInput`, `ErrInvalidCredentials`, `PasswordError` |
-| `event` | for `Config.Listeners`: `Event`, `Listener`, the core event types and their `Name*` constants |
-| `plugins/<id>` | `New(Config)`, the `Config` fields, the documented claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, `ui.Plugin.RequireSignIn`, …) |
-| `store/sqlstore` | `Open`, `New`, `WithTx`, `Store` (`DB`, `Tx`, `Conn`, `AfterCommit`, `Close`), `Conn` |
-| `store` | `Dialect` values, `Adapter` (to pass one), `ErrDuplicate` |
-| `polaristest` | `New` and its options, `Server` fields, `Hasher` |
-| `agent` | the Go agent SDK: `New`, `GenerateKey`, `ImportKey`, `Enroll`, `RequestGrants`, `WaitForApproval`, `Execute`, `Do`, its errors |
-| `plugins/mcp` | `Protect`, `ProtectConfig`, `Claims`, `ServeStdio` |
-| `verify` | for a service that is not the Polaris host: `New`, `Config` (every field), `Verifier` (`Verify`, `Require`), `Claims`, `ClaimsFrom`, `ErrInvalidToken`, `ErrUnavailable` |
-| `cli` | `Run` |
-| `config` | `Secrets`, `Auth` and `Defaults`, the `Signer*` values (fields may be added) |
+| `polaris` | `New`, `FromEnv`, `DevEnv`, `Config`, `Polaris` (`Handler`, `Protect`, `Require`, `Authenticate`, `Wrap`, `Migrate`, `Prune`, `Users`, `Orgs`, `Sessions`, `Can`, `Graph`), `PrincipalFrom`, `Principal`, `Kind*`, `RequireKind`, `RequireOrganization`, `Hooks`, the `Users` / `Orgs` / `Sessions` services and their values, the `Err*` sentinels, `PasswordError` |
+| `event` | for `Config.Listeners`: `Event`, `Listener`, the event types and their `Name*` constants |
+| `plugins/<id>` | `New(Config)`, the `Config` fields, the claim / AMR / route constants, the services a README names (`apikeys.Of(g).Keys()`, `ui.Plugin.RequireSignIn`, `mcp.Protect`, …) |
+| `store/sqlstore`, `store` | `Open`, `New`, `WithTx`, `Store` (`DB`, `Tx`, `Conn`, `AfterCommit`, `Close`); the `Dialect` values, `Adapter`, `ErrDuplicate` |
+| `config` | `Secrets`, `Auth`, `Defaults`, the `Signer*` values |
+| `verify` | for a service that is not the Polaris host: `New`, `Config`, `Verifier`, `Claims`, `ClaimsFrom` |
+| `agent` | the Go agent SDK: `New`, `GenerateKey`, `Enroll`, `RequestGrants`, `WaitForApproval`, `Execute`, `Do` |
 | `telemetry/otel` | `Middleware`, `Store`, `Listener` and their options |
-| ports a host implements | `security.PasswordHasher` (and the optional `security.HashChecker`, with `security.ErrUnsupportedHash`), `security.BreachedPasswordCheck`, `notify.Mailer`, `notify.SMSSender`, `clock.Clock`, `cache.Cache`, `ratelimit.Store` (and `ratelimit.Result`), `metrics.Metrics` |
+| `cli` | `Run` |
+| `polaristest`, `notify/notifytest` | `New` and its options, `Server`, `Hasher`; the recording mailer and SMS sender |
+
+The ports a host may implement, each with the implementation Polaris uses by default:
+
+| Port | Default, and helpers |
+|---|---|
+| `security.PasswordHasher` (optional `security.HashChecker`, `security.ErrUnsupportedHash`) | `security.Argon2id` |
+| `security.BreachedPasswordCheck` | `security.HIBP`, `security.NoBreachCheck` |
+| `notify.Mailer`, `notify.SMSSender` | `notify.NewLogMailer`, `NewLogSMS`, `DiscardMailer`, `DiscardSMS`; the `Template*` names a mailer switches on, `Subject`, `Text` |
+| `cache.Cache` | `cache.NewMemory`; `ValidateKey` |
+| `ratelimit.Store` (`ratelimit.Result`) | `ratelimit.NewCacheStore`; `Check`, `Headers` |
+| `clock.Clock` | `clock.System`; `clock.NewFrozen` for tests |
+| `metrics.Metrics` | `metrics.NewLog` |
+| `store.Adapter` | `store/sqlstore`; `store/memstore` for tests; `store/storetest.Run` is the conformance suite an adapter passes |
 
 Behaviour that is part of the contract: `Protect` answers 401 without a principal and 403 without a
 permission, and resolves the caller's authority on every request; `Require(perms...)(next)` is
 `Protect(next, perms...)`; `Authenticate` lets a request without a credential through anonymous and
 answers 401 to a credential that does not verify (never anonymous); `verify` accepts only RS256 and
 EdDSA access tokens of the configured issuer and audience, and refuses DPoP-bound ones; hooks run
-inside the account's transaction; `Hooks.Claims` refuses reserved names; the programmatic API applies the HTTP routes'
-rules, events and audit, for a trusted caller (the actor recorded is `system`); listeners that
-write to the store (core's audit, plugins' listeners, `Config.TxListeners`) run inside the
-transaction that raised the event, while `Config.Listeners` and the mail run after a
-`sqlstore.Store.Tx` commits and never after it rolls back (under `sqlstore.WithTx`, whose commit
-Polaris does not see, when Polaris's work is done); `DevEnv` refuses to run without
-`POLARIS_DEV=1`.
+inside the account's transaction; `Hooks.Claims` refuses reserved names; the programmatic API
+applies the HTTP routes' rules, events and audit, for a trusted caller (the actor recorded is
+`system`); listeners that write to the store (core's audit, plugins' listeners,
+`Config.TxListeners`) run inside the transaction that raised the event, while `Config.Listeners`
+and the mail run after a `sqlstore.Store.Tx` commits and never after it rolls back (under
+`sqlstore.WithTx`, whose commit Polaris does not see, when Polaris's work is done); `DevEnv`
+refuses to run without `POLARIS_DEV=1`.
 
-`event` is listed here because `Config.Listeners` takes `event.Listener` and a listener switches on
-the event types; aliasing them in `polaris` would give every event two names.
+## 3. For a plugin
 
-Adding a field to a stable struct, a method, an option or a constant is not a breaking change;
-hosts should use keyed struct literals.
+A plugin outside this module builds on the same public packages the in-tree plugins do.
+`testdata/thirdparty/notes` is one, type-checked as a module of its own on every `make qa`
+(`TestAThirdPartyPluginBuildsOutsideTheModule`).
 
-## 2. The plugin SDK (stable, may grow)
+| Package | What it is |
+|---|---|
+| `wiring` | `Plugin` and its optional interfaces, `Graph` and its accessors, the service interfaces, `Hooks`, `User`, `Tool*`, `Ports`, `Caller`, `Authority` |
+| `endpoint` | `Endpoint`, `Input`, `Result`, the request-context accessors, the envelope and problem helpers |
+| `manifest` | `Route`, `Load`, the input rules |
+| `event` | `Event`, `Listener`, `Dispatcher`, `Bus`, the event types and names |
+| `token` | `Token`, `Kind`, `KindOf`, `NewPrincipal`, `Delegate`, `Claims`, `Codec` |
+| `pipeline` | `BearerResolver` (a plugin's own credential), `Pipeline` and `Options` (`Graph.Pipeline`), `DeniesDelegate`, `DeniesBound` |
+| `model`, `schema`, `repository` | the rows (frozen with the database), the table DSL a `SchemaProvider` uses, the core repositories behind `Graph.Repos` |
+| `authz` | permission keys, role slugs, `Catalog`, `Authority`, `Caller`, `ErrForbidden` |
+| `identity`, `session`, `mfa`, `orgs` | what the services return and refuse with: `identity.LoginResult`, `identity.Err*`, `identity.PasswordPolicy`, `identity.NormalizeEmail`, `session.Info`, `mfa.FactorType`, `mfa.LoginChallenge`, `mfa.FactorView`, `mfa.Err*`, `orgs.Member`, `orgs.Error`, … |
+| `security` | `Encrypter` (`Graph.Encrypter`; its payload format is frozen) |
 
-What a third-party plugin builds on: `wiring` (`Plugin` and its optional interfaces, `HandlerProvider` for HTML pages included, `Graph` and its
-read-only accessors, `Hooks`, `User`, `Tool*`, `Ports`), `endpoint` (`Endpoint`, `Input`, `Result`,
-the request-context accessors, envelope and problem helpers), `manifest` (`Route`, `Load`, input
-rules), `event` (`Event`, `Listener`, `Dispatcher`, `Bus`, the core event types and names) and
-`token` (`Token`, `Kind`, `KindOf`, `NewPrincipal`, `Delegate`, `Claims`, `Codec`).
+**Interfaces you implement are frozen.** Every exported interface in the module is one a host or
+a plugin may implement (`wiring.Plugin` and the optional interfaces beside it, `endpoint.Endpoint`,
+`pipeline.BearerResolver`, `mfa.FactorType`, `event.Dispatcher`, the ports of section 2, the
+plugins' own ports such as `sso.DomainVerifier`), except the ten named below. None of them gains,
+loses or changes a method in v1: your implementation keeps compiling. A new capability arrives as
+a **new optional interface**, found by type assertion, the way `security.HashChecker` extends
+`PasswordHasher` and `wiring.AccessEraser` extends `Plugin`.
 
-The core services reach a plugin as narrow interfaces declared in `wiring`: `Identity`, `Sessions`,
-`MFA`, `Orgs`, `Denylist`, `Catalog`, `Resolver`, `Gate`, `Principals`, `Pepper`. Each holds only
-the methods plugins call; the services behind them may grow and change freely. A method a plugin
-needs is added to its interface. `TestGraphAccessorsReturnOnlyStableTypes` keeps every `Graph`
-accessor on a stable type.
+**Interfaces you only call may grow.** `wiring.Identity`, `Sessions`, `MFA`, `Orgs`, `Denylist`,
+`Catalog`, `Resolver`, `Gate`, `Principals` and `Pepper` are the core services as a plugin sees
+them (`Graph.Identity()`, …). Polaris implements them; they are sealed with an unexported method,
+so no other package can, and a minor release may add a method to one. No method is removed or
+changed. A test double embeds the interface (`struct{ wiring.Identity }`) and overrides the
+methods the test calls. A method a plugin needs is added to its interface.
+
+Likewise additive, in minor releases: new `Graph` accessors, new optional plugin interfaces, new
+fields on `wiring.Config`, `wiring.Hooks`, `pipeline.Options` and the other structs, new event
+types and manifest rules.
 
 Two rules a plugin follows (decision 68). A path that establishes control of an account's mailbox
 calls `Graph.Identity().ProveEmail` and never writes `email_verified_at` itself; a plugin whose
@@ -69,35 +129,42 @@ tables hold a way to act as a user (a credential, a key, a grant) implements `wi
 so a mailbox's first proof removes what was there before it. And a route reserved to the account
 holder declares no `requires_permissions` and an `effect` other than `read` (or `step_up`): the
 pipeline keeps delegated credentials (`pipeline.DeniesDelegate`) and organization-bound SSO
-sessions (`pipeline.DeniesBound`, `token.Token.OrganizationBound`) off it.
-
-Stable with them, because the SDK's signatures name them: packages `model` (the rows; frozen with
-the database) and `schema` (the table DSL a `SchemaProvider` uses); `Graph.Repos` (`repository.Repos`,
-its repositories, `repository.Table`, `NewID`, `ErrNotFound`); `security.Encrypter`; and the
-values the narrow interfaces and plugin hooks take or return (`identity.LoginResult`,
-`session.Info`, `mfa.LoginChallenge`, `mfa.FactorType`, `orgs.Member`, `authz.Authority`,
-`authz.Caller`, `authz.Permission`, `pipeline.Pipeline`, `pipeline.BearerResolver`, …; the full
-list is `scripts/api-stable.txt`).
-
-New optional plugin interfaces, new `Graph` accessors and new methods on the narrow interfaces are
-added without notice. Removing or changing one is a breaking change.
-
-## 3. Public but not stable
-
-Everything else in the domain packages: the concrete services (`identity.Service`,
-`session.Service`, `mfa.Service`, `orgs.Service`, `authz.Gate`, …) and the rest of `identity`,
-`orgs`, `session`, `mfa`, `authz`, `repository`, `security`, `notify`, `cache`, `clock`,
-`ratelimit`, `metrics`, `pipeline`, plus `store/memstore` and `store/storetest`. They are
-importable, but their API follows the implementation and may change in any minor release. A host
-that finds itself importing one of them for an everyday task should report it: the host surface is
-missing something.
+sessions (`pipeline.DeniesBound`, `token.Token.OrganizationBound`) off it. Every path that creates
+or deletes an account goes through `Graph.Identity().InsertUser` / `OnUserDeleted`.
 
 ## 4. Internal
 
-`internal/…` (core's endpoints, the observers, maintenance jobs, the route specs and
-fixtures, the contract-test harness, the SSRF guard, the access-token verifier `verify` and `plugins/mcp` share, the concrete services for core) cannot be imported from outside the module.
+`internal/…` cannot be imported from outside the module, and changes freely: the concrete
+services (`internal/identity`, `session`, `mfa`, `orgs`, `authz`: registration, login, refresh
+rotation, the MFA engine, the resolver and the gate), `internal/services` (how core reaches them),
+core's endpoints (`internal/httpapi`), the observers (audit, metrics, mail), maintenance jobs, the
+route specs and fixtures, the contract-test harness, the SSRF guard, and the access-token verifier
+`verify` and `plugins/mcp` share. The in-tree plugins use some of it (their route specs, the
+erasure helper, the SSRF guard); none of it is needed to write a plugin.
 
-## 5. Changes
+A host or a plugin that needs something that is internal should report it: the public surface is
+missing something, and adding to it is not a breaking change.
+
+## 5. Deprecation
+
+1. The replacement is added in a minor release.
+2. The old name gets `// Deprecated: use X.` and a CHANGELOG entry under *Deprecated*; it keeps
+   its behaviour, usually by calling the replacement.
+3. It stays for the rest of v1. It is removed, at the earliest, in v2.
+
+## 6. How it is kept
+
+- `make apicheck` (CI job "API compatibility", on every pull request) compares every public
+  package with the base using `apidiff`. Before `v1.0.0` an incompatible change passes only when
+  `docs/decisions.md` gains a line containing "Breaking" in the same change. Once the base is
+  `v1.0.0` or later it is refused: the only way through is a module path that moved to `/v2`.
+- `TestAThirdPartyPluginBuildsOutsideTheModule` builds a plugin outside the module and checks that
+  `internal/` is out of its reach; `TestGraphAccessorsReturnOnlyPublicTypes` keeps every `Graph`
+  accessor on a type a plugin can name.
+- The contract tests, the known-answer vectors and the upgrade test keep the HTTP, stored-format
+  and schema contracts.
+
+## 7. Changes
 
 What changes in each release, breaking changes marked, is in [CHANGELOG.md](CHANGELOG.md); the
 reason for each is in [docs/decisions.md](docs/decisions.md).

@@ -1,0 +1,23 @@
+endpoint:
+  method: POST
+  path: /notes/sign-in
+  session: issue
+  summary: Sign in
+  tags: [notes]
+  auth: public
+  effect: write
+
+input:
+  source: body
+  fields:
+    email: { type: string, rules: [required] }
+    password: { type: string, rules: [required], sensitive: true }
+
+output:
+  status: 200
+
+errors:
+  - { status: 401, code: notes_invalid_credentials }
+
+domain:
+  description: A route of a third-party plugin.

@@ -9,8 +9,8 @@ import (
 	"github.com/univeros/polaris.go/internal/strutil"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/mfa"
 	"github.com/univeros/polaris.go/manifest"
-	"github.com/univeros/polaris.go/mfa"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/wiring"
