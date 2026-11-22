@@ -1195,12 +1195,12 @@
                 ]
             },
             "body": {
-                "type": "https://polaris.univeros.io/problems/agents/capability_not_granted",
-                "title": "Capability Not Granted",
+                "type": "https://polaris.univeros.io/problems/agents/budget_exhausted",
+                "title": "Budget Exhausted",
                 "status": 403,
-                "detail": "The agent holds no active grant for \"credits.spend\".",
-                "error": "capability_not_granted",
-                "message": "The agent holds no active grant for \"credits.spend\"."
+                "detail": "The grant's budget cannot cover this execution (0 left).",
+                "error": "budget_exhausted",
+                "message": "The grant's budget cannot cover this execution (0 left)."
             }
         }
     },

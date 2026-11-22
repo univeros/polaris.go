@@ -191,7 +191,7 @@ func (c *Connections) find(ctx context.Context, criteria store.Criteria, limit i
 func (c *Connections) Delete(ctx context.Context, id string) (bool, error) {
 	var n int64
 	err := c.db.Tx(ctx, func(ctx context.Context) error {
-		for _, table := range []string{TableResources, TableProvenance} {
+		for _, table := range []string{TableResources, TableProvenance, TableUserNames} {
 			if _, err := c.db.Delete(ctx, table, store.Criteria{"connection_id": id}); err != nil {
 				return err
 			}

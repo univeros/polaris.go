@@ -196,13 +196,12 @@ curl -s $B/audit/organization/$ORG -H "Authorization: Bearer $OWNER" \
 ["agent.receipt.sealed","agent.revoked","agent.execution_denied","agent.execution_denied","agent.executed","agent.executed","agent.grant.approved","agent.grant.approved","agent.grant.requested","agent.enrolled"]
 ```
 
-## Friction
+## The host's permissions
 
-An organization's system roles hold only Polaris's own permissions. An owner cannot put the host's
-permissions into a role over HTTP: `POST /orgs/{id}/roles` refuses permissions the caller does not
-hold. So the demo grants `invoices.read` and `invoices.refund` to the organization's owner role
-through `p.Graph().Repos()` (see `grantToRole`). Without that grant, approving the agent's grants
-fails with `agents/permission_not_held`.
+`invoices.read` and `invoices.refund` are the host's own permissions (`cfg.Permissions`), and
+`cfg.RolePermissions = map[string][]string{"owner": {"invoices.read", "invoices.refund"}}` puts
+them in every organization's owner role. Without that, approving the agent's grants fails with
+`agents/permission_not_held`: only what you hold can be granted.
 
 ## Test
 

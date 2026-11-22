@@ -7,9 +7,10 @@ const (
 	TableConnections = "polaris_scim_connection"
 	TableResources   = "polaris_scim_resource"
 	TableProvenance  = "polaris_scim_membership_provenance"
+	TableUserNames   = "polaris_scim_user_name"
 )
 
-// Models returns the plugin's three tables; their columns are the schema existing databases
+// Models returns the plugin's four tables; their columns are the schema existing databases
 // hold.
 func Models() []schema.Model {
 	return []schema.Model{
@@ -43,5 +44,16 @@ func Models() []schema.Model {
 			schema.StringField("connectionId", 36),
 			schema.DateTimeField("createdAt"),
 		).Unique([]string{"organization_id", "user_id"}, "polaris_scim_provenance_unique"),
+		// Added after v0.4.1 (decision 62): the name.givenName and name.familyName a directory sent for an account it
+		// manages (the user row holds only the display name). Migrate creates it; a user without
+		// a row answers name.formatted alone, as before.
+		schema.Table(TableUserNames,
+			schema.StringField("id", 36).AsPrimary(),
+			schema.StringField("connectionId", 36),
+			schema.StringField("userId", 36),
+			schema.StringField("givenName", 120).AsNullable(),
+			schema.StringField("familyName", 120).AsNullable(),
+			schema.DateTimeField("updatedAt"),
+		).Unique([]string{"connection_id", "user_id"}, "polaris_scim_user_name_unique"),
 	}
 }

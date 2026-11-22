@@ -844,7 +844,9 @@
                 "userName": "bob@acme.example",
                 "displayName": "Bob Builder",
                 "name": {
-                    "formatted": "Bob Builder"
+                    "formatted": "Bob Builder",
+                    "givenName": "Bob",
+                    "familyName": "Builder"
                 },
                 "emails": [
                     {
@@ -969,7 +971,9 @@
                         "userName": "bob@acme.example",
                         "displayName": "Bob Builder",
                         "name": {
-                            "formatted": "Bob Builder"
+                            "formatted": "Bob Builder",
+                            "givenName": "Bob",
+                            "familyName": "Builder"
                         },
                         "emails": [
                             {
@@ -1062,7 +1066,9 @@
                         "userName": "bob@acme.example",
                         "displayName": "Bob Builder",
                         "name": {
-                            "formatted": "Bob Builder"
+                            "formatted": "Bob Builder",
+                            "givenName": "Bob",
+                            "familyName": "Builder"
                         },
                         "emails": [
                             {
@@ -1124,7 +1130,9 @@
                         "userName": "bob@acme.example",
                         "displayName": "Bob Builder",
                         "name": {
-                            "formatted": "Bob Builder"
+                            "formatted": "Bob Builder",
+                            "givenName": "Bob",
+                            "familyName": "Builder"
                         },
                         "emails": [
                             {
@@ -1178,7 +1186,9 @@
                 "userName": "bob@acme.example",
                 "displayName": "Bob Builder",
                 "name": {
-                    "formatted": "Bob Builder"
+                    "formatted": "Bob Builder",
+                    "givenName": "Bob",
+                    "familyName": "Builder"
                 },
                 "emails": [
                     {
@@ -1279,7 +1289,9 @@
                 "userName": "bob@acme.example",
                 "displayName": "Robert",
                 "name": {
-                    "formatted": "Robert"
+                    "formatted": "Robert",
+                    "givenName": "Bob",
+                    "familyName": "Builder"
                 },
                 "emails": [
                     {

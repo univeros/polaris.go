@@ -7,8 +7,9 @@ import (
 
 // Mint signs a non-session JWT (an OAuth at+jwt access token, an OpenID ID token) with the
 // Codec's key and kid. The header is {"typ":typ,"alg":…,"kid":…}
-// (typ "" means "JWT"); the payload starts with iss, iat and nbf (now) and exp (expiresAt, at
-// microsecond precision), then claims in order. Caller iss/iat/nbf/exp are dropped; sub and
+// (typ "" means "JWT"); the payload starts with iss, iat and nbf (now, whole seconds) and exp
+// (iat plus the lifetime expiresAt − now rounded to whole seconds, so a lifetime computed from
+// a reading of the clock a moment earlier stays exact), then claims in order. Caller iss/iat/nbf/exp are dropped; sub and
 // jti must be strings; aud is a string or a list of strings (a one-element list is written as
 // a string). The configured Audience and TTL do not apply.
 func (c *Codec) Mint(typ string, claims Claims, expiresAt time.Time) (string, error) {
@@ -19,11 +20,12 @@ func (c *Codec) Mint(typ string, claims Claims, expiresAt time.Time) (string, er
 		typ = "JWT"
 	}
 	now := c.now()
+	iat := now.Unix()
 	payload := Claims{}.
 		With("iss", c.issuer).
-		With("iat", encodeInstant(now)).
-		With("nbf", encodeInstant(now)).
-		With("exp", encodeInstant(expiresAt))
+		With("iat", iat).
+		With("nbf", iat).
+		With("exp", iat+int64(expiresAt.Sub(now).Round(time.Second)/time.Second))
 	payload, err := appendClaims(payload, claims, map[string]bool{"iss": true, "iat": true, "nbf": true, "exp": true})
 	if err != nil {
 		return "", err
