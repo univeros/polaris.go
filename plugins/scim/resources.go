@@ -55,7 +55,38 @@ func (r *resources) setExternalID(ctx context.Context, conn Connection, kind, lo
 
 func (r *resources) forget(ctx context.Context, conn Connection, kind, localID string) error {
 	_, err := r.db.Delete(ctx, TableResources, key(conn, kind, localID))
+	if err == nil && kind == KindUser {
+		err = r.setNameParts(ctx, conn, localID, nameParts{})
+	}
 	return err
+}
+
+// nameParts are a User's name.givenName and name.familyName ("" when not sent).
+type nameParts struct{ given, family string }
+
+// nameParts reads what the directory sent for userID (zero when nothing).
+func (r *resources) nameParts(ctx context.Context, conn Connection, userID string) (nameParts, error) {
+	row, err := r.db.FindOne(ctx, TableUserNames, store.Criteria{"connection_id": conn.ID, "user_id": userID})
+	if err != nil || row == nil {
+		return nameParts{}, err
+	}
+	return nameParts{given: row.String("given_name"), family: row.String("family_name")}, nil
+}
+
+// setNameParts records the parts the directory sent for userID; zero parts delete the record.
+func (r *resources) setNameParts(ctx context.Context, conn Connection, userID string, p nameParts) error {
+	criteria := store.Criteria{"connection_id": conn.ID, "user_id": userID}
+	if p == (nameParts{}) {
+		_, err := r.db.Delete(ctx, TableUserNames, criteria)
+		return err
+	}
+	data := store.Data{"given_name": nullable(p.given), "family_name": nullable(p.family), "updated_at": r.now()}
+	n, err := r.db.Update(ctx, TableUserNames, criteria, data)
+	if err != nil || n > 0 {
+		return err
+	}
+	return r.db.Insert(ctx, TableUserNames, store.Row{"id": repository.NewID(), "connection_id": conn.ID, "user_id": userID,
+		"given_name": nullable(p.given), "family_name": nullable(p.family), "updated_at": r.now()})
 }
 
 func (r *resources) count(ctx context.Context, conn Connection, kind string) (int64, error) {
