@@ -17,7 +17,8 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
   CLI (`cli`, `cmd/polaris`), `telemetry/otel`, EdDSA keys and JWKS. Security review (#42, #43),
   database matrix (#45), fuzzing (#42), the Go developer surface (#46–#48), API stability (#51:
   `wiring` hands plugins narrow interfaces; `scripts/api-stable.txt` and `make apicheck` guard the
-  stable surface). Next milestone: `v1.0.0`.
+  stable surface). Next milestone: `v1.0.0`; what it requires, and what is still open, is
+  [`docs/v1.md`](docs/v1.md).
 - Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
   compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`. A host imports only package
   `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`); `wiring`, `endpoint`,
@@ -61,7 +62,10 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
 2. Tests first, then code; keep `make qa` green.
 3. Log the decision in `docs/decisions.md` when the change is notable (behaviour, API, dependency,
    security).
-4. The PR description lists what changed and how each part was verified.
+4. A notable change also adds a line under `Unreleased` in `CHANGELOG.md`: what changes for a host
+   or plugin author (a break marked **Breaking**). At a release, `Unreleased` becomes the
+   version's section, and the tag's release workflow publishes it as the release notes.
+5. The PR description lists what changed and how each part was verified.
 
 ## Commands
 
@@ -69,5 +73,6 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
 make qa                              # gofmt check, go vet, lint, go test -race -cover
 make apicheck BASE=origin/main       # stable Go API unchanged, or the break recorded (#51)
 make vuln                            # govulncheck
+make fuzz FUZZTIME=30s               # every fuzz target (CI: weekly, .github/workflows/fuzz.yml)
 scripts/test-db-matrix.sh            # the suites on PostgreSQL and MySQL
 ```

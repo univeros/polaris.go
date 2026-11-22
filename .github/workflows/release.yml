@@ -1,0 +1,28 @@
+# Release notes: a pushed v* tag gets a GitHub Release whose body is that version's section of
+# CHANGELOG.md (scripts/release-notes.sh). A tag without a changelog section fails here and gets
+# no release. Binaries are not built: hosts `go get` the module and `go install` the CLI.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: GitHub Release from CHANGELOG.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          scripts/release-notes.sh "$TAG" >"$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
