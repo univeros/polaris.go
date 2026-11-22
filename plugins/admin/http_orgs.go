@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -273,8 +275,8 @@ func (p *Plugin) createDrain(ctx context.Context, in *endpoint.Input) endpoint.R
 		return res
 	}
 	target := in.String("endpoint")
-	if u, err := url.ParseRequestURI(target); err != nil || u.Host == "" || !strings.HasPrefix(target, "https://") {
-		return Invalid("endpoint must be an https URL.")
+	if problem := drainEndpoint(target); problem != "" {
+		return Invalid(problem)
 	}
 	secret := in.String("secret")
 	if len(secret) < minDrainSecret {
@@ -293,6 +295,26 @@ func (p *Plugin) createDrain(ctx context.Context, in *endpoint.Input) endpoint.R
 	}
 	return p.recorded(ctx, endpoint.Data(http.StatusCreated, drain.Map()), AuditDrainCreated, op, "", orgID,
 		map[string]any{"drain_id": drain.ID, "endpoint": target})
+}
+
+// drainEndpoint is what is wrong with target as a drain's endpoint, "" when nothing: it is
+// https with a host, carries no credentials, and is not a literal non-public address nor
+// localhost. A name is not resolved here; the delivery client refuses non-public addresses when
+// it connects.
+func drainEndpoint(target string) string {
+	u, err := url.ParseRequestURI(target)
+	if err != nil || u.Hostname() == "" || !strings.HasPrefix(target, "https://") {
+		return "endpoint must be an https URL."
+	}
+	host := strings.TrimRight(strings.ToLower(u.Hostname()), ".")
+	public := host != "localhost" && !strings.HasSuffix(host, ".localhost")
+	if addr, err := netip.ParseAddr(host); err == nil {
+		public = netguard.PublicAddr(addr)
+	}
+	if !public || u.User != nil {
+		return "endpoint must be a public host, without credentials."
+	}
+	return ""
 }
 
 // deleteDrain answers DELETE /admin/organizations/{id}/drains/{drainId}.
@@ -318,6 +340,7 @@ func (p *Plugin) testDrain(ctx context.Context, in *endpoint.Input) endpoint.Res
 	if err := p.Record(ctx, AuditDrainTested, op, "", in.String("id"), map[string]any{"drain_id": drainID}); err != nil {
 		return p.fail(ctx, "test drain", err)
 	}
+	p.audit.WaitDrains(ctx) // deliveries run off the request; each is bounded
 	after, found, err := p.audit.Drains().Find(ctx, drainID)
 	if err != nil {
 		return p.fail(ctx, "test drain", err)

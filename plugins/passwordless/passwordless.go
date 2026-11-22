@@ -35,9 +35,7 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
-	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
-	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -260,9 +258,5 @@ var (
 	errMFASameChannel  = &Error{Kind: KindMFASameChannel, Detail: "The account's only second factor sends its code where this sign-in's went, so it proves nothing more: sign in with the password, or add another factor (an authenticator app, a passkey, another address)."}
 )
 
-// Listeners delete an erased user's pending links, codes and verified phone (event.UserDeleted).
-func (*Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{maintenance.EraseOnUserDeleted(g.DB(), g.Logger(),
-		maintenance.UserRows{Table: TableSecrets, Column: "user_id"},
-		maintenance.UserRows{Table: TablePhones, Column: "user_id"})}
-}
+// An erased user's pending links, codes and verified phone go with the account, in its
+// transaction: EraseAccess (sessions.go) runs there too.

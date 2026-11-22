@@ -33,7 +33,9 @@ func FromEnv(db store.Adapter, plugins ...Plugin) (Config, error) {
 // it never drops a table or a column and never changes a column's type. Idempotent and safe on
 // replicas booting together: run it at every boot. It returns what it changed: the name of each
 // table it created, then one "<table>: added column <c>" (or "created index", "dropped index")
-// line per change to an existing table.
+// line per change to an existing table, then one "auth_role_permissions: removed …" line per
+// platform permission (users.read, users.manage) it took off an organization's role, where none
+// belongs (also logged as a warning).
 func (p *Polaris) Migrate(ctx context.Context) ([]string, error) {
 	g := p.graph
 	changes, err := migrateSchema(ctx, g.DB(), g.Schema())
@@ -43,6 +45,11 @@ func (p *Polaris) Migrate(ctx context.Context) ([]string, error) {
 	if err := authz.Seed(ctx, g.DB(), services.Of(g).Catalog, g.Clock()); err != nil {
 		return changes, fmt.Errorf("polaris: migrate: seed permissions: %w", err)
 	}
+	removed, err := authz.DropPlatformGrants(ctx, g.DB(), g.Logger())
+	if err != nil {
+		return changes, fmt.Errorf("polaris: migrate: %w", err)
+	}
+	changes = append(changes, removed...)
 	for _, plugin := range g.Plugins() {
 		if s, ok := plugin.(wiring.Seeder); ok {
 			if err := s.Seed(ctx); err != nil {

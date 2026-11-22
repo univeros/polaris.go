@@ -91,8 +91,10 @@ func (p *Plugin) recordSignIn(r *http.Request, buf *buffered, deviceID string) {
 	if c, err := r.Cookie(Cookie); p.cfg.DisableCookie || (err == nil && c.Value == deviceID) {
 		return
 	}
+	// Secure follows where Polaris is configured to live, not only this connection: behind a
+	// proxy that ends TLS the request arrives plain.
 	secure := ""
-	if r.TLS != nil {
+	if r.TLS != nil || strings.HasPrefix(p.g.Auth().Issuer, "https://") {
 		secure = "; Secure"
 	}
 	h.Add("Set-Cookie", fmt.Sprintf("%s=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s", Cookie, deviceID, cookieTTL, secure))

@@ -32,7 +32,13 @@ var roleOrder = []Role{RoleViewer, RoleSupport, RoleAdmin, RoleOwner}
 // A superadmin counts whatever the account's status, so a disabled one cannot be unbanned from
 // below. An unknown userID passes: the route answers its own 404.
 func (p *Plugin) manageUser(ctx context.Context, userID string) (Principal, endpoint.Result, bool) {
-	op, res, ok := Authorize(ctx, Manage, "")
+	return p.reachUser(ctx, Manage, userID)
+}
+
+// reachUser is manageUser's rule for capability c: Manage, and Impersonate (acting as an account
+// is reaching it, decision 76).
+func (p *Plugin) reachUser(ctx context.Context, c Capability, userID string) (Principal, endpoint.Result, bool) {
+	op, res, ok := Authorize(ctx, c, "")
 	if !ok || op.Role == RoleOwner {
 		return op, res, ok
 	}
@@ -236,10 +242,13 @@ func (p *Plugin) deleteUser(ctx context.Context, in *endpoint.Input) endpoint.Re
 	return p.recorded(ctx, status("deleted"), AuditUserDeleted, op, userID, "", nil)
 }
 
-// impersonate answers POST /admin/users/{id}/impersonate: an access token acting as the user for
+// impersonate answers POST /admin/users/{id}/impersonate: an access token reading as the user for
 // one access-token lifetime, with no session behind it (no refresh, step-up, switch or logout).
+// The operator's reach is manageUser's. The token is not the account holder: it carries no
+// auth_time (it is nobody's recent authentication) and the pipeline keeps it off the account
+// holder's routes (pipeline.DeniesImpersonation).
 func (p *Plugin) impersonate(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	op, res, ok := Authorize(ctx, Impersonate, "")
+	op, res, ok := p.reachUser(ctx, Impersonate, in.String("id"))
 	if !ok {
 		return res
 	}
@@ -257,10 +266,9 @@ func (p *Plugin) impersonate(ctx context.Context, in *endpoint.Input) endpoint.R
 	if slices.Contains(base.Roles, authz.RoleSuperadmin) {
 		return problem(http.StatusForbidden, "impersonation_denied", "Impersonation denied", "A superadmin cannot be impersonated.")
 	}
-	authTime := p.g.Clock().Now().Unix()
 	access, err := p.g.Sessions().Mint(ctx, token.SessionPrincipal{
 		UserID: u.ID, Roles: base.Roles, Scope: base.Scope, EmailVerified: base.EmailVerified,
-		AMR: []string{AMRImpersonation}, AuthTime: &authTime,
+		AMR: []string{AMRImpersonation},
 	}, "", token.Claims{}.With(ClaimImpersonatedBy, op.ID).With(ClaimImpersonatorType, op.Type))
 	if err != nil {
 		return p.fail(ctx, "impersonate", err)

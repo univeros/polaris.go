@@ -15,11 +15,15 @@ input:
 
 domain:
   description: >
-    An access token acting as the user for one access-token lifetime: no session behind it (no
-    refresh, step-up, switch or logout), amr ["impersonation"], mfa false, and the
-    impersonated_by claim, which the admin routes refuse. A disabled account is 409; a
-    superadmin cannot be impersonated (403 admin_impersonation_denied). Needs impersonate;
-    recorded as admin.user_impersonated.
+    An access token reading as the user for one access-token lifetime: no session behind it (no
+    refresh, step-up, switch or logout), amr ["impersonation"], mfa false, no auth_time, and the
+    impersonated_by claim. The admin routes refuse it, and so does every route that needs no
+    permission and writes, destroys or is a step-up route (403 forbidden): it reads what the user
+    reads and does what the user's permissions allow, not what only the account holder may
+    (password, factors, passkeys, keys, sessions, deletion). A disabled account is 409; a
+    superadmin cannot be impersonated (403 admin_impersonation_denied); below owner, neither can
+    an operator of the caller's role or above (403 admin_forbidden). Needs impersonate; recorded
+    as admin.user_impersonated.
 
 output:
   status: 201

@@ -80,7 +80,7 @@ func (p *Plugin) guard(next http.Handler) http.Handler {
 		a.Email = strings.ToLower(strings.TrimSpace(a.Email))
 		r = r.WithContext(context.WithValue(ctx, attemptKey{}, a))
 		if a.DeviceID == "" {
-			w = &cookieWriter{ResponseWriter: w, cookie: deviceCookie(r.TLS != nil)}
+			w = &cookieWriter{ResponseWriter: w, cookie: deviceCookie(r.TLS != nil || strings.HasPrefix(p.g.Auth().Issuer, "https://"))}
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -108,6 +108,8 @@ func readBody(r *http.Request) map[string]any {
 
 func str(v any) string { s, _ := v.(string); return s }
 
+// deviceCookie mints the device cookie; secure when the request came over TLS or Polaris is
+// configured at an https issuer (behind a proxy that ends TLS the request arrives plain).
 func deviceCookie(secure bool) string {
 	id := make([]byte, 16)
 	_, _ = rand.Read(id)

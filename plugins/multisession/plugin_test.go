@@ -336,3 +336,14 @@ func TestConcurrentSwitchesMintOnce(t *testing.T) {
 		t.Fatalf("%d switches won", won)
 	}
 }
+
+// Behind a proxy that ends TLS the request arrives plain; the device cookie is still Secure when
+// Polaris is configured at an https URL (decision 76).
+func TestTheDeviceCookieIsSecureBehindATLSTerminatingProxy(t *testing.T) {
+	h := boot(t, Config{})
+	h.user("ada@example.com")
+	resp := h.c.JSONRequest(http.MethodPost, "http://app.example/auth/login", map[string]any{"email": "ada@example.com", "password": pw}, contracttest.RemoteAddr("203.0.113.7:1234"))
+	if c := resp.Header.Get("Set-Cookie"); !strings.Contains(c, Cookie+"=") || !strings.HasSuffix(c, "; Secure") {
+		t.Fatalf("cookie %q", c)
+	}
+}

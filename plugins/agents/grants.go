@@ -22,8 +22,9 @@ type requested struct {
 }
 
 // requestGrants creates one grant per capability asked (a name or {name, constraints}): active at
-// once when the policy auto-approves the risk tier within its budget ceiling and the owner holds
-// the permission, pending otherwise. A capability already held live, or already waiting, is
+// once when the policy auto-approves the risk tier within its budget ceiling, the owner holds
+// the permission and the agent has not exhausted a grant of the capability whose window still
+// runs (spentGrant); pending otherwise. A capability already held live, or already waiting, is
 // answered as it is. The caller holds the transaction.
 func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requested, error) {
 	var out requested
@@ -74,6 +75,14 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 		g := Grant{ID: newID(), AgentID: a.ID, Capability: name, Constraints: parsed.fields, Status: GrantPending, CreatedAt: now, UpdatedAt: now}
 		g = withBudget(g, parsed.budget)
 		policy, auto := s.settings.autoApprove[capability.Risk]
+		if auto {
+			// A budget the agent already spent is not refilled by asking again: a person decides.
+			spent, err := s.spentGrant(ctx, a, name)
+			if err != nil {
+				return out, err
+			}
+			auto = !spent
+		}
 		holds := false
 		if auto && withinPolicy(parsed.budget, policy) {
 			if holds, err = s.ownerHolds(ctx, a, capability.Permission); err != nil {
@@ -224,6 +233,20 @@ func (s *service) activeGrant(ctx context.Context, a Agent, capability string) (
 		}
 	}
 	return nil, err
+}
+
+// spentGrant reports whether the agent exhausted a grant of the capability whose budget window
+// has not passed (a budget without a window never passes). The policy does not approve another
+// while it holds: the budget would be spent as many times as the agent asks.
+func (s *service) spentGrant(ctx context.Context, a Agent, capability string) (bool, error) {
+	exhausted, err := s.grantsOf(ctx, a, GrantExhausted)
+	now := s.clock.Now()
+	for _, g := range exhausted {
+		if g.Capability == capability && (g.ExpiresAt == nil || g.ExpiresAt.After(now)) {
+			return true, err
+		}
+	}
+	return false, err
 }
 
 func (s *service) grantWith(ctx context.Context, a Agent, capability, status string) (*Grant, error) {

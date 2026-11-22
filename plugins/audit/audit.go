@@ -25,7 +25,9 @@ import (
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"github.com/univeros/polaris.go/schema"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/wiring"
 )
 
@@ -46,7 +48,13 @@ type Config struct {
 	Names map[string]string
 	// ActivityInterval bounds how often a user's last activity is written; zero: 5 minutes.
 	ActivityInterval time.Duration
-	// HTTPClient enables the organizations' drains (nil: drains are not delivered).
+	// Drains delivers the organizations' drains: each batch after the transaction that recorded
+	// it commits, off the writer's goroutine, to public addresses only (decided after DNS
+	// resolution), without following redirects.
+	Drains bool
+	// HTTPClient is the client drains are delivered with instead of that default; the addresses
+	// it may reach are then yours to bound (an egress proxy, a dialer of your own). Redirects are
+	// never followed, whichever client is used. Setting it also turns Drains on.
 	HTTPClient *http.Client
 	// WebhookAttempts per drain delivery; zero: 3.
 	WebhookAttempts int
@@ -60,10 +68,12 @@ type Plugin struct {
 	catalog  *Catalog
 	store    *Store
 	drains   *Drains
+	sink     *drainSink // nil when drains are not delivered
 	recorder *Recorder
 	activity *Activity
 	clock    clock.Clock
 	logger   *slog.Logger
+	db       store.Adapter
 }
 
 // New returns the plugin; configuration errors surface from polaris.New.
@@ -100,12 +110,21 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if p.catalog, err = NewCatalog(names...); err != nil {
 		return err
 	}
-	p.clock, p.logger = g.Clock(), g.Logger()
+	p.clock, p.logger, p.db = g.Clock(), g.Logger(), g.DB()
 	p.store = NewStore(g.DB(), p.cfg.HashChain)
 	p.drains = NewDrains(g.DB(), g.Encrypter(), g.Clock())
 	sinks := append([]Sink{databaseSink{p.store}}, p.cfg.Sinks...)
-	if p.cfg.HTTPClient != nil {
-		sinks = append(sinks, drainSink{drains: p.drains, client: p.cfg.HTTPClient, attempts: p.cfg.WebhookAttempts, sleep: p.sleep, logger: g.Logger()})
+	if p.cfg.Drains || p.cfg.HTTPClient != nil {
+		deferred := g.Deferred(func(_ context.Context, e event.Event) {
+			if b, ok := e.(drainBatch); ok {
+				b.run()
+			}
+		})
+		p.sink = &drainSink{
+			drains: p.drains, client: netguard.NoRedirects(p.cfg.HTTPClient), attempts: p.cfg.WebhookAttempts, sleep: p.sleep, logger: g.Logger(),
+			after: func(ctx context.Context, fn func()) { deferred(ctx, drainBatch{run: fn}) },
+		}
+		sinks = append(sinks, p.sink)
 	}
 	p.recorder = NewRecorder(p.catalog, chain{sinks: sinks, logger: g.Logger()}, g.Clock(), g.Logger())
 	p.activity = NewActivity(g.DB(), g.Cache(), g.Clock(), p.cfg.ActivityInterval, g.Logger())
@@ -126,11 +145,15 @@ func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) 
 	return p.endpoints(), nil
 }
 
-// Listeners subscribes the recorder and the activity tracker, and deletes an erased user's
-// activity row (the events stay: the trail outlives the account).
-func (p *Plugin) Listeners(g *wiring.Graph) []event.Listener {
-	return []event.Listener{p.recorder.Listen, p.activity.Listen,
-		maintenance.EraseOnUserDeleted(g.DB(), g.Logger(), maintenance.UserRows{Table: TableActivity, Column: "user_id"})}
+// Listeners subscribes the recorder and the activity tracker.
+func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
+	return []event.Listener{p.recorder.Listen, p.activity.Listen}
+}
+
+// EraseUser implements wiring.UserEraser: an erased user's activity row goes with the account, in
+// its transaction (the events stay: the trail outlives the account).
+func (p *Plugin) EraseUser(ctx context.Context, userID string) error {
+	return maintenance.EraseUser(ctx, p.db, userID, maintenance.UserRows{Table: TableActivity, Column: "user_id"})
 }
 
 // Catalog is the closed list of event names.
@@ -141,6 +164,15 @@ func (p *Plugin) Store() *Store { return p.store }
 
 // Drains manages the organizations' drains.
 func (p *Plugin) Drains() *Drains { return p.drains }
+
+// WaitDrains returns when no drain delivery is in flight, or when ctx ends: call it before the
+// process exits (deliveries run on their own goroutines, 15 s at most each), and in a test before
+// reading a drain's outcome.
+func (p *Plugin) WaitDrains(ctx context.Context) {
+	if p.sink != nil {
+		p.sink.wait(ctx)
+	}
+}
 
 // Activity is the last-activity tracker.
 func (p *Plugin) Activity() *Activity { return p.activity }

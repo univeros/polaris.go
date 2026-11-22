@@ -8,6 +8,7 @@ import (
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/token"
 )
 
 // Recorder turns domain events into audit events: every core event maps to a catalogued,
@@ -38,6 +39,15 @@ func (r *Recorder) Record(ctx context.Context, e Event) error {
 		e.OccurredAt = r.clock.Now()
 	}
 	e.Data = Redact(e.Data)
+	// An action taken with an operator's impersonation token names the operator too.
+	if tok := endpoint.Token(ctx); tok != nil && tok.ImpersonatedBy() != "" {
+		data := make(map[string]any, len(e.Data)+1)
+		for k, v := range e.Data {
+			data[k] = v
+		}
+		data[token.ClaimImpersonatedBy] = tok.ImpersonatedBy()
+		e.Data = data
+	}
 	return r.sink.Write(ctx, e.normalized())
 }
 

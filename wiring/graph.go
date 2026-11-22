@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"testing"
 
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
@@ -348,6 +349,9 @@ func (g *Graph) buildCore() error {
 	if g.hasher == nil {
 		g.hasher = security.Argon2id{}
 	}
+	if detail, weak := weakHasher(g.hasher); weak && !testing.Testing() {
+		g.logger.Warn("polaris: Config.Hasher is weaker than the default (" + detail + "); passwords hashed with it are cheaper to guess offline. polaristest.Hasher() is for tests only: leave Config.Hasher nil in production.")
+	}
 
 	if err := g.buildTokens(); err != nil {
 		return err
@@ -455,7 +459,7 @@ func (g *Graph) buildServices() error {
 		DB: g.db, Hasher: g.hasher, Pepper: g.pepper, Sessions: g.sessions, MFA: g.mfa,
 		Tickets: g.tickets, Authority: g.resolver, Auth: g.auth, Breaches: g.breaches,
 		Clock: g.clock, Events: g.events,
-		OnUserCreated: g.config.Hooks.onUserCreated(), OnUserDeleted: g.config.Hooks.OnUserDeleted,
+		OnUserCreated: g.config.Hooks.onUserCreated(), OnUserDeleted: g.eraseUser,
 		OnEmailProven: g.eraseAccess,
 	}); err != nil {
 		return fmt.Errorf("polaris: identity: %w", err)
@@ -469,6 +473,54 @@ func (g *Graph) buildServices() error {
 		Identity: g.identity, Sessions: g.sessions, MFA: g.mfa, Orgs: g.orgs, Tickets: g.tickets,
 		Denylist: g.denylist, Catalog: g.catalog, Resolver: g.resolver, Gate: g.gate,
 		Principals: g.principals, Escalation: g.escalation, Pepper: g.pepper,
+	}
+	return nil
+}
+
+// weakHasher reports whether h is an Argon2id below the default cost (memory or passes), with the
+// parameters to name in the warning. Another hasher is the host's own and is not judged.
+func weakHasher(h security.PasswordHasher) (detail string, weak bool) {
+	var a security.Argon2id
+	switch v := h.(type) {
+	case security.Argon2id:
+		a = v
+	case *security.Argon2id:
+		if v == nil {
+			return "", false
+		}
+		a = *v
+	default:
+		return "", false
+	}
+	memory, passes := a.Memory, a.Time
+	if memory == 0 {
+		memory = security.DefaultArgon2Memory
+	}
+	if passes == 0 {
+		passes = security.DefaultArgon2Time
+	}
+	if memory >= security.DefaultArgon2Memory && passes >= security.DefaultArgon2Time {
+		return "", false
+	}
+	return fmt.Sprintf("Argon2id at %d KiB and %d pass(es); the default is %d KiB and %d", memory, passes, security.DefaultArgon2Memory, security.DefaultArgon2Time), true
+}
+
+// eraseUser is what Identity.OnUserDeleted runs, inside the transaction that erases or removes
+// an account: every plugin's AccessEraser and UserEraser, then the host's OnUserDeleted hook. Any
+// error rolls the erasure back.
+func (g *Graph) eraseUser(ctx context.Context, userID string) error {
+	if err := g.eraseAccess(ctx, userID); err != nil {
+		return err
+	}
+	for _, p := range g.plugins {
+		if e, ok := p.(UserEraser); ok {
+			if err := e.EraseUser(ctx, userID); err != nil {
+				return fmt.Errorf("plugin %q: %w", p.ID(), err)
+			}
+		}
+	}
+	if hook := g.config.Hooks.OnUserDeleted; hook != nil {
+		return hook(ctx, userID)
 	}
 	return nil
 }

@@ -98,8 +98,8 @@ func TestEverythingIsWiredThroughTheGraph(t *testing.T) {
 	if routes != 29 {
 		t.Fatalf("%d admin routes, want 29", routes)
 	}
-	if !e.trail.Catalog().Has(admin.AuditUserBanned) || len(g.Listeners()) != 7 {
-		t.Fatalf("the admin names joined the catalog; core's three, audit's three and the grant erasure (%d)", len(g.Listeners()))
+	if !e.trail.Catalog().Has(admin.AuditUserBanned) || len(g.Listeners()) != 5 {
+		t.Fatalf("the admin names joined the catalog; core's three and audit's two (%d)", len(g.Listeners()))
 	}
 }
 

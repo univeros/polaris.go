@@ -15,7 +15,8 @@ func none() Authority { return Authority{Roles: []string{}, Scope: []string{}} }
 // Resolver resolves effective authority from the database:
 //
 //	effective(user, org) = every permission, when the user holds the system superadmin role
-//	                       else ∪ of the permissions of the user's roles in org
+//	                       else ∪ of the permissions of the user's roles in org, without the
+//	                       platform ones (PlatformOnly)
 //
 // A disabled user resolves to nothing; so does a user with no active membership of org, an org
 // that is not active, or no org. Superadmin is assigned out of band by linking any membership of
@@ -108,7 +109,10 @@ func (s *Resolver) resolve(ctx context.Context, userID, organizationID string) (
 			return Authority{}, err
 		}
 		for _, g := range grants {
-			if key, ok := keys[g.PermissionID]; ok && !slices.Contains(a.Scope, key) {
+			// A platform permission reaches every account of the instance: only the system
+			// superadmin role carries it (above), never an organization's role, whatever its
+			// rows say (DropPlatformGrants removes them).
+			if key, ok := keys[g.PermissionID]; ok && !PlatformOnly(key) && !slices.Contains(a.Scope, key) {
 				a.Scope = append(a.Scope, key)
 			}
 		}

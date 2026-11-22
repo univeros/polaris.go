@@ -169,7 +169,7 @@ func TestObserveModeRecordsWhatASignalSaidAndLetsEverythingThrough(t *testing.T)
 	e := boot(t, sentinel.Config{})
 	clean := e.guarded(t, "/auth/register", `{"email":"ada@example.com","password":"x"}`, ip, "", nil)
 	want(t, clean.StatusCode == 201, "status %d", clean.StatusCode)
-	cookie := regexp.MustCompile(`^polaris_device=[0-9a-f]{32}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax$`)
+	cookie := regexp.MustCompile(`^polaris_device=[0-9a-f]{32}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax; Secure$`) // https issuer, plain request: a proxy ended TLS
 	want(t, cookie.MatchString(clean.Header.Get("Set-Cookie")), "a device cookie for a request without one: %q", clean.Header.Get("Set-Cookie"))
 	want(t, len(e.decisions(t, sentinel.Filter{})) == 0, "silence is not recorded")
 

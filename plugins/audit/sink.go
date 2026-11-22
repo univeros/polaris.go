@@ -149,16 +149,13 @@ func (s WebhookSink) Write(ctx context.Context, events ...Event) error {
 	mac.Write(body)
 	signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 	delivery := repository.NewID()
-	last := "no attempt made"
+	failed := &webhookError{url: s.URL, attempts: attempts}
 	for attempt := 1; attempt <= attempts; attempt++ {
 		status, err := s.post(ctx, client, body, signature, delivery)
 		if err == nil && status < 300 {
 			return nil
 		}
-		if err != nil {
-			last = err.Error()
-		} else {
-			last = fmt.Sprintf("HTTP %d", status)
+		if failed.status, failed.cause = status, err; err == nil {
 			if status != http.StatusTooManyRequests && status < 500 {
 				break
 			}
@@ -167,8 +164,26 @@ func (s WebhookSink) Write(ctx context.Context, events ...Event) error {
 			sleep(time.Duration(attempt*200) * time.Millisecond)
 		}
 	}
-	return fmt.Errorf("audit: webhook %s failed after %d attempt(s): %s", s.URL, attempts, last)
+	return failed
 }
+
+// webhookError is a delivery that failed: the last attempt's status, or its transport error.
+type webhookError struct {
+	url      string
+	attempts int
+	status   int   // 0 when the last attempt got no answer
+	cause    error // the transport error of the last attempt, nil when it was answered
+}
+
+func (e *webhookError) Error() string {
+	last := fmt.Sprintf("HTTP %d", e.status)
+	if e.cause != nil {
+		last = e.cause.Error()
+	}
+	return fmt.Sprintf("audit: webhook %s failed after %d attempt(s): %s", e.url, e.attempts, last)
+}
+
+func (e *webhookError) Unwrap() error { return e.cause }
 
 func (s WebhookSink) post(ctx context.Context, client *http.Client, body []byte, signature, delivery string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.URL, bytes.NewReader(body))
