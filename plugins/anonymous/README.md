@@ -3,8 +3,14 @@
 Guest sessions: a visitor gets a session before having an account (`POST /anonymous/sign-in`
 creates a core user with the placeholder email `<id>@anonymous.invalid`, no password, no
 organization, amr `["anonymous"]`). Once they sign up or in by any method, `POST /anonymous/convert`
-runs your `OnConvert` hook to move what you kept under the guest's id, records the conversion, ends
-the guest's sessions and disables it; its id stays. Guests nobody converted are pruned.
+records the conversion, runs your `OnConvert` hook to move what you kept under the guest's id,
+disables the guest and ends its sessions, all in one transaction; its id stays. Guests nobody
+converted are pruned.
+
+Ending the sessions revokes the guest's refresh tokens at once. Its access token is refused at
+once only with the denylist on (`AUTH_ACCESS_TOKEN_DENYLIST=true`); without it, the access token
+is stateless and keeps answering until it expires (`AUTH_ACCESS_TOKEN_TTL`, 15 minutes by
+default): `/auth/me` shows `"status": "disabled"` and the account holds no permission.
 
 ## Install
 
@@ -27,7 +33,7 @@ Every field is optional; the zero value is the defaults.
 
 | Field | Default | Purpose |
 | --- | --- | --- |
-| `OnConvert` | nil (nothing to move) | moves the host's data from the guest to the account; runs before anything is recorded, so an error converts nothing and the guest can retry |
+| `OnConvert` | nil (nothing to move) | moves the host's data from the guest to the account; runs inside the conversion's transaction (write through `ctx`, as in `Hooks.OnUserCreated`), so an error converts nothing and the guest can retry. A write outside that transaction is not undone if a later step fails, and the retry runs the hook again: keep such a hook idempotent |
 | `PruneAfter` | 30 days (`anonymous.DefaultPruneAfter`) | age past which `Prune` deletes an unconverted guest; at least a day |
 
 ## Routes
@@ -55,8 +61,10 @@ Sign-in dispatches core's `user.logged_in`. `Prune` dispatches `event.UserDelete
   guest's core rows in one transaction per guest; drop your own data in an `event.UserDeleted`
   listener.
 - `anonymous.Of(p.Graph()).Guests()` is the service: `SignIn`, `Convert`, `IsGuest`, `Prune`.
-- Two concurrent conversions run `OnConvert` once. If ending the guest fails after `OnConvert` ran,
-  its sessions stay live and a retry answers `not_a_guest`.
+- Two concurrent conversions run `OnConvert` once. A conversion that fails at any step (the hook,
+  disabling the guest, ending its sessions) answers 500 and leaves the guest as it was: its
+  sessions live, and a retry converts it. A guest is never reported converted with live sessions.
+- Erasing a user deletes its guest row (`event.UserDeleted`).
 - Guard sign-in with `plugins/sentinel`: add `anonymous.SentinelRoutes` (judged as a sign-up) to
   `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 

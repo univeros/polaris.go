@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/anonymous"
@@ -114,6 +115,31 @@ func TestAnonymousFlow(t *testing.T) {
 			t.Fatalf("once: %v", code)
 		}
 	})
+}
+
+// A conversion revokes the guest's sessions and watermarks the denylist: with
+// AUTH_ACCESS_TOKEN_DENYLIST on, the guest's access token is refused at once; without it, the
+// stateless token answers until it expires (the account it names is disabled, so it holds no
+// permission).
+func TestAConvertedGuestsAccessTokenEndsWithTheDenylist(t *testing.T) {
+	for _, denylist := range []bool{true, false} {
+		srv := polaristest.New(t, polaristest.WithPlugins(anonymous.New(anonymous.Config{})),
+			polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }))
+		c := contracttest.NewClient(t, srv.Handler(), nil)
+		guest := data(t, c.Post("/anonymous/sign-in", map[string]any{}))
+		asGuest := contracttest.Bearer(guest["access_token"].(string))
+		ada := login(t, srv, c, "ada@example.com")
+		status(t, c.Post("/anonymous/convert", map[string]any{"access_token": ada}, asGuest), 200, "convert")
+		me := c.Get("/auth/me", asGuest)
+		if denylist {
+			status(t, me, 401, "denylist on: the guest's access token is refused")
+			continue
+		}
+		status(t, me, 200, "denylist off: the stateless token lives until it expires")
+		if d := data(t, me); d["status"] != "disabled" {
+			t.Fatalf("me %v", d)
+		}
+	}
 }
 
 func TestEveryFixtureIsCovered(t *testing.T) {

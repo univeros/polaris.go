@@ -72,9 +72,11 @@ func (s *Guests) IsGuest(ctx context.Context, userID string) (bool, error) {
 }
 
 // Convert converts guestID into the account whose access token is accessToken and returns that
-// account's id. The guest row is claimed first, so two concurrent conversions cannot both run the
-// hook; the hook runs next (its error releases the claim and is returned); then the guest's
-// sessions end and the guest is disabled. ErrNotAGuest: guestID is not a guest waiting;
+// account's id. It is one transaction: the guest row is claimed (so two concurrent conversions
+// cannot both run the hook), the hook runs with the transaction in its ctx, the guest is disabled
+// and its sessions end. Any failure, the hook's included, rolls all of it back: the guest keeps its
+// sessions and can retry, and a guest is never reported converted while its sessions live.
+// ErrNotAGuest: guestID is not a guest waiting;
 // ErrTokenInvalid: accessToken is not a live session of another, real account.
 func (s *Guests) Convert(ctx context.Context, guestID, accessToken string) (string, error) {
 	guest, err := s.g.DB().FindOne(ctx, TableGuests, store.Criteria{"user_id": guestID})
@@ -99,30 +101,32 @@ func (s *Guests) Convert(ctx context.Context, guestID, accessToken string) (stri
 		return "", ErrTokenInvalid
 	}
 	now := s.g.Clock().Now()
-	claimed, err := s.g.DB().Update(ctx, TableGuests, store.Criteria{"user_id": guestID, "converted_at": nil},
-		store.Data{"converted_at": now, "converted_user_id": userID})
-	if err != nil {
-		return "", fmt.Errorf("anonymous: convert: %w", err)
-	}
-	if claimed != 1 {
-		return "", ErrNotAGuest
-	}
-	if s.onConvert != nil {
-		if hookErr := s.onConvert(ctx, guestID, userID); hookErr != nil {
-			_, err := s.g.DB().Update(ctx, TableGuests, store.Criteria{"user_id": guestID, "converted_user_id": userID},
-				store.Data{"converted_at": nil, "converted_user_id": nil})
-			return "", errors.Join(fmt.Errorf("anonymous: OnConvert: %w", hookErr), err)
-		}
-	}
 	err = s.g.DB().Tx(ctx, func(ctx context.Context) error {
-		if _, err := s.g.Sessions().RevokeAll(ctx, guestID, model.RevokedLogout); err != nil {
+		claimed, err := s.g.DB().Update(ctx, TableGuests, store.Criteria{"user_id": guestID, "converted_at": nil},
+			store.Data{"converted_at": now, "converted_user_id": userID})
+		if err != nil {
 			return err
 		}
-		_, err := s.g.DB().Update(ctx, "auth_users", store.Criteria{"id": guestID}, store.Data{"status": model.UserStatusDisabled, "updated_at": now})
+		if claimed != 1 {
+			return ErrNotAGuest
+		}
+		if s.onConvert != nil {
+			if err := s.onConvert(ctx, guestID, userID); err != nil {
+				return fmt.Errorf("OnConvert: %w", err)
+			}
+		}
+		if _, err := s.g.DB().Update(ctx, "auth_users", store.Criteria{"id": guestID}, store.Data{"status": model.UserStatusDisabled, "updated_at": now}); err != nil {
+			return err
+		}
+		// Last: it also watermarks the denylist, which a rollback cannot undo.
+		_, err = s.g.Sessions().RevokeAll(ctx, guestID, model.RevokedLogout)
 		return err
 	})
-	if err != nil {
-		return "", fmt.Errorf("anonymous: convert: guest %s converted but not ended: %w", guestID, err)
+	switch {
+	case errors.Is(err, ErrNotAGuest):
+		return "", ErrNotAGuest
+	case err != nil:
+		return "", fmt.Errorf("anonymous: convert: %w", err)
 	}
 	return userID, nil
 }

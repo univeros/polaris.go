@@ -71,7 +71,11 @@ type AccessToken struct {
 	TTL        time.Duration
 	Signer     Signer
 	EmbedScope bool // embed flat permissions instead of roles only
-	Denylist   bool // AUTH_ACCESS_TOKEN_DENYLIST: per-user revocation watermark
+	// Denylist (AUTH_ACCESS_TOKEN_DENYLIST) is the per-user revocation watermark: logging out
+	// everywhere, disabling, erasing or converting a guest refuses the user's outstanding access
+	// tokens at once. Off, an access token is stateless and answers until it expires (TTL), though
+	// its sessions can no longer refresh and a disabled user holds no permission.
+	Denylist bool
 }
 
 // RefreshToken holds the refresh-token settings (auth.refresh_token).
