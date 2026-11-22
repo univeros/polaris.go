@@ -2,8 +2,10 @@
 // in without a password, each ending in core's login envelope behind core's MFA gate.
 //
 //   - Magic links: POST /magic-link/send emails a link to GET /magic-link/verify, valid once for 15
-//     minutes; the verify redirects to an allowed redirect URI with a one-minute code that
-//     POST /magic-link/exchange trades, once, for the envelope (tokens never travel in a URL).
+//     minutes. Opening it spends nothing (mail scanners follow links): it answers a page whose one
+//     button posts back to the link, and that POST redirects to an allowed redirect URI with a
+//     one-minute code that POST /magic-link/exchange trades, once, for the envelope (session tokens
+//     never travel in a URL).
 //   - Email codes: POST /email-otp/send emails a 6-digit code (5 minutes, 5 attempts) for signing in
 //     (POST /email-otp/verify), verifying the address (POST /email-otp/verify-email) or resetting the
 //     password (POST /email-otp/reset-password).

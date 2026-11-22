@@ -138,6 +138,16 @@ func (s *secrets) spendToken(ctx context.Context, kind, tok string) (secret, boo
 	return s.spend(ctx, row)
 }
 
+// liveToken reports whether the token's secret is unused and unexpired, spending nothing.
+func (s *secrets) liveToken(ctx context.Context, kind, tok string) (bool, error) {
+	row, err := s.db.FindOne(ctx, TableSecrets, store.Criteria{"kind": kind, "secret_hash": s.pepper.Hash("passwordless:"+kind, tok), "used_at": nil})
+	if err != nil || row == nil {
+		return false, err
+	}
+	expires, _ := row.Time("expires_at")
+	return expires.After(s.now()), nil
+}
+
 // spendCode spends the identifier's latest code; ok is false when there is none, it expired, its
 // attempts are used up, or the code is wrong. Every guess, right or wrong, uses an attempt.
 func (s *secrets) spendCode(ctx context.Context, kind, identifier, code string) (secret, bool, error) {

@@ -1,6 +1,7 @@
 package passwordless_test
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -173,13 +174,26 @@ func TestPasswordlessFlow(t *testing.T) {
 		}
 
 		problem(t, f.c.Get("/magic-link/verify"), 422, "passwordless_invalid_input")
-		verify := f.c.Get("/magic-link/verify?token=" + param(t, link, "token"))
+		opened := "/magic-link/verify?token=" + param(t, link, "token")
+		// Opening the link spends nothing (a mail scanner's GET leaves it usable): it answers a
+		// page whose one button posts back to the same URL (decision 61).
+		for _, who := range []string{"a mail scanner", "the user"} {
+			page := f.c.Get(opened)
+			status(t, page, 200, who+" opens the link")
+			body, _ := io.ReadAll(page.Body)
+			if !strings.HasPrefix(page.Header.Get("Content-Type"), "text/html") || !strings.Contains(string(body), `<form method="post">`) ||
+				page.Header.Get("Cache-Control") != "no-store" || page.Header.Get("Referrer-Policy") != "no-referrer" {
+				t.Fatalf("page %v %s", page.Header, body)
+			}
+		}
+		verify := f.c.Form(opened, url.Values{})
 		status(t, verify, 302)
 		location := verify.Header.Get("Location")
 		if !strings.HasPrefix(location, done+"?code=") {
 			t.Fatalf("location %q", location)
 		}
-		problem(t, f.c.Get("/magic-link/verify?token="+param(t, link, "token")), 422, "passwordless_token_invalid", "a link works once")
+		problem(t, f.c.Get(opened), 422, "passwordless_token_invalid", "a spent link answers its page no more")
+		problem(t, f.c.Form(opened, url.Values{}), 422, "passwordless_token_invalid", "a link works once")
 
 		code := param(t, location, "code")
 		problem(t, f.c.Post("/magic-link/exchange", nil), 422, "passwordless_invalid_input")

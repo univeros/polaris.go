@@ -6901,12 +6901,63 @@
                     "code": "passwordless_account_disabled"
                 },
                 {
+                    "status": 403,
+                    "code": "passwordless_mfa_same_channel"
+                },
+                {
                     "status": 422,
                     "code": "passwordless_code_invalid"
                 },
                 {
                     "status": 422,
                     "code": "passwordless_invalid_input"
+                }
+            ],
+            "events": [
+                "user.logged_in"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/magic-link/verify",
+            "summary": "Sign in with a magic link",
+            "auth": "public",
+            "rate_limit": "token_consume",
+            "effect": "write",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "query",
+                "fields": [
+                    {
+                        "name": "token",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": true
+                    }
+                ]
+            },
+            "class": "Polaris\\Passwordless\\Http\\MagicLinkConfirmEndpoint",
+            "errors": [
+                {
+                    "status": 403,
+                    "code": "passwordless_account_disabled"
+                },
+                {
+                    "status": 403,
+                    "code": "passwordless_mfa_same_channel"
+                },
+                {
+                    "status": 422,
+                    "code": "passwordless_invalid_input"
+                },
+                {
+                    "status": 422,
+                    "code": "passwordless_token_invalid"
                 }
             ],
             "events": [
@@ -7003,7 +7054,7 @@
             "summary": "Open a magic link",
             "auth": "public",
             "rate_limit": "token_consume",
-            "effect": "write",
+            "effect": "read",
             "receipt": false,
             "step_up": false,
             "session": null,
@@ -7024,10 +7075,6 @@
             "class": "Polaris\\Passwordless\\Http\\MagicLinkVerifyEndpoint",
             "errors": [
                 {
-                    "status": 403,
-                    "code": "passwordless_account_disabled"
-                },
-                {
                     "status": 422,
                     "code": "passwordless_invalid_input"
                 },
@@ -7036,9 +7083,7 @@
                     "code": "passwordless_token_invalid"
                 }
             ],
-            "events": [
-                "user.logged_in"
-            ]
+            "events": []
         },
         {
             "method": "POST",
@@ -7279,6 +7324,10 @@
                 {
                     "status": 403,
                     "code": "passwordless_account_disabled"
+                },
+                {
+                    "status": 403,
+                    "code": "passwordless_mfa_same_channel"
                 },
                 {
                     "status": 422,

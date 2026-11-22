@@ -235,8 +235,8 @@ func TestPlugin(t *testing.T) {
 				routes = append(routes, rt.Method+" "+rt.Path)
 			}
 		}
-		want := []string{"POST /magic-link/send", "GET /magic-link/verify", "POST /magic-link/exchange", "POST /email-otp/send", "POST /email-otp/verify", "POST /email-otp/verify-email", "POST /email-otp/reset-password", "POST /phone/send", "POST /phone/verify", "POST /phone/add", "POST /phone/confirm", "POST /one-time-token/generate", "POST /one-time-token/verify"}
-		if len(routes) != 13 {
+		want := []string{"POST /magic-link/send", "GET /magic-link/verify", "POST /magic-link/verify", "POST /magic-link/exchange", "POST /email-otp/send", "POST /email-otp/verify", "POST /email-otp/verify-email", "POST /email-otp/reset-password", "POST /phone/send", "POST /phone/verify", "POST /phone/add", "POST /phone/confirm", "POST /one-time-token/generate", "POST /one-time-token/verify"}
+		if len(routes) != 14 {
 			t.Fatalf("routes %v", routes)
 		}
 		for _, r := range want {

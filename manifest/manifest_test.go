@@ -65,8 +65,8 @@ func TestEverySpecDirectoryIsAPluginOrCore(t *testing.T) {
 	if !reflect.DeepEqual(dirs, want) {
 		t.Fatalf("internal/apispec/api has %v, the tests load %v", dirs, want)
 	}
-	if n := len(loadAll(t).Routes()); n != 226 {
-		t.Errorf("%d routes, want 226", n)
+	if n := len(loadAll(t).Routes()); n != 227 {
+		t.Errorf("%d routes, want 227", n)
 	}
 }
 

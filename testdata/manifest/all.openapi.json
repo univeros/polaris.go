@@ -15295,7 +15295,7 @@
                         }
                     },
                     "403": {
-                        "description": "passwordless_account_disabled",
+                        "description": "passwordless_account_disabled | passwordless_mfa_same_channel",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -15306,6 +15306,112 @@
                     },
                     "422": {
                         "description": "passwordless_code_invalid | passwordless_invalid_input",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/magic-link/verify": {
+            "post": {
+                "operationId": "post_passwordless_MagicLinkConfirmEndpoint",
+                "summary": "Sign in with a magic link",
+                "tags": [
+                    "passwordless"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "passwordless",
+                "x-polaris-rate-limit": "token_consume",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "password",
+                            "x-polaris-sensitive": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": []
+                                },
+                                "example": []
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "passwordless_account_disabled | passwordless_mfa_same_channel",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "passwordless_invalid_input | passwordless_token_invalid",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "get_passwordless_MagicLinkVerifyEndpoint",
+                "summary": "Open a magic link",
+                "tags": [
+                    "passwordless"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "passwordless",
+                "x-polaris-rate-limit": "token_consume",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "password",
+                            "x-polaris-sensitive": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": []
+                                },
+                                "example": []
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "passwordless_invalid_input | passwordless_token_invalid",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -15502,65 +15608,6 @@
                     },
                     "422": {
                         "description": "passwordless_invalid_input | passwordless_redirect_not_allowed",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/magic-link/verify": {
-            "get": {
-                "operationId": "get_passwordless_MagicLinkVerifyEndpoint",
-                "summary": "Open a magic link",
-                "tags": [
-                    "passwordless"
-                ],
-                "x-polaris-effect": "write",
-                "x-polaris-receipt": false,
-                "x-polaris-plugin": "passwordless",
-                "x-polaris-rate-limit": "token_consume",
-                "parameters": [
-                    {
-                        "name": "token",
-                        "in": "query",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "password",
-                            "x-polaris-sensitive": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": []
-                                },
-                                "example": []
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "passwordless_account_disabled",
-                        "content": {
-                            "application/problem+json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Problem"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "passwordless_invalid_input | passwordless_token_invalid",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -16152,7 +16199,7 @@
                         }
                     },
                     "403": {
-                        "description": "passwordless_account_disabled",
+                        "description": "passwordless_account_disabled | passwordless_mfa_same_channel",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
