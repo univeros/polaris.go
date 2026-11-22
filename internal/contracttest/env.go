@@ -11,43 +11,40 @@ import (
 	"github.com/univeros/polaris.go/clock"
 )
 
-// The environment the PHP functional suite runs every recorded test in. The Go server these tests
-// replay against must be built with the same values; each names its PHP origin
-// (packages/core/tests/Functional/FunctionalTestCase.php unless stated otherwise).
+// The environment every recorded test ran in. The Go server these tests replay against must be
+// built with the same values.
 //
-// Clocks: the application uses the real wall clock (Graph::clock() defaults to SystemClock; the
-// suite passes no clock). Only the rate limiter's clock is frozen, at the instant the harness
-// boots (`new FrozenClock(new DateTimeImmutable())`), so a test's requests never straddle a
-// fixed-window boundary: see NewRateClock. Recorded values that depend on the time (timestamps,
+// Clocks: the application uses the real wall clock. Only the rate limiter's clock is frozen, at
+// the instant the server boots, so a test's requests never straddle a fixed-window boundary: see
+// NewRateClock. Recorded values that depend on the time (timestamps,
 // X-RateLimit-Reset/Remaining, Retry-After, JWTs) are masked or dropped by the comparison.
 //
-// Signing keys: TestKeys::rsa() generates a fresh 2048-bit RSA pair per process; nothing in the
-// fixtures depends on its value (JWTs, kid, n and e are masked). There is no EdDSA test key in
-// the PHP suite. See TestRSAKey.
+// Signing keys: a fresh 2048-bit RSA pair per process; nothing in the fixtures depends on its
+// value (JWTs, kid, n and e are masked). No recorded test signs with an EdDSA key. See TestRSAKey.
 //
-// Request defaults: requests carry no REMOTE_ADDR (the client IP resolves to "unknown") and no
+// Request defaults: requests carry no remote address (the client IP resolves to "unknown") and no
 // User-Agent unless a test sets them; Client reproduces this.
 //
-// Configuration flags, all off in setUp (`in_array(getenv(...), ['1','true','on'])` on unset
-// variables). Only these tests turn one on, by putenv then a reboot:
+// Configuration flags, all off by default (a flag is on for "1", "true" or "on"). Only these
+// tests turn one on, then reboot the server:
 //
 //   - AUTH_ACCESS_TOKEN_DENYLIST=1: DenylistEndpointsTest::testLogoutEverywhereKillsTheLiveAccessTokenInstantly.
 //   - AUTH_PASSWORD_BREACH_CHECK: never on in a functional test.
 //
-// Auth config overrides (authConfig(), merged over the environment's): CookieModeTest of core, mcp
+// Auth config overrides (merged over the environment's): CookieModeTest of core, mcp
 // and multi-session set `flows.token_delivery: cookie`; none of them has a fixture.
 const (
-	// AppKey is APP_KEY (putenv in setUp).
+	// AppKey is APP_KEY.
 	AppKey = "app-key-for-functional-tests-0123"
-	// Issuer is AUTH_ISSUER (putenv in setUp), the `iss` of every token.
+	// Issuer is AUTH_ISSUER, the `iss` of every token.
 	Issuer = "https://auth.polaris.test"
 	// Audience is AUTH_AUDIENCE: unset, so the auth config's audience is null (no `aud` check).
 	Audience = ""
 	// PreviousKID is AUTH_JWT_PREVIOUS_KID in JwksEndpointTest::testRotationOverlapPublishesBothKeys,
-	// which also sets AUTH_JWT_PREVIOUS_PUBLIC_KEY to the primary key's public half (TestKeys::rsa()
+	// which also sets AUTH_JWT_PREVIOUS_PUBLIC_KEY to the primary key's public half (TestRSAKey
 	// again) and reboots. AUTH_JWT_KID is never set: the kid is derived from the key.
 	PreviousKID = "retiring-key"
-	// RSAKeyBits is the size of TestKeys' RSA pairs.
+	// RSAKeyBits is the size of the test RSA key.
 	RSAKeyBits = 2048
 )
 
@@ -57,9 +54,8 @@ type RateLimit struct {
 	Window time.Duration
 }
 
-// RateLimits returns the budgets the suite runs with: RateLimitConfig's defaults
-// (packages/core/src/Config/RateLimitConfig.php; the suite overrides none), keyed by the
-// `auth.rate_limits` group name. The fixtures keep X-RateLimit-Limit, so these are contractual.
+// RateLimits returns the budgets the suite runs with: the default rate limits (no test overrides
+// one), keyed by the `auth.rate_limits` group name. The fixtures keep X-RateLimit-Limit, so these are contractual.
 func RateLimits() map[string]RateLimit {
 	return map[string]RateLimit{
 		"login":           {10, 300 * time.Second},
@@ -75,19 +71,19 @@ func RateLimits() map[string]RateLimit {
 }
 
 // NewRateClock returns the rate limiter's clock as the suite builds it: the boot instant, frozen.
-// Build one per server boot (each PHP setUp and reboot builds a new one).
+// Build one per server boot (each test's first boot and each reboot).
 func NewRateClock() clock.Clock {
 	return clock.NewFrozen(time.Now())
 }
 
-// TestRSAKey returns the suite's RSA signing key (TestKeys::rsa()): generated once per process,
-// RSAKeyBits long, shared by every test, as PHP caches it per process.
+// TestRSAKey returns the suite's RSA signing key: generated once per process, RSAKeyBits long,
+// shared by every test.
 func TestRSAKey() *rsa.PrivateKey {
 	return testRSAKey()
 }
 
 // TestRSAKeyPEM returns TestRSAKey as AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY hold it:
-// PKCS#8 `PRIVATE KEY` and PKIX `PUBLIC KEY` PEM, as openssl_pkey_export writes them.
+// PKCS#8 `PRIVATE KEY` and PKIX `PUBLIC KEY` PEM.
 func TestRSAKeyPEM() (privatePEM, publicPEM string) {
 	return testRSAKeyPEM()
 }

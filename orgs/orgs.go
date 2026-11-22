@@ -121,7 +121,7 @@ func found(err error) (bool, error) {
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
 
-// asciiLower is PHP's strtolower: ASCII letters only, every other byte kept as is.
+// asciiLower lowercases ASCII letters only, every other byte kept as is (locale-independent).
 func asciiLower(s string) string {
 	b := []byte(s)
 	for i, c := range b {
@@ -132,8 +132,9 @@ func asciiLower(s string) string {
 	return string(b)
 }
 
-// phpTrim is PHP's trim with its default characters.
-func phpTrim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
+// trimEdges strips space, tab, LF, CR, NUL and vertical tab from both ends (not form feed or
+// Unicode spaces, as strings.TrimSpace would).
+func trimEdges(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
 
-// normalizeEmail is upstream EmailNormalizer: trim, then strtolower.
-func normalizeEmail(email string) string { return asciiLower(phpTrim(email)) }
+// normalizeEmail trims the edges, then lowercases ASCII letters (identity.NormalizeEmail's rule).
+func normalizeEmail(email string) string { return asciiLower(trimEdges(email)) }

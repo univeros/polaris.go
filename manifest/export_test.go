@@ -9,12 +9,9 @@ import (
 	"testing"
 )
 
-// The goldens are the PHP CLI's output at the pinned ref (internal/upstream/REF), from ../polaris-core:
-//
-//	php bin/polaris manifest --format=json      > core.json
-//	php bin/polaris manifest --format=openapi   > core.openapi.json
-//	php bin/polaris manifest --format=json    --bootstrap=packages/client-ts/polaris.php > all.json
-//	php bin/polaris manifest --format=openapi --bootstrap=packages/client-ts/polaris.php > all.openapi.json
+// The goldens freeze the exported documents clients consume: core.json and core.openapi.json for
+// core alone, all.json and all.openapi.json for core and every plugin. A change to them is a
+// change clients see (AGENT.md rule 4).
 func TestExportsMatchTheGoldens(t *testing.T) {
 	core, all := loadCore(t), loadAll(t)
 	cases := []struct {

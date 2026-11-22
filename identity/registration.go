@@ -23,7 +23,7 @@ const (
 
 // Register creates an unverified account with an Argon2id hash, opens an email-verification
 // challenge and dispatches event.UserRegistered carrying the plaintext token for the mailer
-// (docs/auth/flows.md §1). displayName "" stores none.
+// displayName "" stores none.
 //
 // A password failing the policy returns a *PasswordError. A taken email returns nil without
 // creating anything or dispatching an event, after hashing the password anyway, so the response
@@ -72,8 +72,8 @@ func (s *Service) Register(ctx context.Context, email, password, displayName str
 	return nil
 }
 
-// VerifyEmail confirms an email address from its token and dispatches event.UserEmailVerified
-// (docs/auth/flows.md §2). It is idempotent: a token that matched a real challenge succeeds again
+// VerifyEmail confirms an email address from its token and dispatches event.UserEmailVerified.
+// It is idempotent: a token that matched a real challenge succeeds again
 // once the user is verified, even consumed or expired. Otherwise an unknown, consumed or expired
 // token returns ErrInvalidVerificationToken.
 func (s *Service) VerifyEmail(ctx context.Context, secret string) error {

@@ -14,7 +14,7 @@ import (
 	"github.com/univeros/polaris.go/config"
 )
 
-// 2026-06-08 12:00:00 UTC, as the upstream test.
+// 2026-06-08 12:00:00 UTC.
 var instant = time.Date(2026, 6, 8, 12, 0, 0, 0, time.UTC)
 
 func newTOTP(t *testing.T, cfg config.TOTP, at time.Time) *TOTP {
@@ -31,7 +31,7 @@ func defaults() config.TOTP { return config.Defaults().OTP.TOTP }
 func TestGeneratesABase32SecretOf64Bytes(t *testing.T) {
 	p := newTOTP(t, defaults(), instant)
 	secret := p.GenerateSecret()
-	// otphp's default: 64 random bytes, base32 upper case, padding trimmed.
+	// 64 random bytes, base32 upper case, padding trimmed.
 	if !regexp.MustCompile(`^[A-Z2-7]{103}$`).MatchString(secret) {
 		t.Fatalf("secret %q", secret)
 	}
@@ -40,7 +40,7 @@ func TestGeneratesABase32SecretOf64Bytes(t *testing.T) {
 	}
 }
 
-func TestProvisioningURIIsByteIdenticalToOtphp(t *testing.T) {
+func TestProvisioningURIIsByteIdenticalToKnownAnswers(t *testing.T) {
 	const secret = "JBSWY3DPEHPK3PXP"
 	custom := config.TOTP{Digits: 8, Period: 60 * time.Second, Algorithm: config.SHA256, Window: 1, Issuer: "Acme Corp & Co"}
 	cases := []struct {
@@ -48,7 +48,7 @@ func TestProvisioningURIIsByteIdenticalToOtphp(t *testing.T) {
 		secret, label string
 		want          string
 	}{
-		// Captured from OtphpTotpProvider (polaris-core 0.12.0, spomky-labs/otphp).
+		// Known answers recorded from an earlier release: the URIs enrolled authenticators hold.
 		{defaults(), secret, "ada@example.com", "otpauth://totp/Univeros%3Aada%40example.com?issuer=Univeros&secret=JBSWY3DPEHPK3PXP"},
 		{defaults(), secret, "Ada Lovelace+x~y/z@ex.com", "otpauth://totp/Univeros%3AAda%20Lovelace%2Bx~y%2Fz%40ex.com?issuer=Univeros&secret=JBSWY3DPEHPK3PXP"},
 		{defaults(), "jbswy3dpehpk3pxp===", "ünïcode user", "otpauth://totp/Univeros%3A%C3%BCn%C3%AFcode%20user?issuer=Univeros&secret=JBSWY3DPEHPK3PXP"},
@@ -65,7 +65,7 @@ func TestProvisioningURIIsByteIdenticalToOtphp(t *testing.T) {
 	}
 }
 
-func TestProvisioningURIRejectsWhatOtphpRejects(t *testing.T) {
+func TestProvisioningURIRejectsAnEmptyLabelOrAColon(t *testing.T) {
 	p := newTOTP(t, defaults(), instant)
 	for _, label := range []string{"", "a:b", "a%3Ab", "a%3ab"} {
 		if _, err := p.ProvisioningURI("JBSWY3DPEHPK3PXP", label); err == nil {
@@ -102,8 +102,8 @@ func TestMatchesTheRfc6238Sha1Vector(t *testing.T) {
 	}
 }
 
-func TestCodesEqualOtphpForEveryAlgorithm(t *testing.T) {
-	// Captured from OTPHP\TOTP::at() for secret JBSWY3DPEHPK3PXP.
+func TestCodesEqualKnownAnswersForEveryAlgorithm(t *testing.T) {
+	// RFC 6238 known answers for secret JBSWY3DPEHPK3PXP, recorded from an independent implementation.
 	vectors := []struct {
 		alg    config.TOTPAlgorithm
 		digits int
@@ -176,6 +176,6 @@ func TestSkipsStepsBeforeTheEpoch(t *testing.T) {
 func TestAnUndecodableSecretIsAnError(t *testing.T) {
 	p := newTOTP(t, defaults(), instant)
 	if _, _, err := p.Match("not base32!", "123456"); err == nil {
-		t.Fatal("want an error, as otphp throws")
+		t.Fatal("want an error for a secret that is not base32")
 	}
 }

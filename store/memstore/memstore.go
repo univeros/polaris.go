@@ -49,7 +49,7 @@ var _ store.Adapter = (*Store)(nil)
 
 // New returns an empty store. With models, inserts and updates that would duplicate a primary key
 // or a unique index of those tables fail with an error wrapping store.ErrDuplicate; tables without
-// a model accept any row, as PHP's InMemoryAdapter does. Rows are kept as given: no column defaults,
+// a model accept any row. Rows are kept as given: no column defaults,
 // types or NOT NULL checks are applied.
 func New(models ...schema.Model) *Store {
 	s := &Store{tables: map[string][]store.Row{}, keys: map[string][]uniqueKey{}, refs: map[string][]reference{}}

@@ -19,16 +19,14 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Helpers of the ports of upstream's organization, membership, invitation, role, user-admin and
-// org-switch functional tests. Each PHP test class repeats its own private helpers; the requests
-// they issue are the same, so they are shared here.
+// Helpers of the organization, membership, invitation, role, user-admin and org-switch functional
+// tests. The tests of every class issue the same setup requests, so they are shared here.
 
 const (
-	orgPHP      = `Polaris\Tests\Functional\`
 	orgPassword = "Sup3r-Secret-Passw0rd"
 )
 
-// orgCase is one ported test: a booted server and a client replaying the test's fixture.
+// orgCase is one functional test: a booted server and a client replaying the test's fixture.
 type orgCase struct {
 	t   *testing.T
 	srv *polaristest.Server
@@ -36,14 +34,14 @@ type orgCase struct {
 	ctx context.Context
 }
 
-// orgRun runs each test of a PHP class as a subtest with its own server and fixture.
-func orgRun(t *testing.T, phpClass string, tests map[string]func(*orgCase)) {
+// orgRun runs each test of a recorded class as a subtest with its own server and fixture.
+func orgRun(t *testing.T, class string, tests map[string]func(*orgCase)) {
 	t.Helper()
 	dir := contracttest.Fixtures(t, "core")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			srv := polaristest.New(t)
-			fx := contracttest.For(t, dir, orgPHP+phpClass, name)
+			fx := contracttest.For(t, dir, coreSuite+class, name)
 			test(&orgCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx), ctx: context.Background()})
 		})
 	}
@@ -91,7 +89,7 @@ func (o *orgCase) orgOwnedBy(email string) (org, scoped string, session orgSessi
 	return org, o.switchOrg(session.access, org), session
 }
 
-// seedMember links userID to org with roleSlug directly in the database, as upstream's tests do.
+// seedMember links userID to org with roleSlug directly in the database.
 func (o *orgCase) seedMember(org, userID, roleSlug, status string) {
 	o.t.Helper()
 	at := time.Date(2026, 6, 10, 10, 0, 0, 0, time.UTC)

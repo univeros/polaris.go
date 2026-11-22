@@ -32,8 +32,8 @@ type Field struct {
 	Default    any
 	// ASCII marks a String column that only ever holds ASCII and compares byte for byte (base64url
 	// identifiers): MySQL declares it CHARACTER SET ascii COLLATE ascii_bin, so it is case-sensitive
-	// and a unique index on up to 3072 characters fits; the other dialects are unchanged. Not part of
-	// upstream's schema-as-data: a Go-only MySQL DDL refinement (same type, length and data).
+	// and a unique index on up to 3072 characters fits; the other dialects are unchanged. It changes
+	// only the MySQL DDL: the type, length and data stay the same.
 	ASCII bool
 	// CaseSensitive marks a String column holding an identifier that compares byte for byte but
 	// may hold any UTF-8 (an IdP's subject, a client_id URL): MySQL declares it CHARACTER SET

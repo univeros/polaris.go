@@ -101,7 +101,7 @@ type Principals interface {
 }
 
 // Pepper is the keyed hash of stored secrets (API keys, client secrets, one-time codes): the
-// format is frozen with upstream's.
+// format is frozen, since stored hashes must keep matching.
 type Pepper interface {
 	// Hash returns the keyed HMAC of value for context, as 64 lowercase hex characters.
 	Hash(context, value string) string

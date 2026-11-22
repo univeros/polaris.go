@@ -35,7 +35,8 @@ type Cache interface {
 	Add(ctx context.Context, key string, value []byte, ttl time.Duration) (added bool, err error)
 }
 
-// ErrInvalidKey reports an empty key or one with a character PSR-16 reserves ({}()/\@:).
+// ErrInvalidKey reports an empty key or one with a reserved character ({}()/\@:), kept out so a key
+// is valid on every backend.
 var ErrInvalidKey = errors.New("cache: invalid key")
 
 const reservedKeyChars = `{}()/\@:`

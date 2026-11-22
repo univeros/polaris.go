@@ -6,12 +6,13 @@ import (
 	"time"
 )
 
-// The core events, one struct per upstream Polaris\Event class. EventName returns the PHP NAME
-// constant; the fields are the PHP payload, with nullable values as pointers. Every domain
+// The core events, one struct per event. EventName returns the event's wire name; the fields are
+// its payload, with nullable values as pointers. Every domain
 // package (identity, mfa, organizations, session) dispatches these, and listeners (audit log,
 // metrics, notifications) switch on the type or on EventName.
 
-// Event names: the wire/audit-log identifiers, as upstream's NAME constants.
+// Event names: the wire and audit-log identifiers. Stored audit rows and listeners match on them,
+// so they never change.
 const (
 	NameMemberInvited          = "member.invited"
 	NameMemberJoined           = "member.joined"
@@ -56,7 +57,7 @@ const (
 	// PasswordChanged.Method values.
 	PasswordMethodReset  = "reset"
 	PasswordMethodChange = "change"
-	// LoginFailedInvalidCredentials is the UserLoginFailed.Reason upstream defaults to.
+	// LoginFailedInvalidCredentials is the default UserLoginFailed.Reason.
 	LoginFailedInvalidCredentials = "invalid_credentials"
 )
 
@@ -231,7 +232,7 @@ type RoleUpdated struct {
 }
 
 // SessionsRevoked: every session of a user was revoked (logout everywhere). Count is the number
-// of sessions; Reason is a model.Revoked* value (upstream defaults to model.RevokedLogout).
+// of sessions; Reason is a model.Revoked* value (model.RevokedLogout for a logout everywhere).
 type SessionsRevoked struct {
 	UserID string
 	IP     *string
@@ -276,8 +277,8 @@ type UserLocked struct {
 	Until  *time.Time
 }
 
-// UserLoggedIn: a session was opened. AMR lists the authentication methods; upstream's default is
-// ["pwd"], so producers always set it.
+// UserLoggedIn: a session was opened. AMR lists the authentication methods; producers always set it
+// (["pwd"] for a password login).
 type UserLoggedIn struct {
 	UserID    string
 	SessionID string

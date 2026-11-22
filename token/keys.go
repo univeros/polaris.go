@@ -12,7 +12,7 @@ import (
 	"fmt"
 )
 
-// minRSABits is lcobucci/jwt's floor for RSA keys, signing and verifying alike.
+// minRSABits is the floor for RSA keys, signing and verifying alike.
 const minRSABits = 2048
 
 // signFunc signs a JWS signing input; verifyFunc checks a signature over one.
@@ -132,7 +132,7 @@ func parseRSAPrivateKey(data string) (*rsa.PrivateKey, error) {
 }
 
 // verifyEd25519 is libsodium's crypto_sign_verify_detached: on top of Go's RFC 8032 check
-// (canonical S), it refuses a small-order R, as upstream does.
+// (canonical S), it refuses a small-order R.
 func verifyEd25519(pub ed25519.PublicKey, input, sig []byte) bool {
 	if len(sig) != ed25519.SignatureSize || ed25519SmallOrder(sig[:32]) {
 		return false

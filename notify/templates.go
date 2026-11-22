@@ -76,8 +76,9 @@ func Text(template string, data map[string]any) string {
 	return b.String()
 }
 
-// scalar renders v as PHP's (string) cast does for scalars (true "1", false ""); ok is false for
-// nil and non-scalar values.
+// scalar renders a scalar v as template text: strings as is, true "1", false "", integers in
+// decimal, floats in the shortest form without an exponent. ok is false for nil and non-scalar
+// values.
 func scalar(v any) (string, bool) {
 	switch v := v.(type) {
 	case string:

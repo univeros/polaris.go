@@ -15,8 +15,8 @@ type Member struct {
 // and the documents [Manifest.OpenAPI] and [Manifest.Export] build. Order matters where the
 // manifest derives lists from keys (an inferred schema's "required").
 //
-// An empty Object encodes as [], not {}: PHP cannot tell an empty map from an empty list, and the
-// exported documents keep its output (an untyped schema is "items": []).
+// An empty Object encodes as [], not {}: the exported documents have always written an empty map
+// as an empty list, and clients of them keep reading that form (an untyped schema is "items": []).
 type Object []Member
 
 // Get returns the value under key.

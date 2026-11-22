@@ -14,7 +14,7 @@ import (
 const PurposeLoginMFA = "login_mfa"
 
 // MFATickets mints and authenticates the short-lived login_mfa ticket that bridges a password
-// success to the MFA challenge/verify step (upstream MfaLoginTokenService). The ticket is a JWT
+// success to the MFA challenge/verify step. The ticket is a JWT
 // signed like an access token (same key, kid, issuer, audience) with its own TTL
 // (config.MFA.LoginTokenTTL) and purpose=login_mfa, which token.Codec.Parse refuses: it can never
 // authenticate an ordinary route. Safe for concurrent use.
@@ -57,7 +57,7 @@ func (m *MFATickets) Authenticate(raw string) (string, error) {
 	return t.Subject(), nil
 }
 
-// UserPrincipals is the identity-only PrincipalResolver (upstream DefaultSessionPrincipalResolver):
+// UserPrincipals is the identity-only PrincipalResolver:
 // the user's email_verified flag, no roles or scope. Production wiring uses authz.Principals.
 type UserPrincipals struct{ Users repository.Users }
 

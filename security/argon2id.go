@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Argon2id cost defaults, as upstream (OWASP): 64 MiB, 4 passes, 1 lane.
+// Argon2id cost defaults (OWASP): 64 MiB, 4 passes, 1 lane.
 const (
 	DefaultArgon2Memory  uint32 = 65536
 	DefaultArgon2Time    uint32 = 4
@@ -22,7 +22,7 @@ const (
 )
 
 const (
-	argon2Version  = argon2.Version // 0x13 = 19, the only version libargon2 and PHP emit
+	argon2Version  = argon2.Version // 0x13 = 19, the only version libargon2 emits
 	argon2SaltLen  = 16
 	argon2HashLen  = 32
 	argon2MinSalt  = 8 // libargon2 ARGON2_MIN_SALT_LENGTH
@@ -31,12 +31,11 @@ const (
 	bcryptMaxBytes = 72
 )
 
-// Argon2id hashes passwords as PHP's password_hash(PASSWORD_ARGON2ID) does:
-// PHC strings "$argon2id$v=19$m=<KiB>,t=<passes>,p=<lanes>$<salt>$<hash>" with a 16-byte
+// Argon2id hashes passwords as PHC strings "$argon2id$v=19$m=<KiB>,t=<passes>,p=<lanes>$<salt>$<hash>" with a 16-byte
 // random salt, a 32-byte hash and unpadded standard base64.
 //
-// Zero fields take the defaults (64 MiB, t=4, p=1). Verify accepts every hash PHP's
-// password_verify accepts from Polaris: Argon2id and Argon2i (v=19) and bcrypt ($2a$, $2b$, $2y$).
+// Zero fields take the defaults (64 MiB, t=4, p=1). Verify accepts every hash an earlier
+// release may have stored: Argon2id and Argon2i (v=19) and bcrypt ($2a$, $2b$, $2y$).
 // It is safe for concurrent use.
 type Argon2id struct {
 	Memory  uint32 // KiB
@@ -61,7 +60,7 @@ func (a Argon2id) params() (memory, time uint32, threads uint8) {
 }
 
 // Hash returns the PHC string of plain under a fresh random salt. It fails with
-// ErrInvalidParams when memory is below 8 KiB per lane, as PHP does.
+// ErrInvalidParams when memory is below 8 KiB per lane (libargon2's floor).
 func (a Argon2id) Hash(plain string) (string, error) {
 	memory, time, threads := a.params()
 	if memory < argon2MinBlock*uint32(threads) {
@@ -121,7 +120,7 @@ func verifyArgon2(plain, hash, prefix string, derive argon2Func) bool {
 	t, s, ok2 := cutField(s, ",t=")
 	p, s, ok3 := cutField(s, ",p=")
 	if !ok1 || !ok2 || !ok3 || version != argon2Version {
-		// x/crypto/argon2 computes v=19 only; PHP never emits another version.
+		// x/crypto/argon2 computes v=19 only; no stored hash carries another version.
 		return false
 	}
 	rest, ok4 := strings.CutPrefix(s, "$")
@@ -183,8 +182,8 @@ func isBase64Std(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '/'
 }
 
-// scanArgon2Params is PHP's sscanf("$v=%lld$m=%lld,t=%lld,p=%lld"): fields after the first
-// mismatch stay zero.
+// scanArgon2Params reads "$v=<n>$m=<n>,t=<n>,p=<n>" leniently, as signed decimals that may
+// carry leading whitespace and zeros: fields after the first mismatch stay zero.
 func scanArgon2Params(s string) (v, m, t, p int64) {
 	out := []*int64{&v, &m, &t, &p}
 	for i, label := range []string{"$v=", "$m=", ",t=", ",p="} {
@@ -222,7 +221,7 @@ func scanLLD(s string) (int64, string, bool) {
 	return n, s[i:], true
 }
 
-// verifyBcrypt matches crypt_blowfish as PHP calls it: the password ends at its first NUL
+// verifyBcrypt matches crypt_blowfish: the password ends at its first NUL
 // byte and only its first 72 bytes count.
 func verifyBcrypt(plain, hash string) bool {
 	pw := []byte(plain)

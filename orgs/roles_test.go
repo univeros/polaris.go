@@ -21,7 +21,7 @@ func rolesBySlug(t *testing.T, f *fixture, org string) map[string]Role {
 	return out
 }
 
-// Port of RoleEndpointsTest::testListsTheClonedTemplateRolesWithTheirPermissions.
+// Service side of RoleEndpointsTest::testListsTheClonedTemplateRolesWithTheirPermissions.
 func TestListsTheClonedTemplateRolesWithTheirPermissions(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, _ := f.orgOwnedBy(t, "founder@example.com")
@@ -42,7 +42,7 @@ func TestListsTheClonedTemplateRolesWithTheirPermissions(t *testing.T) {
 	})
 }
 
-// Port of testPermissionsCatalogIsAvailableToAnyAuthenticatedUser.
+// Service side of testPermissionsCatalogIsAvailableToAnyAuthenticatedUser.
 func TestPermissionsListsTheStoredCatalog(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		perms, err := f.svc.Permissions(ctx)
@@ -57,7 +57,7 @@ func TestPermissionsListsTheStoredCatalog(t *testing.T) {
 	})
 }
 
-// Port of testOwnerCreatesACustomRoleAndItIsGrantable.
+// Service side of testOwnerCreatesACustomRoleAndItIsGrantable.
 func TestOwnerCreatesACustomRoleAndItIsGrantable(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -86,7 +86,7 @@ func TestOwnerCreatesACustomRoleAndItIsGrantable(t *testing.T) {
 	})
 }
 
-// Port of testDuplicateSlugConflicts, testRejectsUnknownPermissionKeysAndBadInput and
+// Service side of testDuplicateSlugConflicts, testRejectsUnknownPermissionKeysAndBadInput and
 // testActorCannotPutPermissionsTheyDoNotHoldIntoARole.
 func TestCreateRoleRefusals(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -110,7 +110,7 @@ func TestCreateRoleRefusals(t *testing.T) {
 	})
 }
 
-// Port of testUpdateChangesNameAndPermissions and testUpdateCanStripAllPermissionsFromARole.
+// Service side of testUpdateChangesNameAndPermissions and testUpdateCanStripAllPermissionsFromARole.
 func TestUpdateRole(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -163,7 +163,7 @@ func sameSet(a, b []string) bool {
 	return slices.Equal(a, b)
 }
 
-// Port of testTheOwnerRoleIsImmutable, testTheClonedTemplatesAreEditableButNotDeletable,
+// Service side of testTheOwnerRoleIsImmutable, testTheClonedTemplatesAreEditableButNotDeletable,
 // testGlobalSystemRolesAreNotReachableThroughTheOrgPath and testUnknownRoleIsNotFound.
 func TestImmutableAndUnreachableRoles(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
@@ -196,7 +196,7 @@ func TestImmutableAndUnreachableRoles(t *testing.T) {
 	})
 }
 
-// Port of testDeletingARoleDetachesItFromMembers.
+// Service side of testDeletingARoleDetachesItFromMembers.
 func TestDeletingARoleDetachesItFromMembers(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		org, owner := f.orgOwnedBy(t, "founder@example.com")

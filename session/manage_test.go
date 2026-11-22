@@ -213,7 +213,7 @@ func rsaKeys(t *testing.T) (pub, priv string) {
 	return pub, priv
 }
 
-// Port of PHP tests/Token/MfaLoginTokenServiceTest.
+// The MFA login ticket: minted, authenticated, refused when foreign or misused.
 func TestMFATickets(t *testing.T) {
 	pub, priv := rsaKeys(t)
 	otherPub, otherPriv := rsaKeys(t)

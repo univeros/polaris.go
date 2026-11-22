@@ -40,7 +40,7 @@ func (t Table[T]) Insert(ctx context.Context, m T) error {
 }
 
 // Update writes the columns whose value differs between before (as read) and after (as it
-// should be), keyed by before's primary key, as PHP's unit of work does; nothing changed means
+// should be), keyed by before's primary key; nothing changed means
 // no statement. A clash on a unique index wraps store.ErrDuplicate.
 func (t Table[T]) Update(ctx context.Context, before, after T) error {
 	old, next := t.toRow(before), t.toRow(after)
@@ -204,7 +204,7 @@ func (r *reader) json(col string, dst any) {
 	}
 }
 
-// ts is how a datetime is written: UTC, to the second, as PHP stores it.
+// ts is how a datetime is written: UTC, truncated to the second (the columns hold no fraction).
 func ts(t time.Time) time.Time { return t.UTC().Truncate(time.Second) }
 
 func tsPtr(t *time.Time) any {

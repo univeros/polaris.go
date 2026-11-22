@@ -6,7 +6,7 @@ import (
 )
 
 // Mint signs a non-session JWT (an OAuth at+jwt access token, an OpenID ID token) with the
-// Codec's key and kid, as upstream's OAuth Jwt::mint. The header is {"typ":typ,"alg":…,"kid":…}
+// Codec's key and kid. The header is {"typ":typ,"alg":…,"kid":…}
 // (typ "" means "JWT"); the payload starts with iss, iat and nbf (now) and exp (expiresAt, at
 // microsecond precision), then claims in order. Caller iss/iat/nbf/exp are dropped; sub and
 // jti must be strings; aud is a string or a list of strings (a one-element list is written as
@@ -31,9 +31,9 @@ func (c *Codec) Mint(typ string, claims Claims, expiresAt time.Time) (string, er
 	return c.signJWT(typ, payload)
 }
 
-// Sign signs a JWS with no managed time claims, as upstream's agents receipt signature: the
+// Sign signs a JWS with no managed time claims (the agents receipt signature): the
 // header is {"typ":typ,"alg":…,"kid":…} (typ "" means "JWT"), the payload {"iss":…} followed by
-// claims in order. A time.Time iat, nbf or exp is written as lcobucci/jwt writes dates (whole
+// claims in order. A time.Time iat, nbf or exp is written as a date claim (whole
 // seconds as an integer, otherwise seconds.micros); any other value as given. Caller iss is
 // dropped; sub, jti and aud follow Mint's rules. VerifyJWT accepts the result (an absent exp
 // never expires).
@@ -51,8 +51,8 @@ func (c *Codec) Sign(typ string, claims Claims) (string, error) {
 	return c.signJWT(typ, payload)
 }
 
-// appendClaims routes caller claims onto payload as lcobucci's builder does: managed names
-// are dropped, sub and jti must be strings, aud goes through permittedFor, iat/nbf/exp given
+// appendClaims routes caller claims onto payload: managed names are dropped, sub and jti must
+// be strings, aud goes through mintAudience, iat/nbf/exp given
 // as time.Time are encoded as dates.
 func appendClaims(payload, claims Claims, managed map[string]bool) (Claims, error) {
 	for _, name := range claims.names {
@@ -62,7 +62,7 @@ func appendClaims(payload, claims Claims, managed map[string]bool) (Claims, erro
 		}
 		switch name {
 		case "":
-			// Upstream would emit an empty key no parser accepts; refuse instead.
+			// An empty key is one no parser accepts; refuse it.
 			return Claims{}, fmt.Errorf("%w: empty claim name", errUnencodable)
 		case "sub", "jti":
 			if _, ok := value.(string); !ok {
@@ -84,8 +84,8 @@ func appendClaims(payload, claims Claims, managed map[string]bool) (Claims, erro
 	return payload, nil
 }
 
-// mintAudience is lcobucci's permittedFor over an empty set followed by UnifyAudience:
-// duplicates are kept and a single audience is written as a string.
+// mintAudience reads aud as a string or a list of strings: duplicates are kept and a single
+// audience is written as a string.
 func mintAudience(v any) (any, error) {
 	var list []string
 	switch v := v.(type) {
@@ -111,8 +111,7 @@ func mintAudience(v any) (any, error) {
 	return nonNil(list), nil
 }
 
-// VerifyJWT verifies a JWT this server signed for a non-session purpose, as upstream's OAuth
-// Jwt::verify: structure, algorithm, signature, issuer and the validity window widened by
+// VerifyJWT verifies a JWT this server signed for a non-session purpose: structure, algorithm, signature, issuer and the validity window widened by
 // leeway (iat and nbf at most now+leeway, exp after now-leeway). There is no audience, typ or
 // purpose rule: callers check Header("typ") and the claims they need.
 //

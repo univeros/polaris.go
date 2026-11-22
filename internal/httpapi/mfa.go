@@ -16,10 +16,10 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// mfaEndpoints serves upstream/api/core/auth/mfa: factor enrollment and management (this file)
+// mfaEndpoints serves api/core/auth/mfa: factor enrollment and management (this file)
 // and the login gate and step-up (mfa_gate.go).
 //
-// Input is checked by each endpoint, not by the manifest rules: upstream's core endpoints answer
+// Input is checked by each endpoint, not by the manifest rules: the core endpoints answer
 // their own 422 messages ("A valid E.164 phone number is required."), which the fixtures freeze.
 func mfaEndpoints(g *wiring.Graph) map[string]endpoint.Endpoint {
 	m := &mfaAPI{g: g}
@@ -43,7 +43,7 @@ func mfaEndpoints(g *wiring.Graph) map[string]endpoint.Endpoint {
 
 type mfaAPI struct{ g *wiring.Graph }
 
-// The messages upstream answers; the fixtures freeze them.
+// The messages the endpoints answer; the fixtures freeze them.
 const (
 	mfaMsgFactorNotFound = "MFA factor not found."
 	mfaMsgInvalidCode    = "The verification code is invalid."
@@ -217,7 +217,7 @@ func (m *mfaAPI) regenerateRecoveryCodes(ctx context.Context, _ *endpoint.Input)
 	return endpoint.Data(http.StatusOK, map[string]any{"recovery_codes": codes})
 }
 
-// user loads the principal's account; a token whose user is gone is 401, as upstream.
+// user loads the principal's account; a token whose user is gone is 401.
 func (m *mfaAPI) user(ctx context.Context) (model.User, endpoint.Result, bool) {
 	userID := mfaSubject(ctx)
 	if userID == "" {
@@ -247,12 +247,13 @@ func mfaSubject(ctx context.Context) string {
 	return ""
 }
 
-// mfaField is key as upstream reads it: cast to string, then trimmed.
+// mfaField is key read by mfaString, then trimmed of " \t\n\r\0\x0B".
 func mfaField(in *endpoint.Input, key string) string {
 	return strings.Trim(mfaString(in.Value(key)), " \t\n\r\x00\x0B")
 }
 
-// mfaString is PHP's (string) cast for the scalars a JSON or form body carries; anything else is "".
+// mfaString reads the scalars a JSON or form body carries as a string (numbers in their JSON form,
+// true as "1"); anything else is "".
 func mfaString(v any) string {
 	switch v := v.(type) {
 	case string:
@@ -267,7 +268,8 @@ func mfaString(v any) string {
 	return ""
 }
 
-// mfaTruthy is PHP's (bool) cast: false, 0, "", "0", null and empty collections are false.
+// mfaTruthy is a lenient boolean: false, 0, "", "0", null and empty collections are false, all
+// else true.
 func mfaTruthy(v any) bool {
 	switch v := v.(type) {
 	case nil:

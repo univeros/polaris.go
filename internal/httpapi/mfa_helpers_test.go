@@ -24,7 +24,7 @@ const (
 	mfaPhone    = "+14155550101"
 )
 
-// mfaCase is one ported functional test: a fresh server (as upstream's setUp) and a client
+// mfaCase is one functional test: a fresh server and a client
 // replaying the test's fixture.
 type mfaCase struct {
 	t   *testing.T
@@ -32,13 +32,14 @@ type mfaCase struct {
 	c   *contracttest.Client
 }
 
-// mfaRun runs each PHP test method of phpClass as a subtest named after it, so its fixture resolves.
-func mfaRun(t *testing.T, phpClass string, tests map[string]func(*mfaCase)) {
+// mfaRun runs each recorded test method of class as a subtest named after it, so its fixture
+// resolves.
+func mfaRun(t *testing.T, class string, tests map[string]func(*mfaCase)) {
 	dir := contracttest.Fixtures(t, "core")
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			fx := contracttest.For(t, dir, `Polaris\Tests\Functional\`+phpClass, name)
+			fx := contracttest.For(t, dir, coreSuite+class, name)
 			srv := polaristest.New(t)
 			test(&mfaCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx)})
 		})

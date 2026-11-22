@@ -11,7 +11,7 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// Port of OrganizationEndpointsTest: creating an organization makes the verified caller its owner
+// Replays the OrganizationEndpointsTest fixtures: creating an organization makes the verified caller its owner
 // (role templates cloned per organization), slugs are unique and auto-derived, the create is
 // all-or-nothing, and the list returns only the caller's organizations.
 func TestOrganizationEndpoints(t *testing.T) {
@@ -109,7 +109,7 @@ func TestOrganizationEndpoints(t *testing.T) {
 	})
 }
 
-// Port of AuthorizationEnforcementTest: GET /orgs/{id} (gated on org.read) reads the active
+// Replays the AuthorizationEnforcementTest fixtures: GET /orgs/{id} (gated on org.read) reads the active
 // organization only; superadmins read any.
 func TestAuthorizationEnforcement(t *testing.T) {
 	const founder = "founder@example.com"

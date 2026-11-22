@@ -213,7 +213,7 @@ func (a orgAPI) deleteRole(ctx context.Context, in *endpoint.Input, tok *token.T
 	return endpoint.Data(http.StatusOK, map[string]any{"deleted": true})
 }
 
-// orgOptionalString is v when it is a string, nil otherwise (upstream ignores other types).
+// orgOptionalString is v when it is a string, nil otherwise (other types are ignored).
 func orgOptionalString(v any) *string {
 	if s, ok := v.(string); ok {
 		return &s

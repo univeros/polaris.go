@@ -19,7 +19,7 @@ import (
 )
 
 // authCookieCase is CookieModeTest's harness (CookieRequests): cookie token delivery on, requests
-// over https://localhost. Upstream recorded no fixture for it, so responses are only asserted.
+// over https://localhost. No fixture is recorded for it, so responses are only asserted.
 type authCookieCase struct {
 	t   *testing.T
 	srv *polaristest.Server
@@ -174,7 +174,7 @@ func TestCookieMode(t *testing.T) {
 		access, _ := authPair(t, a.registerAndLogin())
 		enrollResp := a.c.Post("/auth/mfa/totp/enroll", nil, contracttest.Bearer(access))
 		if enrollResp.StatusCode == http.StatusNotImplemented {
-			t.Skip("the MFA routes are not ported yet")
+			t.Skip("the MFA routes are not built yet")
 		}
 		enroll := contracttest.JSON(t, enrollResp)["data"].(map[string]any)
 		secret := enroll["secret"].(string)

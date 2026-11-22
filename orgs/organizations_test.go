@@ -17,7 +17,7 @@ func TestNewRequiresItsDependencies(t *testing.T) {
 	}
 }
 
-// Port of OrganizationEndpointsTest::testCreateMakesTheCallerTheOwnerWithClonedRoles.
+// Service side of OrganizationEndpointsTest::testCreateMakesTheCallerTheOwnerWithClonedRoles.
 func TestCreateMakesTheCallerTheOwnerWithClonedRoles(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		userID := f.user(t, "founder@example.com")
@@ -77,7 +77,7 @@ func TestSlugDerivation(t *testing.T) {
 	})
 }
 
-// Port of testSlugMustBeUnique and testCreateFailsClosedOnConflictLeavingNoPartialState.
+// Service side of testSlugMustBeUnique and testCreateFailsClosedOnConflictLeavingNoPartialState.
 func TestSlugMustBeUniqueAndConflictsLeaveNoPartialState(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		userID := f.user(t, "founder@example.com")
@@ -111,7 +111,7 @@ func TestASoftDeletedOrganizationKeepsItsSlugLocked(t *testing.T) {
 	})
 }
 
-// Port of testListReturnsOnlyTheCallersOrganizations.
+// Service side of testListReturnsOnlyTheCallersOrganizations.
 func TestListReturnsOnlyTheCallersActiveOrganizations(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		mine, me := f.orgOwnedBy(t, "me@example.com")
@@ -135,7 +135,7 @@ func TestListReturnsOnlyTheCallersActiveOrganizations(t *testing.T) {
 	})
 }
 
-// Port of OrganizationLifecycleEndpointsTest::testOwnerRenamesTheOrganization and testRejectsBadNames.
+// Service side of OrganizationLifecycleEndpointsTest::testOwnerRenamesTheOrganization and testRejectsBadNames.
 func TestUpdateRenamesTheOrganization(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {
 		orgID, owner := f.orgOwnedBy(t, "founder@example.com")
@@ -166,7 +166,7 @@ func TestUpdateRenamesTheOrganization(t *testing.T) {
 	})
 }
 
-// Port of testOwnerSoftDeletesTheOrganization, testDeleteRevokesMembersOrgScopedSessions… and
+// Service side of testOwnerSoftDeletesTheOrganization, testDeleteRevokesMembersOrgScopedSessions… and
 // testDeleteIsIdempotentAndEmitsOneEvent.
 func TestDeleteSoftDeletesRevokesSessionsAndIsIdempotent(t *testing.T) {
 	backends(t, func(t *testing.T, f *fixture) {

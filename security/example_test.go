@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleArgon2id() {
-	// The zero value uses upstream's defaults (64 MiB, t=4, p=1); a low cost keeps the example fast.
+	// The zero value uses the defaults (64 MiB, t=4, p=1); a low cost keeps the example fast.
 	hasher := security.Argon2id{Memory: 8192, Time: 1, Threads: 1}
 	hash, err := hasher.Hash("correct horse battery staple")
 	if err != nil {

@@ -50,8 +50,8 @@ const (
 // without accepting a wide range of codes at once.
 const MaxTOTPWindow = 10
 
-// Auth is the validated root of the auth settings (upstream `auth` namespace). Start from
-// [Defaults]; a zero Auth is not valid. Durations are whole seconds, as upstream.
+// Auth is the validated root of the auth settings (the `auth` namespace). Start from
+// [Defaults]; a zero Auth is not valid. Durations are whole seconds.
 type Auth struct {
 	Issuer       string // AUTH_ISSUER, auth.issuer; required
 	Audience     string // AUTH_AUDIENCE, auth.audience; "" means none
@@ -134,7 +134,7 @@ type Flows struct {
 	CookieTrustedOrigins []string
 }
 
-// Defaults returns the documented defaults (upstream docs/auth/configuration.md). Issuer is
+// Defaults returns the documented defaults. Issuer is
 // empty and must be set; FromEnv defaults it to "polaris".
 func Defaults() Auth {
 	return Auth{

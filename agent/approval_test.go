@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-// Port of ApprovalsTest.
-
 func g(id, status, approvalID string) Grant {
 	return Grant{ID: id, Capability: "demo.echo", Status: status, ApprovalID: approvalID}
 }

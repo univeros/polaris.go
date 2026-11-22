@@ -1,7 +1,7 @@
 package session
 
-// Ports of PHP tests/Token/TokenServiceTest and tests/Persistence/TokenServicePersistenceTest,
-// run on memstore and SQLite, plus the concurrent-refresh race.
+// The session service (issue, refresh, revoke) run on memstore and SQLite, plus the
+// concurrent-refresh race.
 
 import (
 	"context"

@@ -19,7 +19,7 @@ const (
 // ErrForbidden is matched (errors.Is) by every authorization refusal.
 var ErrForbidden = errors.New("authz: forbidden")
 
-// ForbiddenError is an authorization refusal (upstream AuthorizationException). Message is
+// ForbiddenError is an authorization refusal. Message is
 // meant for the client: endpoints answer it as `403 forbidden` with this message. It matches
 // ErrForbidden; domain services return their own with Forbidden.
 type ForbiddenError struct{ Message string }
@@ -55,7 +55,7 @@ func (a Authority) IsSuperadmin() bool { return slices.Contains(a.Roles, RoleSup
 
 func none() Authority { return Authority{Roles: []string{}, Scope: []string{}} }
 
-// Resolver resolves effective authority from the database (upstream PermissionResolver):
+// Resolver resolves effective authority from the database:
 //
 //	effective(user, org) = every permission, when the user holds the system superadmin role
 //	                       else ∪ of the permissions of the user's roles in org

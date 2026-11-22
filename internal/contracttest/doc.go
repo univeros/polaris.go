@@ -1,8 +1,8 @@
-// Package contracttest replays the upstream contract fixtures against a Go http.Handler.
+// Package contracttest replays the recorded contract fixtures against a Go http.Handler.
 //
-// Each upstream PHP functional test recorded its request/response steps as
-// upstream/fixtures/<package>/<PHP test name, dotted>.json. The Go port of that test issues the
-// same requests through a Client; every response is normalized (volatile headers dropped,
+// Each functional test's request/response steps are recorded in
+// internal/apispec/fixtures/<package>/<test name, dotted>.json. The Go test issues the same
+// requests through a Client; every response is normalized (volatile headers dropped,
 // header names lower-cased, tokens, ids, codes and timestamps masked, record lists compared as
 // sets, JSON bodies compared structurally) and compared with the recorded step:
 //

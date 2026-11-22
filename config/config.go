@@ -67,8 +67,8 @@ func (p *problems) add(format string, args ...any) {
 
 func (p problems) err() error { return errors.Join(p...) }
 
-// seconds checks a duration that upstream expresses as a whole number of seconds; hint is the
-// upstream key, as " (auth.x.y)", or empty.
+// seconds checks a duration that is configured as a whole number of seconds; hint is the
+// configuration key, as " (auth.x.y)", or empty.
 func (p *problems) seconds(field, hint string, d, least time.Duration) {
 	switch {
 	case d < least:

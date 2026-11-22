@@ -15,8 +15,8 @@ import (
 )
 
 // Known-answer vectors: testdata/vectors/{jwt,oauth-jwt,receipt}.json hold tokens recorded once
-// (from the PHP implementation the formats started from). Polaris must keep minting them byte for
-// byte and accepting or refusing them at the recorded instants, so issued tokens stay valid
+// (their generator field names the implementation that recorded them). Polaris must keep minting
+// them byte for byte and accepting or refusing them at the recorded instants, so issued tokens stay valid
 // across releases.
 
 type jwtCheck struct {
@@ -132,7 +132,7 @@ func keyPair(t *testing.T, name string) pemPair {
 	return pemPair{}
 }
 
-// parseInstant reads PHP's "U.u".
+// parseInstant reads seconds.microseconds ("1780833600.123456").
 func parseInstant(t *testing.T, s string) time.Time {
 	sec, usec, _ := strings.Cut(s, ".")
 	n, err1 := strconv.ParseInt(sec, 10, 64)
@@ -148,8 +148,8 @@ func plusSeconds(t *testing.T, s string, seconds int) string {
 	return fmt.Sprintf("%d.%06d", ts.Unix(), ts.Nanosecond()/1000)
 }
 
-// orderedClaims decodes a JSON object (or PHP's [] for an empty one) into Claims, keeping key
-// order and PHP's number types.
+// orderedClaims decodes a JSON object (or [] for an empty one) into Claims, keeping key order
+// and the decoder's number types (int64 when integral, float64 otherwise).
 func orderedClaims(t *testing.T, raw json.RawMessage) Claims {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
@@ -203,7 +203,7 @@ func decodeOrdered(dec *json.Decoder) (any, error) {
 		_, err := dec.Token()
 		return obj, err
 	case json.Number:
-		return phpNumber(string(tok)), nil
+		return parseNumber(string(tok)), nil
 	default:
 		return tok, nil
 	}
@@ -248,7 +248,7 @@ type oauthVectors struct {
 	Cases     []oauthCase `json:"cases"`
 }
 
-// oauthLeeway is upstream Jwt::LEEWAY.
+// oauthLeeway is the leeway the OAuth provider verifies its JWTs with.
 const oauthLeeway = 60 * time.Second
 
 func (c oauthCase) codec(t *testing.T, side oauthSide, instant string) *Codec {

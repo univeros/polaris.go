@@ -85,8 +85,8 @@ func WithoutRecorders() Option { return func(o *options) { o.noRec = true } }
 // WithPathPrefix mounts the routes under prefix.
 func WithPathPrefix(prefix string) Option { return func(o *options) { o.prefix = prefix } }
 
-// WithDB reuses a database from an earlier boot (a test that reboots with other flags keeps its
-// data, as upstream's boot() does).
+// WithDB reuses a database from an earlier boot, so a test that reboots with other flags keeps its
+// data.
 func WithDB(db *sqlstore.Store) Option { return func(o *options) { o.db = db } }
 
 // WithHasher replaces the cheap test Argon2id (Memory 1 MiB, Time 1, Threads 1), e.g. with

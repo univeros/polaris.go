@@ -14,8 +14,8 @@ import (
 
 const loginTest = `Polaris\Tests\Functional\LoginEndpointTest::testSuccessfulLoginStampsLastLoginAndClearsFailures`
 
-// phpName turns a fixture file name back into the PHP test name.
-func phpName(file string) string {
+// testName turns a fixture file name back into the recorded test name.
+func testName(file string) string {
 	name := strings.TrimSuffix(filepath.Base(file), ".json")
 	dot := strings.LastIndex(name, ".")
 	return strings.ReplaceAll(name[:dot], ".", `\`) + "::" + name[dot+1:]
@@ -93,7 +93,7 @@ func TestEveryFixtureReplaysItsOwnRecording(t *testing.T) {
 	}
 	steps := 0
 	for _, file := range files {
-		test := phpName(file)
+		test := testName(file)
 		f := loadFixture(t, filepath.Dir(file), test)
 		for i, s := range f.steps {
 			req := httptest.NewRequest(s.method, s.uri, nil)
@@ -231,7 +231,7 @@ func TestLoadErrors(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		test := phpName(name)
+		test := testName(name)
 		if _, err := load(dir, test, false); err == nil {
 			t.Errorf("%s loaded", name)
 		}

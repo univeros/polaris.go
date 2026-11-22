@@ -21,7 +21,7 @@ const (
 	CSRFHeader = "X-Polaris-CSRF"
 )
 
-// refreshCookie is cookie token delivery (upstream docs/cookie-mode/spec.md): on the routes the
+// refreshCookie is cookie token delivery: on the routes the
 // manifest marks with a session, the refresh token travels in an HttpOnly cookie instead of the
 // JSON body.
 //
@@ -81,7 +81,8 @@ func cookieHeader(path, value string, maxAge int) string {
 	return fmt.Sprintf("%s=%s; Path=%s; Max-Age=%d; HttpOnly; Secure; SameSite=Strict", RefreshCookie, value, path, maxAge)
 }
 
-// rawURLEncode is PHP's rawurlencode: every byte but A-Z a-z 0-9 - _ . ~ percent-encoded.
+// rawURLEncode percent-encodes every byte but the RFC 3986 unreserved A-Z a-z 0-9 - _ . ~ (a
+// space is %20, not +).
 func rawURLEncode(s string) string {
 	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }

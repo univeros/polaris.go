@@ -19,7 +19,7 @@ func NewPrincipal(claims map[string]any) *Token {
 }
 
 // Delegate returns a copy of t marked as a delegated principal holding at most permissions
-// (upstream Gate::DELEGATED, decision #3): the gate intersects the owner's authority with them and
+// (decision #3): the gate intersects the owner's authority with them and
 // drops the owner's superadmin override. Only in-process code can set it; a parsed JWT never
 // carries it, whatever its claims say.
 func (t *Token) Delegate(permissions []string) *Token {

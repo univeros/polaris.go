@@ -1,7 +1,6 @@
 package authz
 
-// Ports of PHP tests/Authorization/PermissionCatalogTest and tests/Persistence/{GateTest,
-// PermissionResolverTest,PermissionCatalogSeedPersistenceTest}, run on memstore and SQLite.
+// The permission catalog, its seeding, the resolver and the gate, run on memstore and SQLite.
 
 import (
 	"context"

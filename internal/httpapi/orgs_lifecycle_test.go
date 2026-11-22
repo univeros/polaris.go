@@ -10,7 +10,7 @@ import (
 	"github.com/univeros/polaris.go/repository"
 )
 
-// Port of OrganizationLifecycleEndpointsTest: PATCH /orgs/{id} (org.update) and DELETE /orgs/{id}
+// Replays the OrganizationLifecycleEndpointsTest fixtures: PATCH /orgs/{id} (org.update) and DELETE /orgs/{id}
 // (org.delete, step-up), a soft delete that strips every member's authority in the organization,
 // hides it from listings and blocks switching into it.
 func TestOrganizationLifecycleEndpoints(t *testing.T) {

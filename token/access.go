@@ -9,7 +9,7 @@ import (
 // ErrInvalidClaims reports an access-token claim set without a subject or token id.
 var ErrInvalidClaims = errors.New("token: invalid access-token claims")
 
-// AccessClaims is the Polaris access-token claim set (docs/auth/flows.md §6). The protocol
+// AccessClaims is the Polaris access-token claim set. The protocol
 // claims (iss, aud, iat, exp, nbf) belong to the Codec and are absent here.
 type AccessClaims struct {
 	Subject        string   // sub, the user id; required
@@ -27,7 +27,7 @@ type AccessClaims struct {
 	Extra Claims
 }
 
-// Claims renders the set in upstream's order: extra claims, then sub, jti, org, roles,
+// Claims renders the set in wire order (issued tokens stay byte-identical): extra claims, then sub, jti, org, roles,
 // email_verified, mfa, amr, and sid, scope, auth_time when set. It fails with
 // ErrInvalidClaims when Subject or ID is empty.
 func (a AccessClaims) Claims() (Claims, error) {
@@ -61,7 +61,7 @@ func (a AccessClaims) Claims() (Claims, error) {
 	return c, nil
 }
 
-// nonNil keeps an absent list encoding as [] (PHP's empty array), never null.
+// nonNil keeps an absent list encoding as [], never null.
 func nonNil(s []string) []string {
 	if s == nil {
 		return []string{}

@@ -20,16 +20,16 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// The organization, membership, invitation, role, permission and user-administration routes
-// (upstream Http\Orgs, Http\Users, Auth\SwitchOrgEndpoint and Auth\AcceptInviteEndpoint).
+// The organization, membership, invitation, role, permission and user-administration routes,
+// plus switch-org and invites-accept.
 //
-// Input is checked by each endpoint with upstream's own messages, not by manifest.Validate: the
+// Input is checked by each endpoint with its own messages, not by manifest.Validate: the
 // contract fixtures freeze those messages ("A name is required.", not the validator's).
 
 const (
 	orgMsgNotActiveOrg = "That organization is not your active organization."
 	orgMsgOrgNotFound  = "The organization does not exist."
-	// orgAtom is PHP's DATE_ATOM: a UTC offset is written "+00:00", never "Z".
+	// orgAtom is RFC 3339 with a numeric offset: UTC is written "+00:00", never "Z".
 	orgAtom = "2006-01-02T15:04:05-07:00"
 )
 
@@ -109,7 +109,7 @@ func orgDeniesActiveOrg(ctx context.Context, tok *token.Token, orgID string) boo
 	return orgID != tok.Organization()
 }
 
-// fail maps a domain refusal to the wire as upstream does; anything else is a logged 500.
+// fail maps a domain refusal to its wire answer; anything else is a logged 500.
 func (a orgAPI) fail(ctx context.Context, err error) endpoint.Result {
 	var oe *orgs.Error
 	var ie *identity.Error
@@ -166,7 +166,7 @@ func (a orgAPI) activeOrg(ctx context.Context, orgID string) (model.Organization
 }
 
 // orgStringList is v as a list of strings; ok is false when v is not a list or holds anything
-// but strings (upstream rejects the whole list then).
+// but strings (the whole list is rejected then).
 func orgStringList(v any) ([]string, bool) {
 	items, ok := v.([]any)
 	if !ok {
@@ -243,7 +243,8 @@ func (a orgAPI) createOrg(ctx context.Context, in *endpoint.Input, tok *token.To
 	return endpoint.Data(http.StatusCreated, map[string]any{"id": org.ID, "name": org.Name, "slug": org.Slug, "role": authz.RoleOwner})
 }
 
-// orgSlugPattern is /^[a-z0-9-]+$/ (PHP's $ also accepts one trailing newline).
+// orgSlugPattern reports whether s is lowercase ASCII letters, digits and hyphens, allowing one
+// trailing newline (the accepted set is part of the contract; existing slugs may carry it).
 func orgSlugPattern(s string) bool {
 	s = strings.TrimSuffix(s, "\n")
 	return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz0123456789-") == ""

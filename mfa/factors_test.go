@@ -1,7 +1,7 @@
 package mfa
 
-// Ports of PHP tests/Mfa/MfaConfirmationTest and tests/Mfa/MfaTotpServiceTest, plus the sms/email
-// enrollment flow (OtpFactorService), run on memstore and SQLite.
+// Factor confirmation and TOTP enrollment, plus the sms/email enrollment flow, run on memstore and
+// SQLite.
 
 import (
 	"errors"

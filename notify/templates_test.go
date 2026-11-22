@@ -49,7 +49,7 @@ func TestEveryTemplateTextIsVerbatim(t *testing.T) {
 	}
 }
 
-func TestScalarsRenderAsPHPStringsAndOthersAsJSON(t *testing.T) {
+func TestScalarsRenderAsTextAndOthersAsJSON(t *testing.T) {
 	got := Text("custom", map[string]any{
 		"b_true": true, "c_false": false, "d_float": 1.5, "e_whole": 2.0, "f_int64": int64(-7),
 		"g_nil": nil, "h_list": []string{"x/y", "<z>"}, "i_uint": uint8(3),
@@ -58,7 +58,7 @@ func TestScalarsRenderAsPHPStringsAndOthersAsJSON(t *testing.T) {
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
-	// Non-scalar values in a known template render empty, as upstream.
+	// Non-scalar values in a known template render empty.
 	if got := Text(TemplateOTPCode, map[string]any{"code": []int{1}, "ttl": "abc"}); got != "Your verification code is . It expires in 0 seconds.\n" {
 		t.Errorf("got %q", got)
 	}

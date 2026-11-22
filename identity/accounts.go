@@ -64,7 +64,7 @@ func (s *Service) CreateUser(ctx context.Context, in NewUser, client token.Clien
 	if !manifest.IsEmail(email) {
 		return model.User{}, refuse(ErrInvalidProfile, msgInvalidEmail)
 	}
-	name := strings.Trim(in.DisplayName, phpTrimSet)
+	name := strings.Trim(in.DisplayName, trimSet)
 	if utf8.RuneCountInString(name) > displayNameMax {
 		return model.User{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
 	}

@@ -127,7 +127,7 @@ func TestHostPermissionsJoinTheCatalog(t *testing.T) {
 
 // TestEdDSAFromEnv boots Polaris with the keys "polaris keys:generate --alg=EdDSA" prints: login
 // issues an EdDSA token that verifies with the public key, the JWKS route publishes it as an RFC
-// 8037 OKP key (upstream cannot), and mcp.Protect verifies the token through that JWKS URL.
+// 8037 OKP key, and mcp.Protect verifies the token through that JWKS URL.
 func TestEdDSAFromEnv(t *testing.T) {
 	ctx := context.Background()
 	var out, stderr bytes.Buffer
@@ -177,7 +177,7 @@ func TestEdDSAFromEnv(t *testing.T) {
 	header, _ := base64.RawURLEncoding.DecodeString(parts[0])
 	sig, _ := base64.RawURLEncoding.DecodeString(parts[2])
 	pub, _ := base64.StdEncoding.DecodeString(generated.Env["AUTH_JWT_PUBLIC_KEY"])
-	kid := sha256.Sum256(pub) // upstream's default kid: SHA-256 hex of the raw public key
+	kid := sha256.Sum256(pub) // the default kid: SHA-256 hex of the raw public key
 	var h struct{ Alg, Kid string }
 	if err := json.Unmarshal(header, &h); err != nil || h.Alg != "EdDSA" || h.Kid != hex.EncodeToString(kid[:]) {
 		t.Fatalf("header %s", header)
