@@ -7,8 +7,7 @@ import (
 )
 
 // clausePattern is one `attr eq|co|sw "value"` clause and what follows it (an `and` or the
-// end), case-insensitive as upstream's /i pattern.
-// (PCRE's \s is [\t\n\v\f\r ]; RE2's lacks \v, so the class is spelled out.)
+// end), case-insensitive. Whitespace is [\t\n\v\f\r ], spelled out because RE2's \s lacks \v.
 var clausePattern = regexp.MustCompile(`(?i)([A-Za-z][A-Za-z0-9_.]*(?:\[[^\]]*\])?(?:\.[A-Za-z]+)?)[\t\n\v\f\r ]+(eq|co|sw)[\t\n\v\f\r ]+"((?:[^"\\]|\\.)*)"(?:[\t\n\v\f\r ]+and[\t\n\v\f\r ]+|$)`)
 
 var errFilter = &Error{Status: http.StatusBadRequest, Type: TypeInvalidFilter,
@@ -24,7 +23,7 @@ type filter []clause
 
 // parseFilter reads a filter; anything outside the subset is the invalidFilter error.
 func parseFilter(raw string) (filter, error) {
-	raw = phpTrim(raw)
+	raw = trimBlank(raw)
 	if raw == "" {
 		return nil, nil
 	}
@@ -71,7 +70,7 @@ func (f filter) matches(attributes map[string][]string) bool {
 	return true
 }
 
-// stripSlashes is PHP's stripslashes: a backslash escapes the next byte (\0 is NUL); a lone
+// stripSlashes unescapes a filter value: a backslash escapes the next byte (\0 is NUL); a lone
 // trailing backslash is dropped.
 func stripSlashes(s string) string {
 	if !strings.Contains(s, `\`) {
@@ -95,5 +94,6 @@ func stripSlashes(s string) string {
 	return b.String()
 }
 
-// phpTrim is PHP's trim(): space, tab, newline, carriage return, NUL and vertical tab.
-func phpTrim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }
+// trimBlank strips surrounding spaces, tabs, newlines, carriage returns, NUL and vertical tabs
+// (not the other Unicode spaces strings.TrimSpace strips).
+func trimBlank(s string) string { return strings.Trim(s, " \t\n\r\x00\x0b") }

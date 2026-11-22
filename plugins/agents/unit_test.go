@@ -263,7 +263,7 @@ func TestConstraintsAreParsedAndEvaluated(t *testing.T) {
 
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
-func TestSchemaSubsetMatchesOpisMessages(t *testing.T) {
+func TestSchemaSubsetRefusalMessages(t *testing.T) {
 	str := map[string]any{"type": "string", "minLength": json.Number("2"), "maxLength": json.Number("3"), "pattern": "^[a-z]+$"}
 	schema := map[string]any{"type": "object", "required": []any{"name"}, "additionalProperties": false, "properties": map[string]any{
 		"name": str, "n": map[string]any{"type": "integer", "minimum": json.Number("1"), "maximum": json.Number("9"), "exclusiveMaximum": json.Number("5")},
@@ -618,7 +618,7 @@ func TestReceiptsChainHashAndVerify(t *testing.T) {
 		t.Errorf("canonical %q", got)
 	}
 	if inputHash(map[string]any{}) != "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" {
-		t.Error("the empty input hashes as PHP's []")
+		t.Error("the empty input hashes as []")
 	}
 	ten, nine, eight := int64(10), int64(9), int64(8)
 	first, err := p.s.appendReceipt(ctx, a, nil, "deploy", inputHash(map[string]any{"build": "1"}), OutcomeSuccess, &ten, &nine)

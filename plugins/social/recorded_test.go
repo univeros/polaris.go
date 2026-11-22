@@ -18,7 +18,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 )
 
-// The recorded providers of upstream's tests/Support (exported to the external tests).
+// The recorded providers the tests sign in through (exported to the external tests).
 const (
 	RecordedKID        = "test-2026"
 	GoogleSub          = "110169484474386276334"
@@ -218,7 +218,7 @@ func AcmeDefinition() *Definition {
 		}}
 }
 
-// RecordedConfig is upstream's SocialTestCase configuration on base.
+// RecordedConfig is the tests' configuration on base, every provider answered by r.
 func RecordedConfig(t testing.TB, base string, r *Recorded) Config {
 	return Config{
 		BaseURL: base,

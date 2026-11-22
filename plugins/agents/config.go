@@ -77,8 +77,8 @@ type Capability struct {
 // AuthorizeOperator method has this shape and is used by default when admin is registered.
 type OperatorFunc func(ctx context.Context, capability, organizationID string) (userID string, refusal endpoint.Result, ok bool)
 
-// Config configures the plugin. Only Capabilities matter for most hosts; every other field has
-// upstream's default.
+// Config configures the plugin. Only Capabilities matter for most hosts; every other field's zero
+// value is its default.
 type Config struct {
 	Capabilities []Capability
 	// BaseURL is where Polaris is mounted ("https://app.example/auth"); the discovery document's

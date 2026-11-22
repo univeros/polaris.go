@@ -13,7 +13,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// The JSON-RPC edges of the 2026-07-28 profile (upstream's SDK behaviour) and the schema folding.
+// The JSON-RPC edges of the 2026-07-28 profile and the schema folding.
 
 func testPlugin(t *testing.T) *Plugin {
 	t.Helper()
@@ -129,8 +129,8 @@ func TestSchemasFoldTheQueryAndPathParameters(t *testing.T) {
 	if string(me) != `{"type":"object","properties":[]}` {
 		t.Errorf("auth.me input: %s", me)
 	}
-	// The output is validated against its schema by MCP clients and upstream's SDK, and an example
-	// cannot show which fields may be null: every scalar also admits null (upstream ToolSchema::nullable).
+	// The output is validated against its schema by MCP clients, and an example cannot show which
+	// fields may be null: every scalar also admits null.
 	out, _ := json.Marshal(p.schemas()["polaris.auth.me"].output)
 	for _, want := range []string{`"email":{"type":["string","null"]}`, `"display_name":{"type":["string","null"]}`, `"email_verified":{"type":["boolean","null"]}`, `"orgs":{"type":"array","items":[]}`} {
 		if !strings.Contains(string(out), want) {

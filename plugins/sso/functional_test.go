@@ -22,10 +22,12 @@ const (
 	password = "correct horse battery staple"
 	base     = "https://app.example/auth"
 	done     = "https://app.example/done"
-	classes  = `Polaris\Sso\Tests\Functional\`
+	// fixturePrefix is the recorded fixture set's file-name prefix under
+	// internal/apispec/fixtures/sso: a fixture is fixturePrefix + suite + "." + test + ".json".
+	fixturePrefix = "Polaris.Sso.Tests.Functional."
 )
 
-// fakeOIDC is upstream's FakeOidc: the authorization URL names the provider only (the state and
+// fakeOIDC is the OIDC protocol stand-in: the authorization URL names the provider only (the state and
 // nonce are kept for the test to read), the code "good" is the identity of email.
 type fakeOIDC struct {
 	mu                   sync.Mutex
@@ -65,7 +67,7 @@ func (f *fakeOIDC) state() string {
 	return f.lastState
 }
 
-// fakeSAML is upstream's FakeSaml: a response "good:<email>" is that email's identity (assertion
+// fakeSAML is the SAML protocol stand-in: a response "good:<email>" is that email's identity (assertion
 // id "assertion-<email>"), "unsolicited:<email>" the same without answering a request; a logout
 // request "logout:<email>" names the email.
 type fakeSAML struct {
@@ -154,8 +156,8 @@ func (f *fakeVerifier) allow(domain string) {
 	f.verifiable = append(f.verifiable, domain)
 }
 
-// flow is upstream's SsoTestCase: audit, admin and sso (with the fakes) under the pipeline,
-// replaying the recorded fixture of one PHP test.
+// flow is the functional environment: audit, admin and sso (with the fakes) under the pipeline,
+// replaying one recorded fixture.
 type flow struct {
 	t        *testing.T
 	srv      *polaristest.Server
@@ -167,13 +169,13 @@ type flow struct {
 	verifier *fakeVerifier
 }
 
-func newFlow(t *testing.T, class, method string) *flow {
+func newFlow(t *testing.T, suite, test string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{}), trail: audit.New(audit.Config{}),
 		oidc: &fakeOIDC{email: "ada@acme.example", name: "Ada Lovelace"}, saml: &fakeSAML{}, verifier: &fakeVerifier{}}
 	plugin := sso.New(sso.Config{BaseURL: base, OIDC: f.oidc, SAML: f.saml, Domains: f.verifier})
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, plugin))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "sso"), classes+class, method))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "sso"), fixturePrefix+suite, test))
 	return f
 }
 
@@ -291,9 +293,9 @@ func code(t *testing.T, resp *http.Response) string {
 
 func TestEverySsoFixtureHasAGoTest(t *testing.T) {
 	missing, err := contracttest.Uncovered(contracttest.Fixtures(t, "sso"), []string{
-		classes + "SsoFlowTest::testSignInThroughOidcAndSamlEndsOnTheApplicationWithACode",
-		classes + "SsoOrganizationTest::testAnOrganizationManagesItsProvidersAndDomains",
-		classes + "SsoOrganizationTest::testTheOperatorsSeeEveryOrganizationsProviders",
+		fixturePrefix + "SsoFlowTest::testSignInThroughOidcAndSamlEndsOnTheApplicationWithACode",
+		fixturePrefix + "SsoOrganizationTest::testAnOrganizationManagesItsProvidersAndDomains",
+		fixturePrefix + "SsoOrganizationTest::testTheOperatorsSeeEveryOrganizationsProviders",
 	})
 	if err != nil || len(missing) > 0 {
 		t.Fatalf("uncovered fixtures %v (%v)", missing, err)

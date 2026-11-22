@@ -29,8 +29,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// Port of upstream packages/passwordless/tests/PluginTest.php (the sentinel test waits for the
-// sentinel plugin), plus the Go-only concurrency checks.
+// The plugin through the graph, method by method, plus the concurrency checks.
 
 const (
 	tBase  = "https://app.example/auth"
@@ -633,21 +632,21 @@ func parallel(n int, f func()) {
 	wg.Wait()
 }
 
-func TestPHPJSON(t *testing.T) {
-	got, err := phpJSON(magicLinkData{Email: "zoë@example.com", RedirectURI: "https://app.example/x?a=1&b=<2>"})
+func TestEscapedJSON(t *testing.T) {
+	got, err := escapedJSON(magicLinkData{Email: "zoë@example.com", RedirectURI: "https://app.example/x?a=1&b=<2>"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := `{"email":"zo` + "\\u00eb" + `@example.com","redirect_uri":"https:\/\/app.example\/x?a=1&b=<2>"}`; got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
-	if got, _ := phpJSON("\U0001F600"); got != "\"\\ud83d\\ude00\"" {
+	if got, _ := escapedJSON("\U0001F600"); got != "\"\\ud83d\\ude00\"" {
 		t.Fatalf("surrogates %s", got)
 	}
-	if got, _ := phpJSON(nil); got != "[]" {
+	if got, _ := escapedJSON(nil); got != "[]" {
 		t.Fatalf("nil %s", got)
 	}
-	if _, err := phpJSON(make(chan int)); err == nil {
+	if _, err := escapedJSON(make(chan int)); err == nil {
 		t.Fatal("unencodable accepted")
 	}
 }

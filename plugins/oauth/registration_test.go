@@ -9,10 +9,10 @@ import (
 	"github.com/univeros/polaris.go/plugins/oauth"
 )
 
-// Port of OAuthRegistrationTest: dynamic client registration when a host turns it on, and
+// The registration fixtures: dynamic client registration when a host turns it on, and
 // private_key_jwt client authentication with a registered JWK Set.
 func TestOAuthRegistration(t *testing.T) {
-	run(t, phpRegister, true, map[string]func(*oauthCase){
+	run(t, registrationFixtures, true, map[string]func(*oauthCase){
 		"testAnyoneRegistersAClientAndAKeyedClientAuthenticatesWithAnAssertion": registrationAndAssertion,
 	})
 }

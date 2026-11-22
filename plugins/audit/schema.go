@@ -9,7 +9,7 @@ const (
 	TableActivity = "polaris_audit_activity"
 )
 
-// Models returns the plugin's tables, as upstream's Polaris\Audit\Schema declares them.
+// Models returns the plugin's tables, the columns existing databases hold (a change is a migration).
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableEvents,

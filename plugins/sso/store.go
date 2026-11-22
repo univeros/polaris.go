@@ -167,7 +167,8 @@ func withMember(m map[string]any, key string, value any) map[string]any {
 	return out
 }
 
-// providerRow is the provider's mutable columns, JSON written as upstream writes it.
+// providerRow is the provider's mutable columns. The JSON columns are written by escapedJSON with
+// the known configuration members first, in a fixed order, so stored rows keep one byte form.
 func providerRow(p Provider) (store.Row, error) {
 	keys := oidcKeys
 	if p.Type == TypeSAML {
@@ -191,7 +192,7 @@ func providerRow(p Provider) (store.Row, error) {
 	encoded := make([]string, 4)
 	for i, v := range []any{config, attributes, object{{"enabled", p.JIT.Enabled}, {"roles", nonNil(p.JIT.Roles)}}, nonNil(p.RedirectURIs)} {
 		var err error
-		if encoded[i], err = phpJSON(v); err != nil {
+		if encoded[i], err = escapedJSON(v); err != nil {
 			return nil, err
 		}
 	}
@@ -217,7 +218,7 @@ func hydrateProvider(r store.Row) Provider {
 		Config: map[string]any{}, Attributes: map[string]string{},
 	}
 	var config, attributes map[string]any
-	_ = r.JSON("config", &config) // PHP's empty "[]" leaves the maps empty
+	_ = r.JSON("config", &config) // an empty object is stored as "[]", which leaves the maps empty
 	for k, v := range config {
 		p.Config[k] = v
 	}
@@ -241,7 +242,7 @@ func hydrateProvider(r store.Row) Provider {
 	return p
 }
 
-// stringsOf is the string items of a JSON list (PHP's array_filter(is_string)).
+// stringsOf is the string items of a JSON list, other items skipped; never nil.
 func stringsOf(v any) []string {
 	list, _ := v.([]any)
 	out := []string{}

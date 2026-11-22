@@ -45,7 +45,7 @@ func (*Plugin) ID() string { return ID }
 // polaris_scim_membership_provenance.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest returns the plugin's 22 routes (upstream api/scim).
+// Manifest returns the plugin's 22 routes (declared in internal/apispec/api/scim).
 func (*Plugin) Manifest() fs.FS {
 	sub, err := fs.Sub(apispec.API, "api/scim")
 	if err != nil {

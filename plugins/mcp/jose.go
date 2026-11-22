@@ -100,8 +100,7 @@ func parseJWK(m map[string]any, alg string) (any, error) {
 }
 
 // verifyJWS checks a compact JWS signed with alg by key and returns its claims (numbers as
-// json.Number), with firebase/php-jwt's time checks under leeway: nbf and iat not after now, exp
-// after now.
+// json.Number), with the time checks under leeway: nbf and iat not after now, exp after now.
 func verifyJWS(raw, alg string, key any, now time.Time, leeway time.Duration) (map[string]any, error) {
 	if !slices.Contains(Algorithms, alg) {
 		return nil, errors.New("algorithm not supported")
@@ -142,7 +141,7 @@ func number(v any) (float64, bool) {
 	return f, err == nil
 }
 
-// integer reads a JSON number PHP decodes as an int (no fraction, no exponent).
+// integer reads a JSON number written as an integer (no fraction, no exponent).
 func integer(v any) (int64, bool) {
 	n, ok := v.(json.Number)
 	if !ok || strings.ContainsAny(n.String(), ".eE") {

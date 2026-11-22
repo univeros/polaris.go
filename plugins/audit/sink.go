@@ -93,7 +93,7 @@ func (f *FileSink) Write(_ context.Context, events ...Event) error {
 	}
 	var b bytes.Buffer
 	for _, e := range events {
-		line, err := phpJSON(e.Map())
+		line, err := canonicalJSON(e.Map())
 		if err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (s WebhookSink) Write(ctx context.Context, events ...Event) error {
 	for i, e := range events {
 		list[i] = e.Map()
 	}
-	encoded, err := phpJSON(map[string]any{"events": list})
+	encoded, err := canonicalJSON(map[string]any{"events": list})
 	if err != nil {
 		return err
 	}

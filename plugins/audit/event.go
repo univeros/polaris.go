@@ -18,7 +18,8 @@ const (
 	ActorSystem = "system"
 )
 
-// dateAtom is PHP's DATE_ATOM: UTC is written "+00:00".
+// dateAtom is RFC 3339 to the second with UTC written "+00:00" (not "Z"), the timestamp format
+// the API emits and the hashed rows hold.
 const dateAtom = "2006-01-02T15:04:05-07:00"
 
 // Redacted replaces what Redact strips.
@@ -137,9 +138,11 @@ func (e Event) normalized() Event {
 	return e
 }
 
-// phpJSON encodes v as PHP's json_encode with JSON_UNESCAPED_SLASHES does (the stored and hashed
-// form upstream writes): non-ASCII as \uXXXX, an empty object as [].
-func phpJSON(v any) (string, error) {
+// canonicalJSON encodes v in the form the audit trail stores and hashes: slashes unescaped, HTML
+// characters unescaped, every non-ASCII character as a \uXXXX escape (surrogate pairs above the
+// BMP), an empty object as []. Chains hashed by earlier releases keep verifying only while these
+// bytes stay the same.
+func canonicalJSON(v any) (string, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
@@ -164,8 +167,8 @@ func phpJSON(v any) (string, error) {
 	return string(out), nil
 }
 
-// emptyAsList maps empty objects to empty lists at any depth: PHP cannot tell them apart and
-// encodes both as [].
+// emptyAsList maps empty objects to empty lists at any depth: the stored and hashed form writes
+// both as [].
 func emptyAsList(v any) any {
 	switch v := v.(type) {
 	case map[string]any:

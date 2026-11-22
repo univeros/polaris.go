@@ -91,7 +91,7 @@ func success(data any) endpoint.Result { return endpoint.Data(http.StatusOK, dat
 
 func status(s string) endpoint.Result { return success(map[string]any{"status": s}) }
 
-// positiveInt reads an optional numeric value (PHP is_numeric, truncated) of at least 1, clamped
+// positiveInt reads an optional number or numeric string (fraction truncated) of at least 1, clamped
 // to MaxLimit; def when absent or "".
 func positiveInt(v any, def int) (int, bool) {
 	var s string

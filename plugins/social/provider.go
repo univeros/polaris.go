@@ -62,7 +62,9 @@ func (p *provider) resolved(ctx context.Context) (*provider, error) {
 	return &cp, nil
 }
 
-// authorizationURL is where the browser goes: upstream's parameters in upstream's order.
+// authorizationURL is where the browser goes, its parameters in a fixed order: the client id,
+// redirect_uri, response_type, scope and state, the provider's own parameters by name (replacing
+// a standard one in place), then the PKCE challenge, the nonce and response_mode.
 func (p *provider) authorizationURL(callback, state string, scopes []string, challenge, nonce string) string {
 	if len(scopes) == 0 {
 		scopes = p.def.Scopes
@@ -319,7 +321,7 @@ func (q query) set(k, v string) query {
 	return append(q, [2]string{k, v})
 }
 
-// encode is PHP's http_build_query with PHP_QUERY_RFC3986.
+// encode writes the pairs in order as k=v joined by "&", both sides escaped by rawURLEncode.
 func (q query) encode() string {
 	parts := make([]string, len(q))
 	for i, kv := range q {
@@ -328,7 +330,8 @@ func (q query) encode() string {
 	return strings.Join(parts, "&")
 }
 
-// rawURLEncode is PHP's rawurlencode: everything but A-Za-z0-9-_.~ escaped, space as %20.
+// rawURLEncode percent-encodes as RFC 3986 asks: everything but A-Za-z0-9-_.~ escaped, space
+// as %20.
 func rawURLEncode(s string) string { return strings.ReplaceAll(url.QueryEscape(s), "+", "%20") }
 
 func appendQuery(base, encoded string) string {

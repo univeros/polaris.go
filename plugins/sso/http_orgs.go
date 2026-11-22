@@ -175,7 +175,7 @@ func (p *Plugin) listDomains(ctx context.Context, _ *endpoint.Input, _ *token.To
 
 // addDomain answers POST /orgs/{id}/sso/domains: claims a domain for a provider.
 func (p *Plugin) addDomain(ctx context.Context, in *endpoint.Input, tok *token.Token, orgID string) endpoint.Result {
-	name := strings.ToLower(phpTrim(in.String("domain")))
+	name := strings.ToLower(trimBlank(in.String("domain")))
 	if len(name) > 253 || !hostname.MatchString(name) {
 		return invalidInput("domain must be a hostname (example.com).")
 	}
@@ -283,10 +283,11 @@ func (p *Plugin) adminDelete(ctx context.Context, in *endpoint.Input) endpoint.R
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "deleted"})
 }
 
-// phpNumeric is PHP's is_numeric for a query value (surrounding whitespace allowed).
-var phpNumeric = regexp.MustCompile(`^\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*$`)
+// numericString matches a decimal number written as a query value: an optional sign, digits with
+// an optional fraction, an optional exponent, surrounding whitespace allowed.
+var numericString = regexp.MustCompile(`^\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*$`)
 
-// positiveInt is upstream's limit reading: a numeric value (truncated) of at least 1, def when
+// positiveInt reads a limit: a numeric value (truncated toward zero) of at least 1, def when
 // absent or "".
 func positiveInt(v any, def int) (int, bool) {
 	var s string
@@ -303,7 +304,7 @@ func positiveInt(v any, def int) (int, bool) {
 	if s == "" {
 		return def, true
 	}
-	if !phpNumeric.MatchString(s) {
+	if !numericString.MatchString(s) {
 		return 0, false
 	}
 	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)

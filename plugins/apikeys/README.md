@@ -4,8 +4,8 @@ API keys owned by users and by organizations (`pk_live_…`, `pk_test_…`), eac
 owner's permissions, an optional rate limit of its own, an expiry, rotation with a grace window and
 revocation. Presented as `Authorization: Bearer pk_…` or `x-api-key: pk_…`, a key authenticates every
 Polaris route and every host route behind `p.Protect` as its owner, delegated: the gate intersects the
-owner's current permissions with the key's, so a key never does more than its owner may. Port of
-`polaris/api-keys`; works alone, and with `plugins/audit` registered every change is recorded.
+owner's current permissions with the key's, so a key never does more than its owner may. It
+works alone, and with `plugins/audit` registered every change is recorded.
 
 ## Install
 

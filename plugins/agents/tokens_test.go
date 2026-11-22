@@ -13,10 +13,10 @@ import (
 	"github.com/univeros/polaris.go/store"
 )
 
-// Port of AgentTokensTest: delegated agents through token exchange, autonomous agents through
+// The recorded token flows: delegated agents through token exchange, autonomous agents through
 // client credentials, and a location capability reached only through the request middleware.
 func TestAgentTokens(t *testing.T) {
-	run(t, phpTokens, map[string]func(*agentsCase){
+	run(t, tokensFixtures, map[string]func(*agentsCase){
 		"testADelegatedAgentActsForTheUserThroughTokenExchange":           delegatedAgent,
 		"testAnAutonomousAgentActsAsItsOwnerWithinItsGrants":              autonomousAgent,
 		"testALocationCapabilityIsReachedOnlyThroughTheRequestMiddleware": locationCapability,

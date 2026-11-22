@@ -25,7 +25,7 @@ import (
 	"github.com/univeros/polaris.go/token"
 )
 
-// unit is upstream's PluginTest: the plugin wired through the graph, the flow through its methods
+// unit is the unit-level environment: the plugin wired through the graph, the flow through its methods
 // with the fake protocols.
 type unit struct {
 	t      *testing.T
@@ -147,10 +147,10 @@ func TestProvidersKeepTheSecretEncryptedAndAreListed(t *testing.T) {
 		return row.String(col) == want
 	}
 	if !storetest.JSONNormalized(u.srv.DB.Dialect()) {
-		check(t, strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "PHP's bytes: %s", row.String("config"))
+		check(t, strings.HasPrefix(row.String("config"), `{"client_id":"c1","client_secret":"`), "stored bytes: %s", row.String("config"))
 	}
 	check(t, stored("redirect_uris", `["https:\/\/app.example\/done"]`) && stored("jit", `{"enabled":true,"roles":["member"]}`) &&
-		stored("attributes", `{"email":"email"}`), "stored as PHP writes it: %v", row)
+		stored("attributes", `{"email":"email"}`), "stored in the escaped JSON form: %v", row)
 	secret, err := providers.Secret(p)
 	check(t, secret == "shh" && err == nil, "secret %q %v", secret, err)
 	m := p.Map()
