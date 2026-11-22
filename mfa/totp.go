@@ -29,8 +29,10 @@ type TOTPProvider interface {
 	Match(secret, code string) (step int64, ok bool, err error)
 }
 
-// secretBytes is the generated secret size: 64 random bytes, 103 base32 characters.
-const secretBytes = 64
+// secretBytes is the generated secret size: 20 random bytes (160 bits, the length RFC 4226
+// section 4 recommends and every authenticator app accepts), 32 base32 characters. Factors
+// enrolled before hold longer secrets; Match takes a secret of any length.
+const secretBytes = 20
 
 var base32NoPad = base32.StdEncoding.WithPadding(base32.NoPadding)
 

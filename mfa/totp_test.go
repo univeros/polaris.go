@@ -28,15 +28,32 @@ func newTOTP(t *testing.T, cfg config.TOTP, at time.Time) *TOTP {
 
 func defaults() config.TOTP { return config.Defaults().OTP.TOTP }
 
-func TestGeneratesABase32SecretOf64Bytes(t *testing.T) {
+func TestGeneratesABase32SecretOf20Bytes(t *testing.T) {
 	p := newTOTP(t, defaults(), instant)
 	secret := p.GenerateSecret()
-	// 64 random bytes, base32 upper case, padding trimmed.
-	if !regexp.MustCompile(`^[A-Z2-7]{103}$`).MatchString(secret) {
+	// 20 random bytes (160 bits, RFC 4226 section 4), base32 upper case, no padding.
+	if !regexp.MustCompile(`^[A-Z2-7]{32}$`).MatchString(secret) {
 		t.Fatalf("secret %q", secret)
 	}
 	if p.GenerateSecret() == secret {
 		t.Fatal("secrets must be random")
+	}
+}
+
+// Factors enrolled by earlier releases hold 64-byte secrets (103 base32 characters); they keep
+// verifying.
+func TestAnEarlierReleasesLongSecretKeepsVerifying(t *testing.T) {
+	p := newTOTP(t, defaults(), instant)
+	secret := base32NoPad.EncodeToString([]byte(strings.Repeat("polaris-", 8)))
+	if len(secret) != 103 {
+		t.Fatalf("fixture secret has %d characters", len(secret))
+	}
+	code, err := totp.GenerateCodeCustom(secret, instant, totp.ValidateOpts{Period: 30, Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := p.Match(secret, code); err != nil || !ok {
+		t.Fatalf("Match = %v, %v", ok, err)
 	}
 }
 
