@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/token"
@@ -61,10 +60,6 @@ func authString(in *endpoint.Input, key string) string {
 	}
 	return ""
 }
-
-// authTrim strips only " \t\n\r\0\x0B" from both ends (not Unicode spaces, as strings.TrimSpace
-// does).
-func authTrim(s string) string { return strings.Trim(s, " \t\n\r\x00\x0B") }
 
 // authSubject is the caller's user id and the token's session id; ok is false without a
 // principal or a subject.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 )
@@ -74,7 +75,7 @@ func (s *Service) UpdateProfile(ctx context.Context, actorUserID, actorOrganizat
 	}
 	next := user
 	if displayName != nil {
-		name := strings.Trim(*displayName, trimSet)
+		name := strutil.Trim(*displayName)
 		if utf8.RuneCountInString(name) > displayNameMax {
 			return UserView{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
 		}

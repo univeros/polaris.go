@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"encoding/base32"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/config"
+	"github.com/univeros/polaris.go/internal/strutil"
 )
 
 // TOTPProvider generates and checks RFC 6238 authenticator-app codes. Secrets are base32.
@@ -91,13 +91,13 @@ func (p *TOTP) ProvisioningURI(secret, account string) (string, error) {
 	if p.cfg.Digits != 6 {
 		q = append(q, fmt.Sprintf("digits=%d", p.cfg.Digits))
 	}
-	q = append(q, "issuer="+rawURLEncode(p.cfg.Issuer))
+	q = append(q, "issuer="+strutil.PercentEncode(p.cfg.Issuer))
 	if p.period != 30 {
 		q = append(q, fmt.Sprintf("period=%d", p.period))
 	}
-	q = append(q, "secret="+rawURLEncode(normalizeSecret(secret)))
+	q = append(q, "secret="+strutil.PercentEncode(normalizeSecret(secret)))
 
-	return "otpauth://totp/" + rawURLEncode(p.cfg.Issuer+":"+account) + "?" + strings.Join(q, "&"), nil
+	return "otpauth://totp/" + strutil.PercentEncode(p.cfg.Issuer+":"+account) + "?" + strings.Join(q, "&"), nil
 }
 
 // Match implements TOTPProvider. Each candidate is compared in constant time.
@@ -134,11 +134,4 @@ func normalizeSecret(secret string) string { return strings.ToUpper(strings.Trim
 
 func hasColon(s string) bool {
 	return strings.Contains(s, ":") || strings.Contains(s, "%3A") || strings.Contains(s, "%3a")
-}
-
-// rawURLEncode percent-encodes everything but RFC 3986 unreserved characters, upper-case hex (a
-// space is %20).
-func rawURLEncode(s string) string {
-	// url.PathEscape leaves sub-delims and ':' '@' alone; QueryEscape differs only in '+' for ' '.
-	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }

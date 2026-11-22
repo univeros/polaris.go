@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/univeros/polaris.go/internal/strutil"
 )
 
 const (
@@ -251,7 +253,7 @@ func (f Field) schema() Object {
 		case "in":
 			values := strings.Split(rule.arg, ",")
 			for i, v := range values {
-				values[i] = strings.Trim(v, " \t\n\r\x00\x0B")
+				values[i] = strutil.Trim(v)
 			}
 			s = s.With("enum", values)
 		case "regex":

@@ -283,7 +283,4 @@ func TestRequestOrigin(t *testing.T) {
 			t.Errorf("%s: %s", target, got)
 		}
 	}
-	if got := rawURLEncode("a b+c/~"); got != "a%20b%2Bc%2F~" {
-		t.Error(got)
-	}
 }

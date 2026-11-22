@@ -3,8 +3,10 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"github.com/univeros/polaris.go/internal/services"
 	"net/http"
+
+	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/internal/strutil"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/identity"
@@ -17,7 +19,7 @@ import (
 )
 
 func (a *authAPI) login(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	email := authTrim(authString(in, "email"))
+	email := strutil.Trim(authString(in, "email"))
 	password := authString(in, "password")
 	if email == "" || password == "" {
 		return endpoint.Unprocessable([]string{"An email and password are required."})
@@ -70,7 +72,7 @@ func authTokenPair(t token.IssuedTokens) map[string]any {
 }
 
 func (a *authAPI) refresh(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	presented := authTrim(authString(in, "refresh_token"))
+	presented := strutil.Trim(authString(in, "refresh_token"))
 	if presented == "" {
 		return endpoint.Unprocessable([]string{"A refresh token is required."})
 	}
@@ -163,7 +165,7 @@ func (a *authAPI) revokeSession(ctx context.Context, in *endpoint.Input) endpoin
 	if !ok {
 		return endpoint.Unauthorized()
 	}
-	sessionID := authTrim(authString(in, "id"))
+	sessionID := strutil.Trim(authString(in, "id"))
 	if sessionID == "" {
 		return endpoint.Unprocessable([]string{"A session id is required."})
 	}
