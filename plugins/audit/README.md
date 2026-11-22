@@ -12,7 +12,7 @@ import "github.com/univeros/polaris.go/plugins/audit"
 
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}))
 p, err := polaris.New(cfg)
-_, err = p.Migrate(ctx) // creates polaris_audit_event, polaris_audit_drain, polaris_audit_activity
+_, err = p.Migrate(ctx) // creates polaris_audit_event, _drain, _activity and _chain
 ```
 
 ## Config
@@ -59,6 +59,11 @@ Uses core's `audit.read`.
   (`audit.Redact`) before any sink sees them. A failing sink is logged, never fails the operation.
 - `Plugin.Prune(ctx)` from a scheduled job (CLI `polaris audit:prune`); `Plugin.Verify(ctx)` walks
   the hash chain (`polaris audit:verify`).
+- With `HashChain` on, every replica appends to one chain: each write first takes the lock row in
+  `polaris_audit_chain` (a row lock on PostgreSQL and MySQL, the write lock on SQLite), so writers in
+  separate processes append one at a time and never fork it. Run `Migrate` after upgrading to create
+  that table; until then chained writes fail with an error naming it. SQLite needs a busy timeout
+  (`_pragma=busy_timeout(5000)`) for concurrent writers to wait rather than fail.
 - Organizations' drains are managed through `Plugin.Drains()` and the `/admin` routes of
   `plugins/admin`.
 

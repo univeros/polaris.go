@@ -7,6 +7,7 @@ const (
 	TableEvents   = "polaris_audit_event"
 	TableDrains   = "polaris_audit_drain"
 	TableActivity = "polaris_audit_activity"
+	TableChain    = "polaris_audit_chain"
 )
 
 // Models returns the plugin's tables, the columns existing databases hold (a change is a migration).
@@ -49,6 +50,12 @@ func Models() []schema.Model {
 		schema.Table(TableActivity,
 			schema.StringField("userId", 36).AsPrimary(),
 			schema.DateTimeField("lastActiveAt"),
+		),
+		// One row, the hash chain's lock: every chained write updates it first, so writers in
+		// separate processes append one at a time. lastId is the newest chained event.
+		schema.Table(TableChain,
+			schema.StringField("id", 16).AsPrimary(),
+			schema.StringField("lastId", 36),
 		),
 	}
 }

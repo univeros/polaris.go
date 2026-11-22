@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 )
@@ -95,14 +99,18 @@ func (p Page) Map() map[string]any {
 
 // Store reads and writes polaris_audit_event. Ids are UUID v7, so ordering by id is ordering by
 // time and a cursor is the last id seen. With the hash chain on, each row's hash is SHA-256 over
-// its canonical JSON (keys sorted, the previous row's hash included), written in one transaction.
+// its canonical JSON (keys sorted, the previous row's hash included), written in one transaction
+// that first takes the chain's lock (the polaris_audit_chain row), so writers in every process
+// append one at a time, each after the newest row and with a greater id.
 type Store struct {
 	db        store.Adapter
 	hashChain bool
-	// ponytail: one writer per process keeps the chain linear here; writers in other processes can
-	// still fork it. A database advisory lock would close that.
-	mu sync.Mutex
+	mu        sync.Mutex // queues this process's writers before they reach the database lock
+	headReady bool       // the polaris_audit_chain row exists; guarded by mu
 }
+
+// chainHead is the id of the polaris_audit_chain row.
+const chainHead = "events"
 
 // NewStore returns a store over db.
 func NewStore(db store.Adapter, hashChain bool) *Store { return &Store{db: db, hashChain: hashChain} }
@@ -123,27 +131,92 @@ func (s *Store) Write(ctx context.Context, e Event) (Event, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if e.ID == "" {
-		e.ID = repository.NewID()
+	if err := s.ensureHead(ctx); err != nil {
+		return Event{}, err
 	}
+	minted := e.ID == ""
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
-		prev, err := s.lastHash(ctx)
+		if minted {
+			e.ID = repository.NewID()
+		}
+		// The first statement takes the lock until commit: the row's lock on PostgreSQL and MySQL,
+		// the database's write lock on SQLite (taken first, its busy timeout waits for it). Every
+		// read after it sees the previous holder's row.
+		if err := s.lockChain(ctx, e.ID); err != nil {
+			return err
+		}
+		tip, err := s.newest(ctx)
 		if err != nil {
 			return err
 		}
-		e.PrevHash = prev
+		if minted && tip != nil && e.ID <= tip.String("id") {
+			// Another process's clock is ahead, or minted in the same millisecond: sort after it.
+			if e.ID, err = after(tip.String("id")); err != nil {
+				return err
+			}
+			if err := s.lockChain(ctx, e.ID); err != nil {
+				return err
+			}
+		}
+		e.PrevHash = ""
+		if tip != nil {
+			e.PrevHash = tip.String("hash")
+		}
 		e.Hash = hashOf(e, data)
 		return s.db.Insert(ctx, TableEvents, row(e))
 	})
-	return e, err
+	if err != nil {
+		return Event{}, fmt.Errorf("audit: append to the hash chain: %w", err)
+	}
+	return e, nil
 }
 
-func (s *Store) lastHash(ctx context.Context) (string, error) {
+// ensureHead inserts the polaris_audit_chain row once; another process inserting it first is fine.
+func (s *Store) ensureHead(ctx context.Context) error {
+	if s.headReady {
+		return nil
+	}
+	err := s.db.Insert(ctx, TableChain, store.Row{"id": chainHead, "last_id": ""})
+	if err != nil && !errors.Is(err, store.ErrDuplicate) {
+		return fmt.Errorf("audit: create the hash chain's lock row (run Migrate to create %s): %w", TableChain, err)
+	}
+	s.headReady = true
+	return nil
+}
+
+// lockChain updates the polaris_audit_chain row to lastID, taking its lock.
+func (s *Store) lockChain(ctx context.Context, lastID string) error {
+	n, err := s.db.Update(ctx, TableChain, store.Criteria{"id": chainHead}, store.Data{"last_id": lastID})
+	if err == nil && n == 0 {
+		s.headReady = false
+		err = fmt.Errorf("the %s row is missing", TableChain)
+	}
+	return err
+}
+
+// newest is the newest event row, nil when there is none.
+func (s *Store) newest(ctx context.Context) (store.Row, error) {
 	rows, err := s.db.FindMany(ctx, TableEvents, store.Criteria{}, store.Query{OrderBy: []store.Order{{Column: "id", Desc: true}}, Limit: 1})
 	if err != nil || len(rows) == 0 {
-		return "", err
+		return nil, err
 	}
-	return rows[0].String("hash"), nil
+	return rows[0], nil
+}
+
+// after returns the UUID that sorts right after id: id with its random tail plus one (the version
+// and variant bits untouched).
+func after(id string) (string, error) {
+	u, err := uuid.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("the newest event id %q is not a UUID: %w", id, err)
+	}
+	const tailBits = 1<<62 - 1
+	tail := binary.BigEndian.Uint64(u[8:])
+	if tail&tailBits == tailBits {
+		return "", fmt.Errorf("no UUID sorts right after %s", id)
+	}
+	binary.BigEndian.PutUint64(u[8:], tail+1)
+	return u.String(), nil
 }
 
 // hashOf is SHA-256 over the row's canonical JSON: the wire keys plus prev_hash, sorted, data as
