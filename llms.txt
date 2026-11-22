@@ -38,7 +38,11 @@ EdDSA instead of RS256: `polaris keys:generate --alg=EdDSA` (base64 keys for the
 `cfg.Auth.AccessToken.Signer = config.SignerEdDSA` before `polaris.New`; the JWKS publishes it as an OKP key.
 
 Your own permissions: `cfg.Permissions = map[string]string{"invoices.read": "Read invoices"}` before
-`polaris.New`; `Migrate` adds them to the catalog. Grant them to roles through `/orgs/{id}/roles`.
+`polaris.New`; `Migrate` adds them to the catalog. Only what you hold can be granted, so say which
+system roles hold them: `cfg.RolePermissions = map[string][]string{"owner": {"invoices.read"}}`
+("owner", "admin" or "member"; every organization's copy of that role, existing ones on the next
+`Migrate`). An owner then puts them into custom roles through `POST /orgs/{id}/roles`, invitations
+and API keys.
 
 Housekeeping: schedule `p.Prune(ctx)` (hourly is plenty) to delete expired refresh tokens, codes and
 invitations; idempotent on every replica.
@@ -135,6 +139,7 @@ ag := agents.New(agents.Config{Capabilities: []agents.Capability{
 }})
 cfg, _ := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag)
 cfg.Permissions = map[string]string{"billing.refund": "Refund an invoice"} // your own permissions; Migrate seeds them
+cfg.RolePermissions = map[string][]string{"owner": {"billing.refund"}}     // owners hold it, so they can approve it
 p, _ := polaris.New(cfg)
 mux.Handle("/", p.Handler()) // includes /.well-known/agent-configuration, /agents/*, /oauth2/*
 mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler)) // grant, constraints, budget checked BEFORE refundHandler

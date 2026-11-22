@@ -41,7 +41,6 @@ import (
 
 	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/agent"
-	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/agents"
 	"github.com/univeros/polaris.go/plugins/audit"
@@ -121,8 +120,10 @@ func newServer(ctx context.Context, db store.Adapter, baseURL string) (http.Hand
 	if err != nil {
 		return nil, nil, err
 	}
-	// The host's own permissions, in the catalog with their descriptions; the owner role holds them.
+	// The host's own permissions, in the catalog with their descriptions; every organization's
+	// owner role holds them, so the owner can approve an agent's grants for them.
 	cfg.Permissions = map[string]string{"invoices.read": "Read invoices", "invoices.refund": "Refund invoices"}
+	cfg.RolePermissions = map[string][]string{"owner": {"invoices.read", "invoices.refund"}}
 	p, err := polaris.New(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -175,10 +176,6 @@ func runDemo(ctx context.Context, p *polaris.Polaris, baseURL string, manual boo
 	}
 	ownerToken := switched.AccessToken
 	step("owner %s owns organization %s", owner.Email, org.ID)
-	// The owner role holds core's permissions, not the host's own ones; see grantToRole.
-	if err := grantToRole(ctx, p, org.ID, "owner", "invoices.read", "invoices.refund"); err != nil {
-		return err
-	}
 
 	// 2. The owner mints a host enrollment token (peh_…) and hands it to the agent's machine.
 	var host struct {
@@ -357,28 +354,6 @@ func call(ctx context.Context, method, url, bearer string, body, out any) error 
 		return fmt.Errorf("%s %s: %w", method, url, err)
 	}
 	return json.Unmarshal(envelope.Data, out)
-}
-
-// grantToRole grants the host's own permissions to an organization's role. Polaris has no host call
-// for it: over HTTP an owner cannot (POST /orgs/{id}/roles refuses keys the caller does not hold,
-// and no system role holds the host's permissions), so this goes through the plugin SDK's
-// repositories. Run it when the organization is created.
-func grantToRole(ctx context.Context, p *polaris.Polaris, orgID, roleSlug string, keys ...string) error {
-	repos := p.Graph().Repos()
-	role, err := repos.Roles.ByOrganizationAndSlug(ctx, &orgID, roleSlug)
-	if err != nil {
-		return fmt.Errorf("role %s: %w", roleSlug, err)
-	}
-	for _, key := range keys {
-		perm, err := repos.Permissions.ByKey(ctx, key)
-		if err != nil {
-			return fmt.Errorf("permission %s: %w", key, err)
-		}
-		if err := repos.RolePermissions.Insert(ctx, model.RolePermission{RoleID: role.ID, PermissionID: perm.ID}); err != nil {
-			return fmt.Errorf("grant %s: %w", key, err)
-		}
-	}
-	return nil
 }
 
 func deref(s *string) string {
