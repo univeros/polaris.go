@@ -168,12 +168,8 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 	if !current.ExpiresAt.After(now) {
 		return token.IssuedTokens{}, fmt.Errorf("%w: the refresh token has expired", ErrInvalidGrant)
 	}
-	p, err := s.resolveStored(ctx, current)
-	if err != nil {
-		return token.IssuedTokens{}, err
-	}
 	if !s.auth.RefreshToken.Rotation {
-		return s.refreshInPlace(ctx, current, p, presented, now)
+		return s.refreshInPlace(ctx, current, presented, now)
 	}
 	// Compare-and-swap on revoked_at: of two concurrent presentations exactly one claims the
 	// rotation; the loser sees a just-rotated token and takes the replay path. The claim and the
@@ -181,6 +177,7 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 	// takes it) runs before the claim, which then fails, or after the child exists, which it ends.
 	var (
 		claimed   bool
+		p         token.SessionPrincipal
 		secret    string
 		expiresAt time.Time
 	)
@@ -190,6 +187,14 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 			return err
 		}
 		if claimed, err = s.tokens.ClaimRotation(ctx, current.ID, now); err != nil || !claimed {
+			return err
+		}
+		// The token as it was claimed: a step-up or an organization switch may have changed it since
+		// it was read.
+		if current, err = s.tokens.Get(ctx, current.ID); err != nil {
+			return err
+		}
+		if p, err = s.resolveStored(ctx, current); err != nil {
 			return err
 		}
 		if expiresAt, err = s.nextExpiry(ctx, current, now); err != nil {
@@ -226,7 +231,7 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 	return s.issued(access, secret, expiresAt, current.FamilyID), nil
 }
 
-func (s *Service) refreshInPlace(ctx context.Context, current model.RefreshToken, p token.SessionPrincipal, presented string, now time.Time) (token.IssuedTokens, error) {
+func (s *Service) refreshInPlace(ctx context.Context, current model.RefreshToken, presented string, now time.Time) (token.IssuedTokens, error) {
 	// Conditional: a token revoked since it was read mints nothing.
 	n, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"id": current.ID, "revoked_at": nil}, store.Data{"last_used_at": now})
 	if err != nil {
@@ -234,6 +239,13 @@ func (s *Service) refreshInPlace(ctx context.Context, current model.RefreshToken
 	}
 	if n == 0 {
 		return token.IssuedTokens{}, fmt.Errorf("%w: the refresh token is no longer valid", ErrInvalidGrant)
+	}
+	if current, err = s.tokens.Get(ctx, current.ID); err != nil { // as it is now, not as it was read
+		return token.IssuedTokens{}, fmt.Errorf("session: refresh: %w", err)
+	}
+	p, err := s.resolveStored(ctx, current)
+	if err != nil {
+		return token.IssuedTokens{}, err
 	}
 	access, err := s.Mint(ctx, p, current.FamilyID, token.Claims{})
 	if err != nil {
@@ -357,17 +369,14 @@ func (s *Service) lock(ctx context.Context, userID string) error {
 	return err
 }
 
-// lockOpen is lock that refuses a disabled account. The status is a criterion of the locking UPDATE,
+// lockOpen is lock that refuses a disabled account, and one that does not exist. The status is a criterion of the locking UPDATE,
 // so it is the current one whatever the transaction read before.
 func (s *Service) lockOpen(ctx context.Context, userID string) error {
 	n, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": userID, "status": store.Ne(model.UserStatusDisabled)}, store.Data{"id": userID})
 	if err != nil || n == 1 {
 		return err
 	}
-	if n, err = s.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil || n == 0 {
-		return err // no such account: the insert answers for it
-	}
-	return fmt.Errorf("%w: the account is disabled", ErrInvalidGrant)
+	return fmt.Errorf("%w: the account is disabled, or none", ErrInvalidGrant)
 }
 
 // Mint signs an access token for p. With a sessionID it carries sid; without one it belongs to no
@@ -399,7 +408,6 @@ func (s *Service) Mint(ctx context.Context, p token.SessionPrincipal, sessionID 
 	return raw, nil
 }
 
-// liveToken returns the session's unrevoked token or ErrInvalidGrant.
 // change writes what data answers to the session's live token, under the user's lock, so it is the
 // token the session has then: not one a concurrent rotation replaced or a revocation ended. It
 // returns the token as it was.
@@ -429,9 +437,10 @@ func (s *Service) change(ctx context.Context, userID, sessionID string, data fun
 	return active, err
 }
 
+// liveToken returns the session's unrevoked, unexpired token or ErrInvalidGrant.
 func (s *Service) liveToken(ctx context.Context, sessionID string) (model.RefreshToken, error) {
 	t, err := s.tokens.ActiveInFamily(ctx, sessionID)
-	if errors.Is(err, repository.ErrNotFound) {
+	if errors.Is(err, repository.ErrNotFound) || (err == nil && !t.ExpiresAt.After(s.now())) {
 		return t, fmt.Errorf("%w: the session is no longer active", ErrInvalidGrant)
 	}
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/session"
+	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/security"
@@ -33,7 +34,11 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
-	issued, _ := sessions.Issue(ctx, token.SessionPrincipal{UserID: repository.NewID()}, token.ClientContext{IP: "203.0.113.7"})
+	ada := model.User{ID: repository.NewID(), Email: "ada@example.com"}
+	if err := repository.New(db).Users.Insert(ctx, ada); err != nil {
+		panic(err)
+	}
+	issued, _ := sessions.Issue(ctx, token.SessionPrincipal{UserID: ada.ID}, token.ClientContext{IP: "203.0.113.7"})
 	rotated, _ := sessions.Refresh(ctx, issued.RefreshToken, token.ClientContext{})
 	_, err = sessions.Refresh(ctx, issued.RefreshToken, token.ClientContext{}) // replayed: the family is revoked
 	fmt.Println(rotated.SessionID == issued.SessionID, err)

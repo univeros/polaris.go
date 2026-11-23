@@ -102,6 +102,10 @@ func (s *Guests) Convert(ctx context.Context, guestID, accessToken string) (stri
 	}
 	now := s.g.Clock().Now()
 	err = s.g.DB().Tx(ctx, func(ctx context.Context) error {
+		// The user before the user's rows, the order a session and Prune lock them in.
+		if _, err := s.g.DB().Update(ctx, "auth_users", store.Criteria{"id": guestID}, store.Data{"id": guestID}); err != nil {
+			return err
+		}
 		claimed, err := s.g.DB().Update(ctx, TableGuests, store.Criteria{"user_id": guestID, "converted_at": nil},
 			store.Data{"converted_at": now, "converted_user_id": userID})
 		if err != nil {
@@ -142,7 +146,8 @@ func (s *Guests) liveSubject(ctx context.Context, accessToken string) (string, e
 	if subject == "" || sid == "" {
 		return "", ErrTokenInvalid
 	}
-	live, err := s.g.DB().FindOne(ctx, "auth_refresh_tokens", store.Criteria{"family_id": sid, "user_id": subject, "revoked_at": nil})
+	live, err := s.g.DB().FindOne(ctx, "auth_refresh_tokens", store.Criteria{"family_id": sid, "user_id": subject, "revoked_at": nil,
+		"expires_at": store.Gt(s.g.Clock().Now())})
 	if err != nil {
 		return "", fmt.Errorf("anonymous: convert: %w", err)
 	}

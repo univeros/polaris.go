@@ -373,13 +373,13 @@ type oneTimeTokenData struct {
 	SID      string   `json:"sid"`
 }
 
-// liveSession reports whether the session (refresh family) of userID has a live token.
+// liveSession reports whether the session (refresh family) of userID has a live, unexpired token.
 func (v *service) liveSession(ctx context.Context, userID, sessionID string) (bool, error) {
 	rt, err := v.g.Repos().RefreshTokens.ActiveInFamily(ctx, sessionID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return false, nil
 	}
-	return err == nil && rt.UserID == userID, err
+	return err == nil && rt.UserID == userID && rt.ExpiresAt.After(v.g.Clock().Now()), err
 }
 
 // generateOneTimeToken mints a token that opens a session like tok's elsewhere. Only a live

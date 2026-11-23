@@ -216,6 +216,15 @@ func (s *Service) HoldForSignIn(ctx context.Context, u model.User) error {
 	return refuse(ErrInvalidCredentials, msgInvalidCredentials)
 }
 
+// lockUser locks the account's row (a no-op UPDATE, the transaction's first statement) and reads it:
+// what a concurrent write to the account committed is read, and one that follows waits.
+func (s *Service) lockUser(ctx context.Context, userID string) (model.User, error) {
+	if _, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil {
+		return model.User{}, err
+	}
+	return s.user(ctx, userID)
+}
+
 // wrapUnlessRefusal wraps a failure of op, leaving a refusal (*Error, *PasswordError) as it is.
 func wrapUnlessRefusal(op string, err error) error {
 	var refusal *Error

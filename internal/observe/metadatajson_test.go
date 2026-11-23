@@ -1,6 +1,7 @@
 package observe
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -25,9 +26,10 @@ func TestMetadataJSONIsStandardJSONInFieldOrder(t *testing.T) {
 		{[]field{{"u", "<>&'"}}, `{"u":"<>&'"}`},
 		{[]field{{"s", (*string)(nil)}, {"p", ptr("x")}, {"c", (*int)(nil)}, {"d", ptr(0)}}, `{"s":null,"p":"x","c":null,"d":0}`},
 		{[]field{{"l", []string(nil)}, {"m", []string{"a", "b/c"}}}, `{"l":[],"m":["a","b/c"]}`},
-		{[]field{{"x", "\xff"}}, `{"x":"\ufffd"}`}, // invalid UTF-8 is replaced, as encoding/json does
+		{[]field{{"x", "\xff"}}, "{\"x\":\"\uFFFD\"}"}, // invalid UTF-8 is replaced
 	} {
-		got := metadataJSON(tc.fields)
+		// Go 1.26 writes the replacement character as an escape, Go 1.27 as it is.
+		got := bytes.ReplaceAll(metadataJSON(tc.fields), []byte(`\ufffd`), []byte("\uFFFD"))
 		if string(got) != tc.want {
 			t.Errorf("metadataJSON(%q) = %s; want %s", tc.fields, got, tc.want)
 		}

@@ -650,6 +650,18 @@ func TestPlugin(t *testing.T) {
 
 		e.clk.Advance(-4 * time.Minute)
 		generated = must[map[string]any](t)(e.v.generateOneTimeToken(ctx, access))
+		ends := func(at time.Time) {
+			if _, err := e.g.DB().Update(ctx, "auth_refresh_tokens", store.Criteria{"family_id": issued.SessionID}, store.Data{"expires_at": at}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		ends(e.clk.Now())
+		_, err = e.v.generateOneTimeToken(ctx, access)
+		refused(t, err, ErrSessionRequired, "the session expired")
+		_, err = e.v.verifyOneTimeToken(ctx, generated["token"].(string))
+		refused(t, err, ErrTokenInvalid, "the token dies with its expired session")
+		ends(issued.RefreshExpiresAt)
+		generated = must[map[string]any](t)(e.v.generateOneTimeToken(ctx, access))
 		if err := e.g.Sessions().RevokeFamily(ctx, issued.SessionID, model.RevokedLogout); err != nil {
 			t.Fatal(err)
 		}

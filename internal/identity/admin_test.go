@@ -157,6 +157,37 @@ func TestEnableRestoresAccess(t *testing.T) {
 	})
 }
 
+// An account erased while an operator enables it, or enabled while it is erased, ends erased.
+func TestAnErasureOutlivesAConcurrentEnable(t *testing.T) {
+	racing := func(t *testing.T, h *harness, before func()) *Service {
+		svc, err := New(Config{DB: &raceDB{Adapter: h.db, before: before}, Hasher: h.hasher, Pepper: h.pepper, Sessions: h.sessions, MFA: gate{h.repos},
+			Tickets: tickets{}, Authority: h.admins, Auth: h.auth, Clock: h.clock, Events: h.events})
+		must(t, err)
+		return svc
+	}
+	for name, run := range map[string]func(t *testing.T, h *harness, id string){
+		"erased first": func(t *testing.T, h *harness, id string) {
+			svc := racing(t, h, func() { must(t, h.svc.AnonymizeUser(ctx, "operator", id)) })
+			isErr(t, svc.EnableUser(ctx, "operator", id), ErrConflict)
+		},
+		"enabled first": func(t *testing.T, h *harness, id string) {
+			svc := racing(t, h, func() { must(t, h.svc.EnableUser(ctx, "operator", id)) })
+			must(t, svc.AnonymizeUser(ctx, "operator", id))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, h *harness) {
+				id := h.registerAndVerify(t, email)
+				must(t, h.svc.DisableUser(ctx, "operator", id))
+				run(t, h, id)
+				if u, err := h.repos.Users.Get(ctx, id); err != nil || u.Status != model.UserStatusDisabled || u.PasswordHash != nil {
+					t.Fatalf("user %+v %v", u, err)
+				}
+			})
+		})
+	}
+}
+
 func TestAdminCannotDisableThemselves(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
 		admin := h.superadmin(t)

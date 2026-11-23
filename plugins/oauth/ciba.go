@@ -79,8 +79,8 @@ func (b *ciba) request(ctx context.Context, c Client, scopes []string, loginHint
 	return BackchannelAuthorization{AuthReqID: p.ID, ExpiresIn: b.ttl, Interval: b.interval}, p, nil
 }
 
-// active reports whether u may sign in.
-func active(u model.User) bool { return u.Status == "" || u.Status == model.UserStatusActive }
+// active reports whether u may sign in: a lock is the password sign-in's, only disabling ends it all.
+func active(u model.User) bool { return u.Status != model.UserStatusDisabled }
 
 // pending lists the user's undecided, unexpired requests, newest first.
 func (b *ciba) pending(ctx context.Context, userID string) ([]pollable, error) {

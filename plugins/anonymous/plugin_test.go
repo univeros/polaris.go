@@ -211,6 +211,12 @@ func TestPlugin(t *testing.T) {
 		}
 		_, err = e.guests.Convert(ctx, guestUser.ID, impersonation)
 		refused(t, err, anonymous.ErrTokenInvalid, "only a live session")
+		_, expired := e.account(t, "expired@example.com")
+		if _, err := e.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"family_id": expired.SessionID}, store.Data{"expires_at": e.clk.Now()}); err != nil {
+			t.Fatal(err)
+		}
+		_, err = e.guests.Convert(ctx, guestUser.ID, expired.AccessToken)
+		refused(t, err, anonymous.ErrTokenInvalid, "an expired session")
 		if len(converted) != 0 {
 			t.Fatal("the hook ran")
 		}
@@ -359,7 +365,7 @@ func (f *failingUpdates) Update(ctx context.Context, table string, c store.Crite
 // recorded, the guest keeps its session and a retry converts it (decision 61).
 func TestAConversionWhoseEndingFailsConvertsNothingAndCanBeRetried(t *testing.T) {
 	ctx := context.Background()
-	failing := &failingUpdates{table: "auth_users"}
+	failing := &failingUpdates{table: "auth_refresh_tokens"} // the last step, after OnConvert
 	var hooks atomic.Int32
 	e := bootOn(t, func(db store.Adapter) store.Adapter { failing.Adapter = db; return failing },
 		anonymous.Config{OnConvert: func(context.Context, string, string) error { hooks.Add(1); return nil }})

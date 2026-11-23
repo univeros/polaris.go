@@ -367,10 +367,11 @@ func TestAnExpiredLockRelocksOnTheFirstFailureWhenTheThresholdIsOne(t *testing.T
 	})
 }
 
-// hookHasher runs a callback while a login verifies its password.
+// hookHasher runs a callback while a password is verified, or hashed.
 type hookHasher struct {
 	*countingHasher
 	during  func()
+	hashing func()
 	upgrade bool
 }
 
@@ -381,6 +382,15 @@ func (h *hookHasher) Verify(plain, hash string) bool {
 		f()
 	}
 	return ok
+}
+
+func (h *hookHasher) Hash(plain string) (string, error) {
+	hash, err := h.countingHasher.Hash(plain)
+	if f := h.hashing; f != nil {
+		h.hashing = nil
+		f()
+	}
+	return hash, err
 }
 
 func (h *hookHasher) NeedsRehash(hash string) bool {
@@ -442,6 +452,58 @@ func TestALoginThatLosesItsPasswordOrAccountOpensNoSession(t *testing.T) {
 				}
 				if u, err := h.repos.Users.Get(ctx, id); err != nil || errors.Is(c.want, ErrInvalidCredentials) && u.PasswordHash != nil && !h.hasher.Verify(newPassword, *u.PasswordHash) {
 					t.Fatalf("the old password came back: %v", err)
+				}
+			})
+		})
+	}
+}
+
+// A password change is checked again where it is written: what changed the password or the account
+// while it hashed the new one wins.
+func TestAPasswordChangeThatLosesItsPasswordOrAccountChangesNothing(t *testing.T) {
+	const changed, operators = "a changed pass phrase 1", "an operators pass phrase 1"
+	for name, c := range map[string]struct {
+		during func(t *testing.T, h *harness, id string)
+		want   error
+		holds  string // the password that signs in after
+	}{
+		"reset": {func(t *testing.T, h *harness, _ string) { h.resetTo(t, newPassword) }, ErrInvalidCredentials, newPassword},
+		"set":   {func(t *testing.T, h *harness, id string) { must(t, h.svc.SetPassword(ctx, id, operators)) }, ErrInvalidCredentials, operators},
+		"change": {func(t *testing.T, h *harness, id string) {
+			must(t, h.svc.ChangePassword(ctx, id, password, newPassword, ""))
+		}, ErrInvalidCredentials, newPassword},
+		"disable": {func(t *testing.T, h *harness, id string) { must(t, h.svc.DisableUser(ctx, "operator", id)) }, ErrAccountDisabled, ""},
+		"erase":   {func(t *testing.T, h *harness, id string) { must(t, h.svc.AnonymizeUser(ctx, "operator", id)) }, ErrInvalidCredentials, ""},
+		"another login rehashes": {func(t *testing.T, h *harness, _ string) {
+			rehashed, err := h.hasher.Hash(password)
+			must(t, err)
+			h.set(t, email, func(u *model.User) { u.PasswordHash = &rehashed })
+		}, nil, changed},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, h *harness) {
+				id := h.registerAndVerify(t, email)
+				hooked := &hookHasher{countingHasher: h.hasher}
+				svc, err := New(Config{DB: h.db, Hasher: hooked, Pepper: h.pepper, Sessions: h.sessions, MFA: gate{h.repos}, Tickets: tickets{},
+					Authority: h.admins, Auth: h.auth, Clock: h.clock, Events: h.events})
+				must(t, err)
+				var owner string // the refresh token of a session opened meanwhile
+				hooked.hashing = func() {
+					c.during(t, h, id)
+					if r, err := h.svc.Login(ctx, email, newPassword, client); err == nil {
+						owner = r.Tokens.RefreshToken
+					}
+				}
+				if err := svc.ChangePassword(ctx, id, password, changed, ""); !errors.Is(err, c.want) {
+					t.Fatalf("change: %v, want %v", err, c.want)
+				}
+				if owner != "" && !h.refreshes(t, owner) {
+					t.Error("the sessions opened since were ended")
+				}
+				for _, p := range []string{password, changed, newPassword, operators} {
+					if _, err := h.svc.Login(ctx, email, p, client); (err == nil) != (p == c.holds) {
+						t.Errorf("login with %q: %v, want the password to be %q", p, err, c.holds)
+					}
 				}
 			})
 		})

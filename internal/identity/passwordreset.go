@@ -18,8 +18,9 @@ const (
 	resetTTL           = time.Hour // shorter than email verification by design
 )
 
-// ForgotPassword opens a reset challenge for a known, active account, superseding the outstanding
-// ones, and dispatches event.PasswordResetRequested carrying the plaintext token for the mailer
+// ForgotPassword opens a reset challenge for a known account that is not disabled (a locked one
+// included: the lock is the password's, and the mailbox the way back in), superseding the outstanding
+// ones, and dispatches event.PasswordResetRequested carrying the plaintext token for the mailer.
 // For anyone else it does nothing: the caller answers the same generic
 // 202 either way. (The known path does a little more work; the forgot rate limit covers that
 // residual delta.)
@@ -31,7 +32,7 @@ func (s *Service) ForgotPassword(ctx context.Context, email string, client token
 	if err != nil {
 		return fmt.Errorf("identity: forgot password: %w", err)
 	}
-	if user.Status != model.UserStatusActive {
+	if user.Status == model.UserStatusDisabled {
 		return nil
 	}
 	now := s.now()
@@ -104,6 +105,10 @@ func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string,
 		return fmt.Errorf("identity: reset password: %w", err)
 	}
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		// The user before the user's rows, the order everything else locks them in.
+		if _, err := s.lockUser(ctx, user.ID); err != nil {
+			return err
+		}
 		// Single use under concurrency too: only the request that flips consumed_at goes on.
 		claimed, err := s.db.Update(ctx, "auth_password_resets",
 			store.Criteria{"id": challenge.ID, "consumed_at": nil},
@@ -164,8 +169,15 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	}
 	next := clearLockout(user)
 	next.PasswordHash, next.UpdatedAt = &hash, s.now()
-	if err := s.repos.Users.Update(ctx, user, next); err != nil {
-		return fmt.Errorf("identity: change password: %w", err)
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		// The password is still the one that was proved: a reset meanwhile wins.
+		if err := s.holdForLogin(ctx, user, currentPassword); err != nil {
+			return err
+		}
+		return s.repos.Users.Update(ctx, user, next)
+	})
+	if err != nil {
+		return wrapUnlessRefusal("change password", err)
 	}
 	if _, err := s.sessions.RevokeAllExcept(ctx, user.ID, currentSessionID, model.RevokedPasswordChange); err != nil {
 		return fmt.Errorf("identity: change password: %w", err)

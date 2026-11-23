@@ -64,7 +64,7 @@ func (res resolver) Resolve(r *http.Request) (*token.Token, error) {
 		return nil, ErrRefused
 	}
 	user, err := res.p.g.Repos().Users.Get(ctx, key.Subject())
-	if err != nil || user.Status != model.UserStatusActive && user.Status != "" {
+	if err != nil || user.Status == model.UserStatusDisabled { // a lock is the password sign-in's, not the key's
 		return nil, errors.Join(ErrRefused, err)
 	}
 	now := res.p.keys.now()

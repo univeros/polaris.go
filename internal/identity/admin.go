@@ -119,17 +119,20 @@ func (s *Service) DisableUser(ctx context.Context, actorUserID, userID string) e
 // EnableUser re-enables a disabled or locked account and clears its lockout state. An erased
 // account (a tombstone) returns ErrConflict: it must never read as a live account again.
 func (s *Service) EnableUser(ctx context.Context, actorUserID, userID string) error {
-	user, err := s.user(ctx, userID)
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		user, err := s.lockUser(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if user.PasswordHash == nil && strings.HasSuffix(user.Email, tombstoneEmailSuffix) {
+			return refuse(ErrConflict, msgTombstone)
+		}
+		next := clearLockout(user)
+		next.Status, next.UpdatedAt = model.UserStatusActive, s.now()
+		return s.repos.Users.Update(ctx, user, next)
+	})
 	if err != nil {
-		return err
-	}
-	if user.PasswordHash == nil && strings.HasSuffix(user.Email, tombstoneEmailSuffix) {
-		return refuse(ErrConflict, msgTombstone)
-	}
-	next := clearLockout(user)
-	next.Status, next.UpdatedAt = model.UserStatusActive, s.now()
-	if err := s.repos.Users.Update(ctx, user, next); err != nil {
-		return fmt.Errorf("identity: enable user: %w", err)
+		return wrapUnlessRefusal("enable user", err)
 	}
 	s.events.Dispatch(ctx, event.UserEnabled{UserID: userID, ActorUserID: actorUserID})
 	return nil
@@ -152,21 +155,21 @@ func (s *Service) EraseUser(ctx context.Context, actorUserID, actorOrganizationI
 // verifications, password resets) are deleted, every session is revoked (reason admin) and
 // event.UserDeleted is dispatched (the right to erasure).
 func (s *Service) AnonymizeUser(ctx context.Context, actorUserID, userID string) error {
-	user, err := s.user(ctx, userID)
-	if err != nil {
-		return err
-	}
-	next := user
-	digest := s.pepper.Hash(erasurePepperContext, user.Email)
-	next.Email = digest + tombstoneEmailSuffix
-	if _, err := s.repos.Users.ByEmail(ctx, next.Email); err == nil {
-		next.Email = digest + "." + user.ID + tombstoneEmailSuffix // an earlier account of the address was erased
-	} else if !errors.Is(err, repository.ErrNotFound) {
-		return fmt.Errorf("identity: anonymize user: %w", err)
-	}
-	next.DisplayName, next.PasswordHash, next.EmailVerifiedAt = nil, nil, nil
-	next.Status, next.MFAEnforced, next.UpdatedAt = model.UserStatusDisabled, false, s.now()
-	err = s.db.Tx(ctx, func(ctx context.Context) error {
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		user, err := s.lockUser(ctx, userID)
+		if err != nil {
+			return err
+		}
+		next := user
+		digest := s.pepper.Hash(erasurePepperContext, user.Email)
+		next.Email = digest + tombstoneEmailSuffix
+		if _, err := s.repos.Users.ByEmail(ctx, next.Email); err == nil {
+			next.Email = digest + "." + user.ID + tombstoneEmailSuffix // an earlier account of the address was erased
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return err
+		}
+		next.DisplayName, next.PasswordHash, next.EmailVerifiedAt = nil, nil, nil
+		next.Status, next.MFAEnforced, next.UpdatedAt = model.UserStatusDisabled, false, s.now()
 		if err := s.repos.Users.Update(ctx, user, next); err != nil {
 			return err
 		}
@@ -183,7 +186,7 @@ func (s *Service) AnonymizeUser(ctx context.Context, actorUserID, userID string)
 		return s.OnUserDeleted(ctx, userID)
 	})
 	if err != nil {
-		return fmt.Errorf("identity: anonymize user: %w", err)
+		return wrapUnlessRefusal("anonymize user", err)
 	}
 	if _, err := s.sessions.RevokeAll(ctx, userID, model.RevokedAdmin); err != nil {
 		return fmt.Errorf("identity: anonymize user: %w", err)

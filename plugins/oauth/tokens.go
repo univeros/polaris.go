@@ -242,7 +242,13 @@ func (t *tokens) held(ctx context.Context, c Client, g Grant) (scopes []string, 
 // behind the grant and the client may refresh, an ID token when openid was granted to a user.
 // Every grant comes through here, so this is where permission scopes are bounded (held): the
 // refresh token keeps the grant, each access token carries what the subject holds when it is minted.
+// A disabled account's grant issues nothing.
 func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, error) {
+	if ok, err := t.mayAct(ctx, g.UserID); err != nil {
+		return TokenResponse{}, err
+	} else if !ok {
+		return TokenResponse{}, refusal(CodeInvalidGrant, "The user behind the grant cannot sign in.")
+	}
 	now := t.clock.Now()
 	expiresAt := now.Add(time.Duration(t.settings.accessTTL) * time.Second)
 	refreshable := g.UserID != "" && c.AllowsGrant(GrantRefreshToken)
@@ -426,7 +432,21 @@ func (t *tokens) revoke(ctx context.Context, raw string, c Client) (*record, err
 	return &revoked, nil
 }
 
-// introspect answers RFC 7662: whether the token is live, and its claims when it is.
+// mayAct reports whether the user a token speaks for exists and may sign in; true for a token
+// without one (a client's own).
+func (t *tokens) mayAct(ctx context.Context, userID string) (bool, error) {
+	if userID == "" {
+		return true, nil
+	}
+	user, err := t.repos.Users.Get(ctx, userID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil && active(user), err
+}
+
+// introspect answers RFC 7662: whether the token is live (the account behind it is not disabled),
+// and its claims when it is.
 func (t *tokens) introspect(ctx context.Context, raw string) (map[string]any, error) {
 	found, err := t.lookup(ctx, raw)
 	if err != nil {
@@ -434,6 +454,9 @@ func (t *tokens) introspect(ctx context.Context, raw string) (map[string]any, er
 	}
 	if found == nil || !found.live(t.clock.Now()) {
 		return map[string]any{"active": false}, nil
+	}
+	if ok, err := t.mayAct(ctx, found.UserID); err != nil || !ok {
+		return map[string]any{"active": false}, err
 	}
 	sub := found.UserID
 	if sub == "" {
