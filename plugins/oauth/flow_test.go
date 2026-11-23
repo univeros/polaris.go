@@ -286,7 +286,7 @@ func dpopBinding(o *oauthCase) {
 	o.status(o.c.Get(resource, asDPoP(o.keys.dpopProof("GET", resource, ""))...), 401, "no ath")
 	o.status(o.c.Get(resource, asDPoP(o.keys.dpopProof("GET", resource, access))...), 200, "a fresh proof")
 
-	other := newClientKeys(o.t)
+	other := o.otherKeys()
 	o.problem(o.form("/oauth2/token", auth(map[string]string{"grant_type": "refresh_token", "refresh_token": str(issued["refresh_token"])}), dpopHeader(other.dpopProof("POST", tokenURL, ""))), 400, "invalid_dpop_proof", "another key")
 	refreshed := o.json(o.form("/oauth2/token", auth(map[string]string{"grant_type": "refresh_token", "refresh_token": str(issued["refresh_token"])}), dpopHeader(o.keys.dpopProof("POST", tokenURL, ""))))
 	o.equal(claims(str(refreshed["access_token"]))["cnf"], map[string]any{"jkt": o.keys.thumbprint()}, "refresh stays bound")

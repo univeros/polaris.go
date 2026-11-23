@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"slices"
@@ -689,6 +690,41 @@ func TestPlugin(t *testing.T) {
 }
 
 // Go-only: the single-use and attempt checks hold under concurrency.
+// What one destination, or one account adding phones, may be sent in a window is bounded whatever
+// addresses the requests come from; the next window starts over.
+func TestSendsAreBoundedPerDestinationAndPerAccount(t *testing.T) {
+	e := boot(t, Config{})
+	limit := e.g.Auth().OTP.SendMax
+	e.user("ada@example.com", true)
+	for range 2 * limit {
+		if err := e.v.sendMagicLink(e.ctx, "ada@example.com", ""); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.v.sendEmailCode(e.ctx, "ADA@example.com", PurposeSignIn); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(e.mail.Sent()); n != limit {
+		t.Fatalf("%d mails to one address, want %d", n, limit)
+	}
+	e.clk.Advance(e.g.Auth().OTP.SendWindow + time.Second)
+	if err := e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.mail.Sent()); n != limit+1 {
+		t.Fatalf("%d mails after the window, want %d", n, limit+1)
+	}
+	guest := e.user("guest@example.com", true)
+	for i := range 2 * limit {
+		if err := e.v.addPhone(e.ctx, guest.ID, fmt.Sprintf("+1415555%04d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(e.sms.Sent()); n != limit {
+		t.Fatalf("%d texts asked for by one account, want %d", n, limit)
+	}
+}
+
 func TestConcurrency(t *testing.T) {
 	t.Run("ACodeIsSpentOnce", func(t *testing.T) {
 		e := boot(t, Config{})

@@ -2,7 +2,9 @@ package agents_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/univeros/polaris.go/internal/contracttest"
@@ -112,6 +114,14 @@ func everySpelling(a *agentsCase) {
 	a.equal(len(h.seen), 0, "no spelling reached the handler")
 	a.equal(callHost(global, location+"/", key.requestJWT(id, location, nil, nil), bob).Code, 200, "the aud is compared normalised too")
 	a.equal(problemOf(callHost(global, "http://host.polaris.test/invite", key.requestJWT(id, location, nil, nil), bob))["error"], "aud_mismatch", "a proxy's http is refused")
+	for _, host := range []string{"host.polaris.test:8443", "host.polaris.test.", "anything.example", "host.polaris.test:0443x"} {
+		r := httptest.NewRequest("POST", location, strings.NewReader(`{"email":"bob@acme.test"}`))
+		r.Host = host
+		w := httptest.NewRecorder()
+		global.ServeHTTP(w, r)
+		a.equal([]any{w.Code, problemOf(w)["error"]}, []any{401, "agents_unauthorized"}, "the Host "+host)
+	}
+	a.equal(len(h.seen), 1, "no Host reached the handler")
 	a.equal(callHost(global, "https://host.polaris.test/other", "", bob).Code, 200, "another URL passes through")
 	a.equal(len(h.seen), 2, "two reached the handler")
 

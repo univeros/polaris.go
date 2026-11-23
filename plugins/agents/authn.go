@@ -116,7 +116,7 @@ func (s *service) byJWT(r *http.Request, raw, sub string, body []byte, url strin
 		return principal{}, err
 	}
 	// A JWT for one capability's location may not open the door to several.
-	if len(caps) > 1 && s.caps.at(url) != nil {
+	if located, ambiguous := s.caps.at(r, url); len(caps) > 1 && (located != nil || ambiguous) {
 		return principal{}, refuse(ErrAudMismatch, "A JWT listing several capabilities cannot use a capability location as its aud.")
 	}
 	return principal{agent: a, via: ViaJWT, capabilities: caps}, nil

@@ -20,11 +20,22 @@ const (
 	recoveryGroupLength = 5
 )
 
-// issueRecoveryCodes stores a fresh batch (hashed, pepper context "recovery") and returns the
-// plaintext codes, formatted xxxxx-xxxxx. Run it in the caller's transaction so issuance commits
-// with the change that triggered it.
+// issueRecoveryCodes retires every unused code of the user, stores a fresh batch (hashed, pepper context
+// "recovery") and returns the plaintext codes, formatted xxxxx-xxxxx. Run it in the caller's transaction
+// so issuance commits with the change that triggered it.
 func (s *Service) issueRecoveryCodes(ctx context.Context, userID string) ([]string, error) {
 	now := s.clock.Now()
+	unused, err := s.unusedRecoveryCodes(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range unused {
+		retired := c
+		retired.UsedAt = &now
+		if err := s.repos.RecoveryCodes.Update(ctx, c, retired); err != nil {
+			return nil, fmt.Errorf("mfa: retire recovery code: %w", err)
+		}
+	}
 	codes := make([]string, RecoveryCodeCount)
 	for i := range codes {
 		codes[i] = recoveryGroup() + "-" + recoveryGroup()
@@ -69,20 +80,9 @@ func (s *Service) VerifyRecoveryCode(ctx context.Context, userID, code string) (
 // RegenerateRecoveryCodes retires every unused code of the user and returns a fresh batch, in
 // one transaction, then dispatches event.MFARecoveryRegenerated. The codes are shown once.
 func (s *Service) RegenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error) {
-	now := s.clock.Now()
 	var codes []string
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
-		unused, err := s.unusedRecoveryCodes(ctx, userID)
-		if err != nil {
-			return err
-		}
-		for _, c := range unused {
-			retired := c
-			retired.UsedAt = &now
-			if err := s.repos.RecoveryCodes.Update(ctx, c, retired); err != nil {
-				return fmt.Errorf("mfa: retire recovery code: %w", err)
-			}
-		}
+		var err error
 		codes, err = s.issueRecoveryCodes(ctx, userID)
 		return err
 	})

@@ -162,6 +162,11 @@ func (o *HTTPOIDC) discover(ctx context.Context, p Provider, fresh bool) (discov
 			return d, refuse(ReasonAssertionInvalid, "discovery document lacks "+required)
 		}
 	}
+	for _, name := range []string{"authorization_endpoint", "token_endpoint", "jwks_uri", "end_session_endpoint"} {
+		if s, _ := doc[name].(string); s != "" && !validURL(s) {
+			return d, refuse(ReasonAssertionInvalid, "discovery document's "+name+" is not an http(s) URL")
+		}
+	}
 	// OpenID Connect Discovery §4.3: the document must be the configured issuer's own, or whoever
 	// serves that URL could name another issuer's endpoints and keys.
 	if strings.TrimRight(doc["issuer"].(string), "/") != strings.TrimRight(issuer, "/") {

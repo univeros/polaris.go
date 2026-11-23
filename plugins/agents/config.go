@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -217,10 +218,11 @@ type capabilities struct {
 	list       []*Capability
 	byName     map[string]*Capability
 	byLocation map[string]*Capability
+	byPath     map[string][]*Capability // the locations' paths, whatever their host
 }
 
 func newCapabilities(list []Capability) (*capabilities, error) {
-	c := &capabilities{byName: map[string]*Capability{}, byLocation: map[string]*Capability{}}
+	c := &capabilities{byName: map[string]*Capability{}, byLocation: map[string]*Capability{}, byPath: map[string][]*Capability{}}
 	var errs []error
 	for i := range list {
 		capability := list[i]
@@ -239,6 +241,8 @@ func newCapabilities(list []Capability) (*capabilities, error) {
 				continue
 			}
 			c.byLocation[route] = &capability
+			_, path, _ := strings.Cut(route, "/")
+			c.byPath[path] = append(c.byPath[path], &capability)
 		}
 		c.byName[capability.Name] = &capability
 		c.list = append(c.list, &capability)
@@ -295,8 +299,22 @@ func (c *Capability) check() error {
 
 func (c *capabilities) find(name string) *Capability { return c.byName[name] }
 
-// at is the capability whose location the URL is, whatever its spelling or scheme.
-func (c *capabilities) at(url string) *Capability { return c.byLocation[routeOf(url)] }
+// at is the capability whose location the request calls at url, whatever its spelling or scheme. The
+// client writes the Host header, so one that no location on the path names does not take the request
+// out of the guard: the capability is the path's. ambiguous: several hosts' locations share the path
+// and the request names none of them.
+func (c *capabilities) at(r *http.Request, url string) (capability *Capability, ambiguous bool) {
+	if found := c.byLocation[routeOf(url)]; found != nil {
+		return found, false
+	}
+	switch on := c.byPath[strings.TrimPrefix(normalizePath(requestPath(r)), "/")]; len(on) {
+	case 0:
+		return nil, false
+	case 1:
+		return on[0], false
+	}
+	return nil, true
+}
 
 // permissions are the permissions the capabilities require, for the catalog.
 func (c *capabilities) permissions() map[string]string {

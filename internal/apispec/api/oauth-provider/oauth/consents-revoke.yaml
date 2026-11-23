@@ -16,7 +16,8 @@ input:
 domain:
   description: >
     The caller's consents to the client go, in every organization, and every access and refresh
-    token the client holds for the caller is revoked.
+    token the client holds for the caller is revoked, consent or not (a device, a backchannel request, an
+    exchange and a trusted client need none).
     Recorded as oauth.consent_revoked.
 
 output:

@@ -894,6 +894,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-rate-limit": "mfa_confirm",
+                "x-polaris-step-up": true,
                 "security": [
                     {
                         "bearerAuth": []
@@ -966,7 +967,7 @@
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "unauthorized | step_up_required",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1509,6 +1510,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-rate-limit": "mfa_confirm",
+                "x-polaris-step-up": true,
                 "security": [
                     {
                         "bearerAuth": []
@@ -1581,7 +1583,7 @@
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "unauthorized | step_up_required",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1956,6 +1958,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-rate-limit": "mfa_confirm",
+                "x-polaris-step-up": true,
                 "security": [
                     {
                         "bearerAuth": []
@@ -2028,7 +2031,7 @@
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "unauthorized | step_up_required",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -15617,6 +15620,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "passwordless",
+                "x-polaris-step-up": true,
                 "security": [
                     {
                         "bearerAuth": []
@@ -15660,7 +15664,7 @@
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "unauthorized | step_up_required",
                         "content": {
                             "application/problem+json": {
                                 "schema": {

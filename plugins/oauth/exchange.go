@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/token"
@@ -34,7 +35,8 @@ type subject struct {
 	act                      *Actor
 	authTime                 *int64
 	jkt                      string
-	resource                 string // the token's audience; "" for this server (a session, aud the issuer)
+	resource                 string    // the token's audience; "" for this server (a session, aud the issuer)
+	expiresAt                time.Time // one of the provider's own tokens; zero for a session
 }
 
 // thisServer reports whether resource, a token's audience, names this server: "" (the issuer),
@@ -60,7 +62,8 @@ func (p *Plugin) target(c Client, subj subject, asked string) (string, error) {
 	return "", refusal(CodeInvalidTarget, "The subject token is for "+subj.resource+"; the exchanged token keeps that audience.")
 }
 
-// exchange issues an access token for a subject, within its scopes and its audience, carrying
+// exchange issues an access token for a subject, within its scopes, its audience and, when the subject
+// is one of the provider's own tokens, its lifetime (a token does not renew itself), carrying
 // act: the requesting client (or the actor token's subject), chained to the subject's own act.
 func (p *Plugin) exchange(ctx context.Context, c Client, req ExchangeRequest) (TokenResponse, error) {
 	if !c.AllowsGrant(GrantTokenExchange) {
@@ -111,7 +114,7 @@ func (p *Plugin) exchange(ctx context.Context, c Client, req ExchangeRequest) (T
 	actor.Act = subj.act
 	resp, err := p.tokens.issue(ctx, c, Grant{
 		UserID: subj.user, OrganizationID: subj.org, Scopes: scopes, Resource: resource,
-		DPoPJKT: req.DPoPJKT, Actor: actor, AuthTime: subj.authTime,
+		DPoPJKT: req.DPoPJKT, Actor: actor, AuthTime: subj.authTime, NotAfter: subj.expiresAt,
 	})
 	if err != nil {
 		return TokenResponse{}, err
@@ -145,7 +148,7 @@ func (p *Plugin) subject(ctx context.Context, c Client, raw string) (subject, er
 		}
 		sub, _ := claims["sub"].(string)
 		return subject{sub: sub, user: rec.UserID, org: rec.OrganizationID, clientID: rec.ClientID,
-			scopes: rec.Scopes, act: rec.Actor, authTime: rec.AuthTime, jkt: rec.DPoPJKT, resource: rec.Resource}, nil
+			scopes: rec.Scopes, act: rec.Actor, authTime: rec.AuthTime, jkt: rec.DPoPJKT, resource: rec.Resource, expiresAt: rec.ExpiresAt}, nil
 	}
 	session, err := p.graph.Tokens().Parse(raw)
 	if err != nil {

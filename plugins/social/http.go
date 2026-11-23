@@ -75,13 +75,23 @@ func inputText(in *endpoint.Input, field string) string { return strings.TrimSpa
 
 // startRoute answers POST /social/{provider}/start.
 func (p *Plugin) startRoute(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), "")
+	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), nil)
 	return p.started(ctx, in, s, err)
 }
 
-// linkRoute answers POST /social/{provider}/link: the same flow, linking to the caller.
+// linkRoute answers POST /social/{provider}/link: the same flow, linking to the caller, whose session
+// must be live (an access token alone outlives it).
 func (p *Plugin) linkRoute(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
-	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), tok.Subject())
+	by := linker{User: tok.Subject()}
+	by.Session, _ = tok.Claim("sid").(string)
+	live, err := p.liveSession(ctx, by)
+	if err != nil {
+		return p.answer(ctx, nil, err)
+	}
+	if !live {
+		return endpoint.Unauthorized()
+	}
+	s, err := p.start(ctx, in.String("provider"), inputText(in, "redirect_uri"), in.Strings("scopes"), &by)
 	return p.started(ctx, in, s, err)
 }
 

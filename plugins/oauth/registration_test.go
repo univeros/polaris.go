@@ -49,7 +49,7 @@ func registrationAndAssertion(o *oauthCase) {
 	o.equal(claims(str(o.json(issued)["access_token"]))["client_id"], keyed["client_id"], "keyed client token")
 	o.problem(o.form("/oauth2/token", withAssertion(assertion)), 401, "invalid_client", "the assertion was used")
 	o.problem(o.form("/oauth2/token", withAssertion(o.keys.clientAssertion(str(keyed["client_id"]), "https://other.example/token"))), 401, "invalid_client", "for another audience")
-	o.problem(o.form("/oauth2/token", withAssertion(newClientKeys(o.t).clientAssertion(str(keyed["client_id"]), tokenURL))), 401, "invalid_client", "another key")
+	o.problem(o.form("/oauth2/token", withAssertion(o.otherKeys().clientAssertion(str(keyed["client_id"]), tokenURL))), 401, "invalid_client", "another key")
 }
 
 // Organization self-service beyond the fixtures: another organization is refused, a client is

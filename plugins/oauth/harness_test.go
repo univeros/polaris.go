@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/admin"
@@ -107,10 +109,16 @@ func run(t *testing.T, fixtures string, dynamicRegistration bool, tests map[stri
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			fake := &fakeHTTP{documents: map[string]any{}}
-			srv := boot(t, fake, dynamicRegistration)
+			// The clock stands still, for the server and the client's proofs, so the lifetimes a fixture
+			// recorded (a token exchanged again keeps its subject's end) do not depend on how long the
+			// test takes.
+			frozen := clock.NewFrozen(time.Now().Truncate(time.Second))
+			srv := boot(t, fake, dynamicRegistration, polaristest.WithConfig(func(c *polaris.Config) { c.Clock = frozen }))
 			fx := contracttest.For(t, dir, fixtures, name)
+			keys := newClientKeys(t)
+			keys.now = frozen.Now
 			test(&oauthCase{t: t, srv: srv, c: contracttest.NewClient(t, srv.Handler(), fx), http: fake,
-				keys: newClientKeys(t), ctx: context.Background()})
+				keys: keys, ctx: context.Background()})
 		})
 	}
 }
@@ -171,9 +179,9 @@ func (o *oauthCase) grantOwner(userID string) {
 }
 
 // boot installs the plugins the fixtures were recorded with: audit, admin, then oauth.
-func boot(t *testing.T, fake *fakeHTTP, dynamicRegistration bool) *polaristest.Server {
-	return polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
-		oauth.New(testConfig(fake, dynamicRegistration))))
+func boot(t *testing.T, fake *fakeHTTP, dynamicRegistration bool, options ...polaristest.Option) *polaristest.Server {
+	return polaristest.New(t, append(options, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}),
+		oauth.New(testConfig(fake, dynamicRegistration))))...)
 }
 
 func (o *oauthCase) must(err error) {
@@ -278,6 +286,7 @@ type clientKeys struct {
 	t   *testing.T
 	ec  *ecdsa.PrivateKey
 	rsa *rsa.PrivateKey
+	now func() time.Time
 }
 
 func newClientKeys(t *testing.T) *clientKeys {
@@ -289,7 +298,7 @@ func newClientKeys(t *testing.T) *clientKeys {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &clientKeys{t: t, ec: ec, rsa: r}
+	return &clientKeys{t: t, ec: ec, rsa: r, now: time.Now}
 }
 
 func (k *clientKeys) dpopJWK() map[string]any {
@@ -309,7 +318,7 @@ func (k *clientKeys) thumbprint() string {
 func (k *clientKeys) dpopProof(method, u, accessToken string) string {
 	jti := make([]byte, 16)
 	_, _ = rand.Read(jti)
-	c := map[string]any{"jti": b64(jti), "htm": method, "htu": u, "iat": time.Now().Unix()}
+	c := map[string]any{"jti": b64(jti), "htm": method, "htu": u, "iat": k.now().Unix()}
 	if accessToken != "" {
 		sum := sha256.Sum256([]byte(accessToken))
 		c["ath"] = b64(sum[:])
@@ -328,9 +337,16 @@ func (k *clientKeys) clientJWKS() map[string]any {
 func (k *clientKeys) clientAssertion(clientID, audience string) string {
 	jti := make([]byte, 16)
 	_, _ = rand.Read(jti)
-	now := time.Now().Unix()
+	now := k.now().Unix()
 	return k.sign(map[string]any{"typ": "JWT", "alg": "RS256", "kid": "client-1"},
 		map[string]any{"iss": clientID, "sub": clientID, "aud": audience, "jti": b64(jti), "iat": now, "exp": now + 300})
+}
+
+// otherKeys is another client's key pair, on the same clock.
+func (o *oauthCase) otherKeys() *clientKeys {
+	k := newClientKeys(o.t)
+	k.now = o.keys.now
+	return k
 }
 
 func (k *clientKeys) sign(header, payload map[string]any) string {

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -55,10 +54,10 @@ func (p *Plugin) guard(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		body := readBody(r)
+		in := input(r)
 		client := endpoint.Client(ctx)
-		a := Attempt{Kind: kind, Email: str(body["email"]), IP: client.IP, UserAgent: client.UserAgent,
-			CaptchaToken: str(body["captcha_token"]), Password: str(body["password"])}
+		a := Attempt{Kind: kind, Email: in.String("email"), IP: client.IP, UserAgent: client.UserAgent,
+			CaptchaToken: in.String("captcha_token"), Password: in.String("password")}
 		if c, err := r.Cookie(DeviceCookie); err == nil {
 			a.DeviceID = c.Value
 		}
@@ -86,24 +85,14 @@ func (p *Plugin) guard(next http.Handler) http.Handler {
 	})
 }
 
-// readBody decodes a JSON object or form body, as the endpoint will, and puts the bytes back for
-// it; anything else reads as empty.
-func readBody(r *http.Request) map[string]any {
-	if r.Body == nil || r.Body == http.NoBody {
-		return nil
+// input is the request's data as the endpoint will read it; the body is put back for it.
+func input(r *http.Request) *endpoint.Input {
+	read := r.Clone(r.Context())
+	if r.Body != nil && r.Body != http.NoBody {
+		raw, _ := io.ReadAll(r.Body) // the pipeline already buffered and bounded it
+		r.Body, read.Body = io.NopCloser(bytes.NewReader(raw)), io.NopCloser(bytes.NewReader(raw))
 	}
-	raw, _ := io.ReadAll(r.Body) // the pipeline already buffered and bounded it
-	r.Body = io.NopCloser(bytes.NewReader(raw))
-	body := map[string]any{}
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-		form, _ := url.ParseQuery(string(raw))
-		for k := range form {
-			body[k] = form.Get(k)
-		}
-		return body
-	}
-	_ = json.Unmarshal(raw, &body)
-	return body
+	return endpoint.NewInput(read, nil)
 }
 
 func str(v any) string { s, _ := v.(string); return s }

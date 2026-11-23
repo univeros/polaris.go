@@ -322,8 +322,9 @@ func parseCOSEKey(raw []byte) (coseKey, error) {
 		}
 		// The bit length, not the encoded length: zero padding does not make a key stronger.
 		key := &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}
-		if key.N.BitLen() < 2048 || key.E < 3 || key.E%2 == 0 {
-			return coseKey{}, errInvalid("an RS256 key has a 2048-bit modulus or more")
+		// Bounded above too: verifying costs what the registered key says, and anyone can ask for it.
+		if key.N.BitLen() < 2048 || key.N.BitLen() > 8192 || key.E < 3 || key.E > 65537 || key.E%2 == 0 {
+			return coseKey{}, errInvalid("an RS256 key has a 2048 to 8192-bit modulus and an odd exponent of at most 65537")
 		}
 		return coseKey{rsa: key}, nil
 	}

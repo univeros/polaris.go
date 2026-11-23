@@ -284,7 +284,15 @@ func (p *Plugin) serveAdminClientsCreate(ctx context.Context, in *endpoint.Input
 	if refused != nil {
 		return *refused
 	}
-	issued, err := p.clients.create(ctx, ClientFields(in.All()), orgID, op.id, true)
+	// Trust counts in every organization, so it takes an owner of the instance to give it.
+	mayTrust := true
+	if orgID != "" {
+		_, refused := p.operator(ctx, in.Request, true, "")
+		if mayTrust = refused == nil; !mayTrust && in.Value("trusted") == true {
+			return *refused
+		}
+	}
+	issued, err := p.clients.create(ctx, ClientFields(in.All()), orgID, op.id, mayTrust)
 	var oe *Error
 	if errors.As(err, &oe) {
 		return endpoint.Problem(oe.Status, "oauth/"+oe.Code, "Invalid client metadata", oe.Description,

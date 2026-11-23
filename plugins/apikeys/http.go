@@ -257,15 +257,15 @@ func (p *Plugin) delete(ctx context.Context, in *endpoint.Input, tok *token.Toke
 	return endpoint.Data(http.StatusOK, map[string]any{"status": StatusRevoked})
 }
 
-// rotate answers POST /api-keys/{id}/rotate: a successor with a new secret; the key named answers
-// until the grace window ends.
+// rotate answers POST /api-keys/{id}/rotate: a successor with a new secret, acting as the caller; the
+// key named answers until the grace window ends.
 func (p *Plugin) rotate(ctx context.Context, in *endpoint.Input, tok *token.Token) endpoint.Result {
 	key, err := p.manageable(ctx, in, tok)
 	if err != nil {
 		return p.refuse(ctx, err)
 	}
 	if key.CreatedBy != tok.Subject() {
-		// The successor acts as the creator: another admin rotates it only within what they hold.
+		// The successor acts as whoever rotates the key and reads its secret, within what they hold.
 		held, err := p.held(ctx, tok, key.OrganizationID)
 		if err != nil {
 			return p.refuse(ctx, err)
@@ -276,7 +276,9 @@ func (p *Plugin) rotate(ctx context.Context, in *endpoint.Input, tok *token.Toke
 			}
 		}
 	}
-	key, issued, err := p.keys.Rotate(ctx, key)
+	successor := key
+	successor.CreatedBy = tok.Subject()
+	key, issued, err := p.keys.Rotate(ctx, successor)
 	if err != nil {
 		return p.refuse(ctx, err)
 	}
@@ -286,7 +288,8 @@ func (p *Plugin) rotate(ctx context.Context, in *endpoint.Input, tok *token.Toke
 	return endpoint.Data(http.StatusCreated, data)
 }
 
-// verify answers POST /api-keys/verify: whether a key authenticates now, and as whom.
+// verify answers POST /api-keys/verify: whether a key authenticates now, as whom, and which of its
+// permissions its subject still holds.
 func (p *Plugin) verify(ctx context.Context, in *endpoint.Input, _ *token.Token) endpoint.Result {
 	secret, _ := in.Value("key").(string)
 	if secret == "" {
@@ -296,12 +299,22 @@ func (p *Plugin) verify(ctx context.Context, in *endpoint.Input, _ *token.Token)
 	if err != nil {
 		return p.refuse(ctx, err)
 	}
+	if ok {
+		if _, ok, err = p.subject(ctx, key); err != nil {
+			return p.refuse(ctx, err)
+		}
+	}
 	if !ok {
 		return endpoint.Data(http.StatusOK, map[string]any{"valid": false})
 	}
+	a, err := p.g.Gate().Authority(ctx, authz.Caller{UserID: key.Subject(), OrganizationID: key.OrganizationID, Delegated: true, DelegatedPermissions: key.Permissions})
+	if err != nil {
+		return p.refuse(ctx, err)
+	}
+	held := slices.DeleteFunc(slices.Clone(key.Permissions), func(perm string) bool { return !a.Allows(perm) })
 	return endpoint.Data(http.StatusOK, map[string]any{
 		"valid": true, "id": key.ID, "name": key.Name, "owner_type": key.OwnerType, "owner_id": key.OwnerID,
-		"organization_id": null(key.OrganizationID), "subject": key.Subject(), "permissions": list(key.Permissions),
+		"organization_id": null(key.OrganizationID), "subject": key.Subject(), "permissions": list(held),
 		"rate_limit": rateLimitValue(key.RateLimit), "metadata": metadata(key.Metadata),
 		"status": key.Status(p.keys.now()), "expires_at": timestamp(key.ExpiresAt),
 	})

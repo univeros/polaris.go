@@ -14,7 +14,7 @@ func TestAFlowStartedByAnAttackerCannotBeCompletedInAVictimsBrowser(t *testing.T
 	h := newHarness(t)
 	attacker := h.user("mallory@example.com", true)
 	for name, link := range map[string]string{"sign-in": "", "link": attacker.ID} {
-		s, err := h.p.start(h.ctx, "github", "", nil, link)
+		s, err := h.p.start(h.ctx, "github", "", nil, h.linker(link))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -29,7 +29,7 @@ func TestAFlowStartedByAnAttackerCannotBeCompletedInAVictimsBrowser(t *testing.T
 
 func TestTheBindingCookieMustBeTheFlowsOwnAndHostOnlyOverHTTPS(t *testing.T) {
 	h := newHarness(t)
-	s, err := h.p.start(h.ctx, "github", "", nil, "")
+	s, err := h.p.start(h.ctx, "github", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +42,9 @@ func TestTheBindingCookieMustBeTheFlowsOwnAndHostOnlyOverHTTPS(t *testing.T) {
 	// A sibling subdomain can plant a plain cookie, never a __Host- one: over HTTPS only the
 	// __Host- name counts.
 	refused(t, callback(bindingCookie(s.State, false), s.binding), kindStateInvalid, "a plain-named cookie over https")
-	s, _ = h.p.start(h.ctx, "github", "", nil, "")
+	s, _ = h.p.start(h.ctx, "github", "", nil, nil)
 	refused(t, callback(bindingCookie(s.State, true), strings.Repeat("0", 32)), kindStateInvalid, "another nonce")
-	s, _ = h.p.start(h.ctx, "github", "", nil, "")
+	s, _ = h.p.start(h.ctx, "github", "", nil, nil)
 	h.rec.SetNonce(queryParam(s.URL, "nonce"))
 	if err := callback(bindingCookie(s.State, true), s.binding); err != nil {
 		t.Fatalf("the starting browser completes its flow: %v", err)
@@ -62,7 +62,7 @@ func TestTheBindingCookieMustBeTheFlowsOwnAndHostOnlyOverHTTPS(t *testing.T) {
 // reach Apple's cross-site form_post callback.
 func TestTheBindingCookieFollowsTheBaseURLNotTheConnection(t *testing.T) {
 	h := newHarness(t)
-	s, err := h.p.start(h.ctx, "github", "", nil, "")
+	s, err := h.p.start(h.ctx, "github", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -21,7 +21,7 @@ domain:
     Every session of the caller ends; url is where the browser goes so the IdP ends its own session
     (a SAML LogoutRequest, or the OIDC end-session endpoint), null when the provider offers none. The
     provider is provider_id, or the first of the token's active organization (organization_id when the
-    session has none).
+    session has none), of which the caller is an active member.
 
 output:
   status: 200

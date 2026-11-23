@@ -232,7 +232,8 @@ func (p *Plugin) publicClient(ctx context.Context, clientID string) (any, error)
 }
 
 // serveConsentRevoke is DELETE /oauth2/consents/{clientId}: the consent and the client's tokens for
-// the caller go.
+// the caller go; the tokens also when there is no consent (a device, a backchannel request, an exchange
+// and a trusted client need none).
 func (p *Plugin) serveConsentRevoke(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	tok := endpoint.Token(ctx)
 	if tok == nil {
@@ -243,12 +244,12 @@ func (p *Plugin) serveConsentRevoke(ctx context.Context, in *endpoint.Input) end
 	if err != nil {
 		return p.fail(ctx, err)
 	}
-	if !found {
-		return endpoint.Problem(http.StatusNotFound, "oauth/not_found", "Not found", "You have not granted that client anything.", nil)
-	}
 	n, err := p.tokens.revokeWhere(ctx, map[string]any{"user_id": userID, "client_id": clientID})
 	if err != nil {
 		return p.fail(ctx, err)
+	}
+	if !found && n == 0 {
+		return endpoint.Problem(http.StatusNotFound, "oauth/not_found", "Not found", "You have not granted that client anything.", nil)
 	}
 	p.emit(ctx, EventConsentRevoked, userID, clientID, actorOrg(tok), map[string]any{"tokens_revoked": n})
 	return endpoint.Data(http.StatusOK, map[string]any{"status": "revoked", "tokens_revoked": n})

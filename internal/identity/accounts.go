@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -119,7 +120,7 @@ func newAccount(email, displayName string, now time.Time) (model.User, error) {
 
 // SetPassword sets userID's password for a trusted caller (an operator, the host), as a reset
 // does: the policy applies (*PasswordError), every session ends and event.PasswordChanged (method
-// reset) is dispatched.
+// reset) is dispatched. An erased account returns ErrConflict.
 func (s *Service) SetPassword(ctx context.Context, userID, password string) error {
 	user, err := s.user(ctx, userID)
 	if err != nil {
@@ -132,10 +133,19 @@ func (s *Service) SetPassword(ctx context.Context, userID, password string) erro
 	if err != nil {
 		return fmt.Errorf("identity: set password: %w", err)
 	}
-	next := user
-	next.PasswordHash, next.UpdatedAt = &hash, s.now()
-	if err := s.repos.Users.Update(ctx, user, next); err != nil {
-		return fmt.Errorf("identity: set password: %w", err)
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		if user, err = s.lockUser(ctx, userID); err != nil {
+			return err
+		}
+		if erased(user) {
+			return refuse(ErrConflict, msgTombstone)
+		}
+		next := user
+		next.PasswordHash, next.UpdatedAt = &hash, s.now()
+		return s.repos.Users.Update(ctx, user, next)
+	})
+	if err != nil {
+		return wrapUnlessRefusal("set password", err)
 	}
 	if _, err := s.sessions.RevokeAll(ctx, userID, model.RevokedPasswordChange); err != nil {
 		return fmt.Errorf("identity: set password: %w", err)
@@ -224,6 +234,9 @@ func (s *Service) lockUser(ctx context.Context, userID string) (model.User, erro
 	}
 	return s.user(ctx, userID)
 }
+
+// erased reports whether the account is a tombstone.
+func erased(u model.User) bool { return strings.HasSuffix(u.Email, tombstoneEmailSuffix) }
 
 // wrapUnlessRefusal wraps a failure of op, leaving a refusal (*Error, *PasswordError) as it is.
 func wrapUnlessRefusal(op string, err error) error {

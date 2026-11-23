@@ -9,6 +9,7 @@ import (
 
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -174,6 +175,13 @@ func (p *Plugin) logout(ctx context.Context, in *endpoint.Input) endpoint.Result
 	}
 	if orgID == "" || err != nil {
 		return invalidInput("organization_id is required when the session has no active organization.")
+	}
+	m, err := p.g.Repos().Memberships.ByUserAndOrganization(ctx, u.ID, orgID)
+	if errors.Is(err, repository.ErrNotFound) || (err == nil && m.Status != model.MembershipStatusActive) {
+		err = refuse(ReasonProviderNotFound, "no provider for the organization")
+	}
+	if err != nil {
+		return p.answer(ctx, err)
 	}
 	to, err := p.Logout(ctx, u, orgID, in.String("provider_id"), in.String("post_logout_uri"), endpoint.Client(ctx))
 	if err != nil {

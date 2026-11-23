@@ -155,6 +155,18 @@ func TestRegenerateInvalidatesThePriorBatchAndIssuesAFreshOne(t *testing.T) {
 	})
 }
 
+// A new batch is the only one: the codes of an earlier enrolment do not outlive its factors.
+func TestANewBatchRetiresTheOneBefore(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(t, db, otpInstant)
+		s := h.service(t)
+		old, fresh := issue(t, s, "user-123"), issue(t, s, "user-123")
+		if remaining(t, s, "user-123") != RecoveryCodeCount || verifyRecovery(t, s, "user-123", old[0]) || !verifyRecovery(t, s, "user-123", fresh[0]) {
+			t.Fatal("only the fresh batch remains usable")
+		}
+	})
+}
+
 func TestRemainingCountsOnlyUnusedCodes(t *testing.T) {
 	h := newHarness(t, memDB(), otpInstant)
 	s := h.service(t)

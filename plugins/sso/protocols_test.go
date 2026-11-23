@@ -150,6 +150,20 @@ func wrap(t *testing.T, response string) string {
 	return base64.StdEncoding.EncodeToString([]byte(forged))
 }
 
+// A SHA-1 signature is refused, on a response and on a logout request.
+func TestSAMLRefusesSHA1Signatures(t *testing.T) {
+	i := idp(t)
+	old := &testIdP{key: i.key, cert: i.cert, sha1: true}
+	sp := SP{BaseURL: testBase}
+	prov := testProvider(TypeSAML, map[string]any{"sso_url": idpSSOURL, "slo_url": idpSLOURL, "certificate": i.certificateBody()},
+		idpEntityID, map[string]string{})
+	_, err := DefaultSAML{}.Consume(prov, sp, old.response(t, sp.EntityID(prov.ID), sp.ACSURL(prov.ID), "ada@example.com", responseOptions{}), "")
+	refusedAs(t, err, ReasonAssertionInvalid, "", "a response")
+	if _, err := (DefaultSAML{}).Consume(prov, sp, i.response(t, sp.EntityID(prov.ID), sp.ACSURL(prov.ID), "ada@example.com", responseOptions{}), ""); err != nil {
+		t.Fatalf("SHA-256: %v", err)
+	}
+}
+
 func TestSAMLSingleLogoutBothWays(t *testing.T) {
 	i := idp(t)
 	saml := DefaultSAML{Clock: clock.System{}}

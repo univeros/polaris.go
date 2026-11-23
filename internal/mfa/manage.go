@@ -10,6 +10,7 @@ import (
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 // maxLabelLength is the auth_mfa_factors.label column width, in characters.
@@ -66,38 +67,52 @@ func (s *Service) UpdateFactor(ctx context.Context, userID, factorID string, lab
 // wrapping ErrLastFactorProtected; removing the default promotes the oldest other confirmed
 // factor, so a confirmed user always keeps a default.
 func (s *Service) RemoveFactor(ctx context.Context, userID, factorID string) error {
-	f, err := s.owned(ctx, userID, factorID)
-	if err != nil {
-		return err
-	}
-	if f.ConfirmedAt != nil {
-		confirmed, err := s.ConfirmedFactors(ctx, userID)
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		// The user's row is locked first (a no-op UPDATE), so of two concurrent removals the second sees
+		// what the first left.
+		if _, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil {
+			return fmt.Errorf("mfa: remove factor: %w", err)
+		}
+		f, err := s.owned(ctx, userID, factorID)
 		if err != nil {
 			return err
 		}
-		if !containsOther(confirmed, factorID) {
-			enforced, err := s.IsEnforced(ctx, userID)
-			if err != nil {
-				return err
-			}
-			if enforced {
-				return &PolicyError{Err: ErrLastFactorProtected, Message: "Enrol another factor before removing your last one."}
-			}
+		if err := s.mayRemove(ctx, userID, f); err != nil {
+			return err
 		}
-	}
-
-	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		if f.IsDefault {
 			if err := s.setDefault(ctx, userID, factorID, true, s.clock.Now()); err != nil {
-				return err
+				return fmt.Errorf("mfa: remove factor: %w", err)
 			}
 		}
-		return s.repos.MFAFactors.Delete(ctx, f)
+		if err := s.repos.MFAFactors.Delete(ctx, f); err != nil {
+			return fmt.Errorf("mfa: remove factor: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("mfa: remove factor: %w", err)
+		return err
 	}
 	s.events.Dispatch(ctx, event.MFAFactorRemoved{UserID: userID, FactorID: factorID})
+	return nil
+}
+
+// mayRemove refuses to remove the last confirmed factor of a user for whom MFA is enforced.
+func (s *Service) mayRemove(ctx context.Context, userID string, f model.MFAFactor) error {
+	if f.ConfirmedAt == nil {
+		return nil
+	}
+	confirmed, err := s.ConfirmedFactors(ctx, userID)
+	if err != nil || containsOther(confirmed, f.ID) {
+		return err
+	}
+	enforced, err := s.IsEnforced(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if enforced {
+		return &PolicyError{Err: ErrLastFactorProtected, Message: "Enrol another factor before removing your last one."}
+	}
 	return nil
 }
 
