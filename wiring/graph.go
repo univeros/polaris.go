@@ -402,7 +402,7 @@ func (g *Graph) buildTokens() error {
 	if g.tickets, err = session.NewMFATickets(codecCfg, a.MFA.LoginTokenTTL); err != nil {
 		return fmt.Errorf("polaris: MFA tickets: %w", err)
 	}
-	g.denylist = session.NewDenylist(g.cache, g.clock, a.AccessToken.TTL)
+	g.denylist = session.NewDenylist(g.cache, g.clock, max(a.AccessToken.TTL, a.MFA.LoginTokenTTL)) // both tokens die by its watermarks
 	return nil
 }
 

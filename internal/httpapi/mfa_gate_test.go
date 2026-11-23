@@ -1,11 +1,22 @@
 package httpapi_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
+	"github.com/univeros/polaris.go/internal/services"
+	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/repository"
 )
 
 func TestMfaLoginGateEndpoints(t *testing.T) {
@@ -139,4 +150,78 @@ func TestMfaLoginGateEndpoints(t *testing.T) {
 			}
 		},
 	})
+}
+
+// A login_mfa ticket stands for the first step: what ends every session of the account ends it.
+func TestAnMFATicketDiesWithTheSessionsOfItsUser(t *testing.T) {
+	for name, end := range map[string]func(t *testing.T, srv *polaristest.Server, u polaris.User){
+		"password reset": func(t *testing.T, srv *polaristest.Server, u polaris.User) {
+			if err := services.Of(srv.Graph()).Identity.SetPassword(t.Context(), u.ID, "an entirely different passphrase"); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"logout everywhere": func(t *testing.T, srv *polaristest.Server, u polaris.User) {
+			if err := srv.Sessions().RevokeAll(t.Context(), u.ID); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"disable": func(t *testing.T, srv *polaristest.Server, u polaris.User) {
+			if err := srv.Graph().Identity().DisableUser(t.Context(), "operator", u.ID); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"nothing": nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			clk := clock.NewFrozen(time.Now())
+			srv := polaristest.New(t, polaristest.WithConfig(func(c *polaris.Config) { c.Clock = clk }))
+			u, err := srv.Users().Create(t.Context(), polaris.NewUser{Email: "ada@example.com", Password: mfaPassword, EmailVerified: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			email := "ada+mfa@example.com"
+			now := clk.Now()
+			factor := model.MFAFactor{ID: repository.NewID(), UserID: u.ID, Type: model.FactorEmail, Email: &email, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}
+			if err := srv.Graph().Repos().MFAFactors.Insert(t.Context(), factor); err != nil {
+				t.Fatal(err)
+			}
+			post := func(path, bearer, body string) (int, map[string]any) {
+				r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+				r.Header.Set("Content-Type", "application/json")
+				r.Header.Set("Authorization", "Bearer "+bearer)
+				w := httptest.NewRecorder()
+				srv.Handler().ServeHTTP(w, r)
+				var doc struct{ Data map[string]any }
+				_ = json.Unmarshal(w.Body.Bytes(), &doc)
+				return w.Code, doc.Data
+			}
+			_, data := post("/auth/login", "", `{"email":"ada@example.com","password":"`+mfaPassword+`"}`)
+			ticket, _ := data["mfa_token"].(string)
+			if ticket == "" {
+				t.Fatalf("login: %v", data)
+			}
+			clk.Advance(2 * time.Second)
+			want := http.StatusOK
+			if end != nil {
+				end(t, srv, u)
+				want = http.StatusUnauthorized
+			}
+			if code, body := post("/auth/mfa/challenge", ticket, `{"factor_id":"`+factor.ID+`"}`); code != want {
+				t.Fatalf("challenge: %d %v, want %d", code, body, want)
+			}
+			if code, body := post("/auth/mfa/verify", ticket, `{"factor_id":"`+factor.ID+`","code":"`+sentCode(srv)+`"}`); code != want {
+				t.Fatalf("verify: %d %v, want %d", code, body, want)
+			}
+		})
+	}
+}
+
+// sentCode is the last code mailed, "000000" when none was.
+func sentCode(srv *polaristest.Server) string {
+	for _, m := range slices.Backward(srv.Mailer.Sent()) {
+		if code, ok := m.Data["code"].(string); ok {
+			return code
+		}
+	}
+	return "000000"
 }

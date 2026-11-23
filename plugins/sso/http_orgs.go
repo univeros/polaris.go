@@ -234,7 +234,7 @@ func (p *Plugin) addDomain(ctx context.Context, in *endpoint.Input, tok *token.T
 	if !found || prov.OrganizationID != orgID {
 		return invalidInput("provider_id must be one of the organization's providers.")
 	}
-	conflict := ssoProblem(http.StatusConflict, "conflict", "Conflict", "The domain is already claimed.")
+	conflict := errClaimed()
 	held, taken, err := p.domains.FindByName(ctx, name)
 	if err != nil {
 		return p.answer(ctx, err)
@@ -246,7 +246,7 @@ func (p *Plugin) addDomain(ctx context.Context, in *endpoint.Input, tok *token.T
 		if held.VerifiedAt != nil || held.OrganizationID == orgID {
 			return conflict
 		}
-		if _, err := p.domains.Delete(ctx, held.ID); err != nil {
+		if err := p.domains.displace(ctx, held); err != nil {
 			return p.answer(ctx, err)
 		}
 	}
@@ -261,6 +261,10 @@ func (p *Plugin) addDomain(ctx context.Context, in *endpoint.Input, tok *token.T
 	return endpoint.Data(http.StatusCreated, d.Map())
 }
 
+func errClaimed() endpoint.Result {
+	return ssoProblem(http.StatusConflict, "conflict", "Conflict", "The domain is already claimed.")
+}
+
 // verifyDomain answers POST .../domains/{domainId}/verify: the DNS record or the well-known file.
 func (p *Plugin) verifyDomain(ctx context.Context, in *endpoint.Input, tok *token.Token, orgID string) endpoint.Result {
 	d, refused := p.domain(ctx, in, orgID)
@@ -273,7 +277,13 @@ func (p *Plugin) verifyDomain(ctx context.Context, in *endpoint.Input, tok *toke
 			return ssoProblem(http.StatusUnprocessableEntity, "domain_unverified", "Domain unverified", "Neither the DNS record nor the well-known file carries the token yet.")
 		}
 		var err error
-		if d, err = p.domains.MarkVerified(ctx, d); err != nil {
+		d, err = p.domains.MarkVerified(ctx, d)
+		switch {
+		case errors.Is(err, store.ErrDuplicate):
+			return errClaimed()
+		case errors.Is(err, repository.ErrNotFound):
+			return ssoProblem(http.StatusNotFound, "not_found", "Not found", "The domain does not exist in this organization.")
+		case err != nil:
 			return p.answer(ctx, err)
 		}
 		p.recordUser(ctx, AuditDomainVerified, tok, d.ID, orgID, map[string]any{"domain": d.Domain, "method": method})

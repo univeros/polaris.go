@@ -5,6 +5,7 @@ package scim
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
 
@@ -355,5 +357,65 @@ func TestAConfirmedRegistrationEndsADirectorysHold(t *testing.T) {
 	}
 	if held := must(f.p.Provisioned(f.ctx, conn.OrganizationID, ada)); held {
 		t.Fatal("the organization's identity provider still signs the account in")
+	}
+}
+
+// raceDB runs before once, when the next transaction begins.
+type raceDB struct {
+	store.Adapter
+	before func()
+}
+
+func (r *raceDB) Tx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if f := r.before; f != nil {
+		r.before = nil
+		f()
+	}
+	return r.Adapter.Tx(ctx, fn)
+}
+
+// A directory's write decides on the account as its transaction reads it: one whose owner proved the
+// mailbox in between is left to its owner.
+func TestADirectorysWriteDecidesInItsTransaction(t *testing.T) {
+	for name, write := range map[string]func(t *testing.T, d *directory, f *fixture, conn Connection, u model.User){
+		"rename": func(t *testing.T, d *directory, f *fixture, conn Connection, u model.User) {
+			_, err := d.patchUser(f.ctx, conn, u, rename(t, "mine@evil.example"))
+			refused(t, err, 403, "a rename")
+		},
+		"replace": func(t *testing.T, d *directory, f *fixture, conn Connection, u model.User) {
+			_, err := d.replaceUser(f.ctx, conn, u, map[string]any{"userName": "mine@evil.example", "displayName": "Mine"})
+			refused(t, err, 403, "a replacement")
+		},
+		"name": func(t *testing.T, d *directory, f *fixture, conn Connection, u model.User) {
+			must(d.patchUser(f.ctx, conn, u, ops(t, map[string]any{"op": "replace", "path": "displayName", "value": "Mine"})))
+		},
+		"deactivate": func(t *testing.T, d *directory, f *fixture, conn Connection, u model.User) {
+			if outcome := must(d.deleteUser(f.ctx, conn, u)); outcome != "deactivated" {
+				t.Fatal(outcome)
+			}
+		},
+		"delete": func(_ *testing.T, d *directory, f *fixture, conn Connection, u model.User) {
+			conn.Deprovision = DeprovisionDelete
+			must(d.deleteUser(f.ctx, conn, u))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			conn := f.connection(f.organization(), DeprovisionDeactivate)
+			d := f.p.dir
+			g := f.srv.Graph()
+			u := must(d.createUser(f.ctx, conn, map[string]any{"userName": "eve@globex.example", "displayName": "Eve"}))
+			d.db = &raceDB{Adapter: d.db, before: func() {
+				if _, first, err := g.Identity().ProveEmail(f.ctx, u.ID, false); err != nil || !first {
+					t.Error(first, err)
+				}
+			}}
+			write(t, d, f, conn, u)
+			after := must(g.Repos().Users.Get(f.ctx, u.ID))
+			if after.Email != "eve@globex.example" || after.EmailVerifiedAt == nil || after.Status != model.UserStatusActive ||
+				after.DisplayName == nil || *after.DisplayName != "Eve" {
+				t.Fatalf("the directory reached an account its owner proved: %+v", after)
+			}
+		})
 	}
 }

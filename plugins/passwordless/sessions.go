@@ -14,6 +14,7 @@ import (
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -154,6 +155,9 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 	client := endpoint.Client(ctx)
 	var tokens token.IssuedTokens
 	err = v.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if err := services.Of(v.g).Identity.HoldForSignIn(ctx, u); err != nil {
+			return err
+		}
 		if _, err := v.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"last_login_at": now, "updated_at": now}); err != nil {
 			return err
 		}
@@ -161,7 +165,12 @@ func (v *service) open(ctx context.Context, u model.User, f facts) (envelope, er
 		tokens, err = v.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, identity.ErrAccountDisabled):
+		return nil, errDisabled
+	case errors.Is(err, identity.ErrInvalidCredentials):
+		return nil, errCodeInvalid // the account changed while the code or link was checked
+	case err != nil:
 		return nil, err
 	}
 	v.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: tokens.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: f.amr})

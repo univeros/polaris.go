@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
@@ -946,3 +948,33 @@ func TestEmailVerifiedIsTrueOnlyWhenTheProviderSaysSo(t *testing.T) {
 }
 
 func jsonNumber(s string) json.Number { return json.Number(s) }
+
+// A sign-in is checked again where it opens its session: an account disabled, or proven by its
+// mailbox (which takes every provider link with it), since it was read opens none.
+func TestASignInWhoseAccountChangedOpensNoSession(t *testing.T) {
+	h := newHarness(t)
+	g := h.srv.Graph()
+	read := h.user("ada@example.com", true)
+	if err := g.Identity().DisableUser(h.ctx, "operator", read.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err := h.p.openSession(h.ctx, read, "google", h.client)
+	if e, ok := errors.AsType[*refusal](err); !ok || e.kind != kindAccountDisabled {
+		t.Fatalf("disabled: %v", err)
+	}
+
+	srv := polaristest.New(t, polaristest.WithAuth(func(a *config.Auth) { a.Flows.RequireVerifiedEmail = false }), polaristest.WithPlugins(New(RecordedConfig(t, unitBase, NewRecorded(t)))))
+	h.srv, g = srv, srv.Graph()
+	p, _ := g.Plugin(ID).(*Plugin)
+	read = h.user("eve@example.com", false)
+	if _, first, err := g.Identity().ProveEmail(h.ctx, read.ID, false); err != nil || !first {
+		t.Fatal(first, err)
+	}
+	_, err = p.openSession(h.ctx, read, "google", h.client)
+	if e, ok := errors.AsType[*refusal](err); !ok || e.kind != kindTokenInvalid {
+		t.Fatalf("proven since: %v", err)
+	}
+	if list, err := g.Sessions().List(h.ctx, read.ID, ""); err != nil || len(list) != 0 {
+		t.Fatalf("sessions %v %v", list, err)
+	}
+}

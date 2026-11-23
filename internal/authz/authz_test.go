@@ -347,6 +347,19 @@ func TestEscalationGuard(t *testing.T) {
 		super := Authority{Roles: []string{RoleSuperadmin}, Scope: []string{}}
 		must(t, g.CheckRoles(ctx, super, []string{owner}))
 
+		acme := org
+		ownRole := model.Role{ID: repository.NewID(), OrganizationID: &acme, Slug: "deployer", Name: "Deployer", CreatedAt: now, UpdatedAt: now}
+		must(t, r.Roles.Insert(ctx, ownRole))
+		must(t, g.CheckEveryRole(ctx, Authority{}, org)) // a role that grants nothing
+		perm, err := r.Permissions.FindOne(ctx, store.Criteria{"key": OrgDelete})
+		must(t, err)
+		must(t, r.RolePermissions.Insert(ctx, model.RolePermission{RoleID: ownRole.ID, PermissionID: perm.ID}))
+		if err := g.CheckEveryRole(ctx, adminAuthority, org); !errors.Is(err, ErrForbidden) {
+			t.Errorf("every role, as an administrator: %v", err)
+		}
+		must(t, g.CheckEveryRole(ctx, Authority{Scope: []string{OrgDelete}}, org))
+		must(t, g.CheckEveryRole(ctx, super, org))
+
 		must(t, g.CheckPermissions(adminAuthority, []string{MembersRead}))
 		must(t, g.CheckPermissions(super, []string{OrgDelete}))
 		if err := g.CheckPermissions(adminAuthority, []string{OrgDelete}); !errors.Is(err, ErrForbidden) {

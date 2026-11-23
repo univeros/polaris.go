@@ -261,42 +261,44 @@ type userChange struct {
 }
 
 func (d *directory) writeUser(ctx context.Context, conn Connection, user model.User, c userChange) (model.User, error) {
-	owned, err := d.owns(ctx, conn, user)
-	if err != nil {
-		return model.User{}, err
-	}
-	if !owned {
-		// Not this directory's account: its email and name are the user's own.
-		if c.email != nil && *c.email != user.Email {
-			return model.User{}, immutable("userName is managed by the account's owner, not by this directory.")
+	// Decided in the transaction, on the account as the lock leaves it: its owner may have proven the
+	// mailbox since it was read, which ends the directory's hold.
+	err := d.db.Tx(ctx, func(ctx context.Context) error {
+		current, err := d.lock(ctx, user.ID)
+		if err != nil {
+			return err
 		}
-		c.email, c.setName, c.parts = nil, false, nil
-	}
-	// An owned account moves to another address as it would be created there: verified on a
-	// domain the organization verified, unverified anywhere else. So a verified account does not
-	// leave those domains: it would carry its verification, and whatever signs in to it, onto a
-	// mailbox nobody proved.
-	renamed, vouched := c.email != nil && *c.email != user.Email, false
-	if renamed {
-		if vouched, err = d.mayLink(ctx, conn, *c.email); err != nil {
-			return model.User{}, err
+		owned, err := d.owns(ctx, conn, current)
+		if err != nil {
+			return err
 		}
-		if !vouched && user.EmailVerifiedAt != nil {
-			return model.User{}, immutable("userName of a verified account changes only to an address on a domain the organization verified.")
+		if !owned {
+			// Not this directory's account: its email and name are the user's own.
+			if c.email != nil && *c.email != current.Email {
+				return immutable("userName is managed by the account's owner, not by this directory.")
+			}
+			c.email, c.setName, c.parts = nil, false, nil
 		}
-	}
-	err = d.db.Tx(ctx, func(ctx context.Context) error {
-		current := user
-		if renamed {
+		// An owned account moves to another address as it would be created there: verified on a
+		// domain the organization verified, unverified anywhere else. So a verified account does not
+		// leave those domains: it would carry its verification, and whatever signs in to it, onto a
+		// mailbox nobody proved.
+		if c.email != nil && *c.email != current.Email {
+			vouched, err := d.mayLink(ctx, conn, *c.email)
+			if err != nil {
+				return err
+			}
+			if !vouched && current.EmailVerifiedAt != nil {
+				return immutable("userName of a verified account changes only to an address on a domain the organization verified.")
+			}
 			// ChangeEmail also removes the reset and verification tokens sent to the old address.
-			moved, err := d.identity.ChangeEmail(ctx, user.ID, *c.email, vouched)
+			current, err = d.identity.ChangeEmail(ctx, user.ID, *c.email, vouched)
 			if errors.Is(err, identity.ErrEmailTaken) {
 				return conflict("Another account uses this userName.")
 			}
 			if err != nil {
 				return err
 			}
-			current = moved
 		}
 		next := current
 		if c.setName {
@@ -363,17 +365,28 @@ func (d *directory) deleteUser(ctx context.Context, conn Connection, user model.
 	return outcome, d.identity.DisableUser(ctx, actor, user.ID)
 }
 
+// lock locks the account's row (a no-op UPDATE) for the transaction in ctx, whose first statement it
+// is, and reads it: what a concurrent write to the account committed is read, and one that follows
+// waits.
+func (d *directory) lock(ctx context.Context, userID string) (model.User, error) {
+	if _, err := d.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil {
+		return model.User{}, err
+	}
+	user, err := d.repos.Users.Get(ctx, userID)
+	if errors.Is(err, repository.ErrNotFound) {
+		err = notFound("User")
+	}
+	return user, err
+}
+
 // erase removes the account from the organization (never its last active owner) and anonymises it,
 // when the connection owns it and either deletes what it deprovisions or nobody has proven the
-// account's mailbox; false when it did nothing. The account's row is written first, so a proof of
+// account's mailbox; false when it did nothing. The account is locked first, so a proof of
 // the mailbox running at the same time is either read here or finds the account gone.
 func (d *directory) erase(ctx context.Context, conn Connection, userID string) (bool, error) {
 	erased := false
 	err := d.db.Tx(ctx, func(ctx context.Context) error {
-		if _, err := d.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"updated_at": d.now()}); err != nil {
-			return err
-		}
-		user, err := d.repos.Users.Get(ctx, userID)
+		user, err := d.lock(ctx, userID)
 		if err != nil {
 			return err
 		}

@@ -293,12 +293,46 @@ func (s *Domains) Add(ctx context.Context, organizationID, providerID, name stri
 	})
 }
 
-// MarkVerified records the domain as verified now.
+// MarkVerified records the domain as verified now, for an organization that proved it. The proof
+// stands whatever became of the claim meanwhile: one another organization's unverified claim
+// replaced is made again, in its place. It fails with store.ErrDuplicate when another organization
+// verified the domain first, and with repository.ErrNotFound when the domain's provider is gone.
 func (s *Domains) MarkVerified(ctx context.Context, d Domain) (Domain, error) {
 	now := s.clock.Now().UTC().Truncate(time.Second)
-	d.VerifiedAt = &now
-	_, err := s.db.Update(ctx, TableDomains, store.Criteria{"id": d.ID}, store.Data{"verified_at": now})
-	return d, err
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		n, err := s.db.Update(ctx, TableDomains, store.Criteria{"domain": d.Domain, "organization_id": d.OrganizationID}, store.Data{"verified_at": now})
+		if err != nil || n > 0 {
+			return err
+		}
+		prov, err := s.db.FindOne(ctx, TableProviders, store.Criteria{"id": d.ProviderID, "organization_id": d.OrganizationID})
+		if err != nil {
+			return err
+		}
+		if prov == nil {
+			return repository.ErrNotFound
+		}
+		if _, err := s.db.Delete(ctx, TableDomains, store.Criteria{"domain": d.Domain, "verified_at": nil}); err != nil {
+			return err
+		}
+		return s.db.Insert(ctx, TableDomains, store.Row{
+			"id": repository.NewID(), "organization_id": d.OrganizationID, "provider_id": d.ProviderID, "domain": d.Domain,
+			"token": d.Token, "verified_at": now, "created_at": d.CreatedAt,
+		})
+	})
+	if err != nil {
+		return d, err
+	}
+	stored, ok, err := s.FindByName(ctx, d.Domain)
+	if err == nil && (!ok || stored.OrganizationID != d.OrganizationID) {
+		err = repository.ErrNotFound // deleted since
+	}
+	return stored, err
+}
+
+// displace removes a claim that is still unverified.
+func (s *Domains) displace(ctx context.Context, d Domain) error {
+	_, err := s.db.Delete(ctx, TableDomains, store.Criteria{"id": d.ID, "verified_at": nil})
+	return err
 }
 
 // Delete removes a domain; false when there was none.

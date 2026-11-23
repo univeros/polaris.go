@@ -172,6 +172,9 @@ func (s *Service) SignIn(ctx context.Context, userID string, amr []string, clien
 	}
 	var tokens token.IssuedTokens
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.HoldForSignIn(ctx, user); err != nil {
+			return err
+		}
 		if err := s.repos.Users.Update(ctx, user, next); err != nil {
 			return err
 		}
@@ -179,13 +182,38 @@ func (s *Service) SignIn(ctx context.Context, userID string, amr []string, clien
 		return err
 	})
 	if err != nil {
-		return token.IssuedTokens{}, fmt.Errorf("identity: sign in: %w", err)
+		return token.IssuedTokens{}, wrapUnlessRefusal("sign in", err)
 	}
 	s.events.Dispatch(ctx, event.UserLoggedIn{
 		UserID: user.ID, SessionID: tokens.SessionID, IP: optional(client.IP),
 		UserAgent: optional(client.UserAgent), AMR: amr,
 	})
 	return tokens, nil
+}
+
+// HoldForSignIn locks the account u was read from, in the caller's transaction, for a sign-in that
+// is about to open its session, and refuses one whose account changed since: ErrAccountDisabled, or
+// ErrInvalidCredentials when the mailbox's first proof took away whatever signed in before
+// (ProveEmail). The checks are criteria of the locking UPDATE (a no-op one), so they hold for the
+// current row; it must be the transaction's first statement, so what is read next is current too.
+// Whatever revokes the account's sessions from here on waits, and ends the session.
+func (s *Service) HoldForSignIn(ctx context.Context, u model.User) error {
+	c := store.Criteria{"id": u.ID, "status": store.Ne(model.UserStatusDisabled)}
+	if u.EmailVerifiedAt == nil {
+		c["email_verified_at"] = nil
+	}
+	n, err := s.db.Update(ctx, "auth_users", c, store.Data{"id": u.ID})
+	if err != nil || n == 1 {
+		return err
+	}
+	current, err := s.user(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	if current.Status == model.UserStatusDisabled {
+		return refuse(ErrAccountDisabled, msgDisabled)
+	}
+	return refuse(ErrInvalidCredentials, msgInvalidCredentials)
 }
 
 // wrapUnlessRefusal wraps a failure of op, leaving a refusal (*Error, *PasswordError) as it is.

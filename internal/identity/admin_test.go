@@ -283,7 +283,7 @@ func TestAnAddressCanBeErasedAgain(t *testing.T) {
 			must(t, h.svc.AnonymizeUser(ctx, "operator", u.ID))
 			after, err := h.repos.Users.Get(ctx, u.ID)
 			must(t, err)
-			if !strings.HasSuffix(after.Email, "@deleted.invalid") || strings.Contains(after.Email, "ada") || seen[after.Email] {
+			if !strings.HasSuffix(after.Email, "@deleted.invalid") || strings.Contains(after.Email, email) || seen[after.Email] {
 				t.Fatalf("tombstone %q", after.Email)
 			}
 			seen[after.Email] = true

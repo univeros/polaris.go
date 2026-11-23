@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -117,7 +118,7 @@ func New(cfg Config) (*Service, error) {
 
 // Issue opens a session after authentication: the first refresh token of a new family and an
 // access token bound to it (sid). How the user authenticated (MFA, AMR, auth time) is stored on
-// the session so refreshes restore it.
+// the session so refreshes restore it. A disabled account opens none (ErrInvalidGrant).
 func (s *Service) Issue(ctx context.Context, p token.SessionPrincipal, client token.ClientContext) (token.IssuedTokens, error) {
 	now := s.now()
 	secret, err := newSecret()
@@ -128,7 +129,13 @@ func (s *Service) Issue(ctx context.Context, p token.SessionPrincipal, client to
 	row.MFA = p.MFA
 	row.AMR = ptr(strings.Join(amrOf(p), ","))
 	row.AuthTime = p.AuthTime
-	if err := s.tokens.Insert(ctx, row); err != nil {
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.lockOpen(ctx, p.UserID); err != nil {
+			return err
+		}
+		return s.tokens.Insert(ctx, row)
+	})
+	if err != nil {
 		return token.IssuedTokens{}, fmt.Errorf("session: issue: %w", err)
 	}
 	access, err := s.Mint(ctx, p, row.FamilyID, token.Claims{})
@@ -170,15 +177,18 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 	}
 	// Compare-and-swap on revoked_at: of two concurrent presentations exactly one claims the
 	// rotation; the loser sees a just-rotated token and takes the replay path. The claim and the
-	// child's insert share a transaction, so a loser's family revocation cannot run between them
-	// and miss the child.
+	// child's insert share a transaction that holds the user's lock, so a revocation (every one
+	// takes it) runs before the claim, which then fails, or after the child exists, which it ends.
 	var (
 		claimed   bool
 		secret    string
 		expiresAt time.Time
 	)
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
-		var err error
+		err := s.lock(ctx, current.UserID)
+		if err != nil {
+			return err
+		}
 		if claimed, err = s.tokens.ClaimRotation(ctx, current.ID, now); err != nil || !claimed {
 			return err
 		}
@@ -197,8 +207,15 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 		return token.IssuedTokens{}, fmt.Errorf("session: refresh: %w", err)
 	}
 	if !claimed {
-		// Outside the transaction: the family revocation must commit even though this request fails.
-		current.RevokedAt, current.RevokedReason = &now, ptr(model.RevokedRotated)
+		// Read again: rotated by another request, or ended on purpose. Outside the transaction: the
+		// family revocation must commit even though this request fails.
+		current, err = s.tokens.Get(ctx, current.ID)
+		if errors.Is(err, repository.ErrNotFound) {
+			return token.IssuedTokens{}, fmt.Errorf("%w: the refresh token is no longer valid", ErrInvalidGrant)
+		}
+		if err != nil {
+			return token.IssuedTokens{}, fmt.Errorf("session: refresh: %w", err)
+		}
 		return token.IssuedTokens{}, s.revokedPresented(ctx, current, client, now)
 	}
 	access, err := s.Mint(ctx, p, current.FamilyID, token.Claims{})
@@ -210,10 +227,13 @@ func (s *Service) Refresh(ctx context.Context, presented string, client token.Cl
 }
 
 func (s *Service) refreshInPlace(ctx context.Context, current model.RefreshToken, p token.SessionPrincipal, presented string, now time.Time) (token.IssuedTokens, error) {
-	after := current
-	after.LastUsedAt = &now
-	if err := s.tokens.Update(ctx, current, after); err != nil {
+	// Conditional: a token revoked since it was read mints nothing.
+	n, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"id": current.ID, "revoked_at": nil}, store.Data{"last_used_at": now})
+	if err != nil {
 		return token.IssuedTokens{}, fmt.Errorf("session: refresh: %w", err)
+	}
+	if n == 0 {
+		return token.IssuedTokens{}, fmt.Errorf("%w: the refresh token is no longer valid", ErrInvalidGrant)
 	}
 	access, err := s.Mint(ctx, p, current.FamilyID, token.Claims{})
 	if err != nil {
@@ -230,7 +250,7 @@ func (s *Service) revokedPresented(ctx context.Context, t model.RefreshToken, cl
 	if !s.auth.RefreshToken.ReuseDetection || deref(t.RevokedReason) != model.RevokedRotated {
 		return fmt.Errorf("%w: the refresh token is no longer valid", ErrInvalidGrant)
 	}
-	if err := s.revokeFamily(ctx, t.FamilyID, model.RevokedReuseDetected, now); err != nil {
+	if err := s.revoke(ctx, t.UserID, store.Criteria{"family_id": t.FamilyID}, model.RevokedReuseDetected, now); err != nil {
 		return err
 	}
 	s.events.Dispatch(ctx, event.RefreshReuseDetected{
@@ -245,26 +265,23 @@ func (s *Service) revokedPresented(ctx context.Context, t model.RefreshToken, cl
 // no live token (logged out) returns ErrInvalidGrant: a still-valid access token must not outlive
 // its session's revocation.
 func (s *Service) StepUp(ctx context.Context, userID, organizationID, sessionID string) (string, error) {
-	active, err := s.liveToken(ctx, sessionID)
-	if err != nil {
-		return "", err
-	}
 	p, err := s.principals.Resolve(ctx, userID, organizationID)
 	if err != nil {
 		return "", fmt.Errorf("session: step-up: %w", err)
 	}
 	authTime := s.now().Unix()
-	amr := []string{"pwd", "otp"}
-	if organizationBound(deref(active.AMR)) {
-		// A factor proved on a session an identity provider opened does not make it the account
-		// holder's: it stays bound to its organization.
-		amr = []string{token.AMRSSO, "otp"}
-	}
-	p.MFA, p.AMR, p.AuthTime = true, amr, &authTime
-	after := active
-	after.MFA, after.AMR, after.AuthTime = true, ptr(strings.Join(amr, ",")), &authTime
-	if err := s.tokens.Update(ctx, active, after); err != nil {
-		return "", fmt.Errorf("session: step-up: %w", err)
+	_, err = s.change(ctx, userID, sessionID, func(active model.RefreshToken) (store.Data, error) {
+		amr := []string{"pwd", "otp"}
+		if organizationBound(deref(active.AMR)) {
+			// A factor proved on a session an identity provider opened does not make it the account
+			// holder's: it stays bound to its organization.
+			amr = []string{token.AMRSSO, "otp"}
+		}
+		p.MFA, p.AMR, p.AuthTime = true, amr, &authTime
+		return store.Data{"mfa": true, "amr": strings.Join(amr, ","), "auth_time": authTime}, nil
+	})
+	if err != nil {
+		return "", err
 	}
 	return s.Mint(ctx, p, sessionID, token.Claims{})
 }
@@ -275,18 +292,17 @@ func (s *Service) StepUp(ctx context.Context, userID, organizationID, sessionID 
 // event.OrganizationSwitched. The caller has already checked the user is an active member.
 // A session with no live token returns ErrInvalidGrant.
 func (s *Service) SwitchOrganization(ctx context.Context, userID, organizationID, sessionID string) (string, error) {
-	active, err := s.liveToken(ctx, sessionID)
+	active, err := s.change(ctx, userID, sessionID, func(active model.RefreshToken) (store.Data, error) {
+		if organizationBound(deref(active.AMR)) && deref(active.OrganizationID) != organizationID {
+			return nil, ErrOrganizationBound
+		}
+		return store.Data{"organization_id": organizationID}, nil
+	})
 	if err != nil {
 		return "", err
 	}
-	if organizationBound(deref(active.AMR)) && deref(active.OrganizationID) != organizationID {
-		return "", ErrOrganizationBound
-	}
 	after := active
 	after.OrganizationID = &organizationID
-	if err := s.tokens.Update(ctx, active, after); err != nil {
-		return "", fmt.Errorf("session: switch organization: %w", err)
-	}
 	p, err := s.resolveStored(ctx, after)
 	if err != nil {
 		return "", err
@@ -302,18 +318,56 @@ func (s *Service) SwitchOrganization(ctx context.Context, userID, organizationID
 // RevokeFamily revokes every live token of a session with reason (a model.Revoked* value). Tokens
 // already revoked keep their original reason.
 func (s *Service) RevokeFamily(ctx context.Context, familyID, reason string) error {
-	return s.revokeFamily(ctx, familyID, reason, s.now())
+	row, err := s.tokens.FindOne(ctx, store.Criteria{"family_id": familyID})
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("session: revoke: %w", err)
+	}
+	return s.revoke(ctx, row.UserID, store.Criteria{"family_id": familyID}, reason, s.now())
 }
 
-func (s *Service) revokeFamily(ctx context.Context, familyID, reason string, now time.Time) error {
-	// One conditional UPDATE: only rows still live are touched, so a concurrent rotation or
-	// revocation keeps its reason and nothing is resurrected.
-	_, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"family_id": familyID, "revoked_at": nil},
-		store.Data{"revoked_at": now, "revoked_reason": reason})
+// revoke ends the user's live tokens that match c, under the user's lock. One conditional UPDATE:
+// only rows still live are touched, so an earlier rotation or revocation keeps its reason and
+// nothing is resurrected.
+func (s *Service) revoke(ctx context.Context, userID string, c store.Criteria, reason string, now time.Time) error {
+	live := maps.Clone(c)
+	live["user_id"], live["revoked_at"] = userID, nil
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.lock(ctx, userID); err != nil {
+			return err
+		}
+		_, err := s.db.Update(ctx, "auth_refresh_tokens", live, store.Data{"revoked_at": now, "revoked_reason": reason})
+		return err
+	})
 	if err != nil {
-		return fmt.Errorf("session: revoke family: %w", err)
+		return fmt.Errorf("session: revoke: %w", err)
 	}
 	return nil
+}
+
+// lock makes opening, rotating and revoking a user's sessions run one after the other: a no-op
+// UPDATE of the user's row takes its row lock on PostgreSQL and MySQL and the database's write lock
+// on SQLite, held until the transaction in ctx ends; memstore transactions are serial already. It
+// holds under PostgreSQL's read committed and MySQL's repeatable read. Everything locks the user
+// before the user's tokens, and before an organization.
+func (s *Service) lock(ctx context.Context, userID string) error {
+	_, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID})
+	return err
+}
+
+// lockOpen is lock that refuses a disabled account. The status is a criterion of the locking UPDATE,
+// so it is the current one whatever the transaction read before.
+func (s *Service) lockOpen(ctx context.Context, userID string) error {
+	n, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": userID, "status": store.Ne(model.UserStatusDisabled)}, store.Data{"id": userID})
+	if err != nil || n == 1 {
+		return err
+	}
+	if n, err = s.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil || n == 0 {
+		return err // no such account: the insert answers for it
+	}
+	return fmt.Errorf("%w: the account is disabled", ErrInvalidGrant)
 }
 
 // Mint signs an access token for p. With a sessionID it carries sid; without one it belongs to no
@@ -346,6 +400,35 @@ func (s *Service) Mint(ctx context.Context, p token.SessionPrincipal, sessionID 
 }
 
 // liveToken returns the session's unrevoked token or ErrInvalidGrant.
+// change writes what data answers to the session's live token, under the user's lock, so it is the
+// token the session has then: not one a concurrent rotation replaced or a revocation ended. It
+// returns the token as it was.
+func (s *Service) change(ctx context.Context, userID, sessionID string, data func(active model.RefreshToken) (store.Data, error)) (model.RefreshToken, error) {
+	var active model.RefreshToken
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.lock(ctx, userID); err != nil {
+			return fmt.Errorf("session: %w", err)
+		}
+		var err error
+		if active, err = s.liveToken(ctx, sessionID); err != nil {
+			return err
+		}
+		d, err := data(active)
+		if err != nil {
+			return err
+		}
+		n, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"id": active.ID, "revoked_at": nil}, d)
+		if err != nil {
+			return fmt.Errorf("session: %w", err)
+		}
+		if n == 0 { // the caller's transaction reads an older snapshot
+			return fmt.Errorf("%w: the session is no longer active", ErrInvalidGrant)
+		}
+		return nil
+	})
+	return active, err
+}
+
 func (s *Service) liveToken(ctx context.Context, sessionID string) (model.RefreshToken, error) {
 	t, err := s.tokens.ActiveInFamily(ctx, sessionID)
 	if errors.Is(err, repository.ErrNotFound) {

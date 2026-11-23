@@ -15,6 +15,7 @@ import (
 	"github.com/univeros/polaris.go/clock"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/session"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -185,6 +186,10 @@ func (d *devices) switchTo(ctx context.Context, deviceID, currentSessionID, sess
 	}
 	var issued token.IssuedTokens
 	err = d.db.Tx(ctx, func(ctx context.Context) error {
+		// The user before the user's tokens, the order every revocation locks them in.
+		if _, err := d.db.Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"id": u.ID}); err != nil {
+			return err
+		}
 		now := d.now()
 		claimed, err := d.db.Update(ctx, tableSessions, store.Criteria{"family_id": sessionID, "revoked_at": nil},
 			store.Data{"revoked_at": now, "revoked_reason": model.RevokedRotated})
@@ -200,6 +205,9 @@ func (d *devices) switchTo(ctx context.Context, deviceID, currentSessionID, sess
 		_, err = d.db.Update(ctx, TableDevices, store.Criteria{"id": row.String("id")}, store.Data{"session_id": issued.SessionID, "last_seen": now})
 		return err
 	})
+	if errors.Is(err, session.ErrInvalidGrant) { // disabled since
+		err = errSessionNotFound
+	}
 	return issued, u, err
 }
 

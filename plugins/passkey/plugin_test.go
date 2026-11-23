@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/services"
 	"slices"
 	"strings"
@@ -386,5 +387,39 @@ func TestRenameAndDeleteKeepCoreInStep(t *testing.T) {
 	}
 	if err := h.p.remove(h.ctx, ada.ID, pk.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A sign-in is checked again where it opens its session: an account disabled, or proven by its
+// mailbox (which takes every passkey with it), since it was read opens none.
+func TestASignInWhoseAccountChangedOpensNoSession(t *testing.T) {
+	h := newHarness(t)
+	g := h.srv.Graph()
+	read := h.user("ada@example.com")
+	if err := g.Identity().DisableUser(h.ctx, "operator", read.ID); err != nil {
+		t.Fatal(err)
+	}
+	var r *refusal
+	if _, err := h.p.openSession(h.ctx, read, h.client, true, ""); !errors.As(err, &r) || r.kind != kindAccountDisabled {
+		t.Fatalf("disabled: %v", err)
+	}
+
+	p := New(Config{Origins: []string{unitOrigin}, RPName: "Polaris tests"})
+	h.srv = polaristest.New(t, polaristest.WithAuth(func(a *config.Auth) { a.Flows.RequireVerifiedEmail = false }), polaristest.WithPlugins(p))
+	g = h.srv.Graph()
+	verified := h.user("eve@example.com")
+	read = verified
+	read.EmailVerifiedAt = nil
+	if err := g.Repos().Users.Update(h.ctx, verified, read); err != nil {
+		t.Fatal(err)
+	}
+	if _, first, err := g.Identity().ProveEmail(h.ctx, read.ID, false); err != nil || !first {
+		t.Fatal(first, err)
+	}
+	if _, err := p.openSession(h.ctx, read, h.client, true, ""); !errors.As(err, &r) || r.kind != kindCredentialInvalid {
+		t.Fatalf("proven since: %v", err)
+	}
+	if list, err := g.Sessions().List(h.ctx, read.ID, ""); err != nil || len(list) != 0 {
+		t.Fatalf("sessions %v %v", list, err)
 	}
 }

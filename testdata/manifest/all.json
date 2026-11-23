@@ -4791,6 +4791,10 @@
                     "code": "sso_not_found"
                 },
                 {
+                    "status": 409,
+                    "code": "sso_conflict"
+                },
+                {
                     "status": 422,
                     "code": "sso_domain_unverified"
                 }

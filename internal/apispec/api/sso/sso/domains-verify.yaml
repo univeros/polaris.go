@@ -18,7 +18,9 @@ input:
 domain:
   description: >
     Looks for the token in the DNS TXT record _polaris.<domain>, then in
-    https://<domain>/.well-known/polaris-sso.txt; a verified domain stays verified. The caller must hold every permission the
+    https://<domain>/.well-known/polaris-sso.txt; a verified domain stays verified. The proof
+    stands when another organization's unverified claim replaced this one meanwhile (the domain answered
+    is then a new claim of this organization); 409 when the other organization verified it first. The caller must hold every permission the
     organization's roles grant (403 sso/forbidden otherwise). Recorded as
     sso.domain_verified.
 
@@ -36,6 +38,7 @@ errors:
   - { status: 403, code: forbidden }
   - { status: 403, code: sso_forbidden }
   - { status: 404, code: sso_not_found }
+  - { status: 409, code: sso_conflict }
   - { status: 422, code: sso_domain_unverified }
 
 events: [sso.domain_verified]

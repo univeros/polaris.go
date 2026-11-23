@@ -6,6 +6,7 @@ import (
 
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/services"
 	"github.com/univeros/polaris.go/mfa"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
@@ -72,13 +73,21 @@ func (p *Plugin) openSession(ctx context.Context, u model.User, providerID strin
 	next.LastLoginAt, next.UpdatedAt = &now, now
 	var issued token.IssuedTokens
 	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if err := services.Of(p.g).Identity.HoldForSignIn(ctx, u); err != nil {
+			return err
+		}
 		if err := p.g.Repos().Users.Update(ctx, u, next); err != nil {
 			return err
 		}
 		issued, err = p.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, identity.ErrAccountDisabled):
+		return nil, refuse(kindAccountDisabled, "This account is disabled.")
+	case errors.Is(err, identity.ErrInvalidCredentials):
+		return nil, refuse(kindTokenInvalid, "The account changed while the provider's answer was checked.")
+	case err != nil:
 		return nil, err
 	}
 	p.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: amr})

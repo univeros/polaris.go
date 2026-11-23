@@ -74,50 +74,53 @@ func (s *Service) LogoutAll(ctx context.Context, userID string, client token.Cli
 // were; no event (the password flows use it). It also watermarks the access-token denylist, so
 // with the denylist on every outstanding access token of the user dies with the sessions.
 func (s *Service) RevokeAll(ctx context.Context, userID, reason string) (int, error) {
+	n, err := s.revokeFamilies(ctx, userID, "", reason)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.denylist.RevokeAllFor(ctx, userID); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// RevokeAllExcept revokes every session of the user except exceptSessionID ("" keeps none) and
+// returns how many sessions it touched (every family of the user, revoked ones
+// included). It does not watermark the denylist: that would kill the kept session's own
+// access token. It ends the login_mfa tickets issued before.
+func (s *Service) RevokeAllExcept(ctx context.Context, userID, exceptSessionID, reason string) (int, error) {
+	n, err := s.revokeFamilies(ctx, userID, exceptSessionID, reason)
+	if err != nil {
+		return 0, err
+	}
+	return n, s.denylist.RevokeTicketsFor(ctx, userID)
+}
+
+// revokeFamilies revokes every session of the user but except ("" for none), returning how many
+// there were. By user, not by the sessions it counted: one opened since is ended too.
+func (s *Service) revokeFamilies(ctx context.Context, userID, except, reason string) (int, error) {
 	rows, err := s.tokens.ListByUser(ctx, userID)
 	if err != nil {
 		return 0, fmt.Errorf("session: revoke: %w", err)
 	}
 	families := map[string]bool{}
 	for _, t := range rows {
-		families[t.FamilyID] = true
+		if t.FamilyID != except {
+			families[t.FamilyID] = true
+		}
 	}
-	// By user, not by the families read: a session another transaction issued since this one began
-	// is not among them (MySQL's repeatable read), and this ends it too.
-	if _, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"user_id": userID, "revoked_at": nil},
-		store.Data{"revoked_at": s.now(), "revoked_reason": reason}); err != nil {
-		return 0, fmt.Errorf("session: revoke: %w", err)
+	c := store.Criteria{}
+	if except != "" {
+		c["family_id"] = store.Ne(except)
 	}
-	if err := s.denylist.RevokeAllFor(ctx, userID); err != nil {
-		return 0, err
-	}
-	return len(families), nil
-}
-
-// RevokeAllExcept revokes every session of the user except exceptSessionID ("" keeps none) and
-// returns how many sessions it touched (every family of the user, revoked ones
-// included). It does not watermark the denylist: that would kill the kept session's own
-// access token.
-func (s *Service) RevokeAllExcept(ctx context.Context, userID, exceptSessionID, reason string) (int, error) {
-	rows, err := s.tokens.ListByUser(ctx, userID)
-	if err != nil {
-		return 0, fmt.Errorf("session: revoke: %w", err)
-	}
-	return s.revokeFamilies(ctx, rows, reason, func(t model.RefreshToken) bool {
-		return exceptSessionID == "" || t.FamilyID != exceptSessionID
-	})
+	return len(families), s.revoke(ctx, userID, c, reason, s.now())
 }
 
 // RevokeAllForOrganization revokes the user's sessions whose current organization context is
 // organizationID (an admin suspension cuts org access at once); sessions pointed elsewhere stay.
 // Only live tokens identify a session's current context: rotated ancestors keep a stale one.
 func (s *Service) RevokeAllForOrganization(ctx context.Context, userID, organizationID, reason string) error {
-	rows, err := s.tokens.ListByUserAndOrganization(ctx, userID, organizationID)
-	if err != nil {
-		return fmt.Errorf("session: revoke: %w", err)
-	}
-	_, err = s.revokeFamilies(ctx, rows, reason, func(t model.RefreshToken) bool { return t.RevokedAt == nil })
-	return err
+	return s.revoke(ctx, userID, store.Criteria{"organization_id": organizationID}, reason, s.now())
 }
 
 // Revoke revokes one session of the user (reason logout). It returns false, and revokes nothing,
@@ -130,23 +133,8 @@ func (s *Service) Revoke(ctx context.Context, userID, sessionID string) (bool, e
 	}
 	for _, t := range rows {
 		if t.UserID == userID {
-			return true, s.RevokeFamily(ctx, sessionID, model.RevokedLogout)
+			return true, s.revoke(ctx, userID, store.Criteria{"family_id": sessionID}, model.RevokedLogout, s.now())
 		}
 	}
 	return false, nil
-}
-
-// revokeFamilies revokes each distinct family among rows that keep accepts, returning how many.
-func (s *Service) revokeFamilies(ctx context.Context, rows []model.RefreshToken, reason string, keep func(model.RefreshToken) bool) (int, error) {
-	seen := map[string]bool{}
-	for _, t := range rows {
-		if seen[t.FamilyID] || !keep(t) {
-			continue
-		}
-		seen[t.FamilyID] = true
-		if err := s.RevokeFamily(ctx, t.FamilyID, reason); err != nil {
-			return 0, err
-		}
-	}
-	return len(seen), nil
 }
