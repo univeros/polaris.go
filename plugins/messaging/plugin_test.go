@@ -49,7 +49,7 @@ func TestThePluginIsCoresMailerAndSmsSenderAndEverySendIsAudited(t *testing.T) {
 		t.Fatal(err)
 	}
 	g.Events().Dispatch(ctx, event.PasswordChanged{UserID: "u1", Method: "reset"})
-	want(t, mail.Messages()[1].Template == "email.password_changed" && !mail.Messages()[1].Essential, "password changed %+v", mail.Messages())
+	want(t, mail.Messages()[1].Template == "email.password_changed" && mail.Messages()[1].Essential, "password changed %+v", mail.Messages())
 
 	recorded := sentTemplates(t, p)
 	want(t, len(recorded) == 3, "recorded %v", recorded)

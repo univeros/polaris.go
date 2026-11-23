@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -257,12 +258,34 @@ func TestAWeakRSAKeyIsRefusedWhateverItsEncodedLength(t *testing.T) {
 		"1024-bit modulus padded": rsaKey(padded, []byte{1, 0, 1}),
 		"exponent 1":              rsaKey(big2048.N.Bytes(), []byte{1}),
 		"even exponent":           rsaKey(big2048.N.Bytes(), []byte{1, 0, 0}),
+		"modulus too long":        rsaKey(append([]byte{1}, make([]byte, 1024)...), []byte{1, 0, 1}),
+		"exponent too large":      rsaKey(big2048.N.Bytes(), []byte{1, 0, 3}),
 	} {
 		if _, err := parseCOSEKey(cose); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
+	if _, err := parseCOSEKey(rsaKey(append([]byte{0x80}, make([]byte, 1023)...), []byte{1, 0, 1})); err != nil {
+		t.Errorf("an 8192-bit modulus: %v", err)
+	}
 	if _, err := parseCOSEKey(rsaKey(big2048.N.Bytes(), []byte{1, 0, 1})); err != nil {
 		t.Fatalf("a 2048-bit key: %v", err)
+	}
+}
+
+// A claimed count reserves nothing: memory follows what the input holds.
+func TestCBORAllocatesWhatItReads(t *testing.T) {
+	const size = 1 << 16
+	nested := []byte{}
+	for range 7 {
+		nested = append(nested, 0xba, 0, 1, 0, 0, 0x01) // a map claiming 65536 pairs, its first key
+	}
+	raw := append(nested, make([]byte, size)...)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_, _, _ = decodeCBOR(raw)
+	runtime.ReadMemStats(&after)
+	if n := after.TotalAlloc - before.TotalAlloc; n > 1<<20 {
+		t.Errorf("%d bytes allocated for %d", n, len(raw))
 	}
 }

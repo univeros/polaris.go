@@ -294,7 +294,7 @@ func Of(g *wiring.Graph) *Plugin {
 }
 
 // QuietFor is quiet mode, which the messaging plugin takes when registered: true when kind is
-// email and the recipient was challenged or blocked in the last QuietWindow. A failing store reads
+// email and the recipient was challenged or blocked, enforced, in the last QuietWindow. A failing store reads
 // as false (the message goes).
 func (p *Plugin) QuietFor(ctx context.Context, kind, recipient string) bool {
 	if kind != "email" {
@@ -308,7 +308,7 @@ func (p *Plugin) QuietFor(ctx context.Context, kind, recipient string) bool {
 	since := p.g.Clock().Now().Add(-QuietWindow)
 	for _, d := range page["data"].([]map[string]any) {
 		created, _ := time.Parse(time.RFC3339, d["created_at"].(string))
-		if d["action"] != Allow && !created.Before(since) {
+		if d["enforced"] == true && d["action"] != Allow && !created.Before(since) {
 			return true
 		}
 	}

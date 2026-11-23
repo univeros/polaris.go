@@ -250,3 +250,18 @@ func TestAnUnverifiedDomainClaimReservesNothing(t *testing.T) {
 		t.Fatalf("the domain is its owner's: %v %v", verified, err)
 	}
 }
+
+// A logout at the identity provider is for the organization's members: to anyone else its providers do
+// not exist, and nothing of theirs ends.
+func TestOnlyAMemberLogsOutThroughAnOrganization(t *testing.T) {
+	u := newUnit(t)
+	acme := u.organization("owner@acme.example")
+	u.oidcProvider(acme)
+	_, outsider := u.account("outsider@example.com")
+	if code, body := u.call(http.MethodPost, "/sso/logout", outsider, map[string]any{"organization_id": acme}); code != 404 {
+		t.Fatalf("an outsider: %d %v", code, body)
+	}
+	if code, body := u.call(http.MethodGet, "/auth/sessions", outsider, nil); code != 200 {
+		t.Fatalf("the outsider's own sessions: %d %v", code, body)
+	}
+}

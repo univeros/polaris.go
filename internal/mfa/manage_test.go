@@ -4,7 +4,9 @@ package mfa
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/univeros/polaris.go/event"
@@ -140,6 +142,32 @@ func TestRemovingTheLastConfirmedFactorIsBlockedWhenEnforced(t *testing.T) {
 			t.Fatal(err)
 		}
 		h.factor(t, "a")
+	})
+}
+
+// Of two concurrent removals of an enforced user's two factors, one is refused.
+func TestConcurrentRemovalsLeaveAnEnforcedUserAFactor(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(t, db, manageAt)
+		h.user(t, true)
+		for round := range 10 {
+			ids := []string{fmt.Sprintf("a%d", round), fmt.Sprintf("b%d", round)}
+			for _, id := range ids {
+				h.managed(t, id, true, false, manageAt)
+			}
+			errs := make([]error, len(ids))
+			var wg sync.WaitGroup
+			for i, id := range ids {
+				wg.Go(func() { errs[i] = h.service(t).RemoveFactor(ctx, "user-1", id) })
+			}
+			wg.Wait()
+			left, err := h.repos.MFAFactors.ListByUser(ctx, "user-1")
+			must(t, err)
+			if len(left) != 1 || (errs[0] == nil) == (errs[1] == nil) || !errors.Is(errors.Join(errs...), ErrLastFactorProtected) {
+				t.Fatalf("round %d: %d factors left, %v", round, len(left), errs)
+			}
+			must(t, h.repos.MFAFactors.Delete(ctx, left[0]))
+		}
 	})
 }
 

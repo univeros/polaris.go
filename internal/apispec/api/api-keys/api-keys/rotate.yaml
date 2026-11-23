@@ -17,8 +17,10 @@ domain:
   description: >
     A successor key with the same owner, name, permissions, rate limit, expiry and metadata and a new
     secret (in this response only); the key named keeps authenticating for the grace window
-    (rotationGrace, a day by default), then stops. Rotating a key already rotated is refused: rotate its
-    successor. Recorded as api_keys.rotated.
+    (rotationGrace, a day by default), then stops. The successor acts as the caller, who reads its secret:
+    an organization's key rotated by another of its administrators acts as that administrator, who must
+    hold its permissions. Rotating a key already rotated is refused: rotate its successor. Recorded as
+    api_keys.rotated.
 
 output:
   status: 201

@@ -22,8 +22,11 @@ var CoreTemplates = map[string]string{
 	notify.TemplateRecoveryCodeUsed:         "email.recovery_code_used",
 }
 
-// essentialCore are the core mails quiet mode never drops.
-var essentialCore = []string{notify.TemplateVerifyEmail, notify.TemplatePasswordReset, notify.TemplateOrgInvite, notify.TemplateOTPCode}
+// essentialCore are the core mails quiet mode never drops: what the recipient asked for, and what tells
+// an account's owner its credentials changed (anyone can have an address challenged).
+var essentialCore = []string{notify.TemplateVerifyEmail, notify.TemplatePasswordReset, notify.TemplateOrgInvite, notify.TemplateOTPCode,
+	notify.TemplatePasswordChanged, notify.TemplateMFAEnrolled, notify.TemplateMFAFactorRemoved,
+	notify.TemplateRecoveryCodesRegenerated, notify.TemplateRecoveryCodeUsed}
 
 // mailer is core's notify.Mailer over the sender: a refused or undelivered mail is logged by the
 // sender and never fails the operation that asked for it.

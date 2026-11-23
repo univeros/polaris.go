@@ -70,24 +70,14 @@ func (d *directory) active(ctx context.Context, conn Connection, user model.User
 }
 
 // setMembershipActive suspends or reactivates the user's membership through the organizations
-// service (last-active-owner guard, the organization's sessions revoked on suspension); an owned
-// account that is disabled is enabled again.
+// service (last-active-owner guard, the organization's sessions revoked on suspension). The account's
+// own status is not the directory's to lift: whoever disabled it enables it.
 func (d *directory) setMembershipActive(ctx context.Context, conn Connection, user model.User, active bool) error {
 	status := model.MembershipStatusSuspended
 	if active {
 		status = model.MembershipStatusActive
 	}
-	if err := fromOrgs(d.orgs.SetMemberStatus(ctx, actor, conn.OrganizationID, user.ID, status)); err != nil {
-		return err
-	}
-	if !active || user.Status != model.UserStatusDisabled {
-		return nil
-	}
-	owned, err := d.owns(ctx, conn, user)
-	if err != nil || !owned {
-		return err
-	}
-	return d.identity.EnableUser(ctx, actor, user.ID)
+	return fromOrgs(d.orgs.SetMemberStatus(ctx, actor, conn.OrganizationID, user.ID, status))
 }
 
 // keepOwner runs fn under the organizations service's owner guarantee: an organization with an

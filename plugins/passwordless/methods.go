@@ -65,6 +65,9 @@ func (v *service) sendMagicLink(ctx context.Context, email, redirectURI string) 
 	if (found && u.Status == model.UserStatusDisabled) || (!found && !v.s.signUp) {
 		return nil
 	}
+	if ok, err := v.maySend(ctx, email, ""); err != nil || !ok {
+		return err
+	}
 	tok := newToken()
 	if err := v.secrets.issueToken(ctx, kindMagicLink, email, u.ID, tok, v.s.magicLinkTTL, magicLinkData{Email: email, RedirectURI: redirectURI}); err != nil {
 		return err
@@ -128,6 +131,9 @@ func (v *service) sendEmailCode(ctx context.Context, email, purpose string) erro
 	}
 	if !applies {
 		return nil
+	}
+	if ok, err := v.maySend(ctx, email, ""); err != nil || !ok {
+		return err
 	}
 	code := newCode(v.s.otpLength)
 	if err := v.secrets.issueCode(ctx, purposes[purpose], email, u.ID, code, v.s.otpTTL); err != nil {
@@ -280,7 +286,28 @@ func (v *service) attachPhone(ctx context.Context, userID, e164 string) error {
 	return err
 }
 
-func (v *service) sendPhoneCode(ctx context.Context, kind, e164, userID string) error {
+// maySend counts a message against what its destination, and the account that asked for it ("" for an
+// anonymous caller), may be sent in a window: Auth.OTP's SendMax and SendWindow, whatever addresses the
+// requests come from. Over it nothing is sent, and the caller answers as if it were.
+func (v *service) maySend(ctx context.Context, destination, askedBy string) (bool, error) {
+	keys := []string{"passwordless.send." + v.secrets.identifier(destination)}
+	if askedBy != "" {
+		keys = append(keys, "passwordless.send.by."+askedBy)
+	}
+	otp := v.g.Auth().OTP
+	for _, key := range keys {
+		res, err := v.g.RateStore().Hit(ctx, key, otp.SendMax, otp.SendWindow)
+		if err != nil || !res.Allowed {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (v *service) sendPhoneCode(ctx context.Context, kind, e164, userID, askedBy string) error {
+	if ok, err := v.maySend(ctx, e164, askedBy); err != nil || !ok {
+		return err
+	}
 	code := newCode(v.s.otpLength)
 	if err := v.secrets.issueCode(ctx, kind, e164, userID, code, v.s.otpTTL); err != nil {
 		return err
@@ -303,7 +330,7 @@ func (v *service) sendPhone(ctx context.Context, phone string) error {
 	if err != nil || !found || u.Status == model.UserStatusDisabled {
 		return err
 	}
-	return v.sendPhoneCode(ctx, kindPhoneSignIn, e164, u.ID)
+	return v.sendPhoneCode(ctx, kindPhoneSignIn, e164, u.ID, "")
 }
 
 func (v *service) signInWithPhone(ctx context.Context, phone, code string) (envelope, error) {
@@ -343,7 +370,7 @@ func (v *service) addPhone(ctx context.Context, userID, phone string) error {
 	if err != nil || (owner != "" && owner != userID) {
 		return err
 	}
-	return v.sendPhoneCode(ctx, kindPhoneAdd, e164, userID)
+	return v.sendPhoneCode(ctx, kindPhoneAdd, e164, userID, userID)
 }
 
 // confirmPhone attaches the number once its code is confirmed by the user who asked for it; a code

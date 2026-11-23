@@ -16,8 +16,9 @@ input:
 domain:
   description: >
     For an application that proxies requests and checks keys itself: whether the key authenticates right
-    now (not revoked, expired or past its rotation grace), and when it does, its owner, the user it acts
-    as, the organization, the permissions, the rate limit and the metadata. The check counts as a use.
+    now (not revoked, expired or past its rotation grace, and the user it acts as not disabled), and when
+    it does, its owner, the user it acts as, the organization, the permissions that user still holds
+    there, the rate limit and the metadata. The check counts as a use.
     Any session may ask; the key itself is the secret.
 
 output:

@@ -1,6 +1,7 @@
 package apikeys
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/ratelimit"
+	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/token"
 )
 
@@ -63,8 +65,8 @@ func (res resolver) Resolve(r *http.Request) (*token.Token, error) {
 	if !ok {
 		return nil, ErrRefused
 	}
-	user, err := res.p.g.Repos().Users.Get(ctx, key.Subject())
-	if err != nil || user.Status == model.UserStatusDisabled { // a lock is the password sign-in's, not the key's
+	user, ok, err := res.p.subject(ctx, key)
+	if err != nil || !ok {
 		return nil, errors.Join(ErrRefused, err)
 	}
 	now := res.p.keys.now()
@@ -90,6 +92,16 @@ func (res resolver) Resolve(r *http.Request) (*token.Token, error) {
 		ClaimRateLimit:   limit,
 	}
 	return token.NewPrincipal(claims).Delegate(key.Permissions), nil
+}
+
+// subject is the user key acts as; false when there is none, or they are disabled (a lock is the
+// password sign-in's, not the key's).
+func (p *Plugin) subject(ctx context.Context, key Key) (model.User, bool, error) {
+	user, err := p.g.Repos().Users.Get(ctx, key.Subject())
+	if errors.Is(err, repository.ErrNotFound) {
+		return user, false, nil
+	}
+	return user, err == nil && user.Status != model.UserStatusDisabled, err
 }
 
 // keyID is the id of the API key that authenticated tok, "" for any other principal.

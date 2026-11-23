@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/internal/strictjson"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
@@ -36,9 +38,13 @@ type stateEntry struct {
 	Callback    string `json:"callback"`
 	Nonce       string `json:"nonce"`
 	LinkUserID  string `json:"link_user_id,omitempty"`
+	LinkSession string `json:"link_session,omitempty"` // the session the link was started from
 	Verifier    string `json:"verifier,omitempty"`
 	Binding     string `json:"binding,omitempty"` // the nonce of the browser that started the flow
 }
+
+// linker is who links a provider account, from which session of theirs.
+type linker struct{ User, Session string }
 
 // started is where the browser goes and the state the application compares at the end.
 type started struct {
@@ -59,7 +65,7 @@ func (p *Plugin) provider(ctx context.Context, id string) (*provider, error) {
 // start begins a sign-in (linkUserID "") or a link for linkUserID: the authorization URL with a
 // state valid StateTTL, PKCE and a nonce where the provider takes them. Through the proxy, the
 // provider is sent to the stable origin and the state carries this deployment's callback, signed.
-func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scopes []string, linkUserID string) (started, error) {
+func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scopes []string, link *linker) (started, error) {
 	prov, err := p.provider(ctx, providerID)
 	if err != nil {
 		return started{}, err
@@ -82,8 +88,11 @@ func (p *Plugin) start(ctx context.Context, providerID, redirectURI string, scop
 		state += proxySeparator + p.proxySignature(state)
 		callback = p.settings.proxy + "/social/" + providerID + "/callback"
 	}
-	entry := stateEntry{Provider: providerID, RedirectURI: redirectURI, Callback: callback, Nonce: hex.EncodeToString(random(16)), LinkUserID: linkUserID,
+	entry := stateEntry{Provider: providerID, RedirectURI: redirectURI, Callback: callback, Nonce: hex.EncodeToString(random(16)),
 		Binding: hex.EncodeToString(random(16))}
+	if link != nil {
+		entry.LinkUserID, entry.LinkSession = link.User, link.Session
+	}
 	challenge := ""
 	if !prov.def.NoPKCE {
 		entry.Verifier = b64(random(48))
@@ -159,7 +168,11 @@ func (p *Plugin) callback(ctx context.Context, providerID string, params map[str
 	} else if err != nil {
 		return "", err
 	}
-	outcome, err := p.finish(ctx, prov, prof, t, entry.LinkUserID, client)
+	var link *linker
+	if entry.LinkUserID != "" {
+		link = &linker{User: entry.LinkUserID, Session: entry.LinkSession}
+	}
+	outcome, err := p.finish(ctx, prov, prof, t, link, client)
 	if err != nil {
 		return "", err
 	}
@@ -268,11 +281,11 @@ func (p *Plugin) idTokenSignIn(ctx context.Context, providerID, idToken string, 
 	} else if err != nil {
 		return nil, err
 	}
-	return p.finish(ctx, prov, prof, tokens{scopes: []string{}, idToken: idToken}, "", client)
+	return p.finish(ctx, prov, prof, tokens{scopes: []string{}, idToken: idToken}, nil, client)
 }
 
 // finish applies the linking policy, then opens a session or links.
-func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tokens, linkUserID string, client token.ClientContext) (map[string]any, error) {
+func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tokens, link *linker, client token.ClientContext) (map[string]any, error) {
 	id := prov.id
 	prof = prof.normalized()
 	if prof.Subject == "" {
@@ -282,8 +295,8 @@ func (p *Plugin) finish(ctx context.Context, prov *provider, prof Profile, t tok
 	if err != nil {
 		return nil, err
 	}
-	if linkUserID != "" {
-		return p.linkFromSession(ctx, id, prof, t, linkUserID, acct, client)
+	if link != nil {
+		return p.linkFromSession(ctx, id, prof, t, *link, acct, client)
 	}
 	signedIn := func(u model.User, linked bool) Event {
 		return p.event(EventSignedIn, u.ID, id, map[string]any{"account_id": prof.Subject, "linked": linked}, client)
@@ -368,31 +381,58 @@ func (p *Plugin) linkTrusted(ctx context.Context, u model.User, id string, prof 
 	return p.openSession(ctx, u, id, client)
 }
 
-// linkFromSession links the provider account to the user who started the flow from a session.
-func (p *Plugin) linkFromSession(ctx context.Context, id string, prof Profile, t tokens, userID string, acct *account, client token.ClientContext) (map[string]any, error) {
-	u, err := p.user(ctx, userID)
+// linkFromSession links the provider account to the user who started the flow from a session, while
+// that session lives: what ended it since (a logout, a reset, the first proof of the mailbox) ends the
+// flow too. The check and the link are one transaction that first locks the user's row.
+func (p *Plugin) linkFromSession(ctx context.Context, id string, prof Profile, t tokens, by linker, acct *account, client token.ClientContext) (map[string]any, error) {
+	var linked account
+	err := p.g.DB().Tx(ctx, func(ctx context.Context) error {
+		if _, err := p.g.DB().Update(ctx, "auth_users", store.Criteria{"id": by.User}, store.Data{"id": by.User}); err != nil {
+			return err
+		}
+		u, err := p.user(ctx, by.User)
+		if err != nil {
+			return err
+		}
+		if u == nil {
+			return refuse(kindTokenInvalid, "The session's user is gone.")
+		}
+		live, err := p.liveSession(ctx, by)
+		if err != nil {
+			return err
+		}
+		if !live {
+			return refuse(kindTokenInvalid, "The session the link was started from has ended.")
+		}
+		if acct != nil {
+			if acct.UserID != by.User {
+				return refuse(kindAccountLinked, "This "+id+" account is linked to another user.")
+			}
+			linked, err = p.refreshAccount(ctx, *acct, prof, t)
+			return err
+		}
+		if email := identity.NormalizeEmail(prof.Email); prof.Email != "" && email != u.Email && !slices.Contains(p.settings.allowDifferentEmails, id) {
+			return refuse(kindEmailMismatch, "The provider account's email is not the account's; the provider does not allow another.")
+		}
+		linked, err = p.link(ctx, by.User, id, prof, t)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-	if u == nil {
-		return nil, refuse(kindTokenInvalid, "The session's user is gone.")
-	}
-	if acct != nil && acct.UserID != userID {
-		return nil, refuse(kindAccountLinked, "This "+id+" account is linked to another user.")
-	}
-	var linked account
 	if acct == nil {
-		if email := identity.NormalizeEmail(prof.Email); prof.Email != "" && email != u.Email && !slices.Contains(p.settings.allowDifferentEmails, id) {
-			return nil, refuse(kindEmailMismatch, "The provider account's email is not the account's; the provider does not allow another.")
-		}
-		if linked, err = p.link(ctx, userID, id, prof, t); err != nil {
-			return nil, err
-		}
-		p.g.Events().Dispatch(ctx, p.event(EventLinked, userID, id, map[string]any{"account_id": prof.Subject, "trusted": false}, client))
-	} else if linked, err = p.refreshAccount(ctx, *acct, prof, t); err != nil {
-		return nil, err
+		p.g.Events().Dispatch(ctx, p.event(EventLinked, by.User, id, map[string]any{"account_id": prof.Subject, "trusted": false}, client))
 	}
 	return map[string]any{"status": "linked", "account": linked.wire()}, nil
+}
+
+// liveSession reports whether by's session is theirs and neither ended nor expired.
+func (p *Plugin) liveSession(ctx context.Context, by linker) (bool, error) {
+	t, err := p.g.Repos().RefreshTokens.ActiveInFamily(ctx, by.Session)
+	if errors.Is(err, repository.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil && t.UserID == by.User && t.ExpiresAt.After(p.g.Clock().Now()), err
 }
 
 // unlink removes the user's account of a provider, unless it is their only way in. The check and

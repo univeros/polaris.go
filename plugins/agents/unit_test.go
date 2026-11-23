@@ -342,8 +342,11 @@ func TestLocationsAndAudiencesAreComparedNormalised(t *testing.T) {
 	}
 	caps, err := newCapabilities([]Capability{{Name: "invite", Description: "x", Permission: "members.invite", Location: loc}})
 	must(t, err)
-	if caps.at("https://Host.polaris.test:443//invite/") == nil || caps.at("http://host.polaris.test/invite") == nil || caps.at("https://host.polaris.test/invites") != nil {
-		t.Error("at")
+	for url, found := range map[string]bool{"https://Host.polaris.test:443//invite/": true, "http://host.polaris.test/invite": true,
+		"https://other.polaris.test/%69nvite": true, "https://host.polaris.test/invites": false} {
+		if at, _ := caps.at(httptest.NewRequest("POST", url, nil), url); (at != nil) != found {
+			t.Errorf("at %s: %v", url, at)
+		}
 	}
 	p := New(Config{Capabilities: unitCaps()})
 	defer func() {
@@ -522,13 +525,15 @@ func TestTheAskerCannotWidenTheAutoApprovalBudget(t *testing.T) {
 	}
 	// Each ask below is a fresh agent: a person's revocation is binding (decision 77), so the
 	// same agent asking again would wait for a person whatever the budget.
-	narrower := ask(holder(t, p, srv), map[string]any{"count": json.Number("10"), "window": json.Number("60")})
+	narrower := ask(holder(t, p, srv), map[string]any{"count": json.Number("10"), "window": json.Number("3600")})
 	if narrower.Status != GrantActive || *narrower.BudgetTotal != 10 {
 		t.Errorf("narrower %+v", narrower)
 	}
 	for _, wider := range []map[string]any{
 		{"count": json.Number("1000000000"), "window": json.Number("60")}, {"count": json.Number("100")},
-		{"count": json.Number("100"), "window": json.Number("7200")}, {"amount": json.Number("10"), "field": "amount", "window": json.Number("60")},
+		{"count": json.Number("100"), "window": json.Number("7200")},
+		{"count": json.Number("10"), "window": json.Number("60")}, // a shorter window is more windows
+		{"amount": json.Number("10"), "field": "amount", "window": json.Number("60")},
 	} {
 		g := ask(holder(t, p, srv), wider)
 		if g.Status != GrantPending {

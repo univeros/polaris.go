@@ -108,8 +108,6 @@ func (s *Store) inspectSQLite(ctx context.Context, table string) (*LiveTable, er
 	return t, nil
 }
 
-var firstParens = regexp.MustCompile(`\(([^)]+)\)`)
-
 func (s *Store) inspectPostgres(ctx context.Context, table string) (*LiveTable, error) {
 	cols, err := s.rows(ctx, `SELECT column_name AS name, data_type AS type, character_maximum_length AS length, is_nullable AS nullable FROM information_schema.columns WHERE table_name = $1 AND table_schema = current_schema() ORDER BY ordinal_position`, table)
 	if err != nil || len(cols) == 0 {
@@ -119,31 +117,36 @@ func (s *Store) inspectPostgres(ctx context.Context, table string) (*LiveTable, 
 	for _, c := range cols {
 		t.Columns = append(t.Columns, liveColumn(c.String("name"), c.String("type"), int(c.Int("length")), c.String("nullable") == "YES"))
 	}
-	pk, err := s.rows(ctx, `SELECT a.attname AS name FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = $1::regclass AND i.indisprimary ORDER BY array_position(i.indkey, a.attnum)`, table)
+	// The catalog's rows, not pg_indexes: its definition (pg_get_indexdef) is not read in the query's
+	// snapshot and fails for an index another process drops meanwhile.
+	rows, err := s.rows(ctx, `SELECT ic.relname AS index, i.indisprimary AS is_primary, i.indisunique AS is_unique, a.attname AS name
+FROM pg_index i
+JOIN pg_class ic ON ic.oid = i.indexrelid
+JOIN pg_class tc ON tc.oid = i.indrelid
+JOIN pg_namespace n ON n.oid = tc.relnamespace
+CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, position)
+JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+WHERE tc.relname = $1 AND n.nspname = current_schema() AND k.position <= i.indnkeyatts
+ORDER BY ic.relname, k.position`, table)
 	if err != nil {
 		return nil, err
 	}
-	for _, r := range pk {
-		t.Primary = append(t.Primary, r.String("name"))
-	}
-	defs, err := s.rows(ctx, `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = $1 AND schemaname = current_schema()`, table)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range defs {
-		def := r.String("indexdef")
-		m := firstParens.FindStringSubmatch(def)
-		if m == nil {
+	var indexes []LiveIndex
+	for _, r := range rows {
+		if r.Bool("is_primary") {
+			t.Primary = append(t.Primary, r.String("name"))
 			continue
 		}
-		var columns []string
-		for _, c := range strings.Split(m[1], ",") {
-			columns = append(columns, strings.Trim(c, ` "`))
+		if n := len(indexes); n == 0 || indexes[n-1].Name != r.String("index") {
+			indexes = append(indexes, LiveIndex{Name: r.String("index"), Unique: r.Bool("is_unique")})
 		}
-		if slices.Equal(columns, t.Primary) {
-			continue
+		last := &indexes[len(indexes)-1]
+		last.Columns = append(last.Columns, r.String("name"))
+	}
+	for _, idx := range indexes {
+		if !slices.Equal(idx.Columns, t.Primary) {
+			t.Indexes = append(t.Indexes, idx)
 		}
-		t.Indexes = append(t.Indexes, LiveIndex{Name: r.String("indexname"), Columns: columns, Unique: strings.HasPrefix(def, "CREATE UNIQUE")})
 	}
 	return t, nil
 }

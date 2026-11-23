@@ -5,9 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,12 +26,14 @@ import (
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/notify"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/plugins/messaging"
 	"github.com/univeros/polaris.go/plugins/sentinel"
 	"github.com/univeros/polaris.go/schema"
 	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/store/memstore"
 	"github.com/univeros/polaris.go/token"
 )
@@ -131,6 +135,9 @@ func TestEverythingIsWiredThroughTheGraphAndMessagingTakesTheQuietMode(t *testin
 	if _, err := e.sentinel.Engine().Evaluate(ctx, sentinel.Attempt{Kind: sentinel.SignUp, Email: "ada@mailinator.com", IP: ip}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := g.DB().Update(ctx, sentinel.TableDecisions, store.Criteria{}, store.Data{"enforced": true}); err != nil {
+		t.Fatal(err)
+	}
 	sender := messaging.Of(g).Sender()
 	send := func(to, template string, essential bool) error {
 		_, err := sender.Send(ctx, messaging.Message{Kind: messaging.KindEmail, To: to, Template: template, Essential: essential,
@@ -144,6 +151,53 @@ func TestEverythingIsWiredThroughTheGraphAndMessagingTakesTheQuietMode(t *testin
 	want(t, send("bob@example.com", "email.new_device", false) == nil, "another recipient")
 	e.clk.Advance(sentinel.QuietWindow + time.Second)
 	want(t, send("ada@mailinator.com", "email.new_device", false) == nil, "quiet mode ends after the window")
+}
+
+// Quiet mode follows enforced decisions only, and never drops the mail that tells an account's owner
+// it changed.
+func TestQuietModeFollowsEnforcedDecisionsAndLeavesSecurityMail(t *testing.T) {
+	ctx := context.Background()
+	for mode, dropped := range map[sentinel.Mode]bool{sentinel.Observe: false, sentinel.Enforce: true} {
+		e := boot(t, sentinel.Config{Mode: mode, Captcha: sentinel.Turnstile("unused")})
+		if _, err := e.sentinel.Engine().Evaluate(ctx, sentinel.Attempt{Kind: sentinel.SignUp, Email: "ada@mailinator.com", IP: ip}); err != nil {
+			t.Fatal(err)
+		}
+		_, err := messaging.Of(e.p.Graph()).Sender().Send(ctx, messaging.Message{Kind: messaging.KindEmail, To: "ada@mailinator.com", Template: "email.new_device",
+			Vars: map[string]any{"ip": "1", "user_agent": "x"}}, nil)
+		want(t, errors.Is(err, messaging.ErrRefused) == dropped, "%s: a non-essential mail: %v", mode, err)
+		for _, template := range []string{notify.TemplatePasswordChanged, notify.TemplateMFAEnrolled, notify.TemplateMFAFactorRemoved,
+			notify.TemplateRecoveryCodesRegenerated, notify.TemplateRecoveryCodeUsed} {
+			before := len(e.mail.Messages())
+			if err := e.p.Graph().Mailer().Send(ctx, "ada@mailinator.com", template, map[string]any{"ip": "1", "user_agent": "x"}); err != nil {
+				t.Fatal(err)
+			}
+			want(t, len(e.mail.Messages()) == before+1, "%s: %s was dropped", mode, template)
+		}
+	}
+}
+
+// The guard judges what the endpoint reads, however the request carries it.
+func TestTheGuardReadsTheRequestAsTheEndpointDoes(t *testing.T) {
+	e := boot(t, sentinel.Config{Mode: sentinel.Enforce, Captcha: sentinel.Turnstile("unused")})
+	const password = "correct horse battery staple"
+	n := 0
+	for name, c := range map[string]struct{ target, contentType, body string }{
+		"json":             {"/auth/register", "application/json", `{"email":"a1@mailinator.com","password":"` + password + `"}`},
+		"query":            {"/auth/register?email=a2@mailinator.com&password=" + url.QueryEscape(password), "", ""},
+		"query over body":  {"/auth/register?email=a3@mailinator.com", "application/json", `{"email":"a3@example.com","password":"` + password + `"}`},
+		"json, then more":  {"/auth/register", "application/json", `{"email":"a4@mailinator.com","password":"` + password + `"} x`},
+		"form":             {"/auth/register", "application/x-www-form-urlencoded", "email=a5@mailinator.com&password=" + url.QueryEscape(password)},
+		"form, upper case": {"/auth/register", "Application/X-WWW-Form-Urlencoded", "email=a6@mailinator.com&password=" + url.QueryEscape(password)},
+		"form, last value": {"/auth/register", "application/x-www-form-urlencoded", "email=a7@example.com&email=a7@mailinator.com&password=" + url.QueryEscape(password)},
+	} {
+		r := httptest.NewRequest(http.MethodPost, c.target, strings.NewReader(c.body))
+		r.Header.Set("Content-Type", c.contentType)
+		n++ // each from its own address, so none is rate limited
+		r.RemoteAddr = fmt.Sprintf("203.0.113.%d:4000", n)
+		w := httptest.NewRecorder()
+		e.p.Handler().ServeHTTP(w, r)
+		want(t, w.Code == http.StatusForbidden, "%s: %d %s", name, w.Code, w.Body)
+	}
 }
 
 // Times are RFC 3339 UTC and the decision list's limit is a positive integer in digits only.

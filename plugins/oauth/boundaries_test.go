@@ -14,6 +14,7 @@ import (
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/plugins/oauth"
 	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
 
@@ -137,6 +138,82 @@ func TestAnExchangeStaysWithinTheSubjectsClientAndAudience(t *testing.T) {
 	trusted := o.adminClient(session, map[string]any{"name": "Gateway", "grant_types": []string{oauth.GrantTokenExchange}, "trusted": true})
 	o.equal(claims(str(o.json(o.exchange(trusted, access, ""))["access_token"]))["aud"], rs1, "an operator-trusted client exchanges it, same audience")
 	o.equal(claims(str(o.json(o.exchange(trusted, access, rs2))["access_token"]))["aud"], rs2, "and may name another")
+}
+
+// An exchanged token is exchanged again within its own lifetime: it does not renew itself.
+func TestAnExchangedTokenDoesNotOutliveItsSubject(t *testing.T) {
+	o := freeCase(t, false)
+	_, session := o.login("ada@example.com")
+	orgID, session := o.organization(session, "Acme")
+	app := o.client(session, orgID, map[string]any{"grant_types": exchangeGrants})
+	first := o.json(o.exchange(app, session, ""))
+	ends := time.Now().Add(time.Minute).UTC().Truncate(time.Second)
+	_, err := o.srv.Graph().DB().Update(o.ctx, oauth.TableTokens, store.Criteria{"id": claims(str(first["access_token"]))["jti"]}, store.Data{"expires_at": ends})
+	o.must(err)
+	second := o.json(o.exchange(app, str(first["access_token"]), ""))
+	if exp, _ := claims(str(second["access_token"]))["exp"].(float64); int64(exp) > ends.Unix() || int64(exp) < ends.Unix()-5 {
+		t.Fatalf("exp %v, want the subject's %v", exp, ends.Unix())
+	}
+	if in, _ := second["expires_in"].(float64); in > 60 {
+		t.Fatalf("expires_in %v", in)
+	}
+}
+
+// A client assertion names its end within the hour: its jti is remembered until then.
+func TestAClientAssertionEndsWithinTheHour(t *testing.T) {
+	o := freeCase(t, false)
+	_, session := o.login("ada@example.com")
+	orgID, session := o.organization(session, "Acme")
+	id := str(o.client(session, orgID, map[string]any{"token_endpoint_auth_method": "private_key_jwt", "jwks": o.keys.clientJWKS(),
+		"grant_types": []string{oauth.GrantClientCredentials}, "redirect_uris": []string{}})["client_id"])
+	for in, status := range map[time.Duration]int{50 * time.Minute: 200, 2 * time.Hour: 401} {
+		now := time.Now()
+		raw := o.keys.sign(map[string]any{"typ": "JWT", "alg": "RS256", "kid": "client-1"}, map[string]any{"iss": id, "sub": id, "aud": tokenURL,
+			"jti": in.String(), "iat": now.Unix(), "exp": now.Add(in).Unix()})
+		o.status(o.form("/oauth2/token", map[string]string{"grant_type": "client_credentials", "client_assertion_type": oauth.AssertionType, "client_assertion": raw}),
+			status, in.String())
+	}
+}
+
+// Trust counts in every organization: an operator of one does not give it.
+func TestOnlyAnInstanceOwnerRegistersATrustedClient(t *testing.T) {
+	o := freeCase(t, false)
+	userID, session := o.login("ada@example.com")
+	orgID, session := o.organization(session, "Acme")
+	_, err := admin.Of(o.srv.Graph()).Grants().Grant(o.ctx, admin.Grant{UserID: userID, Role: admin.RoleOwner, Scope: orgID})
+	o.must(err)
+	create := func(fields map[string]any) *http.Response {
+		body := map[string]any{"name": "App", "organization_id": orgID, "redirect_uris": []string{redirectURI}}
+		for k, v := range fields {
+			body[k] = v
+		}
+		return o.c.Post("/admin/oauth/clients", body, contracttest.Bearer(session))
+	}
+	o.equal(o.data(create(nil))["trusted"], false, "an operator of the organization registers its clients")
+	o.status(create(map[string]any{"trusted": true}), 403, "trusted")
+	o.status(create(map[string]any{"grant_types": []string{oauth.GrantCIBA}}), 400, "the backchannel grant")
+	o.grantOwner(userID)
+	o.equal(o.data(create(map[string]any{"trusted": true, "grant_types": []string{oauth.GrantAuthorizationCode, oauth.GrantCIBA}}))["trusted"], true, "an owner of the instance")
+}
+
+// What a client holds for a user ends with the user's word, whether or not there is a consent to take
+// back.
+func TestRevokingAClientEndsItsTokensWithoutAConsent(t *testing.T) {
+	o := freeCase(t, false)
+	_, session := o.login("ada@example.com")
+	orgID, session := o.organization(session, "Acme")
+	client := o.client(session, orgID, nil)
+	tokens := o.codeTokens(session, client, "org.read offline_access", "")
+	_, err := o.srv.Graph().DB().Delete(o.ctx, oauth.TableConsents, store.Criteria{"client_id": client["client_id"]}) // as a device grant leaves it
+	o.must(err)
+	revoke := func() *http.Response {
+		return o.c.Delete("/oauth2/consents/"+str(client["client_id"]), contracttest.Bearer(session))
+	}
+	o.status(revoke(), 200, "revoking the client")
+	o.status(o.c.Get("/orgs/"+orgID, contracttest.Bearer(str(tokens["access_token"]))), 401, "its access token")
+	o.problem(o.form("/oauth2/token", map[string]string{"grant_type": "refresh_token", "refresh_token": str(tokens["refresh_token"])},
+		basic(str(client["client_id"]), str(client["client_secret"]))), 400, "invalid_grant", "its refresh token")
+	o.status(revoke(), 404, "nothing is left")
 }
 
 // A session is a subject only while it is one: not after it ended, and not when it speaks for the

@@ -112,8 +112,9 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 
 func isMap(v any) bool { _, ok := v.(map[string]any); return ok }
 
-// withinPolicy: none asked (the policy's applies), or the same kind and field, no larger, and no
-// longer a window than the policy's. The policy's budget is a ceiling the asker cannot raise.
+// withinPolicy: none asked (the policy's applies), or the same kind, field and window, and no larger.
+// The policy's budget is a ceiling the asker cannot raise, nor refill: a shorter window than the
+// policy's would be the budget again each time it passes.
 func withinPolicy(asked, ceiling *budget) bool {
 	if asked == nil || ceiling == nil {
 		return true
@@ -121,7 +122,7 @@ func withinPolicy(asked, ceiling *budget) bool {
 	if asked.kind != ceiling.kind || asked.field != ceiling.field || asked.total > ceiling.total {
 		return false
 	}
-	return ceiling.window == 0 || (asked.window != 0 && asked.window <= ceiling.window)
+	return asked.window == ceiling.window
 }
 
 // withBudget sets the grant's budget; its window is the grant's lifetime from its creation.

@@ -64,6 +64,8 @@ type Grant struct {
 	AuthTime       *int64
 	Nonce          string // the ID token's nonce
 	FamilyID       string // the rotation family; "" for a new one
+	// NotAfter is when the access token expires at the latest; zero for its lifetime alone.
+	NotAfter time.Time
 }
 
 // TokenResponse is an RFC 6749 token response.
@@ -259,8 +261,10 @@ func (t *tokens) issue(ctx context.Context, c Client, g Grant) (TokenResponse, e
 	if err != nil {
 		return TokenResponse{}, err
 	}
-	if !notAfter.IsZero() && notAfter.Before(expiresAt) {
-		expiresAt = notAfter
+	for _, end := range []time.Time{notAfter, g.NotAfter} {
+		if !end.IsZero() && end.Before(expiresAt) {
+			expiresAt = end
+		}
 	}
 	access := record{
 		ID: repository.NewID(), Kind: kindAccess, ClientID: c.ClientID, UserID: g.UserID,

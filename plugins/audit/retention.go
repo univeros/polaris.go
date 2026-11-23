@@ -86,9 +86,17 @@ func (p policy) keepUntil(name string, now time.Time) time.Time {
 // Prune deletes what the retention policy no longer keeps: the names with their own duration
 // first, then every other catalogued name at the default. With the hash chain on, a run that
 // deleted anything ends with an audit.pruned checkpoint carrying the hash of the newest pruned
-// event, which lets Verify accept the gap. It returns the number of events deleted.
+// event and the gaps the run leaves between kept ones (in several checkpoints when they are many),
+// which lets Verify accept them. It returns the number of events deleted.
 func (p *Plugin) Prune(ctx context.Context) (int64, error) {
 	now := p.clock.Now()
+	var gaps []string
+	if p.cfg.HashChain {
+		var err error
+		if gaps, err = p.gaps(ctx, now); err != nil {
+			return 0, err
+		}
+	}
 	var deleted int64
 	var newestID, lastHash string
 	track := func(until time.Time, name string) error {
@@ -126,13 +134,72 @@ func (p *Plugin) Prune(ctx context.Context) (int64, error) {
 			return deleted, err
 		}
 	}
-	if p.cfg.HashChain && deleted > 0 {
-		_, err := p.store.Write(ctx, Event{Name: AuditPruned, OccurredAt: now, Data: map[string]any{
-			"count": deleted, "before": timestamp(def), "last_hash": null(lastHash),
-		}})
-		return deleted, err
+	if !p.cfg.HashChain || deleted == 0 {
+		return deleted, nil
 	}
-	return deleted, nil
+	data := map[string]any{"count": deleted, "before": timestamp(def), "last_hash": null(lastHash)}
+	for {
+		n := min(len(gaps), checkpointSize)
+		if n > 0 {
+			data["gaps"] = gaps[:n]
+		}
+		if _, err := p.store.Write(ctx, Event{Name: AuditPruned, OccurredAt: now, Data: data}); err != nil {
+			return deleted, err
+		}
+		if gaps = gaps[n:]; len(gaps) == 0 {
+			return deleted, nil
+		}
+		data = map[string]any{"before": timestamp(def)}
+	}
+}
+
+// checkpointSize is how many gaps one checkpoint carries.
+const checkpointSize = 1000
+
+// gaps are the ones Verify must accept once the policy is applied at now, beyond what the checkpoints it
+// keeps carry: from the hash of a kept event to the prev_hash of the next. Where the rows between them
+// do not form a chain themselves, there is none: pruning does not hide a break.
+func (p *Plugin) gaps(ctx context.Context, now time.Time) ([]string, error) {
+	pruned := func(e Event) bool {
+		return p.catalog.Has(e.Name) && e.OccurredAt.Before(p.policy.keepUntil(e.Name, now))
+	}
+	accepted, err := p.store.checkpoints(ctx, func(Event) bool { return true })
+	if err != nil {
+		return nil, err
+	}
+	stay, err := p.store.checkpoints(ctx, func(e Event) bool { return !pruned(e) })
+	if err != nil {
+		return nil, err
+	}
+	out := []string{}
+	previous, kept, chained := "", "", true
+	err = p.store.Walk(ctx, 500, func(e Event) error {
+		chained = chained && accepted.follows(previous, e)
+		previous = e.Hash
+		if pruned(e) {
+			return nil
+		}
+		if chained && !stay.follows(kept, e) {
+			out = append(out, gap(kept, e.PrevHash))
+		}
+		kept, chained = e.Hash, true
+		return nil
+	})
+	return out, err
+}
+
+// gap is the break in the chain from a row's hash to the prev_hash of the row after it.
+func gap(hash, prevHash string) string { return hash + ":" + prevHash }
+
+// checkpoints are what the pruning checkpoints explain.
+type checkpoints struct {
+	lastHashes map[string]bool // of the newest event each run pruned
+	gaps       map[string]bool
+}
+
+// follows reports whether e legitimately follows the row whose hash is previous ("" for none).
+func (c checkpoints) follows(previous string, e Event) bool {
+	return e.PrevHash == previous || (previous == "" && e.Name == AuditPruned) || c.lastHashes[e.PrevHash] || c.gaps[gap(previous, e.PrevHash)]
 }
 
 // Report is the outcome of Verify: the rows walked and every break found.
@@ -145,10 +212,10 @@ type Report struct {
 func (r Report) Intact() bool { return len(r.Breaks) == 0 }
 
 // Verify walks the hash chain in order: every row's hash must be its recomputed hash, and its
-// prev_hash the previous row's hash, or the last_hash of a pruning checkpoint when the rows before
-// it were pruned. It reports each break.
+// prev_hash the previous row's hash, or what a pruning checkpoint carries when the rows between them
+// were pruned. It reports each break.
 func (p *Plugin) Verify(ctx context.Context) (Report, error) {
-	checkpoints, err := p.store.checkpointHashes(ctx)
+	explained, err := p.store.checkpoints(ctx, func(Event) bool { return true })
 	if err != nil {
 		return Report{}, err
 	}
@@ -164,7 +231,7 @@ func (p *Plugin) Verify(ctx context.Context) (Report, error) {
 		if !verifies(e) {
 			report.Breaks = append(report.Breaks, fmt.Sprintf("%s (%s) was altered", e.ID, e.Name))
 		}
-		if e.PrevHash != previous && !(previous == "" && e.Name == AuditPruned) && !checkpoints[e.PrevHash] {
+		if !explained.follows(previous, e) {
 			report.Breaks = append(report.Breaks, fmt.Sprintf("%s (%s) does not follow the previous row", e.ID, e.Name))
 		}
 		previous = e.Hash

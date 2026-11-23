@@ -399,20 +399,26 @@ func (s *Store) Count(ctx context.Context) (int64, error) {
 	return s.db.Count(ctx, TableEvents, store.Criteria{})
 }
 
-// checkpointHashes returns the last_hash of every pruning checkpoint: the hashes a chain may
-// legitimately continue from.
-func (s *Store) checkpointHashes(ctx context.Context) (map[string]bool, error) {
+// checkpoints reads the pruning checkpoints that count.
+func (s *Store) checkpoints(ctx context.Context, counts func(Event) bool) (checkpoints, error) {
+	out := checkpoints{lastHashes: map[string]bool{}, gaps: map[string]bool{}}
 	rows, err := s.db.FindMany(ctx, TableEvents, store.Criteria{"name": AuditPruned}, store.Query{})
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]bool{}
 	for _, r := range rows {
-		if h, ok := hydrate(r).Data["last_hash"].(string); ok && h != "" {
-			out[h] = true
+		e := hydrate(r)
+		if !counts(e) {
+			continue
+		}
+		if h, ok := e.Data["last_hash"].(string); ok && h != "" {
+			out.lastHashes[h] = true
+		}
+		gaps, _ := e.Data["gaps"].([]any)
+		for _, v := range gaps {
+			if g, ok := v.(string); ok {
+				out.gaps[g] = true
+			}
 		}
 	}
-	return out, nil
+	return out, err
 }
 
 func hydrate(r store.Row) Event {

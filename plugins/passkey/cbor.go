@@ -63,7 +63,7 @@ func decodeItem(b []byte, depth int) (any, []byte, error) {
 		if n > uint64(len(b)) {
 			return nil, nil, errCBOR
 		}
-		list := make([]any, 0, n)
+		list := []any{}
 		for range n {
 			var item any
 			if item, b, err = decodeItem(b, depth+1); err != nil {
@@ -76,7 +76,7 @@ func decodeItem(b []byte, depth int) (any, []byte, error) {
 		if n > uint64(len(b)) {
 			return nil, nil, errCBOR
 		}
-		m := make(map[any]any, n)
+		m := map[any]any{}
 		for range n {
 			var k, v any
 			if k, b, err = decodeItem(b, depth+1); err != nil {

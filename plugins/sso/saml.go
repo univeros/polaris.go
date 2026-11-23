@@ -243,6 +243,7 @@ func (s DefaultSAML) serviceProvider(p Provider, sp SP, sloLocation string, idpI
 		// dates add nothing, and IdPs commonly publish long-expired self-signed certificates. An
 		// expired one still verifies; rotating the key is a configuration change.
 		IgnoreCertificateExpiry: true,
+		RejectSHA1Signatures:    true,
 	}
 	if sp.Key != nil && sp.Certificate != nil {
 		csp.Key, csp.Certificate, csp.SignatureMethod = sp.Key, sp.Certificate, dsig.RSASHA256SignatureMethod

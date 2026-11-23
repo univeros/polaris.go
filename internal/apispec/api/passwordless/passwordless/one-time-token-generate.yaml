@@ -5,6 +5,7 @@ endpoint:
   summary: Generate a one-time token
   tags: [passwordless]
   auth: bearer
+  step_up: true
   effect: write
   receipt: true
 
@@ -24,6 +25,7 @@ output:
 
 errors:
   - { status: 401, code: unauthorized }
+  - { status: 401, code: step_up_required }
   - { status: 403, code: passwordless_session_required }
 
 events: []

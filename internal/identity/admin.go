@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -124,7 +123,7 @@ func (s *Service) EnableUser(ctx context.Context, actorUserID, userID string) er
 		if err != nil {
 			return err
 		}
-		if user.PasswordHash == nil && strings.HasSuffix(user.Email, tombstoneEmailSuffix) {
+		if erased(user) {
 			return refuse(ErrConflict, msgTombstone)
 		}
 		next := clearLockout(user)

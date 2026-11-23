@@ -65,7 +65,7 @@ func newHarnessOn(t *testing.T, rec *Recorded, mutate ...func(*Config)) *harness
 // restart starts a flow and keeps its nonce for the minted id_token.
 func (h *harness) restart(provider string) started {
 	h.t.Helper()
-	s, err := h.p.start(h.ctx, provider, "", nil, "")
+	s, err := h.p.start(h.ctx, provider, "", nil, nil)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -97,10 +97,23 @@ func (h *harness) browser(state string) *http.Request {
 	return r
 }
 
+// linker is userID linking from a session of theirs, nil for "" (a sign-in).
+func (h *harness) linker(userID string) *linker {
+	h.t.Helper()
+	if userID == "" {
+		return nil
+	}
+	issued, err := h.srv.Graph().Sessions().Issue(h.ctx, token.SessionPrincipal{UserID: userID, AMR: []string{"pwd"}}, h.client)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return &linker{User: userID, Session: issued.SessionID}
+}
+
 // signIn runs a whole flow: the exchanged outcome.
 func (h *harness) signIn(provider, linkUserID string) map[string]any {
 	h.t.Helper()
-	s, err := h.p.start(h.ctx, provider, "", nil, linkUserID)
+	s, err := h.p.start(h.ctx, provider, "", nil, h.linker(linkUserID))
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -264,7 +277,7 @@ func TestConfigurationErrorsNameTheirFix(t *testing.T) {
 func TestGoogleSignsUpSignsInAndLinksAnExistingUserBecauseItIsTrusted(t *testing.T) {
 	h := newHarness(t)
 	g := h.srv.Graph()
-	_, err := h.p.start(h.ctx, "google", "https://evil.example/", nil, "")
+	_, err := h.p.start(h.ctx, "google", "https://evil.example/", nil, nil)
 	refused(t, err, kindRedirectNotAllowed, "redirect")
 	s := h.restart("google")
 	if !strings.HasPrefix(s.URL, "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client&redirect_uri=https%3A%2F%2Fapp.example%2Fauth%2Fsocial%2Fgoogle%2Fcallback") ||
@@ -379,7 +392,7 @@ func TestGitHubIsNotTrustedAndLinksFromASession(t *testing.T) {
 		t.Fatal(h.srv.Events.Names())
 	}
 
-	started, err := h.p.start(h.ctx, "github", "", nil, grace.ID)
+	started, err := h.p.start(h.ctx, "github", "", nil, h.linker(grace.ID))
 	if err != nil || strings.Contains(started.URL, "code_challenge") {
 		t.Fatalf("GitHub does no PKCE: %v %v", started, err)
 	}
@@ -402,12 +415,12 @@ func TestGitHubIsNotTrustedAndLinksFromASession(t *testing.T) {
 	}
 
 	bob := h.user("bob@example.com", true)
-	started, _ = h.p.start(h.ctx, "github", "", nil, bob.ID)
+	started, _ = h.p.start(h.ctx, "github", "", nil, h.linker(bob.ID))
 	_, err = h.callback("github", map[string]any{"code": "good", "state": started.State})
 	refused(t, err, kindAccountLinked, "grace's GitHub account")
 	h.rec.On("https://api.github.com/user", map[string]any{"id": 999, "login": "bobby", "email": nil})
 	h.rec.On("https://api.github.com/user/emails", []any{map[string]any{"email": "bobby@elsewhere.example", "primary": true, "verified": true}})
-	started, _ = h.p.start(h.ctx, "github", "", nil, bob.ID)
+	started, _ = h.p.start(h.ctx, "github", "", nil, h.linker(bob.ID))
 	_, err = h.callback("github", map[string]any{"code": "good", "state": started.State})
 	refused(t, err, kindEmailMismatch, "email mismatch")
 
@@ -420,7 +433,7 @@ func TestGitHubIsNotTrustedAndLinksFromASession(t *testing.T) {
 	if err := h.p.unlink(h.ctx, bob.ID, "github"); err != nil || len(h.accounts(bob.ID)) != 0 || h.count(EventUnlinked) != 1 {
 		t.Fatalf("unlink %v", err)
 	}
-	_, err = h.p.start(h.ctx, "github", "", nil, "gone-user")
+	_, err = h.p.start(h.ctx, "github", "", nil, &linker{User: "gone-user", Session: "gone"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -440,7 +453,7 @@ func TestUnlinkingTheLastCredentialIsRefused(t *testing.T) {
 		t.Fatalf("%+v", all)
 	}
 	// A link from a session whose user is gone is refused.
-	s, _ := h.p.start(h.ctx, "acme", "", nil, "01900000-0000-7000-8000-000000000000")
+	s, _ := h.p.start(h.ctx, "acme", "", nil, &linker{User: "01900000-0000-7000-8000-000000000000", Session: "gone"})
 	_, err := h.callback("acme", map[string]any{"code": "good", "state": s.State})
 	refused(t, err, kindTokenInvalid, "the session's user is gone")
 }
@@ -728,7 +741,7 @@ func TestTheProxyForwardsASignedStateAndRefusesAnUnsignedOne(t *testing.T) {
 	preview := newHarnessOn(t, rec, func(c *Config) { c.BaseURL, c.Proxy = "https://pr-42.preview.example/auth", "https://auth.example/" })
 	stable := newHarnessOn(t, rec, func(c *Config) { c.BaseURL, c.Proxy = "https://auth.example/auth", "https://auth.example" })
 
-	started, err := preview.p.start(preview.ctx, "google", "", nil, "")
+	started, err := preview.p.start(preview.ctx, "google", "", nil, nil)
 	if err != nil || !strings.Contains(started.URL, "redirect_uri=https%3A%2F%2Fauth.example%2Fsocial%2Fgoogle%2Fcallback") || strings.Count(started.State, ".") != 2 {
 		t.Fatalf("the provider sends the browser to the stable origin: %v %v", started, err)
 	}
@@ -778,7 +791,7 @@ func TestTheProxyForwardsASignedStateAndRefusesAnUnsignedOne(t *testing.T) {
 	if out, _ := preview.p.exchange(preview.ctx, queryParam(redirect, "code")); userOf(out)["email"] != "ada@example.com" {
 		t.Fatal(out)
 	}
-	if own, _ := stable.p.start(stable.ctx, "google", "", nil, ""); strings.Contains(own.State, ".") {
+	if own, _ := stable.p.start(stable.ctx, "google", "", nil, nil); strings.Contains(own.State, ".") {
 		t.Fatal("the stable origin signs nothing for itself")
 	}
 }

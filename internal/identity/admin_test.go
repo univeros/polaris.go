@@ -157,6 +157,26 @@ func TestEnableRestoresAccess(t *testing.T) {
 	})
 }
 
+// An erased account takes no password, and a disabled one no reset that was read before.
+func TestAnErasedOrDisabledAccountTakesNoPassword(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		id := h.registerAndVerify(t, email)
+		must(t, h.svc.AnonymizeUser(ctx, "operator", id))
+		isErr(t, h.svc.SetPassword(ctx, id, newPassword), ErrConflict)
+
+		id = h.registerAndVerify(t, "bob@example.com")
+		secret := h.requestReset(t, "bob@example.com")
+		svc, err := New(Config{DB: &raceDB{Adapter: h.db, before: func() { must(t, h.svc.DisableUser(ctx, "operator", id)) }}, Hasher: h.hasher, Pepper: h.pepper,
+			Sessions: h.sessions, MFA: gate{h.repos}, Tickets: tickets{}, Authority: h.admins, Auth: h.auth, Clock: h.clock, Events: h.events})
+		must(t, err)
+		isErr(t, svc.ResetPassword(ctx, secret, newPassword, client), ErrInvalidResetToken)
+		must(t, h.svc.EnableUser(ctx, "operator", id))
+		if _, err := h.svc.Login(ctx, "bob@example.com", password, client); err != nil {
+			t.Fatalf("the password was changed: %v", err)
+		}
+	})
+}
+
 // An account erased while an operator enables it, or enabled while it is erased, ends erased.
 func TestAnErasureOutlivesAConcurrentEnable(t *testing.T) {
 	racing := func(t *testing.T, h *harness, before func()) *Service {

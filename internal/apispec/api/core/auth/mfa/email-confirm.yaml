@@ -5,6 +5,7 @@ endpoint:
   summary: Confirm a pending email factor
   tags: [auth, mfa]
   auth: bearer
+  step_up: true
   rate_limit: mfa_confirm
   effect: write
   receipt: true
@@ -36,6 +37,7 @@ output:
 
 errors:
   - { status: 401, code: unauthorized }
+  - { status: 401, code: step_up_required }
   - { status: 404, code: not_found }
   - { status: 422, code: invalid_code }
   - { status: 422, code: validation_failed }   # envelope is {"errors": ["..."]} for missing fields

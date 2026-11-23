@@ -19,7 +19,8 @@ input:
 domain:
   description: >
     As POST /social/{provider}/start, for the caller's account: the callback links the provider account
-    instead of signing in, and POST /social/exchange answers the linked account. Step-up gated. A
+    instead of signing in, and POST /social/exchange answers the linked account. Step-up gated, and from a
+    live session only: the callback refuses the link when the session has ended since. A
     provider account linked to another user is refused; a provider email that is not the account's is
     refused unless the provider is in allowDifferentEmails.
 

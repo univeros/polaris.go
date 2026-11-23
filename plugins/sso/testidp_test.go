@@ -32,6 +32,7 @@ import (
 type testIdP struct {
 	key  *rsa.PrivateKey
 	cert *x509.Certificate
+	sha1 bool // sign with RSA-SHA1
 }
 
 const (
@@ -188,7 +189,11 @@ func (i *testIdP) sign(t testing.TB, xml string, key *rsa.PrivateKey) string {
 		t.Fatal(err)
 	}
 	ctx.Canonicalizer = dsig.MakeC14N10ExclusiveCanonicalizerWithPrefixList("")
-	if err := ctx.SetSignatureMethod(rsaSHA256); err != nil {
+	method := rsaSHA256
+	if i.sha1 {
+		method = dsig.RSASHA1SignatureMethod
+	}
+	if err := ctx.SetSignatureMethod(method); err != nil {
 		t.Fatal(err)
 	}
 	signed, err := ctx.SignEnveloped(doc.Root())

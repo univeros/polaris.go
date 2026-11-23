@@ -3,8 +3,12 @@ package agents
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
+	"unicode"
 
 	"github.com/univeros/polaris.go/internal/strictjson"
 )
@@ -42,15 +46,19 @@ func (p *Plugin) Protect(capability string, next http.Handler) http.Handler {
 }
 
 // Guard is the unbound form of Protect for a whole host mux: a request whose URL is a capability's
-// location (compared normalised, whatever its spelling or scheme) is checked as Protect does;
-// every other request passes through untouched.
+// location (compared normalised, whatever its spelling or scheme, and by its path when the Host is no
+// location's) is checked as Protect does; every other request passes through untouched.
 func (p *Plugin) Guard(next http.Handler) http.Handler { return p.guard(nil, next) }
 
 func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capability := bound
+		capability, ambiguous := bound, false
 		if capability == nil {
-			capability = p.caps.at(requestURL(r))
+			capability, ambiguous = p.caps.at(r, requestURL(r))
+		}
+		if ambiguous {
+			p.answer(w, r, refuse(ErrCapabilityNotFound, "The URL is no capability's location under this host name."))
+			return
 		}
 		if capability == nil {
 			next.ServeHTTP(w, r)
@@ -70,7 +78,11 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 			p.answer(w, r, err)
 			return
 		}
-		ev, err := p.s.evaluate(ctx, pr, capability.Name, bodyArguments(body))
+		args, err := bodyArguments(body)
+		var ev evaluation
+		if err == nil {
+			ev, err = p.s.evaluate(ctx, pr, capability.Name, args)
+		}
 		if err != nil {
 			if e, ok := asError(err); ok {
 				p.s.deny(ctx, pr.agent, capability.Name, e, client{})
@@ -103,13 +115,59 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 	})
 }
 
-// bodyArguments are the JSON object the whole body is, nothing otherwise.
-func bodyArguments(body []byte) map[string]any {
+// bodyArguments are the JSON object the whole body is, nothing otherwise. A body in which two members
+// of one object have the same name, upper and lower case alike, is refused: the handler may read
+// the one that was not checked.
+func bodyArguments(body []byte) (map[string]any, error) {
 	var args map[string]any
 	if strictjson.Decode(body, &args) != nil || args == nil {
-		return map[string]any{}
+		return map[string]any{}, nil
 	}
-	return args
+	if !unambiguous(body) {
+		const msg = "two members of one object have the same name"
+		return nil, &Error{Type: ErrInvalidArguments, Detail: "The body is ambiguous: " + msg + ".", Extra: map[string]any{"errors": []string{msg}}}
+	}
+	return args, nil
+}
+
+// unambiguous reports whether no object of a JSON value has two members whose names are equal under
+// the case folding encoding/json matches struct fields with.
+func unambiguous(body []byte) bool {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	var open []map[string]bool // the names seen in each open object; nil for an open array
+	name := false              // whether the next token, in an object, is a member's name
+	for {
+		t, err := dec.Token()
+		if err != nil {
+			return err == io.EOF
+		}
+		in := len(open) - 1
+		if t == json.Delim('}') || t == json.Delim(']') {
+			open = open[:in]
+		} else if s, ok := t.(string); ok && name && in >= 0 && open[in] != nil {
+			key := strings.Map(fold, s)
+			if open[in][key] {
+				return false
+			}
+			open[in][key] = true
+			name = false
+			continue
+		} else if t == json.Delim('{') {
+			open = append(open, map[string]bool{})
+		} else if t == json.Delim('[') {
+			open = append(open, nil)
+		}
+		name = true // a value ended, or an object began
+	}
+}
+
+// fold is the smallest rune r is equal to under simple case folding.
+func fold(r rune) rune {
+	least := r
+	for next := unicode.SimpleFold(r); next != r; next = unicode.SimpleFold(next) {
+		least = min(least, next)
+	}
+	return least
 }
 
 // buffered holds a host handler's response until the receipt is written.

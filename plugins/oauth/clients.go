@@ -27,6 +27,8 @@ const (
 	jwksCache      = "polaris.oauth.jwks."
 	assertionCache = "polaris.oauth.assertion."
 	metadataTTL    = time.Hour
+	// maxAssertionLife is how far ahead a client assertion's exp may be.
+	maxAssertionLife = time.Hour
 	// AssertionType is the client_assertion_type of a private_key_jwt assertion.
 	AssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
@@ -238,12 +240,15 @@ func (s *clients) authenticateByAssertion(ctx context.Context, cr credentials, a
 	if claims["sub"] != iss || !audienceIncludes(claims["aud"], audience, issuer) || !expOK {
 		return nil, unauthorizedClient("The client assertion needs sub = the client, aud = this endpoint or issuer, and exp.")
 	}
+	if exp > now.Add(maxAssertionLife).Unix() {
+		return nil, unauthorizedClient("The client assertion expires more than an hour from now.")
+	}
 	jti, _ := claims["jti"].(string)
 	if jti == "" {
 		return nil, unauthorizedClient("The client assertion needs a jti, and one not used before.")
 	}
 	sum := sha256.Sum256([]byte(iss + "|" + jti))
-	ttl := min(600, max(60, exp-now.Unix()+60))
+	ttl := max(60, exp-now.Unix()+60) // past exp: a jti is refused for as long as its assertion verifies
 	fresh, err := s.once.claim(ctx, assertionCache+hex.EncodeToString(sum[:]), time.Duration(ttl)*time.Second)
 	if err != nil {
 		return nil, err

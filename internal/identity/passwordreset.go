@@ -106,8 +106,12 @@ func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string,
 	}
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		// The user before the user's rows, the order everything else locks them in.
-		if _, err := s.lockUser(ctx, user.ID); err != nil {
+		user, err := s.lockUser(ctx, user.ID)
+		if err != nil {
 			return err
+		}
+		if user.Status == model.UserStatusDisabled || user.Email != challenge.Email { // since it was read
+			return refuse(ErrInvalidResetToken, msgBadReset)
 		}
 		// Single use under concurrency too: only the request that flips consumed_at goes on.
 		claimed, err := s.db.Update(ctx, "auth_password_resets",
