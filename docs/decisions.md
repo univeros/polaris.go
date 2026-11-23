@@ -2932,3 +2932,46 @@ Security review (rule 6): the lock adds one statement to each of these operation
 dependency; a stress of 4,800 mixed operations per database found no deadlock. What is refused that
 was not: a login whose account changed, a ticket older than a revocation, a session of a disabled
 account.
+
+## 80. 2026-11-23 — Account writes under the user's lock; a lockout is the password's; disabled accounts' grants
+
+A review of decision 79's code found it sound and five older defects beside it, each reproduced by a
+failing test.
+
+- **A password change is checked again where it is written.** `ChangePassword` verified the old
+  password, hashed the new one (Argon2id, so a wide window) and wrote it unconditionally: one in flight
+  during a reset replaced the reset's password and, through `RevokeAllExcept`, ended the owner's new
+  sessions. It now writes in a transaction that starts with `holdForLogin`, as a login does. Test:
+  `TestAPasswordChangeThatLosesItsPasswordOrAccountChangesNothing`.
+- **`locked` is the password sign-in's status.** Anyone who knows an address can lock it, and nothing
+  clears the status when the lock ends. `ForgotPassword`, API keys, the OAuth resolver and CIBA
+  required `active`; they now refuse `disabled` only, as passkey, social, passwordless and sso already
+  did. Admin impersonation still takes an active account (an operator's action, not the user's). Tests:
+  `TestALockedAccountIsSentAReset`, `TestALockedAccountsGrantsKeepWorking`, the apikeys resolver's.
+- **A disabled account's OAuth grants issue nothing.** `tokens.issue`, through which every grant passes,
+  answers `invalid_grant` when the user behind it is disabled or gone; introspection answers inactive.
+  Nothing is revoked, so enabling the account restores its grants. Test:
+  `TestADisabledAccountsGrantsIssueNothing`.
+- **An expired session mints nothing.** `ActiveInFamily` reads the token that is not revoked, expired or
+  not; step-up, organization switch, one-time tokens and guest conversion now check its expiry. Tests:
+  `TestAnExpiredSessionMintsNothing`, the passwordless and anonymous flows.
+- **A rotation builds on the token as it claimed it**, so it keeps a step-up or an organization switch
+  committed since it read the token; a refresh without rotation reads it again too. Test:
+  `TestARotationKeepsAChangeMadeMeanwhile`.
+- **Smaller.** `EnableUser` and `AnonymizeUser` lock the account and read it there
+  (`TestAnErasureOutlivesAConcurrentEnable`); `Issue` refuses an account that does not exist, which also
+  closes the case of a MySQL pool without `clientFoundRows`
+  (`TestADisabledOrUnknownAccountOpensNoSession`); `ResetPassword` and a guest's conversion lock the user
+  before the user's rows, the order everything else uses (no test of their own).
+- **CI runs the tests on the newest Go** (not a required check). Go 1.27 writes U+FFFD as it is where
+  1.26 escapes it; only a test depended on that. The hashed and signed forms escape it themselves.
+- **Accepted.** An access token is minted after the transaction that opened or rotated its session: a
+  revocation in between that crosses a second leaves it valid for its lifetime, the window access tokens
+  have anyway. `/auth/switch-org` checks the membership before the session's lock: a session left on an
+  organization its user just left carries no authority there. Logging out everywhere and a password reset
+  do not end OAuth grants (the README says how to).
+
+Go API: compatible. Routes, specs and contract fixtures: unchanged. No schema change.
+
+Security review (rule 6): no check is weaker except `locked`, which was never a check on these paths'
+own credentials and let anyone turn them off.

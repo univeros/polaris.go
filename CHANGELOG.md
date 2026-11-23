@@ -9,6 +9,36 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-23
+
+Security fixes from a review of v0.7.2 (decision 80). **Upgrade now.** No schema change and no Go API
+break.
+
+### Security
+
+- **core: a password change in flight does not undo a reset.** A change that verified the old password
+  while the account's owner reset it wrote its own password over the new one and ended the owner's
+  sessions. The change is now checked again where it is written: a reset, another change, an
+  operator's password, a disabled or an erased account wins.
+- **core, apikeys, oauth: a lockout is the password sign-in's alone.** Five wrong passwords, which anyone
+  who knows an address can send, also stopped the reset mail, the account's API keys and its OAuth
+  tokens, and went on doing so after the lock ended. **Client-visible:** `POST /auth/password/forgot`
+  mails a locked account; its API keys and OAuth tokens work, and a CIBA request finds it.
+- **oauth: a disabled account's grants issue nothing.** An access, ID or refresh token was still issued,
+  and introspection still answered `active`, for a user an operator had disabled.
+  **Client-visible:** `invalid_grant` and `{"active": false}`. Enabled again, a refresh token that was
+  refused meanwhile is unspent.
+- **core: an expired session mints nothing.** The holder of an access token of a session past its
+  refresh lifetime could step it up, switch its organization, hand it over with a one-time token or
+  convert a guest with it.
+- core: enabling an account does not bring back one that is being erased, or that was erased meanwhile.
+
+### Changed
+
+- core: a refresh that rotates keeps an organization switch or a step-up made while it ran.
+- core: a session is opened for an existing account only (`session: invalid grant`).
+- The tests run on the newest Go as well as Go 1.26.
+
 ## [0.7.2] - 2026-11-23
 
 Security fixes from a review of v0.7.1 (decision 79). **Upgrade now**, whichever plugins you use,
@@ -842,7 +872,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/univeros/polaris.go/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/univeros/polaris.go/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/univeros/polaris.go/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/univeros/polaris.go/compare/v0.6.0...v0.7.0
