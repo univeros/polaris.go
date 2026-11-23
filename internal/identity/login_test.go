@@ -4,6 +4,7 @@ package identity
 // hand-off rules.
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/security"
+	"github.com/univeros/polaris.go/store"
 )
 
 func TestValidLoginIssuesATokenPair(t *testing.T) {
@@ -363,4 +365,157 @@ func TestAnExpiredLockRelocksOnTheFirstFailureWhenTheThresholdIsOne(t *testing.T
 			t.Fatalf("user %+v", u)
 		}
 	})
+}
+
+// hookHasher runs a callback while a login verifies its password.
+type hookHasher struct {
+	*countingHasher
+	during  func()
+	upgrade bool
+}
+
+func (h *hookHasher) Verify(plain, hash string) bool {
+	ok := h.countingHasher.Verify(plain, hash)
+	if f := h.during; f != nil {
+		h.during = nil
+		f()
+	}
+	return ok
+}
+
+func (h *hookHasher) NeedsRehash(hash string) bool {
+	return h.upgrade || h.countingHasher.NeedsRehash(hash)
+}
+
+// A login is checked again where it opens its session: what changed the password or the account
+// while it verified the password wins.
+func TestALoginThatLosesItsPasswordOrAccountOpensNoSession(t *testing.T) {
+	for name, c := range map[string]struct {
+		during  func(t *testing.T, h *harness, id string)
+		want    error
+		factor  bool
+		upgrade bool
+	}{
+		"reset":                 {during: func(t *testing.T, h *harness, _ string) { h.resetTo(t, newPassword) }, want: ErrInvalidCredentials},
+		"reset, a rehash due":   {during: func(t *testing.T, h *harness, _ string) { h.resetTo(t, newPassword) }, want: ErrInvalidCredentials, upgrade: true},
+		"reset, MFA":            {during: func(t *testing.T, h *harness, _ string) { h.resetTo(t, newPassword) }, want: ErrInvalidCredentials, factor: true},
+		"reset, MFA and rehash": {during: func(t *testing.T, h *harness, _ string) { h.resetTo(t, newPassword) }, want: ErrInvalidCredentials, factor: true, upgrade: true},
+		"change": {during: func(t *testing.T, h *harness, id string) {
+			must(t, h.svc.ChangePassword(ctx, id, password, newPassword, ""))
+		}, want: ErrInvalidCredentials},
+		"disable": {during: func(t *testing.T, h *harness, id string) { must(t, h.svc.DisableUser(ctx, "operator", id)) }, want: ErrAccountDisabled},
+		"disable, MFA": {during: func(t *testing.T, h *harness, id string) { must(t, h.svc.DisableUser(ctx, "operator", id)) },
+			want: ErrAccountDisabled, factor: true},
+		"erase": {during: func(t *testing.T, h *harness, id string) { must(t, h.svc.AnonymizeUser(ctx, "operator", id)) }, want: ErrInvalidCredentials},
+		"another login rehashes": {during: func(t *testing.T, h *harness, _ string) {
+			rehashed, err := h.hasher.Hash(password)
+			must(t, err)
+			h.set(t, email, func(u *model.User) { u.PasswordHash = &rehashed })
+		}, upgrade: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, h *harness) {
+				id := h.registerAndVerify(t, email)
+				if c.factor {
+					confirmed := start
+					must(t, h.repos.MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: id, Type: model.FactorTOTP,
+						ConfirmedAt: &confirmed, CreatedAt: start, UpdatedAt: start}))
+				}
+				hooked := &hookHasher{countingHasher: h.hasher, upgrade: c.upgrade}
+				svc, err := New(Config{DB: h.db, Hasher: hooked, Pepper: h.pepper, Sessions: h.sessions, MFA: gate{h.repos}, Tickets: tickets{},
+					Authority: h.admins, Auth: h.auth, Clock: h.clock, Events: h.events})
+				must(t, err)
+				hooked.during = func() { c.during(t, h, id) }
+				r, err := svc.Login(ctx, email, password, client)
+				if c.want == nil {
+					if err != nil || r.Tokens.RefreshToken == "" {
+						t.Fatalf("login: %+v %v", r, err)
+					}
+					return
+				}
+				isErr(t, err, c.want)
+				if r.MFA != nil {
+					t.Fatal("an MFA ticket was issued")
+				}
+				if list, err := h.sessions.List(ctx, id, ""); err != nil || len(list) != 0 {
+					t.Fatalf("live sessions %+v %v", list, err)
+				}
+				if u, err := h.repos.Users.Get(ctx, id); err != nil || errors.Is(c.want, ErrInvalidCredentials) && u.PasswordHash != nil && !h.hasher.Verify(newPassword, *u.PasswordHash) {
+					t.Fatalf("the old password came back: %v", err)
+				}
+			})
+		})
+	}
+}
+
+// resetTo resets the password of email by its mailbox.
+func (h *harness) resetTo(t *testing.T, to string) {
+	t.Helper()
+	must(t, h.svc.ForgotPassword(ctx, email, client))
+	resets := ofType[event.PasswordResetRequested](h.events)
+	must(t, h.svc.ResetPassword(ctx, resets[len(resets)-1].ResetToken, to, client))
+}
+
+func TestHoldForSignInRefusesAnAccountThatChanged(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		hold := func(u model.User) error {
+			return h.db.Tx(ctx, func(ctx context.Context) error { return h.svc.HoldForSignIn(ctx, u) })
+		}
+		h.register(t, email)
+		read := h.user(t, email)
+		must(t, hold(read))
+		_, _, err := h.svc.ProveEmail(ctx, read.ID, false)
+		must(t, err)
+		isErr(t, hold(read), ErrInvalidCredentials) // what it signed in with went with the first proof
+		must(t, hold(h.user(t, email)))
+		must(t, h.svc.DisableUser(ctx, "operator", read.ID))
+		isErr(t, hold(h.user(t, email)), ErrAccountDisabled)
+		isErr(t, hold(model.User{ID: repository.NewID()}), ErrUserNotFound)
+	})
+}
+
+// raceDB runs before once, when the next transaction begins.
+type raceDB struct {
+	store.Adapter
+	before func()
+}
+
+func (r *raceDB) Tx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if f := r.before; f != nil {
+		r.before = nil
+		f()
+	}
+	return r.Adapter.Tx(ctx, fn)
+}
+
+func TestAHostsSignInIsCheckedWhereItOpensItsSession(t *testing.T) {
+	for name, c := range map[string]struct {
+		before func(h *harness, id string) error
+		want   error
+	}{
+		"disabled": {func(h *harness, id string) error { return h.svc.DisableUser(ctx, "operator", id) }, ErrAccountDisabled},
+		"proven": {func(h *harness, id string) error {
+			_, _, err := h.svc.ProveEmail(ctx, id, false)
+			return err
+		}, ErrInvalidCredentials},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, h *harness) {
+				h.register(t, email)
+				id := h.user(t, email).ID
+				auth := h.auth
+				auth.Flows.RequireVerifiedEmail = false
+				racing := &raceDB{Adapter: h.db}
+				svc, err := New(Config{DB: racing, Hasher: h.hasher, Pepper: h.pepper, Sessions: h.sessions, MFA: gate{h.repos}, Tickets: tickets{},
+					Authority: h.admins, Auth: auth, Clock: h.clock, Events: h.events})
+				must(t, err)
+				racing.before = func() { must(t, c.before(h, id)) }
+				_, err = svc.SignIn(ctx, id, nil, client)
+				isErr(t, err, c.want)
+				if list, err := h.sessions.List(ctx, id, ""); err != nil || len(list) != 0 {
+					t.Fatalf("live sessions %+v %v", list, err)
+				}
+			})
+		})
+	}
 }

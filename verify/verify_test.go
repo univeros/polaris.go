@@ -476,3 +476,25 @@ func TestRequire(t *testing.T) {
 		t.Fatal("ClaimsFrom outside Require")
 	}
 }
+
+// A token's payload is one JSON object: what follows it would be signed and unread.
+func TestAPayloadWithMoreThanItsObjectIsRefused(t *testing.T) {
+	i := newIssuer(t)
+	v := i.verifier(t, verify.Config{})
+	parts := strings.Split(i.session(t, i.rsa), ".")
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for suffix, ok := range map[string]bool{"": true, "0": false, `{"sub":"eve"}`: false} {
+		input := parts[0] + "." + base64.RawURLEncoding.EncodeToString(append(slices.Clone(payload), suffix...))
+		sum := sha256.Sum256([]byte(input))
+		sig, err := rsa.SignPKCS1v15(rand.Reader, contracttest.TestRSAKey(), crypto.SHA256, sum[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := v.Verify(context.Background(), input+"."+base64.RawURLEncoding.EncodeToString(sig)); (err == nil) != ok {
+			t.Errorf("suffix %q: %v", suffix, err)
+		}
+	}
+}

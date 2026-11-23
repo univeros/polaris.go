@@ -38,12 +38,13 @@ func (a gateAdapter) Authority(ctx context.Context, t *token.Token) (pipeline.Au
 
 type ticketAdapter struct{ g *Graph }
 
-func (a ticketAdapter) Authenticate(_ context.Context, ticket string) (string, error) {
-	return a.g.tickets.Authenticate(ticket)
+func (a ticketAdapter) Authenticate(ctx context.Context, ticket string) (string, error) {
+	userID, _, err := a.AuthenticateFactors(ctx, ticket)
+	return userID, err
 }
 
-func (a ticketAdapter) AuthenticateFactors(_ context.Context, ticket string) (string, []string, error) {
-	return a.g.tickets.AuthenticateFactors(ticket)
+func (a ticketAdapter) AuthenticateFactors(ctx context.Context, ticket string) (string, []string, error) {
+	return a.g.tickets.AuthenticateLive(ctx, ticket, a.g.denylist)
 }
 
 type denylistAdapter struct{ g *Graph }

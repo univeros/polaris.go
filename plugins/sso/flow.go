@@ -16,6 +16,7 @@ import (
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
@@ -34,6 +35,8 @@ const (
 	replayDrift  = 3 * time.Minute  // kept beyond an assertion's validity
 	defaultRole  = "member"
 	logoutRevoke = "sso_logout"
+
+	displayNameMax = 120 // characters, as core's profile
 )
 
 // Started is where the browser goes to sign in (POST /sso/sign-in). State and Binding tie the
@@ -466,9 +469,9 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			if vouched {
 				u.EmailVerifiedAt = &now
 			}
-			if id.Name != "" {
-				name := id.Name
-				u.DisplayName = &name
+			if name := []rune(strutil.Trim(id.Name)); len(name) > 0 {
+				stored := string(name[:min(len(name), displayNameMax)])
+				u.DisplayName = &stored
 			}
 			if err := p.g.Identity().InsertUser(ctx, u); err != nil {
 				return err

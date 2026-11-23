@@ -166,6 +166,10 @@ func (s *Guests) Prune(ctx context.Context) (int, error) {
 	for _, row := range rows {
 		guestID := row.String("user_id")
 		err := s.g.DB().Tx(ctx, func(ctx context.Context) error {
+			// The user before the user's rows, the order a session locks them in.
+			if _, err := s.g.DB().Update(ctx, "auth_users", store.Criteria{"id": guestID}, store.Data{"id": guestID}); err != nil {
+				return err
+			}
 			n, err := s.g.DB().Delete(ctx, TableGuests, store.Criteria{"user_id": guestID, "converted_at": nil})
 			if err != nil {
 				return err

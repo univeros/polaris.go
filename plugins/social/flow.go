@@ -1,7 +1,6 @@
 package social
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/internal/strictjson"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
@@ -201,9 +201,7 @@ func (p *Plugin) forwardTo(state, providerID string) (string, error) {
 	raw, err := unb64(parts[1])
 	var payload map[string]any
 	if err == nil {
-		dec := json.NewDecoder(bytes.NewReader(raw))
-		dec.UseNumber()
-		err = dec.Decode(&payload)
+		err = strictjson.Decode(raw, &payload)
 	}
 	exp, isInt := integer(payload["exp"])
 	if err != nil || payload["provider"] != providerID || !isInt || exp < p.g.Clock().Now().Unix() {

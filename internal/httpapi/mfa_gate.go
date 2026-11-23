@@ -65,6 +65,9 @@ func (m *mfaAPI) verify(ctx context.Context, in *endpoint.Input) endpoint.Result
 		return endpoint.NotFound(mfaMsgFactorNotFound) // the sign-in ruled this factor out
 	}
 	tokens, err := services.Of(m.g).MFA.VerifyLogin(ctx, userID, mfaVerifyFactor(in), code, endpoint.Client(ctx))
+	if errors.Is(err, session.ErrInvalidGrant) {
+		return endpoint.Unauthorized() // the account was disabled since the first step
+	}
 	if res, failed := m.verifyFailure(ctx, "verify login", err); failed {
 		return res
 	}

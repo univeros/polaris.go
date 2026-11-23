@@ -549,6 +549,24 @@ func TestPlugin(t *testing.T) {
 		refused(t, err, ErrAccountDisabled, "disabled")
 	})
 
+	t.Run("AnAccountThatChangedSinceItWasReadOpensNoSession", func(t *testing.T) {
+		e := boot(t, Config{})
+		read := e.user("ada@example.com", true)
+		ok(t, e.g.Identity().DisableUser(e.ctx, "operator", read.ID))
+		_, err := e.v.open(e.ctx, read, facts{amr: []string{"sms"}})
+		refused(t, err, ErrAccountDisabled, "disabled since")
+
+		read = e.user("eve@example.com", false)
+		if _, first, err := e.g.Identity().ProveEmail(e.ctx, read.ID, false); err != nil || !first {
+			t.Fatal(first, err)
+		}
+		_, err = e.v.open(e.ctx, read, facts{amr: []string{"sms"}})
+		refused(t, err, ErrCodeInvalid, "proven since")
+		if list, err := e.g.Sessions().List(e.ctx, read.ID, ""); err != nil || len(list) != 0 {
+			t.Fatalf("sessions %v %v", list, err)
+		}
+	})
+
 	t.Run("testAPhoneIsAVerifiedSecondContactAndASignInIdentifierNeverASignUpOne", func(t *testing.T) {
 		e := boot(t, Config{})
 		ctx := e.ctx

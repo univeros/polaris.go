@@ -76,6 +76,9 @@ func (s *Service) Login(ctx context.Context, email, password string, client toke
 		next.PasswordHash = &rehashed
 	}
 	next.UpdatedAt = now
+	// hold is the first statement of the transaction that writes the login: the password and the
+	// account are still what was checked, or become so again (another login's rehash).
+	hold := func(ctx context.Context) error { return s.holdForLogin(ctx, user, password) }
 	result := LoginResult{UserID: user.ID, Email: user.Email, EmailVerified: user.EmailVerifiedAt != nil}
 
 	// A confirmed second factor: no session yet, the MFA step mints it. last_login_at and
@@ -85,12 +88,19 @@ func (s *Service) Login(ctx context.Context, email, password string, client toke
 		return LoginResult{}, fmt.Errorf("identity: login: %w", err)
 	}
 	if len(factors) > 0 {
-		if err := s.repos.Users.Update(ctx, user, next); err != nil {
-			return LoginResult{}, fmt.Errorf("identity: login: %w", err)
-		}
-		ticket, err := s.tickets.Issue(user.ID)
+		var ticket string
+		err := s.db.Tx(ctx, func(ctx context.Context) error {
+			if err := hold(ctx); err != nil {
+				return err
+			}
+			if err := s.repos.Users.Update(ctx, user, next); err != nil {
+				return err
+			}
+			ticket, err = s.tickets.Issue(user.ID)
+			return err
+		})
 		if err != nil {
-			return LoginResult{}, fmt.Errorf("identity: login: %w", err)
+			return LoginResult{}, wrapUnlessRefusal("login", err)
 		}
 		result.MFA = &MFAChallenge{Ticket: ticket, Factors: factors}
 		return result, nil
@@ -102,6 +112,9 @@ func (s *Service) Login(ctx context.Context, email, password string, client toke
 		UserID: user.ID, EmailVerified: user.EmailVerifiedAt != nil, AMR: []string{"pwd"}, AuthTime: &authTime,
 	}
 	err = s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := hold(ctx); err != nil {
+			return err
+		}
 		if err := s.repos.Users.Update(ctx, user, next); err != nil {
 			return err
 		}
@@ -109,13 +122,39 @@ func (s *Service) Login(ctx context.Context, email, password string, client toke
 		return err
 	})
 	if err != nil {
-		return LoginResult{}, fmt.Errorf("identity: login: %w", err)
+		return LoginResult{}, wrapUnlessRefusal("login", err)
 	}
 	s.events.Dispatch(ctx, event.UserLoggedIn{
 		UserID: user.ID, SessionID: result.Tokens.SessionID, IP: optional(client.IP),
 		UserAgent: optional(client.UserAgent), AMR: []string{"pwd"},
 	})
 	return result, nil
+}
+
+// holdForLogin locks the account for a login whose password was verified against user's hash, as
+// HoldForSignIn does, and refuses one whose password or account changed since. A hash another login
+// replaced (a rehash) is verified again.
+func (s *Service) holdForLogin(ctx context.Context, user model.User, password string) error {
+	n, err := s.db.Update(ctx, "auth_users",
+		store.Criteria{"id": user.ID, "status": store.Ne(model.UserStatusDisabled), "password_hash": *user.PasswordHash}, store.Data{"id": user.ID})
+	if err != nil || n == 1 {
+		return err
+	}
+	if _, err := s.db.Update(ctx, "auth_users", store.Criteria{"id": user.ID}, store.Data{"id": user.ID}); err != nil {
+		return err
+	}
+	current, err := s.repos.Users.Get(ctx, user.ID)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return refuse(ErrInvalidCredentials, msgInvalidCredentials)
+	case err != nil:
+		return err
+	case current.PasswordHash == nil || (*current.PasswordHash != *user.PasswordHash && !s.hasher.Verify(password, *current.PasswordHash)):
+		return refuse(ErrInvalidCredentials, msgInvalidCredentials)
+	case current.Status == model.UserStatusDisabled:
+		return refuse(ErrAccountDisabled, msgDisabled)
+	}
+	return nil
 }
 
 // recordFailure counts a failed password against an active (or lapsed-lock) account and locks it

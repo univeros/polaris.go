@@ -11238,6 +11238,16 @@
                             }
                         }
                     },
+                    "409": {
+                        "description": "sso_conflict",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
                     "422": {
                         "description": "sso_domain_unverified",
                         "content": {

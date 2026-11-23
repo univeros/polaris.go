@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -331,6 +332,298 @@ func TestUserPrincipals(t *testing.T) {
 		}
 		if got, _ := p.Resolve(ctx, "nobody", ""); got.EmailVerified || got.UserID != "nobody" {
 			t.Fatalf("%+v", got)
+		}
+	})
+}
+
+// account inserts the user whose sessions the test opens: the row issuing, rotating and revoking lock.
+func (h *harness) account(t *testing.T, status string) {
+	t.Helper()
+	must(t, h.repos.Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", Status: status, CreatedAt: h.clock.Now(), UpdatedAt: h.clock.Now()}))
+}
+
+// A rotation in flight does not survive a revocation: revoking waits for it and revokes its child.
+func TestARevocationEndsARotationInFlight(t *testing.T) {
+	for name, revoke := range map[string]func(s *Service, sessionID string) error{
+		"all": func(s *Service, _ string) error {
+			_, err := s.RevokeAll(ctx, "user-1", model.RevokedPasswordChange)
+			return err
+		},
+		"all but another": func(s *Service, _ string) error {
+			_, err := s.RevokeAllExcept(ctx, "user-1", repository.NewID(), model.RevokedPasswordChange)
+			return err
+		},
+		"the family": func(s *Service, sessionID string) error { return s.RevokeFamily(ctx, sessionID, model.RevokedLogout) },
+		"one": func(s *Service, sessionID string) error {
+			_, err := s.Revoke(ctx, "user-1", sessionID)
+			return err
+		},
+		"the organization's": func(s *Service, _ string) error {
+			return s.RevokeAllForOrganization(ctx, "user-1", principal().OrganizationID, model.RevokedAdmin)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, db store.Adapter) {
+				if d := db.Dialect(); d != store.Postgres && d != store.MySQL {
+					t.Skip("one transaction at a time")
+				}
+				h := newHarness(db, "2026-06-07 12:00:00")
+				h.account(t, model.UserStatusActive)
+				s := h.service(t)
+				issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+				must(t, err)
+				var rotated token.IssuedTokens
+				done := make(chan error, 1)
+				must(t, db.Tx(ctx, func(tx context.Context) error { // the rotation's transaction, held open
+					if rotated, err = s.Refresh(tx, issued.RefreshToken, token.ClientContext{}); err != nil {
+						return err
+					}
+					go func() { done <- revoke(s, issued.SessionID) }()
+					time.Sleep(300 * time.Millisecond) // the revocation reaches its lock
+					return nil
+				}))
+				must(t, <-done)
+				if _, err := s.Refresh(ctx, rotated.RefreshToken, token.ClientContext{}); !errors.Is(err, ErrInvalidGrant) {
+					t.Fatalf("the rotated token outlived the revocation: %v", err)
+				}
+				if list, err := s.List(ctx, "user-1", ""); err != nil || len(list) != 0 {
+					t.Fatalf("live sessions %+v %v", list, err)
+				}
+			})
+		})
+	}
+}
+
+// A rotation that loses to a revocation is an ended session, not a stolen token.
+func TestARotationThatLosesToARevocationIsNoReuse(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		if d := db.Dialect(); d != store.Postgres && d != store.MySQL {
+			t.Skip("one transaction at a time")
+		}
+		h := newHarness(db, "2026-06-07 12:00:00")
+		h.account(t, model.UserStatusActive)
+		s := h.service(t)
+		issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+		must(t, err)
+		done := make(chan error, 1)
+		must(t, db.Tx(ctx, func(tx context.Context) error {
+			if _, err := s.RevokeAll(tx, "user-1", model.RevokedLogout); err != nil {
+				return err
+			}
+			go func() {
+				_, err := s.Refresh(ctx, issued.RefreshToken, token.ClientContext{})
+				done <- err
+			}()
+			time.Sleep(300 * time.Millisecond) // the rotation read the live token and waits
+			return nil
+		}))
+		if err := <-done; !errors.Is(err, ErrInvalidGrant) || errors.Is(err, ErrRefreshReuse) {
+			t.Fatalf("refresh: %v", err)
+		}
+		if n := len(ofType[event.RefreshReuseDetected](h.events)); n != 0 {
+			t.Fatalf("%d reuse alerts", n)
+		}
+	})
+}
+
+func TestADisabledAccountOpensNoSession(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(db, "2026-06-07 12:00:00")
+		h.account(t, model.UserStatusDisabled)
+		s := h.service(t)
+		if _, err := s.Issue(ctx, principal(), token.ClientContext{}); !errors.Is(err, ErrInvalidGrant) {
+			t.Fatalf("issue: %v", err)
+		}
+		if list, err := s.List(ctx, "user-1", ""); err != nil || len(list) != 0 {
+			t.Fatalf("live sessions %+v %v", list, err)
+		}
+	})
+}
+
+// Sessions refreshing back to back neither outlive a revocation nor deadlock with it.
+func TestNoSessionRefreshingBackToBackOutlivesARevocation(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		if d := db.Dialect(); d != store.Postgres && d != store.MySQL {
+			t.Skip("one transaction at a time")
+		}
+		h := newHarness(db, "2026-06-07 12:00:00")
+		h.account(t, model.UserStatusActive)
+		s := h.service(t)
+		for range 10 {
+			var refreshing sync.WaitGroup
+			started := make(chan struct{}, 4)
+			for range 4 {
+				issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+				must(t, err)
+				refreshing.Go(func() {
+					secret := issued.RefreshToken
+					for i := 0; ; i++ {
+						next, err := s.Refresh(ctx, secret, token.ClientContext{})
+						if i == 2 {
+							started <- struct{}{}
+						}
+						if i == 2000 {
+							t.Error("a session outlived the revocation")
+							return
+						}
+						if err != nil {
+							if !errors.Is(err, ErrInvalidGrant) || errors.Is(err, ErrRefreshReuse) {
+								t.Errorf("refresh: %v", err)
+							}
+							return
+						}
+						secret = next.RefreshToken
+					}
+				})
+			}
+			for range 4 {
+				<-started
+			}
+			if _, err := s.RevokeAll(ctx, "user-1", model.RevokedPasswordChange); err != nil {
+				t.Errorf("revoke: %v", err)
+			}
+			refreshing.Wait()
+			if list, err := s.List(ctx, "user-1", ""); err != nil || len(list) != 0 {
+				t.Fatalf("live sessions %+v %v", list, err)
+			}
+		}
+	})
+}
+
+// raceDB runs before once, when the next transaction begins or the next update outside one runs.
+type raceDB struct {
+	store.Adapter
+	before func()
+}
+
+func (r *raceDB) race() {
+	if f := r.before; f != nil {
+		r.before = nil
+		f()
+	}
+}
+
+func (r *raceDB) Tx(ctx context.Context, fn func(ctx context.Context) error) error {
+	r.race()
+	return r.Adapter.Tx(ctx, fn)
+}
+
+func (r *raceDB) Update(ctx context.Context, table string, c store.Criteria, d store.Data) (int64, error) {
+	r.race()
+	return r.Adapter.Update(ctx, table, c, d)
+}
+
+// A step-up, an organization switch and a refresh without rotation write to the session as it is
+// when they write: one that ended since they read it mints nothing, one that was refreshed since
+// keeps what they changed.
+func TestAChangeToASessionIsMadeToItsLiveToken(t *testing.T) {
+	for name, change := range map[string]func(s *Service, issued token.IssuedTokens) error{
+		"step-up": func(s *Service, issued token.IssuedTokens) error {
+			_, err := s.StepUp(ctx, "user-1", "org-1", issued.SessionID)
+			return err
+		},
+		"switch": func(s *Service, issued token.IssuedTokens) error {
+			_, err := s.SwitchOrganization(ctx, "user-1", "org-2", issued.SessionID)
+			return err
+		},
+		"refresh in place": func(s *Service, issued token.IssuedTokens) error {
+			_, err := s.Refresh(ctx, issued.RefreshToken, token.ClientContext{})
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, db store.Adapter) {
+				h := newHarness(db, "2026-06-07 12:00:00")
+				h.account(t, model.UserStatusActive)
+				s := h.service(t)
+				racing := &raceDB{Adapter: db}
+				h.db = racing
+				h.auth.RefreshToken.Rotation = name != "refresh in place"
+				raced := h.service(t)
+
+				issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+				must(t, err)
+				racing.before = func() {
+					if _, err := s.RevokeAll(ctx, "user-1", model.RevokedLogout); err != nil {
+						t.Error(err)
+					}
+				}
+				if err := change(raced, issued); !errors.Is(err, ErrInvalidGrant) {
+					t.Fatalf("an ended session: %v", err)
+				}
+				if name == "refresh in place" {
+					return
+				}
+
+				issued, err = s.Issue(ctx, principal(), token.ClientContext{})
+				must(t, err)
+				var rotated token.IssuedTokens
+				racing.before = func() {
+					if rotated, err = s.Refresh(ctx, issued.RefreshToken, token.ClientContext{}); err != nil {
+						t.Error(err)
+					}
+				}
+				must(t, change(raced, issued))
+				if rotated.RefreshToken == "" {
+					t.Fatal("the race did not happen")
+				}
+				active, _ := split(h.family(t, issued.SessionID))
+				if len(active) != 1 || (name == "step-up") != active[0].MFA || (name == "switch") != (*active[0].OrganizationID == "org-2") {
+					t.Fatalf("live token %+v", active)
+				}
+			})
+		})
+	}
+}
+
+// A refresh whose token is gone by the time it looks again is refused, not failed.
+func TestARefreshOfATokenDeletedMeanwhileIsRefused(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(db, "2026-06-07 12:00:00")
+		h.account(t, model.UserStatusActive)
+		issued, err := h.service(t).Issue(ctx, principal(), token.ClientContext{})
+		must(t, err)
+		h.db = &raceDB{Adapter: db, before: func() {
+			if _, err := db.Delete(ctx, "auth_refresh_tokens", store.Criteria{"user_id": "user-1"}); err != nil {
+				t.Error(err)
+			}
+		}}
+		if _, err := h.service(t).Refresh(ctx, issued.RefreshToken, token.ClientContext{}); !errors.Is(err, ErrInvalidGrant) {
+			t.Fatalf("refresh: %v", err)
+		}
+	})
+}
+
+// A ticket issued before the password changed dies with it; the session that changed it lives.
+func TestRevokingTheOtherSessionsEndsTheTicketsIssuedBefore(t *testing.T) {
+	pub, priv := rsaKeys(t)
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(db, "2026-06-07 12:00:00")
+		h.account(t, model.UserStatusActive)
+		s := h.service(t)
+		tickets, err := NewMFATickets(token.Config{PublicKey: pub, PrivateKey: priv, KeyID: "k", Issuer: "https://auth.polaris.test", TTL: time.Minute, Clock: h.clock}, 300*time.Second)
+		must(t, err)
+		d := NewDenylist(h.cache, h.clock, h.auth.AccessToken.TTL)
+		keep, err := s.Issue(ctx, principal(), token.ClientContext{})
+		must(t, err)
+		ticket, err := tickets.Issue("user-1")
+		must(t, err)
+		h.clock.Advance(2 * time.Second)
+		if _, _, err := tickets.AuthenticateLive(ctx, ticket, d); err != nil {
+			t.Fatal(err)
+		}
+		_, err = s.RevokeAllExcept(ctx, "user-1", keep.SessionID, model.RevokedPasswordChange)
+		must(t, err)
+		if _, _, err := tickets.AuthenticateLive(ctx, ticket, d); !errors.Is(err, token.ErrInvalidToken) {
+			t.Fatalf("a ticket of the old password: %v", err)
+		}
+		if revoked, err := d.IsRevoked(ctx, "user-1", h.clock.Now()); revoked || err != nil {
+			t.Fatalf("the kept session's access token is watermarked: %v", err)
+		}
+		fresh, err := tickets.Issue("user-1")
+		must(t, err)
+		if _, _, err := tickets.AuthenticateLive(ctx, fresh, d); err != nil {
+			t.Fatalf("a new ticket: %v", err)
 		}
 	})
 }
