@@ -9,6 +9,21 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
+The 1.0 release candidate: security fixes from a second pre-1.0 review (decisions 74 to 77) and the
+v1 Go API (decision 70). Upgrade now, and **run `Migrate`**: it swaps the OAuth consent index and
+removes platform permissions that organization roles should never have held (it lists each one).
+
+- **Security** first: read the Security section if you use SSO, SCIM, OAuth, the admin plugin or
+  agents. Accounts a directory or an identity provider created on a domain the organization has not
+  verified are now unverified until their owner proves the mailbox.
+- **Breaking (Go API):** concrete services that only Polaris used moved under `internal/`, the
+  `wiring` service interfaces are sealed, and some plugin `Listeners` methods are gone. A host that
+  uses `polaris.*` and plugin constructors is unaffected; see Changed for every removed name.
+- **Client-visible:** new tokens carry an RFC 7638 `kid` (older tokens keep verifying, and the JWKS
+  still lists the old `kid`), and the entries marked client-visible below.
+
 ### Added
 
 - `token.Thumbprint(alg, publicKey)`, the RFC 7638 JWK thumbprint; `token.Config.LegacyKeyID` and
@@ -741,7 +756,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/univeros/polaris.go/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/univeros/polaris.go/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/univeros/polaris.go/compare/v0.4.1...v0.5.0
