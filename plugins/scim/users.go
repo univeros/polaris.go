@@ -331,13 +331,21 @@ func (d *directory) writeUser(ctx context.Context, conn Connection, user model.U
 }
 
 // deleteUser deprovisions as the connection says. An account the connection owns is anonymised
-// (DeprovisionDelete) or disabled (DeprovisionDeactivate, its membership removed); any other
-// account only leaves the organization: its membership is suspended (ending the organization's
+// (DeprovisionDelete, and in either mode an account nobody proved: erase) or disabled
+// (DeprovisionDeactivate, its membership removed); any other account only leaves the organization: its membership is suspended (ending the organization's
 // sessions, never its last active owner) and then removed. It returns "deleted" or "deactivated".
 func (d *directory) deleteUser(ctx context.Context, conn Connection, user model.User) (string, error) {
 	owned, err := d.owns(ctx, conn, user)
 	if err != nil {
 		return "", err
+	}
+	if owned {
+		if erased, err := d.erase(ctx, conn, user.ID); err != nil || erased {
+			return "deleted", err
+		}
+		if owned, err = d.owns(ctx, conn, user); err != nil { // the mailbox may have been proven since
+			return "", err
+		}
 	}
 	outcome := "deactivated"
 	if conn.Deprovision == DeprovisionDelete {
@@ -349,18 +357,37 @@ func (d *directory) deleteUser(ctx context.Context, conn Connection, user model.
 		}
 		return outcome, d.leave(ctx, conn, user.ID)
 	}
-	if conn.Deprovision == DeprovisionDelete {
-		if err := d.identity.AnonymizeUser(ctx, actor, user.ID); err != nil {
-			return "", err
-		}
-		return outcome, d.db.Tx(ctx, func(ctx context.Context) error {
-			return errors.Join(d.resources.forget(ctx, conn, KindUser, user.ID), d.resources.forgetMembership(ctx, conn, user.ID))
-		})
-	}
 	if err := d.leave(ctx, conn, user.ID); err != nil {
 		return "", err
 	}
 	return outcome, d.identity.DisableUser(ctx, actor, user.ID)
+}
+
+// erase removes the account from the organization (never its last active owner) and anonymises it,
+// when the connection owns it and either deletes what it deprovisions or nobody has proven the
+// account's mailbox; false when it did nothing. The account's row is written first, so a proof of
+// the mailbox running at the same time is either read here or finds the account gone.
+func (d *directory) erase(ctx context.Context, conn Connection, userID string) (bool, error) {
+	erased := false
+	err := d.db.Tx(ctx, func(ctx context.Context) error {
+		if _, err := d.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"updated_at": d.now()}); err != nil {
+			return err
+		}
+		user, err := d.repos.Users.Get(ctx, userID)
+		if err != nil {
+			return err
+		}
+		owned, err := d.owns(ctx, conn, user)
+		if err != nil || !owned || (conn.Deprovision != DeprovisionDelete && user.EmailVerifiedAt != nil) {
+			return err
+		}
+		if err := d.leave(ctx, conn, userID); err != nil {
+			return err
+		}
+		erased = true
+		return d.identity.AnonymizeUser(ctx, actor, userID)
+	})
+	return erased && err == nil, err
 }
 
 // leave removes userID's membership (and role links) and what the connection remembers of them,

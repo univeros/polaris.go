@@ -152,6 +152,21 @@ func TestVerifyIsIdempotent(t *testing.T) {
 	})
 }
 
+func TestResendSkipsADisabledAccount(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		secret := h.register(t, email)
+		must(t, h.svc.DisableUser(ctx, "operator", h.user(t, email).ID))
+		must(t, h.svc.ResendVerification(ctx, email, client))
+		if n := len(ofType[event.UserRegistered](h.events)); n != 1 {
+			t.Fatalf("registered events %d: a disabled account was sent a verification", n)
+		}
+		c, err := h.repos.EmailVerifications.ByTokenHash(ctx, h.svc.pepper.Hash(verifyPepperContext, secret))
+		if err != nil || c.ConsumedAt != nil {
+			t.Fatalf("the earlier challenge changed: %+v %v", c, err)
+		}
+	})
+}
+
 func TestResendIsAlwaysGeneric(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
 		must(t, h.svc.ResendVerification(ctx, "nobody@example.com", client))

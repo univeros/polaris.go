@@ -1,0 +1,4 @@
+go test fuzz v1
+[]byte("{\"alg\":\"EdDSA\",\"typ\":\"agent+jwt\"}")
+[]byte("{\"aud\":\"https://Auth.polAris.test/agents/execute\",\"exp\":1800000010,\"iat\":1800000000,\"jti\":\"0\",\"sub\":\"agent-1\"}0")
+string("0")

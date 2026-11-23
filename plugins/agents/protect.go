@@ -3,9 +3,10 @@ package agents
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // ReceiptHeader names the receipt of an execution on a guarded host route's response.
@@ -102,12 +103,10 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 	})
 }
 
-// bodyArguments are the JSON object of the body, nothing otherwise.
+// bodyArguments are the JSON object the whole body is, nothing otherwise.
 func bodyArguments(body []byte) map[string]any {
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.UseNumber()
 	var args map[string]any
-	if dec.Decode(&args) != nil || args == nil {
+	if strictjson.Decode(body, &args) != nil || args == nil {
 		return map[string]any{}
 	}
 	return args

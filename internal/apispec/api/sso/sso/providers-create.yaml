@@ -27,9 +27,9 @@ domain:
     oidc (config: client_id, optional client_secret, scopes, issuer; the secret is encrypted at rest and
     never returned). attributes maps email and name onto the provider's claim or attribute names; jit
     (enabled, roles) creates unknown users and their membership on first sign-in: roles are role
-    slugs of the organization (422 otherwise) carrying no permission the caller lacks (403
-    sso/forbidden); redirect_uris are
-    the application URLs a sign-in may end on. Recorded as sso.provider_created.
+    slugs of the organization (422 otherwise); redirect_uris are the application URLs a sign-in may
+    end on. The caller must hold every permission the
+    organization's roles grant (403 sso/forbidden otherwise). Recorded as sso.provider_created.
 
 output:
   status: 201

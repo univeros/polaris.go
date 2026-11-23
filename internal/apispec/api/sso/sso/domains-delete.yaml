@@ -17,7 +17,8 @@ input:
 
 domain:
   description: >
-    Sign-ins with the domain's emails stop routing to the provider. Recorded as sso.domain_deleted.
+    Sign-ins with the domain's emails stop routing to the provider. The caller must hold every permission the
+    organization's roles grant (403 sso/forbidden otherwise). Recorded as sso.domain_deleted.
 
 output:
   status: 200

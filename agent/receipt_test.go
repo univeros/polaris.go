@@ -147,6 +147,15 @@ func TestASignatureMustNameItsTypeAndAKeyOfItsAlgorithm(t *testing.T) {
 	if _, err := verifyJWS(r.Signature, RequestJWTType, []JWK{server.jwk}); err == nil {
 		t.Fatal("a receipt+jwt verified as an agent+jwt")
 	}
+	// The claims are one JSON object: what follows it would be signed and unread.
+	for payload, ok := range map[string]bool{`{"receipt_hash":"x"}`: true, `{"receipt_hash":"x"}0`: false, `{"receipt_hash":"x"}{}`: false, `null`: false} {
+		input := b64([]byte(`{"typ":"`+ReceiptType+`","alg":"RS256","kid":"server-key"}`)) + "." + b64([]byte(payload))
+		d := sha256.Sum256([]byte(input))
+		sig, _ := rsa.SignPKCS1v15(rand.Reader, server.signer.(*rsa.PrivateKey), crypto.SHA256, d[:])
+		if _, err := verifyJWS(input+"."+b64(sig), ReceiptType, []JWK{server.jwk}); (err == nil) != ok {
+			t.Fatalf("%s: %v", payload, err)
+		}
+	}
 	asEC := server.jwk
 	asEC.Kty = "EC"
 	if VerifyReceipt(r, []JWK{asEC}, nil).Checks.Signature {

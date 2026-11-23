@@ -17,7 +17,8 @@ input:
 
 domain:
   description: >
-    Sign-ins through the provider stop at once; its domains are removed with it. Recorded as
+    Sign-ins through the provider stop at once; its domains are removed with it. The caller must hold every permission the
+    organization's roles grant (403 sso/forbidden otherwise). Recorded as
     sso.provider_deleted.
 
 output:

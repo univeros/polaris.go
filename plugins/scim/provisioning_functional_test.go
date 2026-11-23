@@ -84,9 +84,9 @@ func TestScimProvisioning(t *testing.T) {
 		state := data(t, f.c.Get("/orgs/"+acme+"/scim/connections/"+connection, bearer(owner)))
 		same(state["sync"], map[string]any{"users": 0.0, "groups": 0.0, "provisioned_members": 0.0}, "sync")
 		check(t, state["last_sync_at"] != nil, "last sync")
-		names := f.auditNames(scim.AuditUserCreated, scim.AuditUserUpdated, scim.AuditUserDeactivated, scim.AuditUserReactivated,
+		names := f.auditNames(scim.AuditUserCreated, scim.AuditUserUpdated, scim.AuditUserDeactivated, scim.AuditUserReactivated, scim.AuditUserDeleted,
 			scim.AuditGroupCreated, scim.AuditGroupUpdated, scim.AuditGroupDeleted, scim.AuditRequestRejected)
-		same(names, []any{scim.AuditUserDeactivated, scim.AuditGroupDeleted, scim.AuditRequestRejected, scim.AuditRequestRejected,
+		same(names, []any{scim.AuditUserDeleted /* bob: nobody proved the mailbox */, scim.AuditGroupDeleted, scim.AuditRequestRejected, scim.AuditRequestRejected,
 			scim.AuditGroupUpdated, scim.AuditGroupUpdated, scim.AuditRequestRejected, scim.AuditGroupCreated, scim.AuditUserReactivated,
 			scim.AuditRequestRejected, scim.AuditUserDeactivated, scim.AuditRequestRejected, scim.AuditRequestRejected, scim.AuditUserCreated,
 			scim.AuditRequestRejected}, "audit")

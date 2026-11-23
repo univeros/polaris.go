@@ -4,7 +4,6 @@
 package jwtverify
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -21,6 +20,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 const (
@@ -309,11 +309,12 @@ func VerifyJWS(raw, alg string, key any, now time.Time, leeway time.Duration) (m
 	if err != nil {
 		return nil, err
 	}
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
 	var claims map[string]any
-	if err := dec.Decode(&claims); err != nil {
+	if err := strictjson.Decode(payload, &claims); err != nil {
 		return nil, err
+	}
+	if claims == nil {
+		return nil, errors.New("the claims are not a JSON object")
 	}
 	limit := now.Add(leeway).Unix()
 	if v, ok := Number(claims["nbf"]); ok && int64(v) > limit {

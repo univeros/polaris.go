@@ -120,11 +120,14 @@ func TestAKeyIsChosenByItsKidOnly(t *testing.T) {
 		}
 	}
 	h, _ := json.Marshal(header)
-	input := b64(h) + "." + b64([]byte(`[1]`))
-	sum := sha256.Sum256([]byte(input))
-	sig, _ := rsa.SignPKCS1v15(rand.Reader, k, crypto.SHA256, sum[:])
-	if _, err := verifySigned(input+"."+b64(sig), "RS256", key, now, 0); err == nil || err.Error() != "the claims are not a JSON object" {
-		t.Errorf("claims not an object: %v", err)
+	var input string
+	for _, claims := range []string{`{}0`, `{}{"sub":"b"}`, `null`, `[1]`} {
+		input = b64(h) + "." + b64([]byte(claims))
+		sum := sha256.Sum256([]byte(input))
+		sig, _ := rsa.SignPKCS1v15(rand.Reader, k, crypto.SHA256, sum[:])
+		if _, err := verifySigned(input+"."+b64(sig), "RS256", key, now, 0); err == nil || err.Error() != "the claims are not a JSON object" {
+			t.Errorf("claims %s: %v", claims, err)
+		}
 	}
 	if _, err := verifySigned(input+"."+b64([]byte("forged")), "RS256", key, now, 0); err == nil || err.Error() != "the signature does not verify" {
 		t.Errorf("a forged signature: %v", err)

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/univeros/polaris.go/internal/strictjson"
 	"github.com/univeros/polaris.go/wiring"
 )
 
@@ -134,10 +135,8 @@ func (p *Plugin) stateless(ctx context.Context, body []byte, h http.Header, c ca
 
 // parseMessage decodes a JSON-RPC message; id is nil when absent or not a string or integer.
 func parseMessage(body []byte) (msg map[string]any, id any, method string, err *rpcError) {
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.UseNumber()
 	var v any
-	if e := dec.Decode(&v); e != nil || dec.More() {
+	if e := strictjson.Decode(body, &v); e != nil {
 		return nil, nil, "", newError(codeParse, http.StatusBadRequest, "Invalid JSON: %v", e)
 	}
 	msg, ok := v.(map[string]any)

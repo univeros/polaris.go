@@ -176,36 +176,26 @@ func TestASignInCompletesOnlyInTheBrowserThatStartedIt(t *testing.T) {
 	}
 }
 
-// The roles a provider gives the members it provisions are within the authority of whoever
-// configures them: an administrator cannot make their identity provider mint owners.
-func TestAProvidersRolesStayWithinItsConfigurersAuthority(t *testing.T) {
+// The roles a provider gives the members it provisions are the organization's own: whoever may
+// configure a provider may grant any of them (TestOnlyWhoCouldGrantEveryRoleConfiguresSingleSignOn).
+func TestAProvidersRolesAreTheOrganizations(t *testing.T) {
 	u := newUnit(t)
 	acme, owner := u.tenant("owner@acme.example", "Acme")
-	adminID, adminAccess := u.account("admin@acme.example")
-	u.joinAs(adminID, acme, "admin")
-	asAdmin := u.switchTo(adminAccess, acme)
-
 	provider := func(roles ...any) map[string]any {
 		return map[string]any{"type": "oidc", "name": "IdP", "issuer": "https://idp.acme.example", "config": map[string]any{"client_id": "c1"},
 			"jit": map[string]any{"enabled": true, "roles": roles}, "redirect_uris": []any{"https://app.example/done"}}
 	}
 	path := "/orgs/" + acme + "/sso/providers"
-	if code, body := u.call(http.MethodPost, path, asAdmin, provider("owner")); code != 403 {
-		t.Fatalf("an administrator configures a provider that mints owners: %d %v", code, body)
-	}
-	code, created := u.call(http.MethodPost, path, asAdmin, provider("member"))
-	id, _ := created["id"].(string)
-	if code != 201 || id == "" {
-		t.Fatalf("roles the administrator holds: %d %v", code, created)
-	}
-	if code, body := u.call(http.MethodPatch, path+"/"+id, asAdmin, map[string]any{"jit": map[string]any{"enabled": true, "roles": []any{"owner"}}}); code != 403 {
-		t.Fatalf("an administrator updates the provider to mint owners: %d %v", code, body)
-	}
-	if code, body := u.call(http.MethodPatch, path+"/"+id, asAdmin, map[string]any{"jit": map[string]any{"enabled": true, "roles": []any{"no-such-role"}}}); code != 422 {
+	if code, body := u.call(http.MethodPost, path, owner, provider("no-such-role")); code != 422 {
 		t.Fatalf("a role the organization does not have: %d %v", code, body)
 	}
-	if code, body := u.call(http.MethodPatch, path+"/"+id, asAdmin, map[string]any{"name": "Renamed"}); code != 200 {
-		t.Fatalf("a change that leaves the roles alone: %d %v", code, body)
+	code, created := u.call(http.MethodPost, path, owner, provider("member"))
+	id, _ := created["id"].(string)
+	if code != 201 || id == "" {
+		t.Fatalf("a role of the organization: %d %v", code, created)
+	}
+	if code, body := u.call(http.MethodPatch, path+"/"+id, owner, map[string]any{"jit": map[string]any{"enabled": true, "roles": []any{"no-such-role"}}}); code != 422 {
+		t.Fatalf("an update naming a role the organization does not have: %d %v", code, body)
 	}
 	if code, body := u.call(http.MethodPatch, path+"/"+id, owner, map[string]any{"jit": map[string]any{"enabled": true, "roles": []any{"owner"}}}); code != 200 {
 		t.Fatalf("the owner hands out what the owner holds: %d %v", code, body)

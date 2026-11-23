@@ -200,3 +200,19 @@ func TestAFailedJWKSFetchIsRememberedBriefly(t *testing.T) {
 		t.Fatalf("after the backoff the set is fetched again: %v %v (%d fetches)", set, err, fetches)
 	}
 }
+
+// The payload is one JSON object and nothing else: what follows it would be signed and unread.
+func TestClaimsAreOneJSONObject(t *testing.T) {
+	key := contracttest.TestRSAKey()
+	for _, payload := range []string{`{"sub":"ada"}0`, `{"sub":"ada"}{"sub":"bob"}`, `{"sub":"ada"}]`, `null`, `[]`, ``} {
+		input := b64([]byte(`{"alg":"RS256"}`)) + "." + b64([]byte(payload))
+		sum := sha256.Sum256([]byte(input))
+		sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, sum[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c, err := VerifyJWS(input+"."+b64(sig), "RS256", &key.PublicKey, now, 0); err == nil {
+			t.Errorf("%s: accepted as %v", payload, c)
+		}
+	}
+}

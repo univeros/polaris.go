@@ -25,6 +25,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // outbound is what the providers share: the HTTP client (no redirects), the cache for discovery
@@ -352,10 +353,8 @@ func verifyJWT(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]an
 	if err != nil {
 		return nil, errors.New("the signature does not verify")
 	}
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
 	var claims map[string]any
-	if err := dec.Decode(&claims); err != nil || claims == nil {
+	if strictjson.Decode(payload, &claims) != nil || claims == nil {
 		return nil, errors.New("the claims are not a JSON object")
 	}
 	for _, c := range []string{"nbf", "iat", "exp"} {

@@ -24,6 +24,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 const (
@@ -322,10 +323,8 @@ func verifyIDToken(raw string, keys []jose.JSONWebKey, now time.Time) (map[strin
 	if err != nil {
 		return nil, errors.New("the signature does not verify")
 	}
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
 	var claims map[string]any
-	if err := dec.Decode(&claims); err != nil || claims == nil {
+	if strictjson.Decode(payload, &claims) != nil || claims == nil {
 		return nil, errors.New("the claims are not a JSON object")
 	}
 	ts := float64(now.Unix())
