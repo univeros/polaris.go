@@ -58,7 +58,7 @@ Register `BaseURL + "/social/<provider>/callback"` at each provider.
 | POST | `/social/{provider}/start` | authorization `url` + `state` (`redirect_uri`, `scopes` optional) |
 | GET | `/social/{provider}/callback` | provider callback; 302 to `redirect_uri?code=&state=` |
 | POST | `/social/{provider}/callback` | same, `response_mode=form_post` (Apple) |
-| POST | `/social/exchange` | trade the one-minute `code` for the login envelope (or `{status: linked, account}` after a link) |
+| POST | `/social/exchange` | trade the one-minute `code` for the login envelope (or `{status: linked, account}` after a link). The code is not bound to a browser: before exchanging it, check that this browser started a sign-in (a short-lived cookie your page set), or someone can send the redirect with their own code to another person |
 | POST | `/social/google/one-tap` | sign in with a One Tap `credential` (needs `google` configured) |
 | GET | `/social/accounts` | bearer: your linked provider accounts |
 | POST | `/social/{provider}/link` | bearer, step-up gated: start linking a provider to your account |
