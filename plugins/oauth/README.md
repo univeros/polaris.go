@@ -123,6 +123,11 @@ tokens for the user. `Migrate` replaces the table's unique index (`polaris_oauth
 by `polaris_oauth_consent_org_unique`); a consent recorded before counts for the organization it
 names.
 
+A grant outlives the session it was given in: logging out, logging out everywhere and a password reset
+or change do not end it. Taking the consent back does (or `POST /oauth2/revoke` by the client, or
+erasing the account). While an account is disabled its grants issue nothing and its tokens introspect
+as inactive; enabling it restores them. A lockout (failed passwords) changes nothing.
+
 ## Token exchange and introspection
 
 `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` takes as `subject_token` (and
