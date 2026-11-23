@@ -188,8 +188,8 @@ func (s *Service) VerifyEmail(ctx context.Context, secret string) error {
 }
 
 // ResendVerification reissues a verification challenge for a known, unverified user, superseding
-// the outstanding ones, and dispatches event.UserRegistered with the new token. For anyone else it
-// does nothing: the caller answers the same generic 202 either way.
+// the outstanding ones, and dispatches event.UserRegistered with the new token. For anyone else,
+// and for a disabled account, it does nothing: the caller answers the same generic 202 either way.
 func (s *Service) ResendVerification(ctx context.Context, email string, client token.ClientContext) error {
 	user, err := s.repos.Users.ByEmail(ctx, NormalizeEmail(email))
 	if errors.Is(err, repository.ErrNotFound) {
@@ -198,7 +198,7 @@ func (s *Service) ResendVerification(ctx context.Context, email string, client t
 	if err != nil {
 		return fmt.Errorf("identity: resend verification: %w", err)
 	}
-	if user.EmailVerifiedAt != nil {
+	if user.EmailVerifiedAt != nil || user.Status == model.UserStatusDisabled {
 		return nil
 	}
 	now := s.now()

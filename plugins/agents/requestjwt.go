@@ -1,12 +1,10 @@
 package agents
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // RequestJWTType is the typ header of an agent's signed request JWT.
@@ -58,10 +57,8 @@ func decodeJSONSegment(seg string) map[string]any {
 	if err != nil {
 		return nil
 	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
 	var out map[string]any
-	if dec.Decode(&out) != nil {
+	if strictjson.Decode(data, &out) != nil {
 		return nil
 	}
 	return out

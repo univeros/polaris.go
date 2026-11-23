@@ -38,3 +38,14 @@ func TestProtectedRoutesBoundTheBody(t *testing.T) {
 		t.Errorf("a negative limit is a configuration error: %v", err)
 	}
 }
+
+// The arguments a grant's constraints are checked on are the whole body: a body holding more than
+// one JSON value has none, so a constrained argument is missing and refused, rather than checked on
+// the first value while the handler reads another.
+func TestBodyArgumentsAreTheWholeBody(t *testing.T) {
+	for body, want := range map[string]int{`{"amount":1}`: 1, " {\"amount\":1}\n": 1, `{"amount":1}{"amount":1000}`: 0, `{"amount":1}0`: 0, `null`: 0, `[]`: 0, ``: 0} {
+		if got := bodyArguments([]byte(body)); got == nil || len(got) != want {
+			t.Errorf("%q: %v", body, got)
+		}
+	}
+}

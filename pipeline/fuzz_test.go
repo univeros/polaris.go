@@ -2,13 +2,14 @@ package pipeline
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // FuzzCookieCSRF drives cookie mode's CSRF guard and refresh-cookie injection with hostile
@@ -56,8 +57,9 @@ func FuzzCookieCSRF(f *testing.F) {
 			}
 			return
 		}
+		// json.Number as the pipeline reads it: a valid number may exceed a float64.
 		var m map[string]any
-		if json.Unmarshal(raw, &m) != nil || m["refresh_token"] != c.Value {
+		if strictjson.Decode(raw, &m) != nil || m["refresh_token"] != c.Value {
 			t.Fatalf("json body %s", raw)
 		}
 	})

@@ -96,7 +96,7 @@ func TestThumbprintMatchesRFC7638AndTheHeaderIsReadWithoutVerifying(t *testing.T
 	wantCode(t, err, CodeInvalidDPoPProof, "unsupported kty")
 	_, err = Thumbprint(map[string]any{"kty": "EC", "crv": "P-256"})
 	wantCode(t, err, CodeInvalidDPoPProof, "missing member")
-	if JWTHeader("not.a") != nil || JWTHeader("a.b.c") != nil {
+	if JWTHeader("not.a") != nil || JWTHeader("a.b.c") != nil || JWTHeader(b64([]byte(`{"typ":"at+jwt"}0`))+".b.c") != nil {
 		t.Error("not a JWT")
 	}
 

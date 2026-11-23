@@ -18,7 +18,8 @@ input:
 domain:
   description: >
     Looks for the token in the DNS TXT record _polaris.<domain>, then in
-    https://<domain>/.well-known/polaris-sso.txt; a verified domain stays verified. Recorded as
+    https://<domain>/.well-known/polaris-sso.txt; a verified domain stays verified. The caller must hold every permission the
+    organization's roles grant (403 sso/forbidden otherwise). Recorded as
     sso.domain_verified.
 
 output:

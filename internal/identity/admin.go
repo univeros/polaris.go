@@ -146,7 +146,8 @@ func (s *Service) EraseUser(ctx context.Context, actorUserID, actorOrganizationI
 
 // AnonymizeUser erases an account for a caller that already established its authority (an
 // operator tool): the row stays as a tombstone so audit and foreign references hold, with the
-// email replaced by its keyed hash at @deleted.invalid, profile and credentials nulled and status
+// email replaced by its keyed hash at @deleted.invalid (followed by the user's id when an earlier
+// account of the same address was erased), profile and credentials nulled and status
 // disabled. The rows carrying plaintext personal data (MFA factors, OTP challenges, email
 // verifications, password resets) are deleted, every session is revoked (reason admin) and
 // event.UserDeleted is dispatched (the right to erasure).
@@ -156,7 +157,13 @@ func (s *Service) AnonymizeUser(ctx context.Context, actorUserID, userID string)
 		return err
 	}
 	next := user
-	next.Email = s.pepper.Hash(erasurePepperContext, user.Email) + tombstoneEmailSuffix
+	digest := s.pepper.Hash(erasurePepperContext, user.Email)
+	next.Email = digest + tombstoneEmailSuffix
+	if _, err := s.repos.Users.ByEmail(ctx, next.Email); err == nil {
+		next.Email = digest + "." + user.ID + tombstoneEmailSuffix // an earlier account of the address was erased
+	} else if !errors.Is(err, repository.ErrNotFound) {
+		return fmt.Errorf("identity: anonymize user: %w", err)
+	}
 	next.DisplayName, next.PasswordHash, next.EmailVerifiedAt = nil, nil, nil
 	next.Status, next.MFAEnforced, next.UpdatedAt = model.UserStatusDisabled, false, s.now()
 	err = s.db.Tx(ctx, func(ctx context.Context) error {

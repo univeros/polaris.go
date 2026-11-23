@@ -398,6 +398,8 @@ func TestIDTokenTimeErrorsAreGoNative(t *testing.T) {
 		fmt.Sprintf(`{"exp":%d}`, now.Unix()-600): "the token has expired",
 		`{"sub":"u"}`: "the token has no expiry (exp)", // OpenID Connect Core §2: exp is required
 		`[1]`:         "the claims are not a JSON object",
+		fmt.Sprintf(`{"exp":%d}0`, now.Unix()+600):           "the claims are not a JSON object",
+		fmt.Sprintf(`{"exp":%d}{"sub":"b"}`, now.Unix()+600): "the claims are not a JSON object",
 	} {
 		s, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "k"))
 		jws, _ := s.Sign([]byte(claims))

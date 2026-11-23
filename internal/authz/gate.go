@@ -99,6 +99,20 @@ func (g *EscalationGuard) CheckRoles(ctx context.Context, actor Authority, roleI
 	return nil
 }
 
+// CheckEveryRole is CheckRoles over every role of the organization: what connecting a SCIM directory
+// or configuring single sign-on takes.
+func (g *EscalationGuard) CheckEveryRole(ctx context.Context, actor Authority, organizationID string) error {
+	roles, err := g.r.Roles.ListByOrganization(ctx, organizationID)
+	if err != nil {
+		return fmt.Errorf("authz: escalation check: %w", err)
+	}
+	ids := make([]string, len(roles))
+	for i, role := range roles {
+		ids[i] = role.ID
+	}
+	return g.CheckRoles(ctx, actor, ids)
+}
+
 // CheckPermissions returns a *ForbiddenError (MsgEscalation) when any of permissionKeys is outside
 // actor's own authority: putting it into a role (creating or editing one) would be
 // self-escalation.

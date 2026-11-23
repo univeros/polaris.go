@@ -15,7 +15,7 @@ input:
 
 domain:
   description: >
-    Deprovisions the member as the connection says: deactivated (the account banned, every session ended, a membership the connection created removed) or, with deprovision delete, anonymised. 204. Recorded as scim.user_deactivated or scim.user_deleted.
+    Deprovisions the member as the connection says: deactivated (the account banned, every session ended, a membership the connection created removed) or, with deprovision delete, anonymised. An account the connection owns whose mailbox nobody has proven is anonymised in either mode. An organization keeps its last active owner (409). 204. Recorded as scim.user_deactivated or scim.user_deleted.
 
 output:
   status: 204

@@ -894,6 +894,8 @@ func TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies(t *testing.T) {
 		"issued in the future":         {sign(jose.RS256, rsaKey, "rsa", fmt.Sprintf(`{"iat":%d}`, now.Unix()+600)), "the token was issued in the future (iat)"},
 		"expired":                      {sign(jose.RS256, rsaKey, "rsa", fmt.Sprintf(`{"exp":%d}`, now.Unix()-600)), "the token has expired"},
 		"claims not an object":         {sign(jose.RS256, rsaKey, "rsa", `[1]`), "the claims are not a JSON object"},
+		"data after the claims":        {sign(jose.RS256, rsaKey, "rsa", valid+`0`), "the claims are not a JSON object"},
+		"two objects":                  {sign(jose.RS256, rsaKey, "rsa", valid+`{"sub":"b"}`), "the claims are not a JSON object"},
 	} {
 		_, err := verifyJWT(c.token, keys, now)
 		if (c.err == "" && err != nil) || (c.err != "" && (err == nil || err.Error() != c.err)) {

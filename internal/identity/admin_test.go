@@ -271,3 +271,25 @@ func TestAdminCanDeleteAUser(t *testing.T) {
 		}
 	})
 }
+
+// An address erased once can be registered and erased again: the tombstones of the same address do
+// not collide.
+func TestAnAddressCanBeErasedAgain(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		seen := map[string]bool{}
+		for range 3 {
+			h.registerAndVerify(t, email)
+			u := h.user(t, email)
+			must(t, h.svc.AnonymizeUser(ctx, "operator", u.ID))
+			after, err := h.repos.Users.Get(ctx, u.ID)
+			must(t, err)
+			if !strings.HasSuffix(after.Email, "@deleted.invalid") || strings.Contains(after.Email, "ada") || seen[after.Email] {
+				t.Fatalf("tombstone %q", after.Email)
+			}
+			seen[after.Email] = true
+		}
+		if !seen[h.pepper.Hash("user_erasure", email)+"@deleted.invalid"] {
+			t.Fatal("the first erasure keeps the stored format")
+		}
+	})
+}

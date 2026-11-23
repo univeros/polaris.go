@@ -16,11 +16,13 @@ import (
 	"github.com/univeros/polaris.go/authz"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/identity"
+	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
+	"github.com/univeros/polaris.go/wiring"
 )
 
 // AMR is the authentication method of an SSO session.
@@ -346,39 +348,54 @@ func (p *Plugin) takeState(ctx context.Context, prov Provider, key, binding stri
 func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirectURI string, client token.ClientContext) (string, error) {
 	u, provisioned, joined, err := p.provision(ctx, prov, id)
 	if err != nil {
-		if e, ok := errors.AsType[*Error](err); ok {
-			p.record(ctx, Event{Name: AuditAssertionRejected, ActorType: audit.ActorSystem, OrganizationID: prov.OrganizationID,
-				Data: map[string]any{"provider_id": prov.ID, "reason": e.Detail}}, client)
-		}
-		return "", err
+		return "", p.recorded(ctx, prov, err, client)
 	}
 	if joined {
 		p.g.Events().Dispatch(ctx, event.MemberJoined{OrganizationID: prov.OrganizationID, UserID: u.ID, Email: u.Email})
 	}
-	principal, err := p.g.Principals().Resolve(ctx, u.ID, prov.OrganizationID)
-	if err != nil {
-		return "", err
-	}
-	if slices.Contains(principal.Roles, authz.RoleSuperadmin) {
-		// The platform override is not an organization's to hand out: an operator signs in to
-		// the account itself.
-		return "", p.rejectAs(ctx, prov, ReasonUserUnknown, "a platform superadmin does not sign in through an organization's identity provider", client)
-	}
 	now := p.g.Clock().Now().UTC().Truncate(time.Second)
 	authTime := now.Unix()
-	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = u.EmailVerifiedAt != nil, false, []string{AMR}, &authTime
-	next := u
-	next.LastLoginAt, next.UpdatedAt = &now, now
 	var issued token.IssuedTokens
 	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
-		if err := p.g.Repos().Users.Update(ctx, u, next); err != nil {
+		// The row is written first, so this and whatever ends the organization's hold on the account
+		// (its mailbox's first proof, an operator disabling it) queue on it: one that committed since
+		// provision is read here, and one that follows revokes the session issued here.
+		if _, err := p.g.DB().Update(ctx, "auth_users", store.Criteria{"id": u.ID}, store.Data{"last_login_at": now, "updated_at": now}); err != nil {
 			return err
 		}
+		if u, err = p.g.Repos().Users.Get(ctx, u.ID); err != nil {
+			return err
+		}
+		if u.Status == model.UserStatusDisabled {
+			return refuse(ReasonAccountDisabled, "the account is disabled")
+		}
+		if err := p.mayLink(ctx, prov, u); err != nil {
+			return err
+		}
+		m, err := p.g.Repos().Memberships.ByUserAndOrganization(ctx, u.ID, prov.OrganizationID)
+		switch {
+		case errors.Is(err, repository.ErrNotFound):
+			return refuse(ReasonUserUnknown, "the membership ended")
+		case err != nil:
+			return err
+		case m.Status == model.MembershipStatusSuspended:
+			return refuse(ReasonMembershipSuspended, "the membership is suspended")
+		}
+		principal, err := p.g.Principals().Resolve(ctx, u.ID, prov.OrganizationID)
+		if err != nil {
+			return err
+		}
+		if slices.Contains(principal.Roles, authz.RoleSuperadmin) {
+			// The platform override is not an organization's to hand out: an operator signs in to
+			// the account itself.
+			return refuse(ReasonUserUnknown, "a platform superadmin does not sign in through an organization's identity provider")
+		}
+		principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = u.EmailVerifiedAt != nil, false, []string{AMR}, &authTime
 		issued, err = p.g.Sessions().Issue(ctx, principal, client)
 		return err
 	})
 	if err != nil {
-		return "", err
+		return "", p.recorded(ctx, prov, err, client)
 	}
 	p.g.Events().Dispatch(ctx, event.UserLoggedIn{UserID: u.ID, SessionID: issued.SessionID, IP: optional(client.IP), UserAgent: optional(client.UserAgent), AMR: []string{AMR}})
 	p.record(ctx, Event{Name: AuditSignedIn, ActorType: audit.ActorUser, ActorID: u.ID, SubjectID: u.ID, OrganizationID: prov.OrganizationID,
@@ -441,6 +458,8 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			return err
 		case !prov.JIT.Enabled:
 			return refuse(ReasonUserUnknown, "no account for "+email+" and the provider does not provision")
+		case !manifest.IsEmail(email):
+			return refuse(ReasonAssertionInvalid, "the assertion's email is not an email address")
 		default:
 			now := p.g.Clock().Now().UTC().Truncate(time.Second)
 			u = model.User{ID: repository.NewID(), Email: email, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
@@ -507,6 +526,19 @@ func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
 	return err
 }
 
+// Listeners ends the organizations' hold (EraseAccess) on any account that becomes verified: a
+// confirmed registration, the one first proof that removes nothing else (Identity.ProveEmail), runs
+// no AccessEraser.
+func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
+	return []event.Listener{func(ctx context.Context, e event.Event) {
+		if v, ok := e.(event.UserEmailVerified); ok {
+			if err := p.EraseAccess(ctx, v.UserID); err != nil {
+				p.g.Logger().ErrorContext(ctx, "polaris sso: ending the organizations' hold on a verified account failed", "user_id", v.UserID, "error", err)
+			}
+		}
+	}}
+}
+
 // MarkProvisioned records that the organization's identity provider provisioned the account, so
 // its providers keep signing it in. The just-in-time path records it itself; a host calls it for
 // the accounts a provider created before v0.5.1, when the organization cannot verify their
@@ -561,6 +593,14 @@ func (p *Plugin) join(ctx context.Context, prov Provider, userID string) (bool, 
 		}
 	}
 	return true, nil
+}
+
+// recorded records err when it refuses the sign-in, and returns it.
+func (p *Plugin) recorded(ctx context.Context, prov Provider, err error, client token.ClientContext) error {
+	if e, ok := errors.AsType[*Error](err); ok {
+		return p.rejectAs(ctx, prov, e.Reason, e.Detail, client)
+	}
+	return err
 }
 
 // reject records a refused assertion with its reason; the caller reads a generic problem.

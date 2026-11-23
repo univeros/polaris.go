@@ -218,17 +218,8 @@ func (p *Plugin) createConnection(ctx context.Context, in *endpoint.Input, tok *
 // directory's token puts members into any of those roles, the owners' included, so the token goes
 // only to someone that is no escalation for: in practice an owner.
 func (p *Plugin) mayGrantEveryRole(ctx context.Context, orgID string) *endpoint.Result {
-	roles, err := p.g.Repos().Roles.ListByOrganization(ctx, orgID)
-	if err != nil {
-		r := p.failed(ctx, err)
-		return &r
-	}
-	ids := make([]string, len(roles))
-	for i, role := range roles {
-		ids[i] = role.ID
-	}
 	authority, _ := wiring.Authority(ctx) // none resolved holds nothing
-	err = services.Of(p.g).Escalation.CheckRoles(ctx, authority, ids)
+	err := services.Of(p.g).Escalation.CheckEveryRole(ctx, authority, orgID)
 	if errors.Is(err, authz.ErrForbidden) {
 		r := orgProblem(http.StatusForbidden, "forbidden", "Forbidden", "Connecting a directory takes every permission the organization's roles grant: a directory assigns those roles.")
 		return &r

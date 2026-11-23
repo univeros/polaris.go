@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/apispec"
 	"github.com/univeros/polaris.go/internal/maintenance"
 	"github.com/univeros/polaris.go/model"
@@ -141,6 +142,19 @@ func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
 		}
 	}
 	return nil
+}
+
+// Listeners ends the directories' hold (EraseAccess) on any account that becomes verified: a
+// confirmed registration, the one first proof that removes nothing else (Identity.ProveEmail), runs
+// no AccessEraser.
+func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
+	return []event.Listener{func(ctx context.Context, e event.Event) {
+		if v, ok := e.(event.UserEmailVerified); ok {
+			if err := p.EraseAccess(ctx, v.UserID); err != nil {
+				p.g.Logger().ErrorContext(ctx, "polaris scim: ending the directories' hold on a verified account failed", "user_id", v.UserID, "error", err)
+			}
+		}
+	}}
 }
 
 // Of returns the scim plugin registered on g, nil when absent.

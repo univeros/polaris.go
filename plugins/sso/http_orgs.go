@@ -25,7 +25,8 @@ var hostname = regexp.MustCompile(`^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-
 type orgHandler func(ctx context.Context, in *endpoint.Input, tok *token.Token, orgID string) endpoint.Result
 
 // orgRoute is an /orgs/{id}/sso route: core checked the bearer and org.update; the path's
-// organization must be the token's active one (a superadmin excepted).
+// organization must be the token's active one (a superadmin excepted). A route that writes is an
+// ownerRoute.
 func (p *Plugin) orgRoute(f orgHandler) endpoint.Endpoint {
 	return endpoint.Func(func(ctx context.Context, in *endpoint.Input) endpoint.Result {
 		tok := endpoint.Token(ctx)
@@ -35,6 +36,24 @@ func (p *Plugin) orgRoute(f orgHandler) endpoint.Endpoint {
 		orgID := in.String("id")
 		if outside, _ := ctx.Value(outsideKey{}).(bool); outside || orgID == "" || deniesActiveOrg(ctx, tok.Organization(), tok.Claim("roles"), orgID) {
 			return ssoProblem(http.StatusForbidden, "forbidden", "Forbidden", "That organization is not your active organization.")
+		}
+		return f(ctx, in, tok, orgID)
+	})
+}
+
+// ownerRoute is an orgRoute that changes the organization's providers or domains: it refuses, before
+// anything is read, a caller who could not grant every role of the organization by hand (the
+// escalation guard role changes go through; a superadmin is exempt), as connecting a SCIM directory
+// does: in practice it is an owner's.
+func (p *Plugin) ownerRoute(f orgHandler) endpoint.Endpoint {
+	return p.orgRoute(func(ctx context.Context, in *endpoint.Input, tok *token.Token, orgID string) endpoint.Result {
+		authority, _ := wiring.Authority(ctx) // none resolved holds nothing
+		err := services.Of(p.g).Escalation.CheckEveryRole(ctx, authority, orgID)
+		if errors.Is(err, authz.ErrForbidden) {
+			return ssoProblem(http.StatusForbidden, "forbidden", "Forbidden", "Configuring single sign-on takes every permission the organization's roles grant.")
+		}
+		if err != nil {
+			return p.answer(ctx, err)
 		}
 		return f(ctx, in, tok, orgID)
 	})
@@ -96,7 +115,7 @@ func (p *Plugin) createProvider(ctx context.Context, in *endpoint.Input, tok *to
 	if len(errs) > 0 {
 		return invalidInput(errs[0], errs...)
 	}
-	if refused := p.mayGrant(ctx, orgID, fields.JIT.Roles); refused != nil {
+	if refused := p.knownRoles(ctx, orgID, fields.JIT.Roles); refused != nil {
 		return *refused
 	}
 	fields.OrganizationID, fields.CreatedBy = orgID, tok.Subject()
@@ -108,14 +127,11 @@ func (p *Plugin) createProvider(ctx context.Context, in *endpoint.Input, tok *to
 	return endpoint.Data(http.StatusCreated, prov.Map())
 }
 
-// mayGrant refuses jit.roles the caller could not grant by hand: each must be a role of the
-// organization, and none may carry a permission the caller does not hold (the escalation guard
-// role changes and invitations go through; a superadmin is exempt). Otherwise whoever holds
-// org.update could have their own identity provider provision them as an owner.
-func (p *Plugin) mayGrant(ctx context.Context, orgID string, slugs []string) *endpoint.Result {
-	ids := make([]string, 0, len(slugs))
+// knownRoles refuses jit.roles the organization does not have. Whether the caller may grant them is
+// ownerRoute's check.
+func (p *Plugin) knownRoles(ctx context.Context, orgID string, slugs []string) *endpoint.Result {
 	for _, slug := range slugs {
-		role, err := p.g.Repos().Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
+		_, err := p.g.Repos().Roles.ByOrganizationAndSlug(ctx, &orgID, slug)
 		if errors.Is(err, repository.ErrNotFound) {
 			r := invalidInput("jit.roles names a role the organization does not have: " + slug + ".")
 			return &r
@@ -124,17 +140,6 @@ func (p *Plugin) mayGrant(ctx context.Context, orgID string, slugs []string) *en
 			r := p.answer(ctx, err)
 			return &r
 		}
-		ids = append(ids, role.ID)
-	}
-	authority, _ := wiring.Authority(ctx) // none resolved holds nothing: every role with a permission is refused
-	err := services.Of(p.g).Escalation.CheckRoles(ctx, authority, ids)
-	if errors.Is(err, authz.ErrForbidden) {
-		r := ssoProblem(http.StatusForbidden, "forbidden", "Forbidden", authz.MsgEscalation)
-		return &r
-	}
-	if err != nil {
-		r := p.answer(ctx, err)
-		return &r
 	}
 	return nil
 }
@@ -162,8 +167,8 @@ func (p *Plugin) updateProvider(ctx context.Context, in *endpoint.Input, tok *to
 	if len(errs) > 0 {
 		return invalidInput(errs[0], errs...)
 	}
-	if _, given := in.All()["jit"]; given { // a change that leaves jit alone needs no authority over its roles
-		if refused := p.mayGrant(ctx, orgID, fields.JIT.Roles); refused != nil {
+	if _, given := in.All()["jit"]; given { // a change that leaves jit alone is not checked: a role may have been deleted since
+		if refused := p.knownRoles(ctx, orgID, fields.JIT.Roles); refused != nil {
 			return *refused
 		}
 	}

@@ -55,6 +55,7 @@ func TestTheStatelessProfileAnswersItsErrors(t *testing.T) {
 		code   int
 	}{
 		{"not JSON", []byte("{"), nil, 400, codeParse},
+		{"more than JSON", []byte(`{"jsonrpc":"2.0","id":1,"method":"ping"}}`), nil, 400, codeParse},
 		{"not an object", []byte("[1]"), nil, 400, codeInvalidRequest},
 		{"no method", []byte(`{"jsonrpc":"2.0","id":1}`), nil, 400, codeInvalidRequest},
 		{"a float id", []byte(`{"jsonrpc":"2.0","id":1.5,"method":"tools/list"}`), nil, 400, codeInvalidRequest},

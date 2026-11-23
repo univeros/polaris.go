@@ -16,6 +16,8 @@ import (
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // The request JWT's protocol values.
@@ -165,7 +167,7 @@ func verifyJWS(token, typ string, keys []JWK) (map[string]any, error) {
 			return nil, errBadJWS
 		}
 		var claims map[string]any
-		if decodeSegment(parts[1], &claims) != nil {
+		if decodeSegment(parts[1], &claims) != nil || claims == nil {
 			return nil, errBadJWS
 		}
 		return claims, nil
@@ -207,7 +209,5 @@ func decodeSegment(seg string, out any) error {
 	if err != nil {
 		return err
 	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	return dec.Decode(out)
+	return strictjson.Decode(data, out)
 }

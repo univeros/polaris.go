@@ -126,6 +126,37 @@ func TestRevokeAllExceptKeepsOneAndDoesNotWatermark(t *testing.T) {
 	})
 }
 
+// A session issued while the revoking transaction runs is revoked too: RevokeAll writes by user, not
+// by the sessions it read. (MySQL's repeatable read shows the transaction the sessions as they were
+// when it began; memstore and SQLite run one transaction at a time.)
+func TestRevokeAllRevokesTheSessionsIssuedSinceItsTransactionBegan(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		if d := db.Dialect(); d != store.Postgres && d != store.MySQL {
+			t.Skip("one transaction at a time")
+		}
+		h := newHarness(db, "2026-06-07 12:00:00")
+		s := h.service(t)
+		var late token.IssuedTokens
+		must(t, db.Tx(ctx, func(tx context.Context) error {
+			if _, err := s.List(tx, "user-1", ""); err != nil { // the transaction's first read
+				return err
+			}
+			var err error
+			if late, err = s.Issue(ctx, principal(), token.ClientContext{}); err != nil { // another connection
+				return err
+			}
+			_, err = s.RevokeAll(tx, "user-1", model.RevokedAdmin)
+			return err
+		}))
+		if list, err := s.List(ctx, "user-1", ""); err != nil || len(list) != 0 {
+			t.Fatalf("live sessions %+v %v", list, err)
+		}
+		if _, err := s.Refresh(ctx, late.RefreshToken, token.ClientContext{}); err == nil {
+			t.Fatal("a session issued before the revocation committed refreshes")
+		}
+	})
+}
+
 func TestRevokeAllForOrganizationFollowsTheLiveContext(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		h := newHarness(db, "2026-06-07 12:00:00")

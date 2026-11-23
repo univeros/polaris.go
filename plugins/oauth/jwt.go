@@ -12,6 +12,8 @@ import (
 	"time"
 
 	jose "github.com/go-jose/go-jose/v4"
+
+	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
 // AccessTokenType is the typ header of the provider's access tokens (RFC 9068).
@@ -51,10 +53,8 @@ func decodeSegment(seg string) map[string]any {
 	if err != nil {
 		return nil
 	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
 	var out map[string]any
-	if dec.Decode(&out) != nil {
+	if strictjson.Decode(data, &out) != nil {
 		return nil
 	}
 	return out
@@ -129,10 +129,8 @@ func verifySigned(raw, alg string, key *jose.JSONWebKey, now time.Time, leeway t
 	if err != nil {
 		return nil, errors.New("the signature does not verify")
 	}
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
 	var claims map[string]any
-	if dec.Decode(&claims) != nil || claims == nil {
+	if strictjson.Decode(payload, &claims) != nil || claims == nil {
 		return nil, errors.New("the claims are not a JSON object")
 	}
 	limit := now.Add(leeway).Unix()

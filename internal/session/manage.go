@@ -6,6 +6,7 @@ import (
 
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 )
 
@@ -73,14 +74,24 @@ func (s *Service) LogoutAll(ctx context.Context, userID string, client token.Cli
 // were; no event (the password flows use it). It also watermarks the access-token denylist, so
 // with the denylist on every outstanding access token of the user dies with the sessions.
 func (s *Service) RevokeAll(ctx context.Context, userID, reason string) (int, error) {
-	n, err := s.RevokeAllExcept(ctx, userID, "", reason)
+	rows, err := s.tokens.ListByUser(ctx, userID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("session: revoke: %w", err)
+	}
+	families := map[string]bool{}
+	for _, t := range rows {
+		families[t.FamilyID] = true
+	}
+	// By user, not by the families read: a session another transaction issued since this one began
+	// is not among them (MySQL's repeatable read), and this ends it too.
+	if _, err := s.db.Update(ctx, "auth_refresh_tokens", store.Criteria{"user_id": userID, "revoked_at": nil},
+		store.Data{"revoked_at": s.now(), "revoked_reason": reason}); err != nil {
+		return 0, fmt.Errorf("session: revoke: %w", err)
 	}
 	if err := s.denylist.RevokeAllFor(ctx, userID); err != nil {
 		return 0, err
 	}
-	return n, nil
+	return len(families), nil
 }
 
 // RevokeAllExcept revokes every session of the user except exceptSessionID ("" keeps none) and

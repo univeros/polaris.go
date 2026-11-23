@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -226,5 +227,133 @@ func TestADirectoryIsConnectedOnlyByWhoCouldGrantEveryRole(t *testing.T) {
 	}
 	if code, body := f.call(http.MethodPost, path+"/"+id+"/rotate", owner, nil); code != 200 || body["token"] == nil {
 		t.Fatalf("the owner rotates: %d %v", code, body)
+	}
+}
+
+// Deprovisioning an account nobody proved frees its address, whatever the connection's mode (RFC 7644
+// §3.6: a deleted User is not a conflict for a new one).
+func TestADeprovisionedAccountNobodyProvedFreesItsAddress(t *testing.T) {
+	f := newFixture(t)
+	orgID := f.organization()
+	conn := f.connection(orgID, DeprovisionDeactivate)
+	d := f.p.dir
+	g := f.srv.Graph()
+	id := services.Of(g).Identity
+	const email = "sam@globex.example"
+
+	created := must(d.createUser(f.ctx, conn, map[string]any{"userName": email}))
+	if outcome := must(d.deleteUser(f.ctx, conn, created)); outcome != "deleted" {
+		t.Fatalf("outcome %q", outcome)
+	}
+	if u, err := g.Repos().Users.ByEmail(f.ctx, email); err == nil {
+		t.Fatalf("the address is held by %s (%s)", u.ID, u.Status)
+	}
+	if _, member, _ := d.membership(f.ctx, conn, created.ID); member {
+		t.Fatal("the membership stays")
+	}
+	again := must(d.createUser(f.ctx, conn, map[string]any{"userName": email})) // the directory itself may create it again
+	if again.ID == created.ID {
+		t.Fatal("the erased account came back")
+	}
+	must(d.deleteUser(f.ctx, conn, again))
+
+	// The mailbox's owner registers, verifies and signs in.
+	if err := id.Register(f.ctx, email, "correct horse battery staple", "", browser); err != nil {
+		t.Fatal(err)
+	}
+	var reg event.UserRegistered
+	for _, e := range f.srv.Events.All() {
+		if r, ok := e.(event.UserRegistered); ok && r.Email == email {
+			reg = r
+		}
+	}
+	if err := id.VerifyEmail(f.ctx, reg.VerificationToken); err != nil {
+		t.Fatalf("the owner cannot verify the address: %v", err)
+	}
+	if _, err := id.Login(f.ctx, email, "correct horse battery staple", browser); err != nil {
+		t.Fatalf("the owner cannot sign in: %v", err)
+	}
+
+	// An account the directory does not own is left as it is, its row unwritten.
+	f.user("u-linked", "linked@acme.example")
+	if err := g.Repos().Memberships.Insert(f.ctx, model.Membership{ID: repository.NewID(), UserID: "u-linked", OrganizationID: orgID,
+		Status: model.MembershipStatusActive, CreatedAt: time.Now().UTC().Truncate(time.Second), UpdatedAt: time.Now().UTC().Truncate(time.Second)}); err != nil {
+		t.Fatal(err)
+	}
+	linked := must(g.Repos().Users.Get(f.ctx, "u-linked"))
+	must(d.deleteUser(f.ctx, conn, linked))
+	if after := must(g.Repos().Users.Get(f.ctx, "u-linked")); !reflect.DeepEqual(after, linked) {
+		t.Fatalf("an account the directory does not own: %+v, was %+v", after, linked)
+	}
+
+	// On a domain the organization verified the account is proven: deactivating keeps it, disabled.
+	d.domains = func() any { return verifiedDomains{orgID: "acme.example"} }
+	bob := must(d.createUser(f.ctx, conn, map[string]any{"userName": "bob@acme.example"}))
+	if outcome := must(d.deleteUser(f.ctx, conn, bob)); outcome != "deactivated" {
+		t.Fatalf("outcome %q", outcome)
+	}
+	if u := must(g.Repos().Users.Get(f.ctx, bob.ID)); u.Email != "bob@acme.example" || u.Status != model.UserStatusDisabled {
+		t.Fatalf("a proven account: %+v", u)
+	}
+}
+
+// Deprovisioning works on the account as it is when it runs: an account proven since the directory
+// read it is not erased, and the last active owner is not either.
+func TestErasingADeprovisionedAccountChecksItAgain(t *testing.T) {
+	for _, mode := range []string{DeprovisionDeactivate, DeprovisionDelete} {
+		t.Run(mode, func(t *testing.T) {
+			f := newFixture(t)
+			orgID := f.organization()
+			conn := f.connection(orgID, mode)
+			d := f.p.dir
+			g := f.srv.Graph()
+			read := must(d.createUser(f.ctx, conn, map[string]any{"userName": "eve@globex.example"}))
+			if _, first, err := g.Identity().ProveEmail(f.ctx, read.ID, false); err != nil || !first {
+				t.Fatal(first, err)
+			}
+			must(d.deleteUser(f.ctx, conn, read)) // read before the proof
+			u := must(g.Repos().Users.Get(f.ctx, read.ID))
+			if u.Email != "eve@globex.example" || u.Status != model.UserStatusActive || u.EmailVerifiedAt == nil {
+				t.Fatalf("the directory reached an account its owner proved: %+v", u)
+			}
+			if _, member, _ := d.membership(f.ctx, conn, u.ID); member {
+				t.Fatal("the membership stays")
+			}
+
+			// The only active owner, created by the directory.
+			boss := must(d.createUser(f.ctx, conn, map[string]any{"userName": "boss@globex.example"}))
+			ownerRole := must(g.Repos().Roles.ByOrganizationAndSlug(f.ctx, &orgID, "owner"))
+			must(d.replaceGroup(f.ctx, conn, ownerRole, map[string]any{"displayName": ownerRole.Name, "members": []any{map[string]any{"value": boss.ID}}}))
+			_, err := d.deleteUser(f.ctx, conn, boss)
+			refused(t, err, 409, "erasing the last active owner")
+			if u := must(g.Repos().Users.Get(f.ctx, boss.ID)); u.Email != "boss@globex.example" || u.Status != model.UserStatusActive {
+				t.Fatalf("the refused erasure changed the account: %+v", u)
+			}
+		})
+	}
+}
+
+// A registration's confirmation ends a directory's hold like any other first proof.
+func TestAConfirmedRegistrationEndsADirectorysHold(t *testing.T) {
+	f := newFixture(t)
+	conn := f.connection(f.organization(), DeprovisionDeactivate)
+	d := f.p.dir
+	g := f.srv.Graph()
+	ada := must(d.createUser(f.ctx, conn, map[string]any{"userName": "ada@globex.example"}))
+	if err := g.Identity().SetPassword(f.ctx, ada.ID, "correct horse battery staple"); err != nil { // an operator's
+		t.Fatal(err)
+	}
+	if _, first, err := g.Identity().ProveEmail(f.ctx, ada.ID, true); err != nil || !first {
+		t.Fatal(first, err)
+	}
+	ada = must(g.Repos().Users.Get(f.ctx, ada.ID))
+	if ada.PasswordHash == nil {
+		t.Fatal("confirming a registration keeps its password")
+	}
+	if owned := must(d.owns(f.ctx, conn, ada)); owned {
+		t.Fatal("the directory still owns the account")
+	}
+	if held := must(f.p.Provisioned(f.ctx, conn.OrganizationID, ada)); held {
+		t.Fatal("the organization's identity provider still signs the account in")
 	}
 }
