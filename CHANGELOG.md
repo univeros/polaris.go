@@ -9,6 +9,40 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-23
+
+Security fixes from a review of v0.7.1 (decision 79). **Upgrade now**, whichever plugins you use,
+and first of all on PostgreSQL. No schema change and no Go API break.
+
+### Security
+
+- **core: revoking a user's sessions ends a refresh in flight.** On PostgreSQL, a refresh running
+  while the sessions were revoked (password reset or change, logout, disabling, erasure, the first
+  proof of the mailbox) could leave its new token live. Opening, rotating and revoking a user's
+  sessions now run one after the other, on every database.
+- **core: a login in flight does not survive a reset.** A login that verified the password while it
+  was being reset or changed, or the account disabled, opened a session all the same, and one whose
+  hash was due an upgrade wrote the old password back. Every sign-in (password, host, passkey, social,
+  passwordless) is checked again where it opens its session.
+- **core: an MFA login ends with the sessions.** **Client-visible:** a `mfa_token` issued before the
+  user's sessions were revoked, or the password changed, answers 401 on `/auth/mfa/challenge` and
+  `/auth/mfa/verify`.
+- core: a step-up, an organization switch and a refresh without rotation mint nothing for a session
+  that ended meanwhile, and keep their change when it was refreshed meanwhile. A disabled account
+  opens no session.
+- **sso: a domain verification is what it answers.** Another organization's claim during the lookup
+  made `POST …/domains/{domainId}/verify` answer 200 for a domain that was not verified.
+  **Client-visible:** the proof now stands (the domain answered may carry a new id), and the route
+  answers 409 `sso_conflict` when another organization verified the domain first.
+- scim: renaming, replacing and patching a user decide whether the directory owns the account in the
+  transaction that writes it.
+
+### Changed
+
+- core: a refresh that loses to a logout or a revocation is an invalid grant and no longer raises
+  `auth.refresh_reuse_detected`.
+- sso: a display name a provider sends is trimmed and at most 120 characters.
+
 ## [0.7.1] - 2026-11-23
 
 Security fixes from a third pre-1.0 review (decision 78). **Upgrade now if you use `plugins/sso` or

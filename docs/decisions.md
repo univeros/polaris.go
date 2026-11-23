@@ -2864,3 +2864,71 @@ remove in `delete` mode, and only for accounts it owns and nobody claimed. The t
 reveals no more than the row's own id. `verified` in the session and the exchange envelope is now read
 in the issuing transaction, so it is never staler than before. The lock order of the two new
 transactions is the account's row, then the organization's.
+
+## 79. 2026-11-23 — Sessions: one lock per user; sign-ins checked where they open a session; domain proofs
+
+A review of decision 78's code found races older than it, each reproduced by a failing test.
+
+- **Opening, rotating, changing and revoking a user's sessions run one after the other.** On
+  PostgreSQL (read committed) a revocation's UPDATE waited on the parent token a rotation in flight
+  had claimed and never saw the child that rotation inserted, so a refresh running during a password
+  reset, logout, disabling, erasure or first proof could outlive it; every revocation was affected.
+  `internal/session` now takes one lock first: a no-op UPDATE of the user's `auth_users` row
+  (`lockOrganization`'s idiom), in `Issue`, `Refresh`, `StepUp`, `SwitchOrganization` and every
+  revocation, which all write by user. The order is the user, the user's tokens, an organization;
+  `plugins/multisession` and `plugins/anonymous` take the user first too. `StepUp`,
+  `SwitchOrganization` and a refresh without rotation write to the live token as it is under the
+  lock, so an ended session mints nothing and a concurrent rotation does not drop the change. A
+  refresh that loses to a revocation reads its token again and is an invalid grant, no longer a
+  reuse alert; reuse detection is unchanged. `Issue` refuses a disabled account (`ErrInvalidGrant`).
+  Tests: `TestARevocationEndsARotationInFlight`, `TestNoSessionRefreshingBackToBackOutlivesARevocation`
+  (PostgreSQL, MySQL), `TestARotationThatLosesToARevocationIsNoReuse`, `TestAChangeToASessionIsMadeToItsLiveToken`,
+  `TestADisabledAccountOpensNoSession`.
+- **A sign-in is checked again where it opens its session.** A login read the account, verified the
+  password and issued a session without looking again, so one in flight during a reset opened a
+  session with the old password, and one due a rehash wrote the old password back. The transaction
+  that opens the session (or issues the login_mfa ticket) starts with a conditional UPDATE that locks
+  the row and holds only for an enabled account with the password that was verified
+  (`holdForLogin`; a hash another login replaced is verified again). `SignIn`, passkey, social and
+  passwordless sign-ins start theirs with `HoldForSignIn`: the account is enabled and its mailbox was
+  not proven for the first time since it was read (which takes what signed in with it). `sso` did so
+  since decision 78. Tests: `TestALoginThatLosesItsPasswordOrAccountOpensNoSession`,
+  `TestAHostsSignInIsCheckedWhereItOpensItsSession`, `TestASignInWhoseAccountChangedOpensNoSession` (social,
+  passkey), passwordless `AnAccountThatChangedSinceItWasReadOpensNoSession`.
+- **A login_mfa ticket ends with the sessions.** The ticket stands for the first step for five
+  minutes whatever happened to the account. The pipeline refuses (401) one issued before the user's
+  sessions were revoked, by the denylist's watermark (written whether or not
+  `AUTH_ACCESS_TOKEN_DENYLIST` makes access tokens read it); `RevokeAllExcept` (a password change)
+  writes one for tickets only. A watermark lives as long as the longer of the two tokens. Test:
+  `TestAnMFATicketDiesWithTheSessionsOfItsUser`, `TestRevokingTheOtherSessionsEndsTheTicketsIssuedBefore`.
+- **A domain's proof stands whatever was claimed meanwhile.** Another organization's claim during the
+  lookup of a verification deleted the claim being verified, which then answered 200 for a domain
+  that was not verified; repeated, it kept a domain from its owner. `Domains.MarkVerified` makes the
+  claim again, in place of an unverified one, in one transaction; it answers 409 when another
+  organization verified the domain first and 404 when the domain's provider is gone. A claim displaces
+  only a claim that is still unverified when it is deleted. Tests:
+  `TestAVerifiedDomainIsItsProversWhateverWasClaimedMeanwhile`, `TestAClaimDoesNotDisplaceADomainVerifiedSinceItWasRead`.
+- **A directory's write decides in its transaction.** `writeUser` locks the account and reads
+  ownership, verification and address there, as `erase` does (decision 78, whose re-checks are tested
+  now too). Test: `TestADirectorysWriteDecidesInItsTransaction`.
+- **Smaller.** A provider's display name is trimmed and bounded (120 characters) as every other is;
+  social's signed proxy state and `verify` have the one-JSON-value rule tested; tests of
+  `CheckEveryRole`; a flaky assertion of `TestAnAddressCanBeErasedAgain`.
+- **Accepted.** The SSO and social hand-off code is not bound to the browser that started the
+  sign-in: the callback is (decision 74), but someone who completes their own sign-in can send the
+  redirect with their code to another person within its minute, who is then signed in to the sender's
+  account. An application ties the two itself (the READMEs say how); binding the exchange is additive
+  and can come in 1.x. Deleting or disabling a provider does not end the sessions it opened; they stay
+  bound to the organization and end with the membership (README). A ticket of the watermark's own
+  second passes, as a login right after a reset does. A password sign-in of an unverified account
+  (`RequireVerifiedEmail` off) through `SignIn` or a plugin is refused when its mailbox is proven
+  while it runs, a confirmed registration included; signing in again works.
+
+Go API: compatible; `sso.Domains.MarkVerified` may now fail with `store.ErrDuplicate` and
+`repository.ErrNotFound`. The spec of `POST …/domains/{domainId}/verify` gains the 409
+(`testdata/manifest/all*.json`). Contract fixtures: unchanged. No schema change.
+
+Security review (rule 6): the lock adds one statement to each of these operations and no new
+dependency; a stress of 4,800 mixed operations per database found no deadlock. What is refused that
+was not: a login whose account changed, a ticket older than a revocation, a session of a disabled
+account.

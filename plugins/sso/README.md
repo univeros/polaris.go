@@ -60,6 +60,12 @@ TLS-terminating proxy. From code, `Start` returns `Started.State` and `Started.B
 RelayState (IdP-initiated, accepted only with the provider's `idp_initiated`) has no browser that
 started it and so no binding: leave the flag off unless the IdP needs it.
 
+The exchange is not bound: `redirect_uri` receives a code, not a proof of which browser started the
+sign-in. Someone who completes their own sign-in can send that URL to another person, who would then
+be signed in to the sender's account. Before exchanging a code, check in your application that this
+browser started a sign-in (a short-lived cookie or session entry your page set when it called
+`/sso/sign-in`), and tell the user which account they are in.
+
 ### Whose accounts an IdP signs in
 
 Whoever runs an organization's IdP can assert any email, and any user can create an organization and
@@ -149,6 +155,10 @@ The binding is the `amr` value, wherever the session comes from: a host that ope
 itself with `p.Sessions().Issue(ctx, polaris.SignIn{…})` and passes an `AMR` containing `"sso"` gets an
 organization-bound session with all of the above. Pass `"sso"` when your own code signed the user
 in on an organization IdP's word, and leave it out otherwise.
+
+Disabling or deleting a provider or a domain stops new sign-ins and leaves the sessions it opened: they
+end with their refresh tokens, with the membership, or when you revoke them
+(`p.Sessions().RevokeAll`, `DELETE /admin/users/{id}/sessions`).
 
 An IdP's LogoutRequest ends the sessions of the accounts the organization owns (the rule above).
 
