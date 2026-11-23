@@ -40,6 +40,21 @@ jobs:
           path: coverage.out
           if-no-files-found: warn
 
+  newest-go:
+    name: tests on the newest Go
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      - run: go vet ./... && go test ./...
+
   govulncheck:
     name: govulncheck
     runs-on: ubuntu-latest

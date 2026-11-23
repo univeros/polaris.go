@@ -105,11 +105,18 @@ type harness struct {
 	auth   config.Auth
 }
 
+// newHarness is a world with the accounts the tests sign in, "user-1" and "user-2".
 func newHarness(db store.Adapter, start string) *harness {
 	auth := config.Defaults()
 	auth.Issuer = "https://auth.polaris.test"
 	clk := clock.NewFrozen(at(start))
-	return &harness{db: db, repos: repository.New(db), clock: clk, issuer: &recordingIssuer{}, events: &recorder{}, cache: cache.NewMemory(clk), auth: auth}
+	repos := repository.New(db)
+	for _, id := range []string{"user-1", "user-2"} {
+		if err := repos.Users.Insert(ctx, model.User{ID: id, Email: id + "@example.com", CreatedAt: clk.Now(), UpdatedAt: clk.Now()}); err != nil {
+			panic(err)
+		}
+	}
+	return &harness{db: db, repos: repos, clock: clk, issuer: &recordingIssuer{}, events: &recorder{}, cache: cache.NewMemory(clk), auth: auth}
 }
 
 func (h *harness) service(t *testing.T) *Service {

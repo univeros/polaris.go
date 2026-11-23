@@ -313,9 +313,16 @@ func TestTheResolverAnswersTheOwnersPrincipalWithTheDelegatedPermissionsAndRefus
 			t.Errorf("%v: %d", c, w.Code)
 		}
 	}
-	if _, err := e.db.Update(ctx, "auth_users", store.Criteria{"id": e.user.ID}, store.Data{"status": model.UserStatusDisabled}); err != nil {
-		t.Fatal(err)
+	setStatus := func(status string) {
+		if _, err := e.db.Update(ctx, "auth_users", store.Criteria{"id": e.user.ID}, store.Data{"status": status}); err != nil {
+			t.Fatal(err)
+		}
 	}
+	setStatus(model.UserStatusLocked) // the password sign-in's, not the key's
+	if w := serve(apikeys.Header, issued.Secret); w.Code != 204 {
+		t.Fatalf("a locked subject: %d", w.Code)
+	}
+	setStatus(model.UserStatusDisabled)
 	if w := serve(apikeys.Header, issued.Secret); w.Code != 401 {
 		t.Fatalf("a disabled subject: %d", w.Code)
 	}

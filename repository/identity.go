@@ -147,7 +147,8 @@ func (r RefreshTokens) ListByFamily(ctx context.Context, familyID string) ([]mod
 	return r.list(ctx, store.Criteria{"family_id": familyID})
 }
 
-// ActiveInFamily returns the session's live (not revoked) token.
+// ActiveInFamily returns the session's token that is not revoked; check ExpiresAt, it may have
+// expired.
 func (r RefreshTokens) ActiveInFamily(ctx context.Context, familyID string) (model.RefreshToken, error) {
 	return r.FindOne(ctx, store.Criteria{"family_id": familyID, "revoked_at": nil})
 }

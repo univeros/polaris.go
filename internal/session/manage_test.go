@@ -336,12 +336,6 @@ func TestUserPrincipals(t *testing.T) {
 	})
 }
 
-// account inserts the user whose sessions the test opens: the row issuing, rotating and revoking lock.
-func (h *harness) account(t *testing.T, status string) {
-	t.Helper()
-	must(t, h.repos.Users.Insert(ctx, model.User{ID: "user-1", Email: "ada@example.com", Status: status, CreatedAt: h.clock.Now(), UpdatedAt: h.clock.Now()}))
-}
-
 // A rotation in flight does not survive a revocation: revoking waits for it and revokes its child.
 func TestARevocationEndsARotationInFlight(t *testing.T) {
 	for name, revoke := range map[string]func(s *Service, sessionID string) error{
@@ -368,7 +362,6 @@ func TestARevocationEndsARotationInFlight(t *testing.T) {
 					t.Skip("one transaction at a time")
 				}
 				h := newHarness(db, "2026-06-07 12:00:00")
-				h.account(t, model.UserStatusActive)
 				s := h.service(t)
 				issued, err := s.Issue(ctx, principal(), token.ClientContext{})
 				must(t, err)
@@ -401,7 +394,6 @@ func TestARotationThatLosesToARevocationIsNoReuse(t *testing.T) {
 			t.Skip("one transaction at a time")
 		}
 		h := newHarness(db, "2026-06-07 12:00:00")
-		h.account(t, model.UserStatusActive)
 		s := h.service(t)
 		issued, err := s.Issue(ctx, principal(), token.ClientContext{})
 		must(t, err)
@@ -426,13 +418,18 @@ func TestARotationThatLosesToARevocationIsNoReuse(t *testing.T) {
 	})
 }
 
-func TestADisabledAccountOpensNoSession(t *testing.T) {
+func TestADisabledOrUnknownAccountOpensNoSession(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		h := newHarness(db, "2026-06-07 12:00:00")
-		h.account(t, model.UserStatusDisabled)
+		if _, err := db.Update(ctx, "auth_users", store.Criteria{"id": "user-1"}, store.Data{"status": model.UserStatusDisabled}); err != nil {
+			t.Fatal(err)
+		}
 		s := h.service(t)
 		if _, err := s.Issue(ctx, principal(), token.ClientContext{}); !errors.Is(err, ErrInvalidGrant) {
 			t.Fatalf("issue: %v", err)
+		}
+		if _, err := s.Issue(ctx, token.SessionPrincipal{UserID: repository.NewID()}, token.ClientContext{}); !errors.Is(err, ErrInvalidGrant) {
+			t.Fatalf("issue without an account: %v", err)
 		}
 		if list, err := s.List(ctx, "user-1", ""); err != nil || len(list) != 0 {
 			t.Fatalf("live sessions %+v %v", list, err)
@@ -447,7 +444,6 @@ func TestNoSessionRefreshingBackToBackOutlivesARevocation(t *testing.T) {
 			t.Skip("one transaction at a time")
 		}
 		h := newHarness(db, "2026-06-07 12:00:00")
-		h.account(t, model.UserStatusActive)
 		s := h.service(t)
 		for range 10 {
 			var refreshing sync.WaitGroup
@@ -534,7 +530,6 @@ func TestAChangeToASessionIsMadeToItsLiveToken(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			backends(t, func(t *testing.T, db store.Adapter) {
 				h := newHarness(db, "2026-06-07 12:00:00")
-				h.account(t, model.UserStatusActive)
 				s := h.service(t)
 				racing := &raceDB{Adapter: db}
 				h.db = racing
@@ -576,11 +571,66 @@ func TestAChangeToASessionIsMadeToItsLiveToken(t *testing.T) {
 	}
 }
 
+// A refresh that rotates keeps what a step-up or an organization switch wrote since it read the
+// token, in the new refresh token and in the access token.
+func TestARotationKeepsAChangeMadeMeanwhile(t *testing.T) {
+	for name, change := range map[string]func(s *Service, sessionID string) error{
+		"step-up": func(s *Service, sessionID string) error {
+			_, err := s.StepUp(ctx, "user-1", "org-1", sessionID)
+			return err
+		},
+		"switch": func(s *Service, sessionID string) error {
+			_, err := s.SwitchOrganization(ctx, "user-1", "org-2", sessionID)
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			backends(t, func(t *testing.T, db store.Adapter) {
+				h := newHarness(db, "2026-06-07 12:00:00")
+				s := h.service(t)
+				issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+				must(t, err)
+				racing := &raceDB{Adapter: db, before: func() { must(t, change(s, issued.SessionID)) }}
+				h.db = racing
+				_, err = h.service(t).Refresh(ctx, issued.RefreshToken, token.ClientContext{})
+				must(t, err)
+				if racing.before != nil {
+					t.Fatal("the race did not happen")
+				}
+				active, _ := split(h.family(t, issued.SessionID))
+				if len(active) != 1 || (name == "step-up") != active[0].MFA || (name == "switch") != (*active[0].OrganizationID == "org-2") {
+					t.Fatalf("live token %+v", active)
+				}
+				last := len(h.issuer.claims) - 1
+				if mfa, org := h.issuer.claim(last, "mfa"), h.issuer.claim(last, "org"); (name == "step-up") != (mfa == true) || (name == "switch") != (org == "org-2") {
+					t.Fatalf("access token: mfa %v, org %v", mfa, org)
+				}
+			})
+		})
+	}
+}
+
+// A session past its end mints nothing, whatever access token is still valid.
+func TestAnExpiredSessionMintsNothing(t *testing.T) {
+	backends(t, func(t *testing.T, db store.Adapter) {
+		h := newHarness(db, "2026-06-07 12:00:00")
+		s := h.service(t)
+		issued, err := s.Issue(ctx, principal(), token.ClientContext{})
+		must(t, err)
+		h.clock.Set(issued.RefreshExpiresAt)
+		if _, err := s.StepUp(ctx, "user-1", "org-1", issued.SessionID); !errors.Is(err, ErrInvalidGrant) {
+			t.Errorf("step-up: %v", err)
+		}
+		if _, err := s.SwitchOrganization(ctx, "user-1", "org-2", issued.SessionID); !errors.Is(err, ErrInvalidGrant) {
+			t.Errorf("switch: %v", err)
+		}
+	})
+}
+
 // A refresh whose token is gone by the time it looks again is refused, not failed.
 func TestARefreshOfATokenDeletedMeanwhileIsRefused(t *testing.T) {
 	backends(t, func(t *testing.T, db store.Adapter) {
 		h := newHarness(db, "2026-06-07 12:00:00")
-		h.account(t, model.UserStatusActive)
 		issued, err := h.service(t).Issue(ctx, principal(), token.ClientContext{})
 		must(t, err)
 		h.db = &raceDB{Adapter: db, before: func() {
@@ -599,7 +649,6 @@ func TestRevokingTheOtherSessionsEndsTheTicketsIssuedBefore(t *testing.T) {
 	pub, priv := rsaKeys(t)
 	backends(t, func(t *testing.T, db store.Adapter) {
 		h := newHarness(db, "2026-06-07 12:00:00")
-		h.account(t, model.UserStatusActive)
 		s := h.service(t)
 		tickets, err := NewMFATickets(token.Config{PublicKey: pub, PrivateKey: priv, KeyID: "k", Issuer: "https://auth.polaris.test", TTL: time.Minute, Clock: h.clock}, 300*time.Second)
 		must(t, err)

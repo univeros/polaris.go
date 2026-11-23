@@ -30,15 +30,29 @@ func TestForgotIsGenericAndNotifiesAKnownUser(t *testing.T) {
 	})
 }
 
-func TestForgotIsGenericForAnUnknownOrInactiveAccount(t *testing.T) {
+// A lock stops password sign-ins, never the mailbox's way back in.
+func TestALockedAccountIsSentAReset(t *testing.T) {
+	backends(t, func(t *testing.T, h *harness) {
+		h.registerAndVerify(t, email)
+		for range 5 {
+			_, _ = h.svc.Login(ctx, email, "wrong", client)
+		}
+		if u := h.user(t, email); u.Status != model.UserStatusLocked {
+			t.Fatalf("user %+v", u)
+		}
+		h.resetTo(t, newPassword)
+		if _, err := h.svc.Login(ctx, email, newPassword, client); err != nil {
+			t.Fatalf("login after the reset: %v", err)
+		}
+	})
+}
+
+func TestForgotIsGenericForAnUnknownOrDisabledAccount(t *testing.T) {
 	backends(t, func(t *testing.T, h *harness) {
 		must(t, h.svc.ForgotPassword(ctx, "nobody@example.com", client))
-		for _, status := range []string{model.UserStatusDisabled, model.UserStatusLocked} {
-			address := status + "@example.com"
-			h.registerAndVerify(t, address)
-			h.set(t, address, func(u *model.User) { u.Status = status })
-			must(t, h.svc.ForgotPassword(ctx, address, client))
-		}
+		h.registerAndVerify(t, email)
+		h.set(t, email, func(u *model.User) { u.Status = model.UserStatusDisabled })
+		must(t, h.svc.ForgotPassword(ctx, email, client))
 		if n := len(ofType[event.PasswordResetRequested](h.events)); n != 0 {
 			t.Fatalf("reset requested events %d", n)
 		}
