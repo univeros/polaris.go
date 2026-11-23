@@ -842,7 +842,9 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/univeros/polaris.go/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/univeros/polaris.go/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/univeros/polaris.go/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/univeros/polaris.go/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/univeros/polaris.go/compare/v0.5.0...v0.5.1
