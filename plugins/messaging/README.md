@@ -67,7 +67,8 @@ None over HTTP. A send answers `messaging.ErrRefused` (cap or quiet mode),
 - Your own messages: `messaging.Of(g).Sender().Send(ctx, messaging.Message{Kind: messaging.KindEmail,
   To: u.Email, Template: "email.new_device", Vars: map[string]any{"ip": ip}}, nil)`. Bundled keys:
   `messaging.TemplateKeys`; core's names map through `messaging.CoreTemplates`.
-- Set `Message.Essential` for messages quiet mode must never drop (verifications, resets, codes).
+- Set `Message.Essential` for messages quiet mode must never drop. Core's verifications, resets, codes,
+  invitations and account-change mails are. A recipient's `Caps` bound essential messages too.
 - Organization branding: `Plugin.Templates().Set(ctx, orgID, key, locale, tpl)`, `Remove`,
   `Override`; a message with `OrganizationID` uses them.
 - Check a channel and a template: `Plugin.SendTemplate(ctx, to, template, varsJSON, locale)`.

@@ -5,8 +5,6 @@ vulnerability in every service that uses it, so reports are taken seriously and 
 
 ## Supported versions
 
-From `v1.0.0`:
-
 | Version | Security fixes |
 |---|---|
 | The latest minor release of the current major version (`v1.N.x`) | Every fix, as a patch release `v1.N.x+1`. |
@@ -15,10 +13,8 @@ From `v1.0.0`:
 
 A new major version will state how long the previous one gets fixes.
 
-**Before 1.0.** Polaris for Go is pre-1.0 until `v1.0.0` is tagged. Security fixes go to `main`
-and ship in a patch release of the latest minor version (today `v0.5.x`). Older v0.x minor
-versions are not patched: upgrade to the latest one ([CHANGELOG.md](CHANGELOG.md) says what
-changes).
+The v0.x versions get no fixes: upgrade to v1 ([CHANGELOG.md](CHANGELOG.md) says how, and what each
+release fixed).
 
 ## Reporting a vulnerability
 
@@ -41,15 +37,13 @@ Include what you can of:
 - The fix is made and released first, and announced after, with credit to the reporter unless they
   prefer otherwise. Nothing that would let someone exploit an unpatched release is made public
   before its fix ships.
-- From `v1.0.0`, every fix is announced, when its release ships, in:
+- Every fix is announced, when its release ships, in:
   - a [GitHub security advisory](https://github.com/univeros/polaris.go/security/advisories)
     naming the affected and fixed versions, with a CVE identifier requested through GitHub;
   - the release notes: the version's **Security** section in [CHANGELOG.md](CHANGELOG.md) and its
     GitHub Release;
   - the [Go vulnerability database](https://pkg.go.dev/vuln/), to which the advisory is reported,
     so that `govulncheck` flags builds that use an affected version.
-- Before 1.0, a fix ships as a patch release whose notes ([CHANGELOG.md](CHANGELOG.md), the GitHub
-  Release) describe it under **Security**.
 
 ## Scope
 

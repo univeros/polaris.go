@@ -2,12 +2,140 @@
 
 What changes for an application (a "host") or a plugin author in each release of Polaris for Go.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html), with the pre-1.0 rule that a minor
-release may break the Go API ([API.md](API.md): every exported name outside `internal/`) only with a
-decision in [docs/decisions.md](docs/decisions.md) ("decision N" below). Breaking changes are
-marked **Breaking**.
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html): from 1.0.0 nothing in the Go API
+([API.md](API.md): every exported name outside `internal/`) breaks within a major version. Each
+notable change has its decision in [docs/decisions.md](docs/decisions.md) ("decision N" below).
+Breaking changes are marked **Breaking**.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-11-23
+
+Polaris for Go 1.0. The code of v0.7.3 plus the security fixes below, from a review of the plugins
+(decision 81); **upgrade now from any v0.x**.
+
+### What 1.0 promises
+
+- **The Go API does not break.** Every exported name outside `internal/` is covered by semantic versioning
+  for all of v1: things are added and deprecated, never removed or changed incompatibly ([API.md](API.md)).
+  `make apicheck` refuses a break on every pull request.
+- **The routes do not break.** Methods, paths, inputs, outputs and errors of the 1.0 specs
+  (`polaris manifest --format=openapi`) stay; the recorded contract tests replay them. Fields, routes and
+  error codes are added.
+- **Stored data stays readable.** Password hashes, encrypted secrets, issued tokens, receipts and the audit
+  chain keep verifying, and `Migrate` only adds ([docs/stored-formats.md](docs/stored-formats.md)).
+  `APP_KEY` is fixed for the life of a deployment.
+- **Security fixes have a policy.** The latest minor gets every fix, the one before it Critical and High
+  ones for three months, each announced as a GitHub security advisory ([SECURITY.md](SECURITY.md)). A
+  security fix may change behaviour when nothing else closes the hole; the Go API still compiles.
+- **Go 1.26 or newer,** PostgreSQL 17, MySQL 8.4 and the bundled SQLite, each in CI. A minor release may
+  raise the Go version, never past the older of the two releases the Go team supports.
+
+### Upgrading
+
+1. From v0.7.x: change the version and deploy; no schema change. From v0.6.x or earlier: run `Migrate` (it
+   swaps the OAuth consent index, adds tables and indexes, and lists the platform permissions it removes
+   from organization roles). `Migrate` upgrades the schema of every released version, in one step.
+2. Read the breaks below; a host that uses package `polaris` and plugin constructors compiles unchanged.
+3. Afterwards, review:
+   - OAuth clients registered `trusted`, or with the CIBA grant, for one organization (decision 81);
+   - organizations' SSO providers and domains that someone other than an owner configured (decision 78),
+     and `jit.roles` naming `owner` or `admin` (decision 74);
+   - SCIM directory tokens an administrator created before v0.7.0: rotate them (decision 74);
+   - accounts a directory deprovisioned before v0.7.1 that are disabled and unverified (decision 78);
+   - SAML identity providers that sign with SHA-1: they must sign with SHA-256.
+
+### Every break since v0.6.0
+
+- **Go API** (v0.7.0, decisions 70, 74, 76): the concrete services of `identity`, `session`, `mfa`, `orgs`,
+  `authz` and `notify` moved under `internal/`; ten `wiring` interfaces are sealed;
+  `sso.Plugin.CompleteOIDC` and `CompleteSAML` take the browser's binding; the `Listeners` method of seven
+  plugins is gone. Every name is listed under [0.7.0]. Nothing since.
+- **Clients** (v0.7.0): `/sso/sign-in` sets a cookie its callback requires; accounts a directory or a provider
+  creates outside verified domains are unverified; a second registration of an unverified address needs a
+  reset; impersonation tokens carry no `auth_time` and write nothing of the account's; OAuth tokens,
+  exchanges, introspection, consents and DPoP proofs are bounded as listed under [0.7.0]; a new default
+  `kid` (older ones keep verifying).
+- **Clients** (v0.7.1): configuring single sign-on takes an owner's authority; a SCIM DELETE of an account
+  nobody proved anonymises it.
+- **Clients** (v0.7.2): an `mfa_token` ends with the user's sessions; a domain verification answers 409 when
+  another organization verified it first.
+- **Clients** (v0.7.3): a locked account is mailed its reset; a disabled account's OAuth grants answer
+  `invalid_grant` and introspect as inactive.
+- **Clients** (this release): the entries marked **Client-visible** or **Breaking** below.
+
+### Security
+
+- **agents: `Guard` guards a path whatever the Host says.** A request with a port, a trailing dot or
+  another name in `Host` matched no capability and reached the handler unchecked. A location is now
+  matched by its path when the Host is no location's; a path several hosts share answers 404
+  `agents/capability_not_found` under any other name. **Client-visible** on a mux that serves such a path
+  as something else under another host name: use `Protect` there.
+- **agents: `Guard` reads a path as a router does.** A percent-encoded character (`%3A`, `%2F`) that a router
+  decodes passed it unchecked. `Protect` was not affected by either.
+- **agents: one body, one meaning.** `Protect` and `Guard` checked constraints on a decoded map while a
+  Go handler decoding the same body into a struct matches names whatever their case and reads a first
+  value whatever follows it. **Client-visible:** `agents/invalid_arguments` for a body in which two
+  members of one object have the same name, upper and lower case alike, one that spells a declared
+  argument in another case, and one that begins as an object and is not exactly one.
+- **agents: a shorter window is more budget.** A request for a shorter window than the policy's refilled
+  its budget each time it passed. **Client-visible:** a budget asked with any window but the policy's
+  waits for a person.
+- **oauth: a refresh in flight does not outlive a revocation.** On PostgreSQL, a client refreshing back to
+  back kept its grant after the user took the consent back, after the reuse of a refresh token was seen
+  and after an erasure. Issuing, rotating and ending the tokens of a user's grants now run one after the
+  other, and taking a grant back also ends its unredeemed codes and pending requests.
+- **oauth: trust takes an owner of the instance.** An operator of one organization could register a
+  client `trusted`, or with CIBA, which count in every organization. **Client-visible:** 403
+  `admin/forbidden` (400 `invalid_client_metadata` for CIBA).
+- **oauth: an exchanged token does not renew itself.** Exchanging a token again never ended.
+  **Client-visible:** a token exchanged from one of the provider's own expires no later than it.
+- **oauth: a user can always take a client's tokens back.** `DELETE /oauth2/consents/{clientId}` answered
+  404 and revoked nothing when the grant left no consent (device, CIBA, exchange, trusted client).
+- oauth: a client assertion expires within an hour, and its `jti` is refused until then.
+- **core: confirming a factor takes a step-up.** A stolen access token of a user with MFA enrolled its own
+  factor and stepped up with it. **Client-visible:** `/auth/mfa/{totp,sms,email}/confirm` answer 401
+  `step_up_required` without a recent authentication when the user has a factor. So do
+  `/one-time-token/generate`, `POST /api-keys` and `POST /api-keys/{id}/rotate`, which turn a session into
+  another credential (with an API key they now answer `api-keys/not_allowed`, not `forbidden`).
+- **social: a link ends with the session that started it.** With `RequireVerifiedEmail` off, whoever
+  registered an address could hold a link's callback over the owner's first proof of it and then sign in
+  as them. **Client-visible:** `/social/{provider}/link` answers 401 when its session has ended, and the
+  callback refuses the link.
+- **passkey: an RSA key is at most 8192 bits, its exponent at most 65537.** A registered key of any size
+  made an unauthenticated request verify with it for minutes. Decoding no longer reserves memory for
+  what the input only claims to hold.
+- **apikeys: a rotated key acts as who rotated it.** An administrator rotating a colleague's organization
+  key received a secret that acted as them. **Client-visible:** the successor's `created_by` and subject
+  are the caller. `POST /api-keys/verify` answers `valid: false` for a disabled user, and only the
+  permissions the user still holds.
+- **sentinel: the guard reads what the endpoint reads.** Fields in the query string, a JSON body with
+  anything after it, a form with an unusual content type and an address with a trailing NUL were not
+  judged, or not as the account's.
+- **sentinel, messaging: security mail is not silenced.** Anyone could have an address challenged, in
+  observe mode too, and so drop the mails that say its password or factors changed. Quiet mode follows
+  enforced decisions only, and those mails are essential.
+- **scim: a directory does not undo an operator's ban.** `active: true` re-enabled an account the directory
+  owns; it now reactivates the membership only.
+- **sso: a discovery document's endpoints are http(s) URLs.** A `javascript:` one reached the browser of a
+  host that navigates to the `url` of `/sso/sign-in` or `/sso/logout`.
+- **sso: SHA-1 SAML signatures are refused.** **Breaking** for identity providers that still use them.
+- sso: `POST /sso/logout` is for the organization's active members (404 otherwise).
+- passwordless: what one destination is sent is bounded (`Auth.OTP.SendMax` while one message lives), and
+  what one account adding phones asks for (`SendMax` in `SendWindow`), whatever addresses the requests
+  come from; over it nothing is sent and the answer is the same.
+- core: recovery codes of an earlier MFA enrolment do not work after the next one. Two concurrent removals
+  do not take the last factor of a user for whom MFA is enforced.
+- admin: setting the password of an erased account is refused; a reset read before its account was
+  disabled is refused where it is written.
+- Outbound requests to `::/96`, `fec0::/10` and `64:ff9b:1::/48` are refused too.
+
+### Fixed
+
+- `Migrate` on PostgreSQL no longer fails (`cache lookup failed`) when another replica drops a retired index
+  while it reads the table.
+- audit: `Verify` accepts the gaps a per-name retention leaves anywhere in the chain (it reported them as
+  breaks), also once their checkpoint is pruned, and still reports a row nobody pruned.
 
 ## [0.7.3] - 2026-11-23
 
@@ -872,7 +1000,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/univeros/polaris.go/compare/v0.7.3...v1.0.0
 [0.7.3]: https://github.com/univeros/polaris.go/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/univeros/polaris.go/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/univeros/polaris.go/compare/v0.7.0...v0.7.1

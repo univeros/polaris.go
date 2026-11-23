@@ -76,7 +76,7 @@ retries the same request with `captcha_token`). Admin routes answer `…/admin/u
   address of the attempt; they are keyed by address, not by user.
 - Without a `Captcha` verifier nothing can answer a challenge: the challenge band is recorded and let
   through.
-- The middleware reads JSON and form bodies and sets the `polaris_device` cookie
+- The middleware reads the request as the endpoint does (query, JSON and form fields) and sets the `polaris_device` cookie
   (`sentinel.DeviceCookie`) when a guarded request has none. The cookie is `Secure` when the
   request came over TLS or the configured issuer (`AUTH_ISSUER`) is https, so it is behind a
   proxy that ends TLS too.
@@ -84,8 +84,9 @@ retries the same request with `captcha_token`). Admin routes answer `…/admin/u
   `Engine().Unblock`, `IPRules()` and `Decisions()` serve the same as the admin routes.
 - `Plugin.RefreshDomainList(ctx, url, to)` writes a fresh disposable-domain file; it is read at the
   next start.
-- With `plugins/messaging`, a recipient challenged or blocked in the last hour gets no non-essential
-  email (`Plugin.QuietFor`).
+- With `plugins/messaging`, a recipient challenged or blocked in enforce mode in the last hour gets no
+  non-essential email (`Plugin.QuietFor`). Verifications, resets, codes, invitations and account-change
+  mails (password, factors, recovery codes) are essential.
 
 ## Example
 

@@ -68,7 +68,10 @@ Uses core's `audit.read`.
   `data` text and the hashed bytes (times as `+00:00`) are what earlier releases wrote, so chains
   already written keep verifying.
 - `Plugin.Prune(ctx)` from a scheduled job (CLI `polaris audit:prune`); `Plugin.Verify(ctx)` walks
-  the hash chain (`polaris audit:verify`).
+  the hash chain (`polaris audit:verify`) and accepts the gaps a pruning recorded in its `audit.pruned`
+  checkpoint, per-name retention included. With `HashChain` on, a pruning reads the table twice.
+- The chain is not keyed: it shows an alteration to whoever keeps a hash elsewhere (a sink, a drain), not to
+  someone who can rewrite the whole table.
 - With `HashChain` on, every replica appends to one chain: each write first takes the lock row in
   `polaris_audit_chain` (a row lock on PostgreSQL and MySQL, the write lock on SQLite), so writers in
   separate processes append one at a time and never fork it, also inside your own transaction

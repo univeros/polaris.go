@@ -1,12 +1,9 @@
 # The Go API and what v1 promises
 
 Polaris for Go follows Go's module rules, not a list of its own: **every exported name of every
-package outside `internal/` is the API**, and from `v1.0.0` on it is covered by semantic versioning.
+package outside `internal/` is the API**, covered by semantic versioning since `v1.0.0`.
 What you can import is what is promised; nothing is "public but not stable". What Polaris must stay
 free to change lives under `internal/`, where the compiler keeps it out of reach (decision 70).
-
-Until `v1.0.0` is tagged, a release may still break a name; each break is a decision in
-`docs/decisions.md` and a **Breaking** line in [CHANGELOG.md](CHANGELOG.md).
 
 The HTTP routes, the database schema and the stored formats (password hashes, ciphertexts, tokens)
 are contracts of their own, kept by other means: the contract tests replay every route,
@@ -15,7 +12,7 @@ are contracts of their own, kept by other means: the contract tests replay every
 
 ## 1. The promise
 
-From `v1.0.0`, within major version 1:
+Within major version 1:
 
 - **Nothing is removed or changed incompatibly.** A program that compiles against `v1.x` compiles
   against every later `v1.y`, and what it relied on keeps its documented behaviour.

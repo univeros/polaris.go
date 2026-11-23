@@ -106,7 +106,8 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
 - Tokens start with `pst_` (`scim.TokenPrefix`), carry 256 random bits and are stored as a keyed hash.
 - `deprovision` is `scim.DeprovisionDeactivate` (default: the user is banned, their sessions end, the
   membership this connection created is removed) or `scim.DeprovisionDelete` (the account is
-  anonymised). It applies to the SCIM DELETE; `active: false` only suspends the membership. An
+  anonymised). It applies to the SCIM DELETE; `active` suspends and reactivates the membership only (an account an
+  operator disabled stays disabled). An
   account nobody has proven (the directory created it outside the organization's verified domains
   and its owner never showed up) is anonymised in either mode (recorded as `scim.user_deleted`):
   disabled, it would keep the address from its owner. Verify the organization's domains if

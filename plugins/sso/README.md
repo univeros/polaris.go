@@ -204,7 +204,9 @@ RS256, EC P-256 ES256, OKP Ed25519 EdDSA) and any other key without `alg` verifi
 (`DefaultSAML`, `github.com/crewjam/saml`): exactly one assertion, signed on the response or the
 assertion by the provider's certificate (read from what the signature covers), its issuer, audience,
 `Destination` and `Recipient`, `InResponseTo`, the conditions with three minutes of skew, and the
-assertion id kept until it expires so a replay is refused. An IdP's `LogoutRequest` must be signed.
+assertion id kept until it expires so a replay is refused. An IdP's `LogoutRequest` must be signed. SHA-1
+signatures are refused: the IdP signs with SHA-256 or better. The endpoints of a discovery document are
+absolute http(s) URLs. `POST /sso/logout` is for active members of the organization (404 otherwise).
 The certificate's validity dates are not checked: it only carries the key the organization
 configured, which is the trust anchor (as in most SAML service providers); an IdP rotating its key is
 a configuration change. Outbound requests (OIDC, the domain's well-known file) connect to

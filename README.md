@@ -214,11 +214,11 @@ func TestSignUp(t *testing.T) {
 
 ## Stability
 
-Polaris is pre-1.0. The Go API ([`API.md`](API.md): every exported name outside `internal/`) only
-changes with a recorded decision and a release note, and CI checks every pull request for
-incompatible changes to it; from 1.0 on it does not break. Stored data (password hashes, encrypted secrets, issued tokens, the schema) stays readable
-across releases. [`CHANGELOG.md`](CHANGELOG.md) says what changes in each release;
-[`docs/v1.md`](docs/v1.md) what 1.0 still requires.
+Polaris is 1.0. The Go API ([`API.md`](API.md): every exported name outside `internal/`) does not break
+within v1, nor do the routes, and CI checks every pull request for it. Stored data (password hashes,
+encrypted secrets, issued tokens, the schema) stays readable across releases. It needs Go 1.26 or newer.
+[`CHANGELOG.md`](CHANGELOG.md) says what changes in each release, [`SECURITY.md`](SECURITY.md) which
+versions get fixes, and [`docs/v1.md`](docs/v1.md) what 1.0 had to meet.
 
 ## Contributing and security
 

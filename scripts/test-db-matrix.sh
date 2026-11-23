@@ -30,7 +30,7 @@ else
   my=polaris-matrix-mysql-$suffix
   cleanup() {
     [ -n "${KEEP:-}" ] && { echo "containers kept: $pg $my" >&2; return; }
-    "$docker" rm -f "$pg" "$my" >/dev/null 2>&1 || true
+    "$docker" rm -fv "$pg" "$my" >/dev/null 2>&1 || true
   }
   trap cleanup EXIT
 
