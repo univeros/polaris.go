@@ -2791,3 +2791,76 @@ the new rule all the same.
 - Left as decision 76 records it: the check and the write of `createGrant` are two statements.
 
 Security review: both changes only refuse more.
+
+## 78. 2026-11-23 — Configuring single sign-on, deprovisioning unproven accounts, one JSON value
+
+- **Configuring single sign-on takes the authority to grant every role of the organization.** The
+  rule decision 74 set for connecting a SCIM directory now holds for an organization's providers and
+  domains, for the same reason: whoever runs the identity provider signs in as any account the
+  organization owns, with the roles it holds, and a verified domain says which accounts those are, so
+  `org.update` alone let an administrator act as an owner. `POST /orgs/{id}/sso/providers`, `PATCH`
+  and `DELETE …/{providerId}`, `POST /orgs/{id}/sso/domains`, `POST …/{domainId}/verify` and `DELETE
+  …/{domainId}` need every permission
+  the organization's roles grant (403 `sso/forbidden`), checked before anything is read. The check
+  moved to `authz.EscalationGuard.CheckEveryRole` and `sso`'s `ownerRoute`; a write route added later
+  is an `ownerRoute` or it is reviewed. `jit.roles` keeps the 422 for an unknown slug; its own
+  escalation check (decision 74) is contained in the new one and gone. Reading, listing and testing
+  stay with `org.update`. Test: `TestOnlyWhoCouldGrantEveryRoleConfiguresSingleSignOn` (HTTP).
+- **A SCIM DELETE frees the address of an account nobody proved.** A directory of any organization
+  could create an unverified account for an address nobody had registered and deprovision it: disabled,
+  it could not be registered, reset or verified by the mailbox's owner. An owned account whose
+  `email_verified_at` is empty is anonymised whatever the connection's `deprovision`; RFC 7644 §3.6
+  asks that a deleted User is no conflict for a new one. A proven account keeps its mode.
+  `directory.erase` writes the account's row first and decides on what it then reads, removes the
+  membership under the owner guarantee (409 for the last active owner, in `delete` mode too), and
+  anonymises in the same transaction. The host's `OnUserDeleted` runs, so a host that wants
+  deprovisioned accounts kept verifies its organizations' domains (the accounts are then proven).
+  Considered: leaving the account enabled and only removing the membership (the host's
+  `user.disabled` would not fire for a deprovisioned employee), and letting a registration reopen a
+  disabled account (nothing tells a directory's disable from an operator's). `ResendVerification`
+  skips disabled accounts. Tests: `TestADeprovisionedAccountNobodyProvedFreesItsAddress`,
+  `TestErasingADeprovisionedAccountChecksItAgain`, `TestResendSkipsADisabledAccount`.
+- **An address is erased as often as it is registered.** The tombstone's email is the keyed hash of
+  the address, so erasing a second account of one address hit the unique index and failed. When the
+  hash is taken the user's id follows it (`docs/stored-formats.md`); the first erasure's format is
+  unchanged. Test: `TestAnAddressCanBeErasedAgain`.
+- **A provider creates accounts for email addresses only.** `sso` refuses to create an account whose
+  normalized email is not one (`manifest.IsEmail`, the rule of every other account's address),
+  whichever protocol implementation answered it. An account that exists with another address
+  (`ada@intranet`, from an earlier release) keeps signing in. Test: `TestAnAssertionNamesAnEmailAddress`.
+- **A sign-in checks the account where it opens the session.** `finish` writes the account's row,
+  reads it again, repeats the ownership, status and membership checks and resolves the roles in the
+  transaction that issues the session, so it and whatever ends the organization's hold queue on the row: one that committed
+  since the provisioning is read, one that follows revokes the session. For the latter `RevokeAll`
+  revokes by user instead of by the families it read: on MySQL (repeatable read) the families
+  predate the transaction. Tests: `TestASignInThatLosesTheAccountOpensNoSession`,
+  `TestRevokeAllRevokesTheSessionsIssuedSinceItsTransactionBegan` (PostgreSQL, MySQL; failed on
+  MySQL).
+- **A confirmed registration ends an organization's hold.** `ProveEmail` keeps everything when it
+  confirms a registration's password, the plugins' access rows included; `sso` and `scim` now listen
+  to `user.email_verified` and run their `EraseAccess`. Tests: `TestAConfirmedRegistrationEndsAProvidersHold`,
+  `TestAConfirmedRegistrationEndsADirectorysHold`.
+- **A signed payload is one JSON value.** Fuzzing (`FuzzRequestJWT`) found a request JWT whose payload
+  carried data after its object accepted. `json.Decoder.Decode` reads one value and ignores the rest;
+  `internal/strictjson.Decode` requires the end, and replaces it in `plugins/agents` (request JWTs,
+  the body's arguments), `internal/jwtverify`, `plugins/oauth` (headers, assertions, DPoP proofs),
+  `plugins/social`, `plugins/sso` (ID tokens), `plugins/mcp` (messages) and `agent` (receipts). `token/decode.go` had the check.
+  A payload of `null` is refused too. `FuzzCookieCSRF`'s failing input was the test's oracle: it
+  decoded a valid number beyond a float64; the pipeline's output was right. Both inputs are seeds.
+- **Accepted, documented in the READMEs.** A directory learns from a 409 that an address has an
+  account (RFC 7644 uniqueness; a limit on the SCIM routes would break a first sync). A domain's
+  verification does not expire and its HTTPS method proves the web root. The agents policy decides
+  per agent and capability name, so a new enrolment or a renamed capability starts fresh.
+
+`plugins/ui`: the `www.`, host-route cookie and `return_to` assertions of `TestOriginIsTheConfiguredOne`
+were each shown to catch their regression by mutation, and `plugins/oauth` has a test of
+`oauth.PageProvider` (`TestAPageProviderFillsTheURLsTheHostLeftEmpty`).
+
+Go API: additive (`sso.Plugin.Listeners`, `scim.Plugin.Listeners`). Contract fixtures: unchanged.
+
+Security review (rule 6): every change refuses more, or ends more (sessions, an organization's hold),
+except three. Erasing instead of disabling an unproven account removes data a directory could already
+remove in `delete` mode, and only for accounts it owns and nobody claimed. The tombstone with an id
+reveals no more than the row's own id. `verified` in the session and the exchange envelope is now read
+in the issuing transaction, so it is never staler than before. The lock order of the two new
+transactions is the account's row, then the organization's.

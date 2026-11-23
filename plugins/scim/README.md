@@ -83,6 +83,14 @@ there is none).
   holding `org.update` read and decommission connections and get 403 `scim/forbidden` on those
   two. `Connections().Create` / `Rotate` from code are the host's and are not checked.
 
+- **What a uniqueness conflict tells.** RFC 7644 makes a directory learn that a `userName` is taken
+  (409 `uniqueness`), so whoever holds a connection's token can tell whether an address has an
+  account: the address of a free one is created instead, and both are recorded
+  (`scim.request_rejected`, `scim.user_created`). The SCIM routes have no rate limit of their own,
+  since a directory's first sync creates every member in a burst. An instance where anyone may
+  create an organization and where that matters limits these routes at its proxy, or who may create
+  organizations.
+
 ## Problems
 
 Organization routes: `https://polaris.univeros.io/problems/scim/forbidden` (403, not your active
@@ -98,7 +106,12 @@ carry `error` and `message`. Admin routes answer the admin plugin's problems.
 - Tokens start with `pst_` (`scim.TokenPrefix`), carry 256 random bits and are stored as a keyed hash.
 - `deprovision` is `scim.DeprovisionDeactivate` (default: the user is banned, their sessions end, the
   membership this connection created is removed) or `scim.DeprovisionDelete` (the account is
-  anonymised).
+  anonymised). It applies to the SCIM DELETE; `active: false` only suspends the membership. An
+  account nobody has proven (the directory created it outside the organization's verified domains
+  and its owner never showed up) is anonymised in either mode (recorded as `scim.user_deleted`):
+  disabled, it would keep the address from its owner. Verify the organization's domains if
+  deprovisioning should keep the accounts. The organization keeps its last active owner (409) in
+  both modes.
 - Filters accept what directories send: `attr eq|co|sw "value"` joined by `and`; anything else is
   `invalidFilter`. The value is a JSON string (RFC 7644 §3.4.2.2): JSON escapes are decoded, an
   unknown escape, a raw control character or a NUL is `invalidFilter`.

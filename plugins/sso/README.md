@@ -78,16 +78,25 @@ A provider vouches for a mailbox only on a domain its organization verified. An 
 anywhere else is **unverified** and stays so however often the provider signs it in. When the
 mailbox's owner proves it (a password reset, an email code or magic link), the account is theirs:
 the first proof removes the provisioning record (`sso` implements `wiring.AccessEraser`), and the
-provider answers `sso/user_unknown` from then on. So an IdP cannot mint a verified account for an
+provider answers `sso/user_unknown` from then on. A sign-in in flight when that happens opens no
+session. So an IdP cannot mint a verified account for an
 address its organization does not control, nor keep one.
 
-### The roles a provider gives
+### Who configures single sign-on
 
-`jit.roles` are role slugs of the organization (an unknown one is a 422), and none may carry a
-permission the caller configuring them does not hold (403 `sso/forbidden`): the escalation rule of
-role changes and invitations. An administrator cannot make the organization's IdP provision owners.
-A PATCH that does not send `jit` is not checked. `Providers().Create` / `Update` from code are the
-host's and are not checked.
+Whoever runs an organization's IdP signs in as any member the organization owns, with the roles that
+member holds, the owners' included. So creating, changing (disabling included) or deleting a provider,
+and adding, verifying or deleting a domain, takes every permission the organization's roles grant (the
+escalation rule of role changes and invitations, 403 `sso/forbidden`): in practice an owner. Others
+holding `org.update` read providers and domains and test a provider. `Providers()` and `Domains()`
+from code are the host's and are not checked.
+
+Upgrading from v0.7.0 or earlier: a provider or domain configured by someone who was not an owner
+stays as it is. Review them: `created_by` names who created a provider, the audit trail's
+`sso.provider_updated` and `sso.domain_*` who changed it since.
+
+`jit.roles` are role slugs of the organization (an unknown one is a 422; a PATCH that does not send
+`jit` is not checked).
 
 ### Domains
 
@@ -97,6 +106,11 @@ first organization's list). An organization's verification token for a domain is
 claim, so one whose claim was replaced claims again and verifies with the DNS record or file it
 already published. `409 sso/conflict` means the domain is verified elsewhere, or already claimed
 by the caller's organization.
+
+A verification does not expire, and the HTTPS method proves control of the domain's web root, not of
+its mail. When a domain changes hands, its former organization should delete it (or an operator the
+provider). To accept DNS only, set `Config.Domains` to `sso.DNSHTTPSVerifier{}`, which has no HTTP
+client.
 
 ### OIDC checks
 
@@ -149,7 +163,8 @@ An IdP's LogoutRequest ends the sessions of the accounts the organization owns (
 | GET, POST | `/sso/slo/{providerId}` | public | single logout from the IdP, or the IdP's answer to ours |
 | POST | `/sso/logout` | bearer | end the caller's sessions; answers the IdP's logout `url` |
 
-Organization admins (bearer, `org.update` in the active organization), under `/orgs/{id}/sso`:
+Organization admins (bearer, `org.update` in the active organization; every route that writes also
+needs every permission the organization's roles grant, above), under `/orgs/{id}/sso`:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -199,7 +214,7 @@ fire. Uses core's `org.update`.
 `Event.Data["reason"]` of `sso.assertion_rejected`), `…/sso/user_unknown` (403: no account and JIT
 off, or an existing account the organization does not own), `…/sso/account_disabled` (403), `…/sso/membership_suspended` (403), `…/sso/code_invalid` (422),
 `…/sso/invalid_input` (422). Organization routes add `…/sso/forbidden` (403, not your active
-organization), `…/sso/not_found` (404), `…/sso/conflict` (409, the domain is already claimed) and
+organization, or configuring single sign-on without every permission its roles grant), `…/sso/not_found` (404), `…/sso/conflict` (409, the domain is already claimed) and
 `…/sso/domain_unverified` (422). Admin routes answer the admin plugin's problems.
 
 ## Host integration

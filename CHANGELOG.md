@@ -9,6 +9,58 @@ marked **Breaking**.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-23
+
+Security fixes from a third pre-1.0 review (decision 78). **Upgrade now if you use `plugins/sso` or
+`plugins/scim`.** No schema change and no Go API break. After upgrading:
+
+- Review every organization's SSO providers and domains that someone other than an owner configured:
+  `created_by` names who created a provider, and the audit trail's `sso.provider_updated` and
+  `sso.domain_*` events who changed one since. They keep working as configured.
+- Accounts a directory deprovisioned before this release that are disabled and unverified still hold
+  their address; an operator erases them (`DELETE /admin/users/{id}`) where its owner needs it.
+
+### Security
+
+- **sso: configuring single sign-on takes every permission the organization's roles grant.**
+  Whoever runs an organization's identity provider signs in as any account the organization owns,
+  with the roles it holds, so an administrator with `org.update` alone could add or repoint a
+  provider and act as an owner. **Breaking, client-visible:** creating, changing (disabling included)
+  or deleting a provider, and adding, verifying or deleting a domain, answers 403 `sso/forbidden`
+  without that authority, as connecting a SCIM directory does since v0.7.0. Reading, listing and
+  testing stay with `org.update`.
+- **scim: deprovisioning an account nobody proved frees its address.** A directory could create an
+  account for an address nobody had registered and deprovision it; the disabled account kept the
+  address from its owner until an operator stepped in. **Breaking, client-visible:** a SCIM DELETE of
+  an owned account whose mailbox nobody has proven anonymises it in either `deprovision` mode
+  (recorded as `scim.user_deleted`; `Hooks.OnUserDeleted` runs). Verify the organization's domains if
+  deprovisioned accounts should be kept: its accounts are then proven. `active: false` still only
+  suspends the membership.
+- sso: a provider creates accounts for email addresses only (`sso/assertion_invalid` otherwise, an
+  address without a dot in its domain included); existing accounts keep signing in. A sign-in checks
+  the account and the membership again in the transaction that opens its session.
+- core: on MySQL, revoking every session of a user also ends the ones issued since the revoking
+  transaction began.
+- scim, sso: a confirmed registration ends a directory's or a provider's hold on the account, as
+  every other first proof of its mailbox does.
+- A signed payload is one JSON object: a provider's ID token, a client assertion or DPoP proof, a
+  receipt, a request JWT and what `verify` and `mcp.Protect` verify are refused when anything follows
+  it. An agent's body holding more than one JSON value has no arguments (a constrained one is then
+  missing), and an MCP message with anything after it is a parse error.
+- core: `POST /auth/email/verify/resend` sends nothing to a disabled account.
+- scim, sso, agents: the READMEs say what a uniqueness conflict tells a directory, how long a domain
+  stays verified and what the auto-approval policy remembers.
+
+### Changed
+
+- scim: **client-visible:** with `deprovision: delete`, a SCIM DELETE of the organization's last
+  active owner answers 409, as it did with `deactivate`.
+
+### Fixed
+
+- core: an address can be erased again after it was registered again: the second erasure failed on
+  the first one's tombstone.
+
 ## [0.7.0] - 2026-11-23
 
 The 1.0 release candidate: security fixes from a second pre-1.0 review (decisions 74 to 77) and the
