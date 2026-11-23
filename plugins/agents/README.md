@@ -104,6 +104,10 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
   capability, its next request for that capability waits for a person (`pending`) until the spent
   grant's window has passed; a budget without a window is granted by the policy once. A person can
   approve the new request as usual.
+- The policy decides per agent and capability name: a newly enrolled agent, or a capability the
+  host renames, starts with neither an exhausted budget nor a revoked grant. Whoever may enroll
+  agents can so ask the policy again; give `AutoApprove` only what that may cost, and an empty map
+  where a person should decide every grant.
 - An autonomous agent's own token (`client_credentials`) carries the permissions of its live
   grants that its owner holds when the token is issued (`Plugin.ClientPermissions`).
 - Each `Handler` capability is also an MCP tool `agents.<name>` for `plugins/mcp`.
