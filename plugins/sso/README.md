@@ -32,13 +32,33 @@ across replicas (its `Add` must be atomic).
 
 1. `POST /sso/sign-in {email | provider_id, redirect_uri?}` answers `{url, provider_id, type}`: a
    verified domain routes the email to its provider; `redirect_uri` must be one of the provider's (the
-   first by default). The application sends the browser to `url`.
+   first by default). The application sends the browser to `url`. The response also sets a cookie
+   that binds the sign-in to this browser (below), so call the route from the browser that will
+   follow `url` (`fetch` with `credentials: "include"` when Polaris is on another origin), not from
+   your server.
 2. The IdP sends the browser back: `GET /sso/callback/{providerId}?code&state` (OIDC) or
    `POST SAMLResponse, RelayState` (SAML). The user is found by email or created when the provider's
-   JIT is enabled (verified, no password), joined to the organization with `JIT.Roles` (`member` by
-   default), and signed in with a session scoped to the organization (`amr` `["sso"]`); the answer is
+   JIT is enabled (no password; verified only when the email is on a domain the organization
+   verified), joined to the organization with `JIT.Roles` (`member` by default), and signed in with
+   a session scoped to the organization (`amr` `["sso"]`); the answer is
    `302 <redirect_uri>?sso_code=…`. Tokens never travel in a URL.
-3. `POST /sso/exchange {code}` answers core's login envelope, once, within a minute.
+3. `POST /sso/exchange {code}` answers core's login envelope, once, within a minute. Its
+   `user.email_verified` is the account's own: false for an account the provider created outside
+   the organization's verified domains.
+
+### The browser that started it
+
+A sign-in completes only in the browser that started it; otherwise someone could start a sign-in as
+themselves and have another person's browser finish it, leaving that person in the wrong account
+(login CSRF). `POST /sso/sign-in` sets a cookie named after the state
+(`__Host-polaris_sso_<16 hex>`, `HttpOnly; Secure; SameSite=None; Path=/`, ten minutes; without the
+`__Host-` prefix and `SameSite=Lax` when `Config.BaseURL` is plain http), and the callback refuses a
+state whose cookie is missing or different (`sso/assertion_invalid`, reason "the sign-in was started
+in another browser"). The scheme is `Config.BaseURL`'s, not the connection's, so it holds behind a
+TLS-terminating proxy. From code, `Start` returns `Started.State` and `Started.Binding`, and
+`CompleteOIDC` / `CompleteSAML` take the binding the browser presents. A SAML response without a
+RelayState (IdP-initiated, accepted only with the provider's `idp_initiated`) has no browser that
+started it and so no binding: leave the flag off unless the IdP needs it.
 
 ### Whose accounts an IdP signs in
 
@@ -53,6 +73,36 @@ Being a member is not enough: joining an organization does not hand it the accou
 answers `sso/user_unknown`. An unverified account on a verified domain becomes verified by the
 sign-in, as the mailbox's first proof (`Identity.ProveEmail`: what could sign in before goes). A platform
 superadmin never signs in through an organization's IdP.
+
+A provider vouches for a mailbox only on a domain its organization verified. An account it creates
+anywhere else is **unverified** and stays so however often the provider signs it in. When the
+mailbox's owner proves it (a password reset, an email code or magic link), the account is theirs:
+the first proof removes the provisioning record (`sso` implements `wiring.AccessEraser`), and the
+provider answers `sso/user_unknown` from then on. So an IdP cannot mint a verified account for an
+address its organization does not control, nor keep one.
+
+### The roles a provider gives
+
+`jit.roles` are role slugs of the organization (an unknown one is a 422), and none may carry a
+permission the caller configuring them does not hold (403 `sso/forbidden`): the escalation rule of
+role changes and invitations. An administrator cannot make the organization's IdP provision owners.
+A PATCH that does not send `jit` is not checked. `Providers().Create` / `Update` from code are the
+host's and are not checked.
+
+### Domains
+
+A verified domain belongs to one organization. A claim nobody verified reserves nothing: when
+another organization claims the domain, the unverified claim is replaced (it disappears from the
+first organization's list). An organization's verification token for a domain is the same on every
+claim, so one whose claim was replaced claims again and verifies with the DNS record or file it
+already published. `409 sso/conflict` means the domain is verified elsewhere, or already claimed
+by the caller's organization.
+
+### OIDC checks
+
+The discovery document's `issuer` must be the configured issuer (OpenID Connect Discovery §4.3;
+a trailing slash aside), and the ID token must carry `exp`. A provider failing either is refused
+with `sso/assertion_invalid`.
 
 Upgrading from v0.5.0 or earlier: accounts a provider created before the record existed sign in
 again once the organization verifies their email domain. Where it cannot (contractors on public
@@ -80,6 +130,11 @@ is true), because the IdP's operator is not the account holder:
 A user who needs those routes signs in to the account itself (password, passkey, email code). A
 host route behind `p.Protect` that acts on the user's account, or on data outside the
 organization, should refuse `Principal.OrganizationBound` too.
+
+The binding is the `amr` value, wherever the session comes from: a host that opens a session
+itself with `p.Sessions().Issue(ctx, polaris.SignIn{…})` and passes an `AMR` containing `"sso"` gets an
+organization-bound session with all of the above. Pass `"sso"` when your own code signed the user
+in on an organization IdP's word, and leave it out otherwise.
 
 An IdP's LogoutRequest ends the sessions of the accounts the organization owns (the rule above).
 
@@ -149,7 +204,8 @@ organization), `…/sso/not_found` (404), `…/sso/conflict` (409, the domain is
 
 ## Host integration
 
-- From code: `sso.Of(g)` (`Start`, `Exchange`, `Logout`, `Providers()`, `Domains()`, `SP()`).
+- From code: `sso.Of(g)` (`Start`, `CompleteOIDC`, `CompleteSAML`, `Exchange`, `Logout`,
+  `Providers()`, `Domains()`, `SP()`).
 - Other plugins check a domain with `sso.Of(g).DomainVerified(ctx, organizationID, domain)`: a SCIM
   directory links an existing account to its organization only when the account's email is on a
   verified domain.

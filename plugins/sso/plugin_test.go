@@ -36,6 +36,8 @@ type unit struct {
 	oidc   *fakeOIDC
 	saml   *fakeSAML
 	client token.ClientContext
+	// binding is what the unit's browser holds for the sign-in it started last.
+	binding string
 }
 
 func newUnit(t *testing.T) *unit {
@@ -45,6 +47,24 @@ func newUnit(t *testing.T) *unit {
 	u.p = sso.New(sso.Config{BaseURL: base, OIDC: u.oidc, SAML: u.saml, Domains: &fakeVerifier{}})
 	u.srv = polaristest.New(t, polaristest.WithPlugins(u.trail, admin.New(admin.Config{}), u.p))
 	return u
+}
+
+// start starts a sign-in in the unit's browser: it keeps the binding of the last one.
+func (u *unit) start(email, providerID, redirectURI string) (sso.Started, error) {
+	started, err := u.p.Start(u.ctx, email, providerID, redirectURI)
+	if err == nil {
+		u.binding = started.Binding
+	}
+	return started, err
+}
+
+// completeOIDC and completeSAML are the callbacks, arriving in the unit's browser.
+func (u *unit) completeOIDC(providerID, code, state, idpError string) (string, error) {
+	return u.p.CompleteOIDC(u.ctx, providerID, code, state, u.binding, idpError, u.client)
+}
+
+func (u *unit) completeSAML(providerID, response, relayState string) (string, error) {
+	return u.p.CompleteSAML(u.ctx, providerID, response, relayState, u.binding, u.client)
 }
 
 // organization is Acme, owned by a user with ownerEmail: its id.
@@ -196,43 +216,43 @@ func TestTheOIDCFlowRoutesByDomainProvisionsAndHandsTheSessionOver(t *testing.T)
 		t.Fatal(err)
 	}
 
-	_, err = u.p.Start(u.ctx, "carol@acme.example", "", "")
+	_, err = u.start("carol@acme.example", "", "")
 	refused(t, err, sso.ReasonProviderNotFound, "the domain is not verified yet")
 	verified, _ := u.p.DomainVerified(u.ctx, orgID, "acme.example")
 	check(t, !verified, "not verified yet")
 	if _, err := u.p.Domains().MarkVerified(u.ctx, domain); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.Start(u.ctx, "carol@elsewhere.example", "", "")
+	_, err = u.start("carol@elsewhere.example", "", "")
 	refused(t, err, sso.ReasonProviderNotFound, "another domain")
-	_, err = u.p.Start(u.ctx, "", "", "")
+	_, err = u.start("", "", "")
 	refused(t, err, sso.ReasonInvalidInput, "no email")
-	_, err = u.p.Start(u.ctx, "carol@acme.example", "", "https://evil.example/")
+	_, err = u.start("carol@acme.example", "", "https://evil.example/")
 	refused(t, err, sso.ReasonInvalidInput, "not one of the provider's redirect uris")
-	started, err := u.p.Start(u.ctx, "Carol@ACME.example", "", "https://app.example/other")
-	check(t, err == nil && started == sso.Started{URL: "https://idp.example/authorize?client_id=c1", ProviderID: prov.ID, Type: "oidc"}, "started %v %v", started, err)
+	started, err := u.start("Carol@ACME.example", "", "https://app.example/other")
+	check(t, err == nil && started.URL == "https://idp.example/authorize?client_id=c1" && started.ProviderID == prov.ID && started.Type == "oidc" && len(started.Binding) == 32 && started.State != "", "started %v %v", started, err)
 
 	restart := func(redirect string) string {
-		if _, err := u.p.Start(u.ctx, "ada@acme.example", "", redirect); err != nil {
+		if _, err := u.start("ada@acme.example", "", redirect); err != nil {
 			t.Fatal(err)
 		}
 		return u.oidc.state()
 	}
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", "unknown-state", "", u.client)
+	_, err = u.completeOIDC(prov.ID, "good", "unknown-state", "")
 	refused(t, err, sso.ReasonAssertionInvalid, "unknown state")
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "bad", restart(""), "", u.client)
+	_, err = u.completeOIDC(prov.ID, "bad", restart(""), "")
 	refused(t, err, sso.ReasonAssertionInvalid, "a bad code")
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "", restart(""), "access_denied", u.client)
+	_, err = u.completeOIDC(prov.ID, "", restart(""), "access_denied")
 	refused(t, err, sso.ReasonAssertionInvalid, "the provider refused")
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "", restart(""), "", u.client)
+	_, err = u.completeOIDC(prov.ID, "", restart(""), "")
 	refused(t, err, sso.ReasonAssertionInvalid, "no code")
-	_, err = u.p.CompleteOIDC(u.ctx, "nope", "good", restart(""), "", u.client)
+	_, err = u.completeOIDC("nope", "good", restart(""), "")
 	refused(t, err, sso.ReasonProviderNotFound, "no provider")
 
 	state := restart("https://app.example/other")
-	to, err := u.p.CompleteOIDC(u.ctx, prov.ID, "good", state, "", u.client)
+	to, err := u.completeOIDC(prov.ID, "good", state, "")
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/other?sso_code="), "redirect %q %v", to, err)
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", state, "", u.client)
+	_, err = u.completeOIDC(prov.ID, "good", state, "")
 	refused(t, err, sso.ReasonAssertionInvalid, "a state is single-use")
 	loc, _ := url.Parse(to)
 	session, err := u.p.Exchange(u.ctx, loc.Query().Get("sso_code"))
@@ -273,7 +293,7 @@ func TestTheOIDCFlowRoutesByDomainProvisionsAndHandsTheSessionOver(t *testing.T)
 	check(t, slices.Equal(u.reasons(sso.AuditAssertionRejected), []any{"unknown or expired state", "no code in the callback", "the provider answered access_denied", "the code is not good", "unknown or expired state"}),
 		"reasons %v", u.reasons(sso.AuditAssertionRejected))
 
-	again, err := u.p.CompleteOIDC(u.ctx, prov.ID, "good", restart(""), "", u.client)
+	again, err := u.completeOIDC(prov.ID, "good", restart(""), "")
 	check(t, err == nil && strings.HasPrefix(again, "https://app.example/done?sso_code="), "the first redirect uri by default: %q", again)
 	latest := f.audited(sso.AuditSignedIn)[0]
 	check(t, latest.Data["provisioned"] == false && latest.Data["joined"] == false, "a returning member %v", latest.Data)
@@ -284,20 +304,20 @@ func TestTheOIDCFlowRoutesByDomainProvisionsAndHandsTheSessionOver(t *testing.T)
 	if err := g.Repos().Users.Update(u.ctx, ada, disabled); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", restart(""), "", u.client)
+	_, err = u.completeOIDC(prov.ID, "good", restart(""), "")
 	refused(t, err, sso.ReasonAccountDisabled, "a disabled account")
 	moved := disabled
 	moved.Email = "moved@acme.example"
 	if err := g.Repos().Users.Update(u.ctx, disabled, moved); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", restart(""), "", u.client)
+	_, err = u.completeOIDC(prov.ID, "good", restart(""), "")
 	refused(t, err, sso.ReasonUserUnknown, "no account and no provisioning")
 
 	prov = u.update(prov, func(n *sso.Provider) { n.Enabled = false })
-	_, err = u.p.Start(u.ctx, "carol@acme.example", "", "")
+	_, err = u.start("carol@acme.example", "", "")
 	refused(t, err, sso.ReasonProviderDisabled, "a disabled provider")
-	_, err = u.p.CompleteOIDC(u.ctx, prov.ID, "good", "x", "", u.client)
+	_, err = u.completeOIDC(prov.ID, "good", "x", "")
 	refused(t, err, sso.ReasonProviderDisabled, "a disabled provider's callback")
 	to, err = u.p.Logout(u.ctx, moved, orgID, prov.ID, "", u.client)
 	check(t, err == nil && to == "https://idp.example/logout?post_logout_redirect_uri=https://app.example/done", "logout %q %v", to, err)
@@ -318,14 +338,14 @@ func TestTheSAMLFlowRefusesReplaysAndUnsolicitedResponsesUnlessAllowedAndLogsOut
 	prov := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeSAML, Name: "IdP", Issuer: "https://idp.example/metadata",
 		Config: config, JIT: sso.JIT{Enabled: true}, RedirectURIs: []string{"https://app.example/done"}, Enabled: true})
 	start := func() string {
-		started, err := u.p.Start(u.ctx, "", prov.ID, "")
+		started, err := u.start("", prov.ID, "")
 		check(t, err == nil && started.URL == "https://idp.example/sso?SAMLRequest=fake", "started %v %v", started, err)
 		return u.saml.relay()
 	}
 
-	_, err := u.p.CompleteSAML(u.ctx, prov.ID, "bad", start(), u.client)
+	_, err := u.completeSAML(prov.ID, "bad", start())
 	refused(t, err, sso.ReasonAssertionInvalid, "a bad response")
-	to, err := u.p.CompleteSAML(u.ctx, prov.ID, "good:bob@acme.example", start(), u.client)
+	to, err := u.completeSAML(prov.ID, "good:bob@acme.example", start())
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/done?sso_code="), "redirect %q %v", to, err)
 	bob, err := g.Repos().Users.ByEmail(u.ctx, "bob@acme.example")
 	if err != nil {
@@ -335,18 +355,18 @@ func TestTheSAMLFlowRefusesReplaysAndUnsolicitedResponsesUnlessAllowedAndLogsOut
 	links, _ := g.Repos().MembershipRoles.ListByMembership(u.ctx, m.ID)
 	check(t, len(links) == 1, "the member role by default")
 
-	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "good:bob@acme.example", start(), u.client)
+	_, err = u.completeSAML(prov.ID, "good:bob@acme.example", start())
 	refused(t, err, sso.ReasonAssertionInvalid, "the assertion id was seen")
-	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "unsolicited:carol@acme.example", "", u.client)
+	_, err = u.completeSAML(prov.ID, "unsolicited:carol@acme.example", "")
 	refused(t, err, sso.ReasonAssertionInvalid, "IdP-initiated is off")
-	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "", "", u.client)
+	_, err = u.completeSAML(prov.ID, "", "")
 	refused(t, err, sso.ReasonAssertionInvalid, "no response")
 	allowed := map[string]any{"idp_initiated": true}
 	for k, v := range config {
 		allowed[k] = v
 	}
 	prov = u.update(prov, func(n *sso.Provider) { n.Config = allowed })
-	to, err = u.p.CompleteSAML(u.ctx, prov.ID, "unsolicited:carol@acme.example", "", u.client)
+	to, err = u.completeSAML(prov.ID, "unsolicited:carol@acme.example", "")
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/done?sso_code="), "IdP-initiated is on: %q %v", to, err)
 	check(t, slices.Equal(u.reasons(sso.AuditAssertionRejected), []any{"no SAMLResponse in the callback",
 		"unsolicited response and the provider does not allow IdP-initiated sign-in", "assertion assertion-bob@acme.example replayed", "the response is not good"}),
@@ -381,10 +401,10 @@ func TestMembershipsGateTheSignIn(t *testing.T) {
 	prov := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeSAML, Name: "IdP", Issuer: "https://idp",
 		Config: map[string]any{"sso_url": "https://idp/sso", "certificate": "c"}, JIT: sso.JIT{Enabled: true, Roles: []string{"admin", "ghost"}},
 		RedirectURIs: []string{"https://app.example/done?from=sso"}, Enabled: true})
-	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
+	if _, err := u.start("", prov.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	to, err := u.p.CompleteSAML(u.ctx, prov.ID, "good:eve@acme.example", u.saml.relay(), u.client)
+	to, err := u.completeSAML(prov.ID, "good:eve@acme.example", u.saml.relay())
 	check(t, err == nil && strings.HasPrefix(to, "https://app.example/done?from=sso&sso_code="), "a redirect with a query %q %v", to, err)
 	eve, _ := g.Repos().Users.ByEmail(u.ctx, "eve@acme.example")
 	m, _ := g.Repos().Memberships.ByUserAndOrganization(u.ctx, eve.ID, orgID)
@@ -395,12 +415,12 @@ func TestMembershipsGateTheSignIn(t *testing.T) {
 	if err := g.Repos().Memberships.Update(u.ctx, m, suspended); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
+	if _, err := u.start("", prov.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "good:eve2@acme.example", u.saml.relay(), u.client)
+	_, err = u.completeSAML(prov.ID, "good:eve2@acme.example", u.saml.relay())
 	check(t, err == nil, "another person signs in: %v", err)
-	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
+	if _, err := u.start("", prov.ID, ""); err != nil {
 		t.Fatal(err)
 	}
 	u.saml.mu.Lock()
@@ -413,15 +433,15 @@ func TestMembershipsGateTheSignIn(t *testing.T) {
 	u.oidc.email = "eve@acme.example"
 	oidcProv := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeOIDC, Name: "Okta", Issuer: "https://okta",
 		Config: map[string]any{"client_id": "c"}, RedirectURIs: []string{"https://app.example/done"}, Enabled: true})
-	if _, err := u.p.Start(u.ctx, "", oidcProv.ID, ""); err != nil {
+	if _, err := u.start("", oidcProv.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteOIDC(u.ctx, oidcProv.ID, "good", u.oidc.state(), "", u.client)
+	_, err = u.completeOIDC(oidcProv.ID, "good", u.oidc.state(), "")
 	refused(t, err, sso.ReasonMembershipSuspended, "a suspended membership")
 
 	noRedirect := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeOIDC, Name: "Bare", Issuer: "https://bare",
 		Config: map[string]any{"client_id": "c"}, Enabled: true})
-	_, err = u.p.Start(u.ctx, "", noRedirect.ID, "")
+	_, err = u.start("", noRedirect.ID, "")
 	refused(t, err, sso.ReasonInvalidInput, "a provider without redirect uris")
 }
 
@@ -476,10 +496,10 @@ func TestAnOrganizationsIdPCannotClaimOutsideAccounts(t *testing.T) {
 	prov := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeSAML, Name: "IdP", Issuer: "https://idp",
 		Config: map[string]any{"sso_url": "https://idp/sso", "slo_url": "https://idp/slo", "certificate": "c"}, JIT: sso.JIT{Enabled: true},
 		RedirectURIs: []string{"https://app.example/done"}, Enabled: true})
-	if _, err := u.p.Start(u.ctx, "", prov.ID, ""); err != nil {
+	if _, err := u.start("", prov.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteSAML(u.ctx, prov.ID, "good:ceo@globex.example", u.saml.relay(), u.client)
+	_, err = u.completeSAML(prov.ID, "good:ceo@globex.example", u.saml.relay())
 	refused(t, err, sso.ReasonUserUnknown, "an outside account")
 	_, err = g.Repos().Memberships.ByUserAndOrganization(u.ctx, victim.ID, orgID)
 	check(t, err != nil, "no membership was created")
@@ -499,9 +519,9 @@ func TestAnOrganizationsIdPCannotClaimOutsideAccounts(t *testing.T) {
 	u.oidc.email = "ceo@globex.example"
 	oidcProv := u.provider(sso.Provider{OrganizationID: orgID, Type: sso.TypeOIDC, Name: "Okta", Issuer: "https://okta",
 		Config: map[string]any{"client_id": "c"}, RedirectURIs: []string{"https://app.example/done"}, Enabled: true})
-	if _, err := u.p.Start(u.ctx, "", oidcProv.ID, ""); err != nil {
+	if _, err := u.start("", oidcProv.ID, ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = u.p.CompleteOIDC(u.ctx, oidcProv.ID, "good", u.oidc.state(), "", u.client)
+	_, err = u.completeOIDC(oidcProv.ID, "good", u.oidc.state(), "")
 	check(t, err == nil, "the organization's verified domain: %v", err)
 }

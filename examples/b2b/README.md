@@ -168,7 +168,10 @@ curl -s -X POST $B/sso/sign-in -H "$J" -d "{\"provider_id\":\"$PROV\"}"
 ```
 
 This call fetches the issuer's discovery document, so it needs the network and an issuer that serves
-one (`https://acme.okta.com` did in this run; offline, the sign-in cannot start). The browser goes to
+one (`https://acme.okta.com` did in this run; offline, the sign-in cannot start). The response also
+sets a `polaris_sso_…` cookie that binds the sign-in to the browser that made the call, so in an
+application the browser makes it (the callback refuses any other browser; with `curl`, keep the
+cookie with `-c`/`-b`). The browser goes to
 `url`; the IdP sends it back to `/sso/callback/{providerId}`, which redirects to
 `http://localhost:8080/sso/done?sso_code=…`; the application trades the code for the session with
 `POST /sso/exchange {"code": "…"}`. A SAML provider is the same call with `"type": "saml"` and

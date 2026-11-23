@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -33,11 +34,15 @@ const (
 	logoutRevoke = "sso_logout"
 )
 
-// Started is where the browser goes to sign in (POST /sso/sign-in).
+// Started is where the browser goes to sign in (POST /sso/sign-in). State and Binding tie the
+// sign-in to the browser that started it: the route sets Binding in a cookie named after State
+// and the callback requires it back (CompleteOIDC, CompleteSAML). Neither is in the JSON answer.
 type Started struct {
 	URL        string `json:"url"`
 	ProviderID string `json:"provider_id"`
 	Type       string `json:"type"`
+	State      string `json:"-"`
+	Binding    string `json:"-"`
 }
 
 // state is what a sign-in keeps in the cache until its callback, encrypted.
@@ -47,6 +52,7 @@ type state struct {
 	Nonce       string `json:"nonce,omitempty"`
 	Verifier    string `json:"verifier,omitempty"`
 	RequestID   string `json:"request_id,omitempty"`
+	Binding     string `json:"binding,omitempty"` // the nonce of the browser that started the sign-in
 }
 
 // session is what a hand-off code stands for: core's login envelope.
@@ -78,7 +84,7 @@ func (p *Plugin) Start(ctx context.Context, email, providerID, redirectURI strin
 	if redirectURI, err = redirectOf(prov, redirectURI); err != nil {
 		return Started{}, err
 	}
-	st := state{ProviderID: prov.ID, RedirectURI: redirectURI}
+	st := state{ProviderID: prov.ID, RedirectURI: redirectURI, Binding: hex.EncodeToString(random(16))}
 	key := hex.EncodeToString(random(16))
 	var target string
 	if prov.Type == TypeOIDC {
@@ -94,7 +100,7 @@ func (p *Plugin) Start(ctx context.Context, email, providerID, redirectURI strin
 	if err := p.keep(ctx, "state."+digest(key), st, stateTTL); err != nil {
 		return Started{}, err
 	}
-	return Started{URL: target, ProviderID: prov.ID, Type: prov.Type}, nil
+	return Started{URL: target, ProviderID: prov.ID, Type: prov.Type, State: key, Binding: st.Binding}, nil
 }
 
 func (p *Plugin) routeTo(ctx context.Context, email, providerID string) (Provider, bool, error) {
@@ -128,13 +134,15 @@ func redirectOf(prov Provider, requested string) (string, error) {
 }
 
 // CompleteOIDC is the OIDC callback: the application URL to send the browser to, with the
-// hand-off code.
-func (p *Plugin) CompleteOIDC(ctx context.Context, providerID, code, stateKey, idpError string, client token.ClientContext) (string, error) {
+// hand-off code. binding is what the calling browser holds for the state (Started.Binding; the
+// route reads its cookie): a sign-in completes only in the browser that started it, so nobody can
+// have another person's browser finish a sign-in they began (login CSRF).
+func (p *Plugin) CompleteOIDC(ctx context.Context, providerID, code, stateKey, binding, idpError string, client token.ClientContext) (string, error) {
 	prov, err := p.enabled(ctx, providerID, TypeOIDC)
 	if err != nil {
 		return "", err
 	}
-	st, err := p.takeState(ctx, prov, stateKey, client)
+	st, err := p.takeState(ctx, prov, stateKey, binding, client)
 	if err != nil {
 		return "", err
 	}
@@ -157,8 +165,9 @@ func (p *Plugin) CompleteOIDC(ctx context.Context, providerID, code, stateKey, i
 
 // CompleteSAML is the SAML assertion consumer (POST binding): the application URL to send the
 // browser to, with the hand-off code. Without a RelayState the response is IdP-initiated, accepted
-// only when the provider's idp_initiated is set.
-func (p *Plugin) CompleteSAML(ctx context.Context, providerID, samlResponse, relayState string, client token.ClientContext) (string, error) {
+// only when the provider's idp_initiated is set (no browser started it, so nothing binds it: the
+// flag accepts that). binding is as for CompleteOIDC.
+func (p *Plugin) CompleteSAML(ctx context.Context, providerID, samlResponse, relayState, binding string, client token.ClientContext) (string, error) {
 	prov, err := p.enabled(ctx, providerID, TypeSAML)
 	if err != nil {
 		return "", err
@@ -169,7 +178,7 @@ func (p *Plugin) CompleteSAML(ctx context.Context, providerID, samlResponse, rel
 	var requestID, redirectURI string
 	switch {
 	case relayState != "":
-		st, err := p.takeState(ctx, prov, relayState, client)
+		st, err := p.takeState(ctx, prov, relayState, binding, client)
 		if err != nil {
 			return "", err
 		}
@@ -312,8 +321,9 @@ func (p *Plugin) enabled(ctx context.Context, providerID, typ string) (Provider,
 	return prov, nil
 }
 
-// takeState claims a sign-in's state once; an unknown, used, expired or foreign one is a rejection.
-func (p *Plugin) takeState(ctx context.Context, prov Provider, key string, client token.ClientContext) (state, error) {
+// takeState claims a sign-in's state once; an unknown, used, expired or foreign one, or one started
+// in another browser (binding is not the state's), is a rejection.
+func (p *Plugin) takeState(ctx context.Context, prov Provider, key, binding string, client token.ClientContext) (state, error) {
 	var st state
 	ok := false
 	if key != "" {
@@ -324,6 +334,9 @@ func (p *Plugin) takeState(ctx context.Context, prov Provider, key string, clien
 	}
 	if !ok || st.ProviderID != prov.ID {
 		return st, p.reject(ctx, prov, "unknown or expired state", client)
+	}
+	if st.Binding == "" || subtle.ConstantTimeCompare([]byte(binding), []byte(st.Binding)) != 1 {
+		return st, p.reject(ctx, prov, "the sign-in was started in another browser", client)
 	}
 	return st, nil
 }
@@ -353,7 +366,7 @@ func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirec
 	}
 	now := p.g.Clock().Now().UTC().Truncate(time.Second)
 	authTime := now.Unix()
-	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = true, false, []string{AMR}, &authTime
+	principal.EmailVerified, principal.MFA, principal.AMR, principal.AuthTime = u.EmailVerifiedAt != nil, false, []string{AMR}, &authTime
 	next := u
 	next.LastLoginAt, next.UpdatedAt = &now, now
 	var issued token.IssuedTokens
@@ -371,7 +384,7 @@ func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirec
 	p.record(ctx, Event{Name: AuditSignedIn, ActorType: audit.ActorUser, ActorID: u.ID, SubjectID: u.ID, OrganizationID: prov.OrganizationID,
 		Data: map[string]any{"provider_id": prov.ID, "type": prov.Type, "provisioned": provisioned, "joined": joined}}, client)
 	s := session{AccessToken: issued.AccessToken, TokenType: "Bearer", ExpiresIn: issued.AccessExpiresIn, RefreshToken: issued.RefreshToken}
-	s.User.ID, s.User.Email, s.User.EmailVerified = u.ID, u.Email, true
+	s.User.ID, s.User.Email, s.User.EmailVerified = u.ID, u.Email, u.EmailVerifiedAt != nil
 	code := b64(random(32))
 	if err := p.keep(ctx, "code."+digest(code), s, codeTTL); err != nil {
 		return "", err
@@ -384,8 +397,11 @@ func (p *Plugin) finish(ctx context.Context, prov Provider, id Identity, redirec
 }
 
 // provision is the user behind an identity and their membership in the provider's organization:
-// found by email, or created (verified, no password) when the provider provisions; the membership
-// is created with the provider's roles. One transaction; a concurrent sign-in of the same new
+// found by email, or created (no password) when the provider provisions; the membership is created
+// with the provider's roles. The provider vouches for a mailbox only on a domain its organization
+// verified: there a new account is created verified and an unproven one is proven; anywhere else
+// the account stays unverified until its mailbox's owner proves it, which ends the organization's
+// hold on it (EraseAccess). One transaction; a concurrent sign-in of the same new
 // person re-reads the account it created.
 func (p *Plugin) provision(ctx context.Context, prov Provider, id Identity) (u model.User, provisioned, joined bool, err error) {
 	for attempt := 0; attempt < 2; attempt++ {
@@ -399,6 +415,10 @@ func (p *Plugin) provision(ctx context.Context, prov Provider, id Identity) (u m
 
 func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) (u model.User, provisioned, joined bool, err error) {
 	email := identity.NormalizeEmail(id.Email)
+	vouched, err := p.DomainVerified(ctx, prov.OrganizationID, email[strings.LastIndex(email, "@")+1:])
+	if err != nil {
+		return u, false, false, err
+	}
 	err = p.g.DB().Tx(ctx, func(ctx context.Context) error {
 		existing, err := p.g.Repos().Users.ByEmail(ctx, email)
 		switch {
@@ -409,10 +429,13 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			if err := p.mayLink(ctx, prov, existing); err != nil {
 				return err
 			}
-			// The organization that verified the domain vouches for the mailbox: for an account
-			// nobody had proven, this is the first proof.
-			if u, _, err = p.g.Identity().ProveEmail(ctx, existing.ID, false); err != nil {
-				return err
+			u = existing
+			if vouched {
+				// The organization that verified the domain vouches for the mailbox: for an account
+				// nobody had proven, this is the first proof.
+				if u, _, err = p.g.Identity().ProveEmail(ctx, existing.ID, false); err != nil {
+					return err
+				}
 			}
 		case !errors.Is(err, repository.ErrNotFound):
 			return err
@@ -420,7 +443,10 @@ func (p *Plugin) provisionOnce(ctx context.Context, prov Provider, id Identity) 
 			return refuse(ReasonUserUnknown, "no account for "+email+" and the provider does not provision")
 		default:
 			now := p.g.Clock().Now().UTC().Truncate(time.Second)
-			u = model.User{ID: repository.NewID(), Email: email, Status: model.UserStatusActive, EmailVerifiedAt: &now, CreatedAt: now, UpdatedAt: now}
+			u = model.User{ID: repository.NewID(), Email: email, Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
+			if vouched {
+				u.EmailVerifiedAt = &now
+			}
 			if id.Name != "" {
 				name := id.Name
 				u.DisplayName = &name
@@ -471,6 +497,14 @@ func (p *Plugin) owns(ctx context.Context, organizationID string, u model.User) 
 		}
 	}
 	return p.DomainVerified(ctx, organizationID, u.Email[strings.LastIndex(u.Email, "@")+1:])
+}
+
+// EraseAccess implements wiring.AccessEraser: the first proof of the account's mailbox ends what
+// the organizations whose providers created it hold over it. An organization that verified the
+// account's domain keeps signing it in (owns).
+func (p *Plugin) EraseAccess(ctx context.Context, userID string) error {
+	_, err := p.g.DB().Delete(ctx, TableAccounts, store.Criteria{"user_id": userID})
+	return err
 }
 
 // MarkProvisioned records that the organization's identity provider provisioned the account, so

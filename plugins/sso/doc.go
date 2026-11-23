@@ -20,10 +20,11 @@
 //
 //  1. POST /sso/sign-in {email | provider_id, redirect_uri?} answers {url, provider_id, type}: a
 //     verified domain routes the email to its provider; redirect_uri must be one of the
-//     provider's (the first by default). The application sends the browser to url.
+//     provider's (the first by default). The application sends the browser to url; a
+//     cookie binds the sign-in to the browser that called the route, and the callback requires it.
 //  2. The IdP sends the browser back: GET /sso/callback/{providerId}?code&state (OIDC) or POST
 //     SAMLResponse, RelayState (SAML). The user is found by email or created when the provider's
-//     JIT is enabled (verified, no password), joined to the organization with JIT.Roles ("member"
+//     JIT is enabled (no password; verified only on a domain the organization verified), joined to the organization with JIT.Roles ("member"
 //     by default), and signed in with a session scoped to the organization (amr ["sso"]); the
 //     answer is 302 <redirect_uri>?sso_code=…. Tokens never travel in a URL.
 //  3. POST /sso/exchange {code} answers core's login envelope, once, within a minute.

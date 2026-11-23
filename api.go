@@ -301,7 +301,10 @@ func tokensOf(t token.IssuedTokens) Tokens {
 type SignIn struct {
 	UserID string
 	// AMR says how the user authenticated, RFC 8176 values ("pwd", "otp", "hwk", …); empty is
-	// ["custom"].
+	// ["custom"]. "sso" has a meaning to Polaris: a session whose AMR holds it is bound to its
+	// organization (Principal.OrganizationBound), as the sso plugin's sessions are: it cannot
+	// switch organization nor change the account (password, factors, keys). Pass it when an
+	// organization's identity provider vouched for the user, and only then.
 	AMR       []string
 	IP        string // recorded on the session; optional
 	UserAgent string // recorded on the session; optional

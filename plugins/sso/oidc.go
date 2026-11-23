@@ -161,6 +161,11 @@ func (o *HTTPOIDC) discover(ctx context.Context, p Provider, fresh bool) (discov
 			return d, refuse(ReasonAssertionInvalid, "discovery document lacks "+required)
 		}
 	}
+	// OpenID Connect Discovery §4.3: the document must be the configured issuer's own, or whoever
+	// serves that URL could name another issuer's endpoints and keys.
+	if strings.TrimRight(doc["issuer"].(string), "/") != strings.TrimRight(issuer, "/") {
+		return d, refuse(ReasonAssertionInvalid, "discovery document is for another issuer")
+	}
 	d.Issuer, d.AuthorizationEndpoint, d.TokenEndpoint, d.JWKSURI = doc["issuer"].(string), doc["authorization_endpoint"].(string), doc["token_endpoint"].(string), doc["jwks_uri"].(string)
 	d.EndSessionEndpoint, _ = doc["end_session_endpoint"].(string)
 	if raw, err := json.Marshal(d); err == nil {
@@ -289,7 +294,7 @@ func algorithmOf(k jose.JSONWebKey) (string, error) {
 
 // verifyIDToken verifies an ID token against a key set: a compact JWS whose kid names a key
 // verifying the header's algorithm (algorithmOf), a valid signature, a JSON object payload, and
-// nbf / iat / exp within a minute of leeway.
+// an exp (required) and nbf / iat / exp within a minute of leeway.
 func verifyIDToken(raw string, keys []jose.JSONWebKey, now time.Time) (map[string]any, error) {
 	jws, err := jose.ParseSignedCompact(raw, idTokenAlgorithms)
 	if err != nil {
@@ -343,7 +348,11 @@ func verifyIDToken(raw string, keys []jose.JSONWebKey, now time.Time) (map[strin
 	if iat, ok := times["iat"]; ok && !hasNbf && math.Floor(iat) > ts+idTokenLeeway {
 		return nil, errors.New("the token was issued in the future (iat)")
 	}
-	if exp, ok := times["exp"]; ok && ts-idTokenLeeway >= exp {
+	exp, ok := times["exp"]
+	if !ok {
+		return nil, errors.New("the token has no expiry (exp)") // required: OpenID Connect Core §2
+	}
+	if ts-idTokenLeeway >= exp {
 		return nil, errors.New("the token has expired")
 	}
 	return claims, nil

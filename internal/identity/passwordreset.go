@@ -69,8 +69,9 @@ func (s *Service) ForgotPassword(ctx context.Context, email string, client token
 // unverified account becomes verified, as a first proof (ProveEmail).
 //
 // A new password failing the policy returns a *PasswordError (checked first). An unknown,
-// consumed or expired token, or a disabled account, returns ErrInvalidResetToken: a disabled
-// account cannot re-enable itself through a reset.
+// consumed or expired token, one sent to an address the account has left since, or a disabled
+// account, returns ErrInvalidResetToken: a disabled account cannot re-enable itself through a
+// reset.
 func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string, client token.ClientContext) error {
 	if err := enforce(ctx, s.policy, newPassword); err != nil {
 		return err
@@ -92,6 +93,10 @@ func (s *Service) ResetPassword(ctx context.Context, secret, newPassword string,
 	}
 	if err != nil {
 		return fmt.Errorf("identity: reset password: %w", err)
+	}
+	// The token proves the mailbox it was sent to, which the account may have left since.
+	if challenge.Email != user.Email {
+		return refuse(ErrInvalidResetToken, msgBadReset)
 	}
 
 	hash, err := s.hasher.Hash(newPassword)

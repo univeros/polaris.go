@@ -59,10 +59,34 @@ organization-scoped operator sees their organization's), `DELETE /admin/scim/con
 connection as its actor. Without audit nothing is recorded, but the events still fire. Uses core's
 `org.update`.
 
+## What a directory may vouch for
+
+Any user can create an organization and connect a directory to it, so a directory's word is proof
+of a mailbox only on a domain its organization verified (the `sso` plugin's domains; without `sso`
+there is none).
+
+- **Creating a user.** The account is verified when its email is on a verified domain, and
+  unverified otherwise. An unverified account has no password; its owner takes it by proving the
+  mailbox (a password reset, an email code or magic link).
+- **Whose account it is.** The directory owns an account it created (it may rename, disable or
+  erase it) until the mailbox's owner proves it: the first proof removes the directory's
+  provenance (`scim` implements `wiring.AccessEraser`), the account stays a member, and from then
+  on the directory changes the membership only, as for any account it did not create. On a verified
+  domain the directory keeps the account: the organization answers for those mailboxes.
+- **Renaming (`userName`).** An owned account moves as it would be created: verified at the new
+  address on a verified domain, unverified anywhere else. A verified account is refused an address
+  outside the verified domains (403 `mutability`). The reset and verification messages sent to the
+  old address stop working with the move.
+- **Who connects a directory.** A directory assigns any role of the organization, the owners'
+  included, so creating a connection or rotating its token takes every permission the
+  organization's roles grant (the escalation rule of role changes): in practice an owner. Others
+  holding `org.update` read and decommission connections and get 403 `scim/forbidden` on those
+  two. `Connections().Create` / `Rotate` from code are the host's and are not checked.
+
 ## Problems
 
 Organization routes: `https://polaris.univeros.io/problems/scim/forbidden` (403, not your active
-organization), `…/scim/not_found` (404), `…/scim/invalid_input` (422), `…/scim/conflict` (409, the
+organization, or creating or rotating a connection without every permission its roles grant), `…/scim/not_found` (404), `…/scim/invalid_input` (422), `…/scim/conflict` (409, the
 connection is decommissioned). SCIM routes answer SCIM error documents (`scim.ErrorSchema`: status,
 detail, `scimType` such as `invalidFilter`, `invalidValue`, `uniqueness`, `mutability`), which also
 carry `error` and `message`. Admin routes answer the admin plugin's problems.

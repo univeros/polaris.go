@@ -45,6 +45,13 @@ type Identity interface {
 	// confirmsRegistration (a registration's own verification message) keeps a password and then
 	// removes nothing.
 	ProveEmail(ctx context.Context, userID string, confirmsRegistration bool) (user model.User, first bool, err error)
+	// ChangeEmail moves an account the caller manages (a directory, one it owns) to another
+	// address, instead of writing auth_users.email: the account is verified when verified is true
+	// (the caller vouches for the new mailbox, as the organization that verified its domain does)
+	// and unverified otherwise, and the reset and verification tokens sent to the old address are
+	// removed. A taken address matches identity.ErrEmailTaken. Whether the move is allowed is the
+	// caller's check.
+	ChangeEmail(ctx context.Context, userID, email string, verified bool) (model.User, error)
 	// Login checks a password sign-in: tokens, or an MFA challenge.
 	Login(ctx context.Context, email, password string, client token.ClientContext) (identity.LoginResult, error)
 	// SetPassword sets the password for a trusted caller, as a reset does: the policy applies

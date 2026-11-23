@@ -169,13 +169,14 @@ type flow struct {
 	verifier *fakeVerifier
 }
 
+// newFlow's client keeps cookies, as the one browser a sign-in starts and ends in (decision 74).
 func newFlow(t *testing.T, suite, test string) *flow {
 	t.Helper()
 	f := &flow{t: t, admin: admin.New(admin.Config{}), trail: audit.New(audit.Config{}),
 		oidc: &fakeOIDC{email: "ada@acme.example", name: "Ada Lovelace"}, saml: &fakeSAML{}, verifier: &fakeVerifier{}}
 	plugin := sso.New(sso.Config{BaseURL: base, OIDC: f.oidc, SAML: f.saml, Domains: f.verifier})
 	f.srv = polaristest.New(t, polaristest.WithPlugins(f.trail, f.admin, plugin))
-	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "sso"), fixturePrefix+suite, test))
+	f.c = contracttest.NewClient(t, f.srv.Handler(), contracttest.For(t, contracttest.Fixtures(t, "sso"), fixturePrefix+suite, test)).KeepCookies()
 	return f
 }
 

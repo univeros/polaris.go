@@ -95,7 +95,7 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	client := netguard.NoRedirects(p.cfg.HTTPClient)
 	p.g, p.sp = g, sp
 	p.providers = &Providers{db: g.DB(), enc: g.Encrypter(), clock: g.Clock()}
-	p.domains = &Domains{db: g.DB(), clock: g.Clock()}
+	p.domains = &Domains{db: g.DB(), clock: g.Clock(), pepper: g.Pepper()}
 	p.oidc, p.saml, p.verifier = p.cfg.OIDC, p.cfg.SAML, p.cfg.Domains
 	if p.oidc == nil {
 		p.oidc = &HTTPOIDC{HTTP: client, Cache: g.Cache(), Clock: g.Clock()}

@@ -19,7 +19,10 @@ domain:
   description: >
     The provider of provider_id, or the one a verified domain routes the email to. The application
     sends the browser to url; the sign-in ends on redirect_uri (one of the provider's, the first by
-    default) with a one-time sso_code for POST /sso/exchange.
+    default) with a one-time sso_code for POST /sso/exchange. The response sets a cookie
+    (polaris_sso_<state>, __Host- prefixed under https) that binds the sign-in to this browser: call
+    the route from the browser (credentials included) that will follow url, since the callback
+    refuses any other.
 
 output:
   status: 200

@@ -103,10 +103,12 @@ func (d *directory) findUser(ctx context.Context, conn Connection, id string) (m
 	return user, err
 }
 
-// createUser provisions a member: a new user (verified, no password) owned by the connection, or
-// the account the email already has when its domain is one the organization verified, joined to
-// the organization with the member role (its profile left as it is). Any other existing account
-// is a uniqueness conflict: a directory never takes over another organization's user.
+// createUser provisions a member: a new user (no password) owned by the connection, or the account
+// the email already has when its domain is one the organization verified, joined to the
+// organization with the member role (its profile left as it is). Any other existing account is a
+// uniqueness conflict: a directory never takes over another organization's user. The new user is
+// verified only on a domain the organization verified: the directory's word is no proof of
+// anybody else's mailbox, and such an account stays unverified until its owner proves it.
 func (d *directory) createUser(ctx context.Context, conn Connection, body map[string]any) (model.User, error) {
 	email, err := emailOf(body)
 	if err != nil {
@@ -117,6 +119,10 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 		return model.User{}, err
 	}
 	taken := conflict("A member with this userName exists.")
+	vouched, err := d.mayLink(ctx, conn, email)
+	if err != nil {
+		return model.User{}, err
+	}
 	user, err := d.repos.Users.ByEmail(ctx, email)
 	exists := err == nil
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
@@ -130,11 +136,7 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 		if err != nil {
 			return model.User{}, err
 		}
-		linkable, err := d.mayLink(ctx, conn, email)
-		if err != nil {
-			return model.User{}, err
-		}
-		if !linkable {
+		if !vouched {
 			return model.User{}, conflict("Another account uses this userName.")
 		}
 	}
@@ -142,8 +144,11 @@ func (d *directory) createUser(ctx context.Context, conn Connection, body map[st
 	joined := false
 	err = d.db.Tx(ctx, func(ctx context.Context) error {
 		if !exists {
-			next := model.User{ID: repository.NewID(), Email: email, DisplayName: displayNameOf(body), EmailVerifiedAt: &now,
+			next := model.User{ID: repository.NewID(), Email: email, DisplayName: displayNameOf(body),
 				Status: model.UserStatusActive, CreatedAt: now, UpdatedAt: now}
+			if vouched {
+				next.EmailVerifiedAt = &now
+			}
 			if err := d.identity.InsertUser(ctx, next); err != nil {
 				return err
 			}
@@ -267,23 +272,38 @@ func (d *directory) writeUser(ctx context.Context, conn Connection, user model.U
 		}
 		c.email, c.setName, c.parts = nil, false, nil
 	}
+	// An owned account moves to another address as it would be created there: verified on a
+	// domain the organization verified, unverified anywhere else. So a verified account does not
+	// leave those domains: it would carry its verification, and whatever signs in to it, onto a
+	// mailbox nobody proved.
+	renamed, vouched := c.email != nil && *c.email != user.Email, false
+	if renamed {
+		if vouched, err = d.mayLink(ctx, conn, *c.email); err != nil {
+			return model.User{}, err
+		}
+		if !vouched && user.EmailVerifiedAt != nil {
+			return model.User{}, immutable("userName of a verified account changes only to an address on a domain the organization verified.")
+		}
+	}
 	err = d.db.Tx(ctx, func(ctx context.Context) error {
-		next := user
-		if c.email != nil && *c.email != user.Email {
-			other, err := d.repos.Users.ByEmail(ctx, *c.email)
-			if err == nil && other.ID != user.ID {
+		current := user
+		if renamed {
+			// ChangeEmail also removes the reset and verification tokens sent to the old address.
+			moved, err := d.identity.ChangeEmail(ctx, user.ID, *c.email, vouched)
+			if errors.Is(err, identity.ErrEmailTaken) {
 				return conflict("Another account uses this userName.")
 			}
-			if err != nil && !errors.Is(err, repository.ErrNotFound) {
+			if err != nil {
 				return err
 			}
-			next.Email = *c.email
+			current = moved
 		}
+		next := current
 		if c.setName {
 			next.DisplayName = c.displayName
 		}
 		next.UpdatedAt = d.now()
-		if err := d.repos.Users.Update(ctx, user, next); err != nil {
+		if err := d.repos.Users.Update(ctx, current, next); err != nil {
 			return err
 		}
 		if c.parts != nil {

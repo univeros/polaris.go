@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/univeros/polaris.go/event"
@@ -52,19 +53,7 @@ func (s *Service) ProveEmail(ctx context.Context, userID string, confirmsRegistr
 		if keeps {
 			return nil
 		}
-		for _, table := range []string{"auth_otp_challenges", "auth_mfa_factors", "auth_recovery_codes"} { // challenges before the factors they reference
-			if _, err := s.db.Delete(ctx, table, store.Criteria{"user_id": userID}); err != nil {
-				return err
-			}
-		}
-		if s.onEmailProven != nil {
-			if err := s.onEmailProven(ctx, userID); err != nil {
-				return err
-			}
-		}
-		// Last: the denylist watermark is in the cache, which a rollback cannot undo.
-		_, err = s.sessions.RevokeAll(ctx, userID, model.RevokedAdmin)
-		return err
+		return s.dropAccess(ctx, userID)
 	})
 	if err != nil {
 		return model.User{}, false, fmt.Errorf("identity: prove email: %w", err)
@@ -73,4 +62,65 @@ func (s *Service) ProveEmail(ctx context.Context, userID string, confirmsRegistr
 		s.events.Dispatch(ctx, event.UserEmailVerified{UserID: user.ID, Email: user.Email})
 	}
 	return user, first, nil
+}
+
+// dropAccess removes what could act as the account apart from its password: the MFA factors,
+// recovery codes and pending challenges, what the plugins hold (Config.OnEmailProven) and every
+// session. It runs inside the caller's transaction.
+func (s *Service) dropAccess(ctx context.Context, userID string) error {
+	for _, table := range []string{"auth_otp_challenges", "auth_mfa_factors", "auth_recovery_codes"} { // challenges before the factors they reference
+		if _, err := s.db.Delete(ctx, table, store.Criteria{"user_id": userID}); err != nil {
+			return err
+		}
+	}
+	if s.onEmailProven != nil {
+		if err := s.onEmailProven(ctx, userID); err != nil {
+			return err
+		}
+	}
+	// Last: the denylist watermark is in the cache, which a rollback cannot undo.
+	_, err := s.sessions.RevokeAll(ctx, userID, model.RevokedAdmin)
+	return err
+}
+
+// ChangeEmail moves the account to another address for a trusted caller (a directory renaming an
+// account it owns), which decides whether the move is allowed at all. verified says whether the
+// caller vouches for the new mailbox: the account is verified when it does (for an unverified one
+// that is its first proof, ProveEmail) and unverified when it does not, whatever it was before. The reset and verification tokens sent to the old address are
+// removed: a token is for the mailbox it was sent to. A taken address is ErrEmailTaken.
+func (s *Service) ChangeEmail(ctx context.Context, userID, email string, verified bool) (model.User, error) {
+	email = NormalizeEmail(email)
+	var next model.User
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		user, err := s.repos.Users.Get(ctx, userID)
+		if err != nil {
+			return err
+		}
+		next = user
+		next.Email, next.UpdatedAt = email, s.now()
+		if !verified {
+			next.EmailVerifiedAt = nil
+		}
+		if err := s.repos.Users.Update(ctx, user, next); err != nil {
+			return err
+		}
+		if _, err := s.repos.PasswordResets.DeleteByUser(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := s.repos.EmailVerifications.DeleteByUser(ctx, userID); err != nil {
+			return err
+		}
+		if verified && next.EmailVerifiedAt == nil {
+			// The caller's word is the mailbox's first proof, with what a first proof removes.
+			next, _, err = s.ProveEmail(ctx, userID, false)
+		}
+		return err
+	})
+	if errors.Is(err, store.ErrDuplicate) {
+		return model.User{}, refuse(ErrEmailTaken, msgEmailTaken)
+	}
+	if err != nil {
+		return model.User{}, fmt.Errorf("identity: change email: %w", err)
+	}
+	return next, nil
 }

@@ -17,8 +17,11 @@ input:
 
 domain:
   description: >
-    A domain belongs to one organization across the instance (409 when claimed). Once verified, a
-    sign-in with an email of the domain goes to provider_id. Recorded as sso.domain_added.
+    A verified domain belongs to one organization across the instance (409; also for a domain the
+    organization claimed already). A claim nobody verified reserves nothing: another organization's
+    claim replaces it. The verification token is the organization's for the domain, the same on
+    every claim. Once verified, a sign-in with an email of the domain goes to provider_id. Recorded
+    as sso.domain_added.
 
 output:
   status: 201

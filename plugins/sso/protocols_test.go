@@ -327,6 +327,15 @@ func TestOIDCRunsDiscoveryTheCodeExchangeAndVerifiesTheIdToken(t *testing.T) {
 	if _, err := unreachable.AuthorizationURL(ctx, nowhere, callback, "s", "n", "c"); err == nil {
 		t.Fatal("no discovery, no authorization URL")
 	}
+
+	// OpenID Connect Discovery §4.3: the document's issuer is the one it was fetched for.
+	mux.HandleFunc("/other/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"issuer": issuer, "authorization_endpoint": issuer + "/authorize",
+			"token_endpoint": issuer + "/token", "jwks_uri": issuer + "/jwks"})
+	})
+	other := testProvider(TypeOIDC, map[string]any{"client_id": "client-1"}, issuer+"/other", nil)
+	_, err = unreachable.AuthorizationURL(ctx, other, callback, "s", "n", "c")
+	refusedAs(t, err, ReasonAssertionInvalid, "discovery document is for another issuer", "a document naming another issuer")
 }
 
 func TestAKeyWithoutAlgVerifiesTheAlgorithmItsTypeImplies(t *testing.T) {
@@ -387,7 +396,8 @@ func TestIDTokenTimeErrorsAreGoNative(t *testing.T) {
 		fmt.Sprintf(`{"nbf":%d}`, now.Unix()+600): "the token is not valid yet (nbf)",
 		fmt.Sprintf(`{"iat":%d}`, now.Unix()+600): "the token was issued in the future (iat)",
 		fmt.Sprintf(`{"exp":%d}`, now.Unix()-600): "the token has expired",
-		`[1]`: "the claims are not a JSON object",
+		`{"sub":"u"}`: "the token has no expiry (exp)", // OpenID Connect Core §2: exp is required
+		`[1]`:         "the claims are not a JSON object",
 	} {
 		s, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "k"))
 		jws, _ := s.Sign([]byte(claims))

@@ -37,9 +37,9 @@ var (
 	datetimeRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`)
 	opaqueRe    = regexp.MustCompile(`^[A-Za-z0-9_\-+/=]{32,}\n?$`)
 	intKeyRe    = regexp.MustCompile(`^(0|-?[1-9][0-9]*)$`)
-	// socialBindingRe is the social plugin's browser-binding cookie (decision #39): its name and
+	// socialBindingRe is the social and sso plugins' browser-binding cookie (decisions #39, #74): its name and
 	// value are per flow.
-	socialBindingRe = regexp.MustCompile(`^(__Host-)?polaris_social_[0-9a-f]{16}=[0-9a-f]{32};`)
+	socialBindingRe = regexp.MustCompile(`^(__Host-)?polaris_(social|sso)_[0-9a-f]{16}=[0-9a-f]{32};`)
 )
 
 // timestampKeys hold epoch claims minted per run (an OAuth introspection, a userinfo document).
@@ -69,7 +69,7 @@ func normalizeResponse(status int, headers map[string][]string, body any) normal
 		for i, v := range values {
 			masked[i] = maskQuery(v)
 			if lower == "set-cookie" {
-				masked[i] = socialBindingRe.ReplaceAllString(masked[i], "${1}polaris_social_<state>=<binding>;")
+				masked[i] = socialBindingRe.ReplaceAllString(masked[i], "${1}polaris_${2}_<state>=<binding>;")
 			}
 		}
 		out[lower] = masked
