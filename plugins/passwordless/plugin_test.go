@@ -704,15 +704,21 @@ func TestSendsAreBoundedPerDestinationAndPerAccount(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := len(e.mail.Sent()); n != limit {
-		t.Fatalf("%d mails to one address, want %d", n, limit)
+	if n := len(e.mail.Sent()); n != 2*limit {
+		t.Fatalf("%d mails to one address, want %d links and as many codes", n, limit)
 	}
-	e.clk.Advance(e.g.Auth().OTP.SendWindow + time.Second)
+	// Whoever spent the budget left the owner a code that lives as long as the window does.
+	last := e.mail.Sent()[2*limit-1].Data["code"].(string)
+	e.clk.Advance(e.v.s.otpTTL - time.Second)
+	if _, err := e.v.signInWithEmailCode(e.ctx, "ada@example.com", last); err != nil {
+		t.Fatalf("the last code sent: %v", err)
+	}
+	e.clk.Advance(time.Second)
 	if err := e.v.sendEmailCode(e.ctx, "ada@example.com", PurposeSignIn); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(e.mail.Sent()); n != limit+1 {
-		t.Fatalf("%d mails after the window, want %d", n, limit+1)
+	if n := len(e.mail.Sent()); n != 2*limit+1 {
+		t.Fatalf("%d mails after the window, want %d", n, 2*limit+1)
 	}
 	guest := e.user("guest@example.com", true)
 	for i := range 2 * limit {
@@ -722,6 +728,19 @@ func TestSendsAreBoundedPerDestinationAndPerAccount(t *testing.T) {
 	}
 	if n := len(e.sms.Sent()); n != limit {
 		t.Fatalf("%d texts asked for by one account, want %d", n, limit)
+	}
+	// A number another account has costs as much of it as a free one.
+	bob := e.user("bob@example.com", true)
+	if err := e.v.attachPhone(e.ctx, e.user("owner@example.com", true).ID, "+14155559999"); err != nil {
+		t.Fatal(err)
+	}
+	for range limit {
+		if err := e.v.addPhone(e.ctx, bob.ID, "+14155559999"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.v.addPhone(e.ctx, bob.ID, "+14155550000"); err != nil || len(e.sms.Sent()) != limit {
+		t.Fatalf("the budget is spent: %v, %d texts", err, len(e.sms.Sent()))
 	}
 }
 

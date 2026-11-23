@@ -14,6 +14,7 @@ import (
 	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
+	"github.com/univeros/polaris.go/token"
 )
 
 func freeFlow(t *testing.T) *flow {
@@ -95,4 +96,28 @@ func TestVerifyAnswersWhatTheKeyWouldDo(t *testing.T) {
 	if v := verify(); v["valid"] != false || len(v) != 1 {
 		t.Fatalf("a disabled account's %v", v)
 	}
+}
+
+// With an MFA factor, a key is created and rotated with a recent authentication only.
+func TestCreatingAndRotatingAKeyTakeAStepUp(t *testing.T) {
+	f := freeFlow(t)
+	ctx, g, now := context.Background(), f.srv.Graph(), time.Now().UTC().Truncate(time.Second)
+	userID, fresh := f.login("ada@example.com")
+	id := data(t, f.c.Post("/api-keys", map[string]any{"name": "CI"}, contracttest.Bearer(fresh)))["id"].(string)
+	if err := g.Repos().MFAFactors.Insert(ctx, model.MFAFactor{ID: repository.NewID(), UserID: userID, Type: model.FactorTOTP, ConfirmedAt: &now, CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	old := now.Add(-time.Hour).Unix()
+	stale, err := g.Sessions().Issue(ctx, token.SessionPrincipal{UserID: userID, AMR: []string{"pwd", "otp"}, MFA: true, AuthTime: &old}, token.ClientContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api-keys", "/api-keys/" + id + "/rotate"} {
+		refused := f.c.Post(path, map[string]any{"name": "CI"}, contracttest.Bearer(stale.AccessToken))
+		status(t, refused, 401)
+		if contracttest.JSON(t, refused)["error"] != "step_up_required" {
+			t.Fatalf("%s: want step_up_required", path)
+		}
+	}
+	status(t, f.c.Post("/api-keys/"+id+"/rotate", nil, contracttest.Bearer(fresh)), 201)
 }

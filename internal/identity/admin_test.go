@@ -163,6 +163,9 @@ func TestAnErasedOrDisabledAccountTakesNoPassword(t *testing.T) {
 		id := h.registerAndVerify(t, email)
 		must(t, h.svc.AnonymizeUser(ctx, "operator", id))
 		isErr(t, h.svc.SetPassword(ctx, id, newPassword), ErrConflict)
+		name := "Ada"
+		_, err := h.svc.UpdateProfile(ctx, id, "", id, &name)
+		isErr(t, err, ErrConflict)
 
 		id = h.registerAndVerify(t, "bob@example.com")
 		secret := h.requestReset(t, "bob@example.com")

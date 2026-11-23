@@ -3,6 +3,7 @@ package agents
 import (
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -69,6 +70,16 @@ func normalizePath(p string) string {
 		}
 	}
 	return "/" + strings.Join(segments, "/")
+}
+
+// decodedPath is an escaped path as the most lenient router reads it: every escape decoded, then empty
+// and dot segments resolved. A path that does not decode is taken as it is.
+func decodedPath(escaped string) string {
+	p, err := url.PathUnescape(escaped)
+	if err != nil {
+		p = escaped
+	}
+	return path.Clean("/" + p)
 }
 
 func isHex(c byte) bool {

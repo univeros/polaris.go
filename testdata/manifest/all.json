@@ -8439,7 +8439,7 @@
             "rate_limit": null,
             "effect": "write",
             "receipt": true,
-            "step_up": false,
+            "step_up": true,
             "session": null,
             "requires_permissions": [],
             "input": {
@@ -8510,6 +8510,10 @@
                 {
                     "status": 401,
                     "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
                 },
                 {
                     "status": 403,
@@ -8653,7 +8657,7 @@
             "rate_limit": null,
             "effect": "write",
             "receipt": true,
-            "step_up": false,
+            "step_up": true,
             "session": null,
             "requires_permissions": [],
             "input": {
@@ -8674,6 +8678,10 @@
                 {
                     "status": 401,
                     "code": "unauthorized"
+                },
+                {
+                    "status": 401,
+                    "code": "step_up_required"
                 },
                 {
                     "status": 403,

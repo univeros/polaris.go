@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/store"
 )
 
 // issued is a grant's token response and who it was for (the oauth.token_issued event).
@@ -38,9 +39,9 @@ func (p *Plugin) serveToken(ctx context.Context, in *endpoint.Input) endpoint.Re
 		case GrantClientCredentials:
 			return p.grantClientCredentials(ctx, in, *c, jkt)
 		case GrantDeviceCode:
-			return p.grantPolled(ctx, *c, jkt, text(in, "device_code"), "device_code is required.", p.devices.pollCode)
+			return p.grantPolled(ctx, *c, jkt, text(in, "device_code"), "device_code is required.", TableDeviceCodes, p.devices.pollCode)
 		case GrantCIBA:
-			return p.grantPolled(ctx, *c, jkt, text(in, "auth_req_id"), "auth_req_id is required.", p.ciba.pollRequest)
+			return p.grantPolled(ctx, *c, jkt, text(in, "auth_req_id"), "auth_req_id is required.", TableCIBARequests, p.ciba.pollRequest)
 		case GrantTokenExchange:
 			return p.grantExchange(ctx, in, *c, jkt)
 		case "":
@@ -73,7 +74,14 @@ func (p *Plugin) grantCode(ctx context.Context, in *endpoint.Input, c Client, jk
 	stored, err := p.codes.consume(ctx, value, c, text(in, "redirect_uri"), text(in, "code_verifier"))
 	var reused codeReused
 	if errors.As(err, &reused) {
-		if _, err := p.tokens.revokeFamily(ctx, reused.codeID); err != nil {
+		// The code goes too, so a redemption still in flight issues nothing.
+		err := p.tokens.hold(ctx, reused.userID, func(ctx context.Context) error {
+			if _, err := p.tokens.revokeWhere(ctx, store.Criteria{"family_id": reused.codeID}); err != nil {
+				return err
+			}
+			return deleteWhere(ctx, p.graph.DB(), TableCodes, store.Criteria{"id": reused.codeID})
+		})
+		if err != nil {
 			return issued{}, err
 		}
 		return issued{}, refusal(CodeInvalidGrant, "The authorization code was already used; the tokens it issued are revoked.")
@@ -85,10 +93,10 @@ func (p *Plugin) grantCode(ctx context.Context, in *endpoint.Input, c Client, jk
 		return issued{}, refusal(CodeInvalidDPoPProof, "The code was bound to another DPoP key (dpop_jkt).")
 	}
 	// The tokens' family is the code, so a replay of the code can end them.
-	resp, err := p.tokens.issue(ctx, c, Grant{
+	resp, err := p.tokens.issueWhile(ctx, c, Grant{
 		UserID: stored.UserID, OrganizationID: stored.OrganizationID, Scopes: stored.Scopes, Resource: stored.Resource,
 		DPoPJKT: jkt, AuthTime: stored.AuthTime, Nonce: stored.Nonce, FamilyID: stored.ID,
-	})
+	}, p.tokens.stands(TableCodes, stored.ID))
 	return issued{resp: resp, userID: stored.UserID, orgID: stored.OrganizationID}, err
 }
 
@@ -125,7 +133,7 @@ func (p *Plugin) grantClientCredentials(ctx context.Context, in *endpoint.Input,
 }
 
 // grantPolled is the device and backchannel grants: the approved request, spent, issues tokens.
-func (p *Plugin) grantPolled(ctx context.Context, c Client, jkt, id, missing string, poll func(context.Context, string, Client) (pollable, error)) (issued, error) {
+func (p *Plugin) grantPolled(ctx context.Context, c Client, jkt, id, missing, table string, poll func(context.Context, string, Client) (pollable, error)) (issued, error) {
 	if id == "" {
 		return issued{}, refusal(CodeInvalidRequest, missing)
 	}
@@ -135,7 +143,7 @@ func (p *Plugin) grantPolled(ctx context.Context, c Client, jkt, id, missing str
 	}
 	g := approved.grant()
 	g.DPoPJKT = jkt
-	resp, err := p.tokens.issue(ctx, c, g)
+	resp, err := p.tokens.issueWhile(ctx, c, g, p.tokens.stands(table, approved.ID))
 	return issued{resp: resp, userID: approved.UserID, orgID: approved.OrganizationID}, err
 }
 

@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/identity"
 	"github.com/univeros/polaris.go/plugins/admin"
 )
 
@@ -76,7 +77,7 @@ func (p *Plugin) guard(next http.Handler) http.Handler {
 				"Complete the challenge and try again.", map[string]any{"challenge": "captcha"}))
 			return
 		}
-		a.Email = strings.ToLower(strings.TrimSpace(a.Email))
+		a.Email = identity.NormalizeEmail(a.Email)
 		r = r.WithContext(context.WithValue(ctx, attemptKey{}, a))
 		if a.DeviceID == "" {
 			w = &cookieWriter{ResponseWriter: w, cookie: deviceCookie(r.TLS != nil || strings.HasPrefix(p.g.Auth().Issuer, "https://"))}

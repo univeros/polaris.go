@@ -377,7 +377,7 @@ func (t *tokens) refresh(ctx context.Context, secret string, c Client, jkt strin
 	now := t.clock.Now()
 	if stored.RevokedAt != nil {
 		if stored.FamilyID != "" {
-			if _, err := t.revokeFamily(ctx, stored.FamilyID); err != nil {
+			if err := t.revokeFamily(ctx, stored.UserID, stored.FamilyID); err != nil {
 				return TokenResponse{}, err
 			}
 		}
@@ -398,7 +398,7 @@ func (t *tokens) refresh(ctx context.Context, secret string, c Client, jkt strin
 		}
 	}
 	var resp TokenResponse
-	err = t.db.Tx(ctx, func(ctx context.Context) error {
+	err = t.hold(ctx, stored.UserID, func(ctx context.Context) error {
 		n, err := t.db.Update(ctx, TableTokens, store.Criteria{"id": stored.ID, "revoked_at": nil}, store.Data{"revoked_at": now})
 		if err != nil {
 			return err
@@ -423,13 +423,18 @@ func (t *tokens) revoke(ctx context.Context, raw string, c Client) (*record, err
 		return nil, err
 	}
 	now := t.clock.Now()
-	if _, err := t.db.Update(ctx, TableTokens, store.Criteria{"id": found.ID}, store.Data{"revoked_at": now}); err != nil {
-		return nil, err
-	}
-	if found.Kind == kindRefresh && found.FamilyID != "" {
-		if _, err := t.revokeFamily(ctx, found.FamilyID); err != nil {
-			return nil, err
+	err = t.hold(ctx, found.UserID, func(ctx context.Context) error {
+		if _, err := t.db.Update(ctx, TableTokens, store.Criteria{"id": found.ID}, store.Data{"revoked_at": now}); err != nil {
+			return err
 		}
+		if found.Kind != kindRefresh || found.FamilyID == "" {
+			return nil
+		}
+		_, err := t.revokeWhere(ctx, store.Criteria{"family_id": found.FamilyID})
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 	revoked := *found
 	revoked.RevokedAt = &now
@@ -536,14 +541,63 @@ func (t *tokens) verifyAccess(raw string) (map[string]any, error) {
 	return tok.Claims(), nil
 }
 
+// revokeWhere ends the live tokens that match c. Run it in hold for the user they are of.
 func (t *tokens) revokeWhere(ctx context.Context, c store.Criteria) (int64, error) {
 	live := maps.Clone(c)
 	live["revoked_at"] = nil
 	return t.db.Update(ctx, TableTokens, live, store.Data{"revoked_at": t.clock.Now()})
 }
 
-func (t *tokens) revokeFamily(ctx context.Context, familyID string) (int64, error) {
-	return t.revokeWhere(ctx, store.Criteria{"family_id": familyID})
+func (t *tokens) revokeFamily(ctx context.Context, userID, familyID string) error {
+	return t.hold(ctx, userID, func(ctx context.Context) error {
+		_, err := t.revokeWhere(ctx, store.Criteria{"family_id": familyID})
+		return err
+	})
+}
+
+// hold runs fn in a transaction that first locks the user's row (a no-op UPDATE; none for a client's
+// own token), so issuing, rotating and ending the tokens of a user's grants run one after the other, as
+// their sessions do. A revocation would otherwise miss the token a transaction in flight inserts. The
+// user's row comes before the user's tokens everywhere.
+func (t *tokens) hold(ctx context.Context, userID string, fn func(ctx context.Context) error) error {
+	return t.db.Tx(ctx, func(ctx context.Context) error {
+		if userID != "" {
+			if _, err := t.db.Update(ctx, "auth_users", store.Criteria{"id": userID}, store.Data{"id": userID}); err != nil {
+				return err
+			}
+		}
+		return fn(ctx)
+	})
+}
+
+// issueWhile is issue under the user's lock, while check (nil for none) still holds there: what stands
+// behind the grant, a code or a session, may have ended since it was read.
+func (t *tokens) issueWhile(ctx context.Context, c Client, g Grant, check func(ctx context.Context) error) (resp TokenResponse, err error) {
+	err = t.hold(ctx, g.UserID, func(ctx context.Context) error {
+		if check != nil {
+			if err := check(ctx); err != nil {
+				return err
+			}
+		}
+		resp, err = t.issue(ctx, c, g)
+		return err
+	})
+	if err != nil {
+		return TokenResponse{}, err
+	}
+	return resp, nil
+}
+
+// stands is a check that a row of table (a code, an approved request) is still there: erasing the user
+// and taking a client's grant back delete it.
+func (t *tokens) stands(table, id string) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		row, err := t.db.FindOne(ctx, table, store.Criteria{"id": id})
+		if err == nil && row == nil {
+			err = refusal(CodeInvalidGrant, "The grant was revoked.")
+		}
+		return err
+	}
 }
 
 func (t *tokens) deleteWhere(ctx context.Context, c store.Criteria) error {

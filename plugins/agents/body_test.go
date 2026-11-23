@@ -43,7 +43,7 @@ func TestProtectedRoutesBoundTheBody(t *testing.T) {
 // one JSON value has none, so a constrained argument is missing and refused, rather than checked on
 // the first value while the handler reads another.
 func TestBodyArgumentsAreTheWholeBody(t *testing.T) {
-	for body, want := range map[string]int{`{"amount":1}`: 1, " {\"amount\":1}\n": 1, `{"amount":1}{"amount":1000}`: 0, `{"amount":1}0`: 0, `null`: 0, `[]`: 0, ``: 0} {
+	for body, want := range map[string]int{`{"amount":1}`: 1, " {\"amount\":1}\n": 1, `null`: 0, `[]`: 0, ``: 0} {
 		if got, err := bodyArguments([]byte(body)); got == nil || len(got) != want || err != nil {
 			t.Errorf("%q: %v %v", body, got, err)
 		}
@@ -62,6 +62,10 @@ func TestABodyWhoseMembersAreAmbiguousIsRefused(t *testing.T) {
 		`{"x":{"a":1},"y":{"a":1}}`:               true,
 		`{"email":["email","Email"],"e":"email"}`: true,
 		`[{"a":1},{"A":1}]`:                       true,
+		`{"email":"a"} x`:                         false, // a handler reads the first value
+		` {"email":"a"}{"email":"b"}`:             false,
+		`{"email":`:                               false,
+		`email=a`:                                 true, // not JSON: no arguments
 	} {
 		if _, err := bodyArguments([]byte(body)); (err == nil) != ok {
 			t.Errorf("%s: %v", body, err)
@@ -82,5 +86,69 @@ func TestABodyWhoseMembersAreAmbiguousIsRefused(t *testing.T) {
 	_ = json.Unmarshal(w.Body.Bytes(), &doc)
 	if reached || w.Code != http.StatusNotFound || doc["type"] != endpoint.ProblemTypes+"agents/capability_not_found" {
 		t.Fatalf("an unknown host: %d %s", w.Code, w.Body)
+	}
+}
+
+// A router decodes the path before it matches: whatever it would take for a location's path is guarded.
+func TestGuardDecodesThePathAsARouterDoes(t *testing.T) {
+	located := unitCapability("invite", RiskLow, "deploy.staging")
+	located.Location, located.Handler = "https://app.polaris.test/v1/users:invite", nil
+	p, _ := bootUnit(t, Config{Capabilities: []Capability{located}})
+	reached := ""
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/users:invite", func(_ http.ResponseWriter, r *http.Request) { reached = r.RequestURI })
+	lenient := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // matches the decoded path
+		if r.URL.Path == "/v1/users:invite" {
+			reached = r.RequestURI
+		}
+	})
+	for name, router := range map[string]http.Handler{"ServeMux": mux, "decoded path": lenient} {
+		srv := httptest.NewServer(p.Guard(router))
+		defer srv.Close()
+		for _, path := range []string{"/v1/users:invite", "/v1/users%3Ainvite", "/v1/users%3ainvite", "/v1/%75sers%3Ainvite", "/v1%2Fusers:invite", "/v1%2fusers%3Ainvite",
+			"/v1/./users%3Ainvite", "/v1/x/../users%3Ainvite", "/v1/x/%2e%2e/users%3Ainvite", "//v1//users%3Ainvite", "/v1/users%3Ainvite/"} {
+			resp, err := http.Post(srv.URL+path, "application/json", strings.NewReader("{}"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+			if reached != "" {
+				t.Errorf("%s: %s reached the handler (%d)", name, path, resp.StatusCode)
+				reached = ""
+			}
+		}
+		if resp, err := http.Post(srv.URL+"/v1/users%253Ainvite", "application/json", nil); err != nil || resp.StatusCode == http.StatusUnauthorized {
+			t.Errorf("%s: another path is not guarded: %v %v", name, resp, err)
+		}
+	}
+}
+
+// A declared argument spelled in another case is refused, at any depth: the schema and the constraints
+// read past it, a Go handler does not.
+func TestAMisspelledArgumentIsFound(t *testing.T) {
+	schema := map[string]any{"properties": map[string]any{
+		"amount": map[string]any{"type": "number"},
+		"to":     map[string]any{"properties": map[string]any{"email": map[string]any{}}},
+		"items":  map[string]any{"items": map[string]any{"properties": map[string]any{"sku": map[string]any{}}}},
+	}}
+	for body, want := range map[string]string{
+		`{"amount":1,"to":{"email":"a"},"items":[{"sku":"x"}],"note":"Amount"}`: "",
+		`{"Amount":1000}`:                          "Amount",
+		`{"to":{"Email":"a"}}`:                     "Email",
+		`{"items":[{"sku":"x"},{"SKU":"y"}]}`:      "SKU",
+		`{"free":{"Email":"a"},"other":[{"x":1}]}`: "",
+	} {
+		args, err := bodyArguments([]byte(body))
+		if got := misspelled(schema, args); err != nil || got != want {
+			t.Errorf("%s: %q %v, want %q", body, got, err, want)
+		}
+	}
+	located := unitCapability("refund", RiskLow, "deploy.staging")
+	located.Location, located.Handler = "https://app.polaris.test/refunds", nil
+	located.Input = map[string]any{"type": "object", "properties": map[string]any{"amount": map[string]any{"type": "number", "maximum": 100}}}
+	_ = located.check()
+	args, _ := bodyArguments([]byte(`{"Amount":1000}`))
+	if err := checkSpelling(&located, args); err == nil {
+		t.Error("the capability's own schema")
 	}
 }

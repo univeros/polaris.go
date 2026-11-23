@@ -67,21 +67,28 @@ func (s *Service) UpdateProfile(ctx context.Context, actorUserID, actorOrganizat
 	if err := s.selfOrPermission(ctx, actorUserID, actorOrganizationID, userID, authz.UsersManage); err != nil {
 		return UserView{}, err
 	}
-	user, err := s.user(ctx, userID)
-	if err != nil {
-		return UserView{}, err
-	}
-	next := user
-	if displayName != nil {
-		name := strutil.Trim(*displayName)
-		if utf8.RuneCountInString(name) > displayNameMax {
-			return UserView{}, refuse(ErrInvalidProfile, msgDisplayNameTooLong)
+	var next model.User
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		user, err := s.lockUser(ctx, userID)
+		if err != nil {
+			return err
 		}
-		next.DisplayName = optional(name)
-	}
-	next.UpdatedAt = s.now()
-	if err := s.repos.Users.Update(ctx, user, next); err != nil {
-		return UserView{}, fmt.Errorf("identity: update profile: %w", err)
+		next = user
+		if displayName != nil {
+			name := strutil.Trim(*displayName)
+			if utf8.RuneCountInString(name) > displayNameMax {
+				return refuse(ErrInvalidProfile, msgDisplayNameTooLong)
+			}
+			next.DisplayName = optional(name)
+		}
+		if erased(user) {
+			return refuse(ErrConflict, msgTombstone)
+		}
+		next.UpdatedAt = s.now()
+		return s.repos.Users.Update(ctx, user, next)
+	})
+	if err != nil {
+		return UserView{}, wrapUnlessRefusal("update profile", err)
 	}
 	return viewOf(next), nil
 }

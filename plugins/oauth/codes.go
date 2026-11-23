@@ -30,7 +30,7 @@ type code struct {
 
 // codeReused is an authorization code presented a second time (RFC 9700 §4.5): the token
 // endpoint revokes the family its first redemption issued, whose id is the code's.
-type codeReused struct{ codeID string }
+type codeReused struct{ codeID, userID string }
 
 func (codeReused) Error() string { return "oauth: the authorization code was already used" }
 
@@ -82,7 +82,7 @@ func (s *codes) consume(ctx context.Context, value string, c Client, redirectURI
 	now := s.clock.Now()
 	switch {
 	case stored.UsedAt != nil:
-		return code{}, codeReused{codeID: stored.ID}
+		return code{}, codeReused{codeID: stored.ID, userID: stored.UserID}
 	case stored.ClientID != c.ClientID:
 		return code{}, refusal(CodeInvalidGrant, "The authorization code was issued to another client.")
 	case !stored.ExpiresAt.After(now):

@@ -158,6 +158,8 @@ func locationCapability(a *agentsCase) {
 	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, map[string]any{"capabilities": []any{"invite", "members.list"}}, nil), bob))["error"], "aud_mismatch", "several capabilities at a location")
 	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), map[string]any{"email": "bob@evil.test"}))["error"], "constraint_violated", "constraint")
 	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), map[string]any{"email": "bob@acme.test", "Email": "mallory@evil.test"}))["error"], "agents_invalid_arguments", "two spellings of one member")
+	a.equal(problemOf(callHost(mw, location, key.requestJWT(id, location, nil, nil), map[string]any{"EMAIL": "mallory@evil.test"}))["detail"],
+		`The body is ambiguous: "EMAIL" differs from a declared argument in case alone.`, "a declared argument in another case")
 	a.equal(problemOf(callHost(mw, location, newKey("ES256").requestJWT(id, location, nil, nil), bob))["error"], "invalid_jwt", "another key")
 	a.equal(len(h.seen), 0, "the handler never ran")
 
@@ -179,5 +181,5 @@ func locationCapability(a *agentsCase) {
 	for _, e := range a.audited(agents.EventExecuted, agents.EventExecutionDenied) {
 		capsSeen = append(capsSeen, e.Data["capability"])
 	}
-	a.equal(capsSeen, []any{"invite", "invite", "invite", "invite", "invite", "invite"}, "audited")
+	a.equal(capsSeen, []any{"invite", "invite", "invite", "invite", "invite", "invite", "invite"}, "audited")
 }
