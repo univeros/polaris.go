@@ -131,7 +131,7 @@ func TestApiKeysFlow(t *testing.T) {
 		problem(t, f.c.Post("/api-keys", map[string]any{"name": "x", "permissions": []string{"nothing.here"}}, as), 422, "api_keys_invalid_input")
 		minted := f.c.Post("/api-keys", map[string]any{"name": "from a key", "permissions": []string{"org.read"}}, withKey)
 		status(t, minted, 403)
-		if contracttest.JSON(t, minted)["error"] != "forbidden" {
+		if contracttest.JSON(t, minted)["error"] != "api_keys_not_allowed" {
 			t.Fatal("a key minted a key")
 		}
 		status(t, f.c.Post("/orgs", map[string]any{"name": "From a key"}, withKey), 403)

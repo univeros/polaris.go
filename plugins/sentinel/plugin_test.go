@@ -182,13 +182,14 @@ func TestTheGuardReadsTheRequestAsTheEndpointDoes(t *testing.T) {
 	const password = "correct horse battery staple"
 	n := 0
 	for name, c := range map[string]struct{ target, contentType, body string }{
-		"json":             {"/auth/register", "application/json", `{"email":"a1@mailinator.com","password":"` + password + `"}`},
-		"query":            {"/auth/register?email=a2@mailinator.com&password=" + url.QueryEscape(password), "", ""},
-		"query over body":  {"/auth/register?email=a3@mailinator.com", "application/json", `{"email":"a3@example.com","password":"` + password + `"}`},
-		"json, then more":  {"/auth/register", "application/json", `{"email":"a4@mailinator.com","password":"` + password + `"} x`},
-		"form":             {"/auth/register", "application/x-www-form-urlencoded", "email=a5@mailinator.com&password=" + url.QueryEscape(password)},
-		"form, upper case": {"/auth/register", "Application/X-WWW-Form-Urlencoded", "email=a6@mailinator.com&password=" + url.QueryEscape(password)},
-		"form, last value": {"/auth/register", "application/x-www-form-urlencoded", "email=a7@example.com&email=a7@mailinator.com&password=" + url.QueryEscape(password)},
+		"json":              {"/auth/register", "application/json", `{"email":"a1@mailinator.com","password":"` + password + `"}`},
+		"query":             {"/auth/register?email=a2@mailinator.com&password=" + url.QueryEscape(password), "", ""},
+		"query over body":   {"/auth/register?email=a3@mailinator.com", "application/json", `{"email":"a3@example.com","password":"` + password + `"}`},
+		"json, then more":   {"/auth/register", "application/json", `{"email":"a4@mailinator.com","password":"` + password + `"} x`},
+		"form":              {"/auth/register", "application/x-www-form-urlencoded", "email=a5@mailinator.com&password=" + url.QueryEscape(password)},
+		"form, upper case":  {"/auth/register", "Application/X-WWW-Form-Urlencoded", "email=a6@mailinator.com&password=" + url.QueryEscape(password)},
+		"address, then NUL": {"/auth/register", "application/json", `{"email":" A8@Mailinator.com\u0000","password":"` + password + `"}`},
+		"form, last value":  {"/auth/register", "application/x-www-form-urlencoded", "email=a7@example.com&email=a7@mailinator.com&password=" + url.QueryEscape(password)},
 	} {
 		r := httptest.NewRequest(http.MethodPost, c.target, strings.NewReader(c.body))
 		r.Header.Set("Content-Type", c.contentType)

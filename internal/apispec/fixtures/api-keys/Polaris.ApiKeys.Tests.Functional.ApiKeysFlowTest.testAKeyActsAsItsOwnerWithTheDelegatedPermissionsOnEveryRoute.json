@@ -772,21 +772,16 @@
             "status": 403,
             "headers": {
                 "Content-Type": [
-                    "application/json"
-                ],
-                "X-RateLimit-Limit": [
-                    "600"
-                ],
-                "X-RateLimit-Remaining": [
-                    "588"
-                ],
-                "X-RateLimit-Reset": [
-                    "1791601200"
+                    "application/problem+json"
                 ]
             },
             "body": {
-                "error": "forbidden",
-                "message": "This action is for the account holder, not for a delegated credential."
+                "type": "https://polaris.univeros.io/problems/api-keys/not_allowed",
+                "title": "Not allowed with an API key",
+                "status": 403,
+                "detail": "This route requires a recent re-authentication, which an API key cannot provide.",
+                "error": "api_keys_not_allowed",
+                "message": "This route requires a recent re-authentication, which an API key cannot provide."
             }
         }
     },

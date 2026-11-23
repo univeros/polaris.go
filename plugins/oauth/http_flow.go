@@ -9,6 +9,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/repository"
+	"github.com/univeros/polaris.go/store"
 )
 
 const decisionEndpoint = "/oauth2/authorize/decision"
@@ -103,6 +104,30 @@ func (p *Plugin) serveUserinfo(ctx context.Context, _ *endpoint.Input) endpoint.
 		body[name], _ = claims.Get(name)
 	}
 	return noStore(endpoint.JSON(http.StatusOK, body))
+}
+
+// takeBack ends what userID granted a client: the consents, the tokens (n of them), and the codes and
+// approved or pending requests that would issue more. found is false when there was nothing.
+func (p *Plugin) takeBack(ctx context.Context, userID, clientID string) (n int64, found bool, err error) {
+	granted := store.Criteria{"user_id": userID, "client_id": clientID}
+	err = p.tokens.hold(ctx, userID, func(ctx context.Context) error {
+		if found, err = p.consents.revoke(ctx, userID, clientID); err != nil {
+			return err
+		}
+		if n, err = p.tokens.revokeWhere(ctx, granted); err != nil {
+			return err
+		}
+		found = found || n > 0
+		for _, table := range []string{TableCodes, TableDeviceCodes, TableCIBARequests} {
+			gone, err := p.graph.DB().Delete(ctx, table, granted)
+			if err != nil {
+				return err
+			}
+			found = found || gone > 0
+		}
+		return nil
+	})
+	return n, found, err
 }
 
 // serveRevoke is POST /oauth2/revoke (RFC 7009): the client's own token stops.
@@ -240,15 +265,11 @@ func (p *Plugin) serveConsentRevoke(ctx context.Context, in *endpoint.Input) end
 		return endpoint.Unauthorized()
 	}
 	clientID, userID := in.String("clientId"), tok.Subject()
-	found, err := p.consents.revoke(ctx, userID, clientID)
+	n, found, err := p.takeBack(ctx, userID, clientID)
 	if err != nil {
 		return p.fail(ctx, err)
 	}
-	n, err := p.tokens.revokeWhere(ctx, map[string]any{"user_id": userID, "client_id": clientID})
-	if err != nil {
-		return p.fail(ctx, err)
-	}
-	if !found && n == 0 {
+	if !found {
 		return endpoint.Problem(http.StatusNotFound, "oauth/not_found", "Not found", "You have not granted that client anything.", nil)
 	}
 	p.emit(ctx, EventConsentRevoked, userID, clientID, actorOrg(tok), map[string]any{"tokens_revoked": n})

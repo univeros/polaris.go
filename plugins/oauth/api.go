@@ -68,7 +68,7 @@ func (p *Plugin) RevokeClientTokens(ctx context.Context, clientID string) (int64
 // cnf.jkt when DPoP-bound, act), a rotating refresh token when a user is behind the grant and c
 // may refresh, an ID token when openid was granted to a user.
 func (p *Plugin) IssueTokens(ctx context.Context, c Client, g Grant) (TokenResponse, error) {
-	return p.tokens.issue(ctx, c, g)
+	return p.tokens.issueWhile(ctx, c, g, nil)
 }
 
 // Exchange performs a token exchange (RFC 8693) for c, as the token endpoint does: the subject's

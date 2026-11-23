@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -79,6 +80,9 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 			return
 		}
 		args, err := bodyArguments(body)
+		if err == nil {
+			err = checkSpelling(capability, args)
+		}
 		var ev evaluation
 		if err == nil {
 			ev, err = p.s.evaluate(ctx, pr, capability.Name, args)
@@ -115,19 +119,70 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 	})
 }
 
-// bodyArguments are the JSON object the whole body is, nothing otherwise. A body in which two members
-// of one object have the same name, upper and lower case alike, is refused: the handler may read
-// the one that was not checked.
+// bodyArguments are the JSON object the whole body is, nothing for a body that is no object. A body that
+// begins as an object and is not exactly one, or in which two members of one object have the same name,
+// upper and lower case alike, is refused: the handler may read what was not checked.
 func bodyArguments(body []byte) (map[string]any, error) {
-	var args map[string]any
-	if strictjson.Decode(body, &args) != nil || args == nil {
+	if !bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n"), []byte("{")) {
 		return map[string]any{}, nil
 	}
+	var args map[string]any
+	if strictjson.Decode(body, &args) != nil {
+		return nil, ambiguousBody("it is not one JSON object")
+	}
 	if !unambiguous(body) {
-		const msg = "two members of one object have the same name"
-		return nil, &Error{Type: ErrInvalidArguments, Detail: "The body is ambiguous: " + msg + ".", Extra: map[string]any{"errors": []string{msg}}}
+		return nil, ambiguousBody("two members of one object have the same name")
 	}
 	return args, nil
+}
+
+func ambiguousBody(why string) error {
+	return &Error{Type: ErrInvalidArguments, Detail: "The body is ambiguous: " + why + ".", Extra: map[string]any{"errors": []string{why}}}
+}
+
+// checkSpelling refuses arguments that differ from a declared one in case alone.
+func checkSpelling(c *Capability, args map[string]any) error {
+	if name := misspelled(c.Input, args); name != "" {
+		return ambiguousBody(strconv.Quote(name) + " differs from a declared argument in case alone")
+	}
+	return nil
+}
+
+// misspelled is a member of args, at any depth the schema describes, whose name differs from one of the
+// schema's properties in case alone: the checks read past it, a Go handler decoding the body into a
+// struct does not. "" when there is none.
+func misspelled(schema, args map[string]any) string {
+	properties, _ := schema["properties"].(map[string]any)
+	for name, value := range args {
+		property, declared := properties[name].(map[string]any)
+		if !declared {
+			for known := range properties {
+				if known != name && strings.EqualFold(known, name) {
+					return name
+				}
+			}
+			continue
+		}
+		if found := misspelledIn(property, value); found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+func misspelledIn(schema map[string]any, value any) string {
+	switch value := value.(type) {
+	case map[string]any:
+		return misspelled(schema, value)
+	case []any:
+		items, _ := schema["items"].(map[string]any)
+		for _, item := range value {
+			if found := misspelledIn(items, item); found != "" {
+				return found
+			}
+		}
+	}
+	return ""
 }
 
 // unambiguous reports whether no object of a JSON value has two members whose names are equal under

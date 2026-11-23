@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/univeros/polaris.go/event"
+	"github.com/univeros/polaris.go/identity"
 )
 
 // The kinds of attempt the guarded routes are.
@@ -138,7 +138,7 @@ type Engine struct {
 
 // Evaluate judges a; err is only a failing decision store.
 func (e *Engine) Evaluate(ctx context.Context, a Attempt) (Decision, error) {
-	a.Email = strings.ToLower(strings.TrimSpace(a.Email))
+	a.Email = identity.NormalizeEmail(a.Email)
 	var verdicts []Verdict
 	for _, s := range e.signals {
 		v, err := s.Evaluate(ctx, a)

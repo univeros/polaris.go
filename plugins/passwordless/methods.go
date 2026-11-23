@@ -65,7 +65,7 @@ func (v *service) sendMagicLink(ctx context.Context, email, redirectURI string) 
 	if (found && u.Status == model.UserStatusDisabled) || (!found && !v.s.signUp) {
 		return nil
 	}
-	if ok, err := v.maySend(ctx, email, ""); err != nil || !ok {
+	if ok, err := v.maySend(ctx, "link", email, v.s.magicLinkTTL); err != nil || !ok {
 		return err
 	}
 	tok := newToken()
@@ -132,7 +132,7 @@ func (v *service) sendEmailCode(ctx context.Context, email, purpose string) erro
 	if !applies {
 		return nil
 	}
-	if ok, err := v.maySend(ctx, email, ""); err != nil || !ok {
+	if ok, err := v.maySend(ctx, "code", email, v.s.otpTTL); err != nil || !ok {
 		return err
 	}
 	code := newCode(v.s.otpLength)
@@ -286,26 +286,17 @@ func (v *service) attachPhone(ctx context.Context, userID, e164 string) error {
 	return err
 }
 
-// maySend counts a message against what its destination, and the account that asked for it ("" for an
-// anonymous caller), may be sent in a window: Auth.OTP's SendMax and SendWindow, whatever addresses the
-// requests come from. Over it nothing is sent, and the caller answers as if it were.
-func (v *service) maySend(ctx context.Context, destination, askedBy string) (bool, error) {
-	keys := []string{"passwordless.send." + v.secrets.identifier(destination)}
-	if askedBy != "" {
-		keys = append(keys, "passwordless.send.by."+askedBy)
-	}
-	otp := v.g.Auth().OTP
-	for _, key := range keys {
-		res, err := v.g.RateStore().Hit(ctx, key, otp.SendMax, otp.SendWindow)
-		if err != nil || !res.Allowed {
-			return false, err
-		}
-	}
-	return true, nil
+// maySend counts a message of a kind against what its destination may be sent while one lasts (ttl):
+// Auth.OTP's SendMax, whatever addresses the requests come from. The window is no longer than a message
+// lives, so someone who spends the budget leaves the destination's owner a live one. Over it nothing is
+// sent, and the caller answers as if it were.
+func (v *service) maySend(ctx context.Context, kind, destination string, ttl time.Duration) (bool, error) {
+	res, err := v.g.RateStore().Hit(ctx, "passwordless.send."+kind+"."+v.secrets.identifier(destination), v.g.Auth().OTP.SendMax, ttl)
+	return err == nil && res.Allowed, err
 }
 
-func (v *service) sendPhoneCode(ctx context.Context, kind, e164, userID, askedBy string) error {
-	if ok, err := v.maySend(ctx, e164, askedBy); err != nil || !ok {
+func (v *service) sendPhoneCode(ctx context.Context, kind, e164, userID string) error {
+	if ok, err := v.maySend(ctx, "phone", e164, v.s.otpTTL); err != nil || !ok {
 		return err
 	}
 	code := newCode(v.s.otpLength)
@@ -330,7 +321,7 @@ func (v *service) sendPhone(ctx context.Context, phone string) error {
 	if err != nil || !found || u.Status == model.UserStatusDisabled {
 		return err
 	}
-	return v.sendPhoneCode(ctx, kindPhoneSignIn, e164, u.ID, "")
+	return v.sendPhoneCode(ctx, kindPhoneSignIn, e164, u.ID)
 }
 
 func (v *service) signInWithPhone(ctx context.Context, phone, code string) (envelope, error) {
@@ -366,11 +357,18 @@ func (v *service) addPhone(ctx context.Context, userID, phone string) error {
 	if err != nil {
 		return err
 	}
+	// What one account asks for is bounded too, counted before the number is looked up: what is left of it
+	// must not tell whose the number is.
+	otp := v.g.Auth().OTP
+	res, err := v.g.RateStore().Hit(ctx, "passwordless.send.by."+userID, otp.SendMax, otp.SendWindow)
+	if err != nil || !res.Allowed {
+		return err
+	}
 	owner, err := v.phoneOwner(ctx, e164)
 	if err != nil || (owner != "" && owner != userID) {
 		return err
 	}
-	return v.sendPhoneCode(ctx, kindPhoneAdd, e164, userID, userID)
+	return v.sendPhoneCode(ctx, kindPhoneAdd, e164, userID)
 }
 
 // confirmPhone attaches the number once its code is confirmed by the user who asked for it; a code

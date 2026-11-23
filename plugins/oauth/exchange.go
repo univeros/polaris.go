@@ -112,10 +112,15 @@ func (p *Plugin) exchange(ctx context.Context, c Client, req ExchangeRequest) (T
 		}
 	}
 	actor.Act = subj.act
-	resp, err := p.tokens.issue(ctx, c, Grant{
+	// Looked at again under the user's lock: the session or the token may have ended since.
+	again := func(ctx context.Context) error {
+		_, err := p.subject(ctx, c, req.SubjectToken)
+		return err
+	}
+	resp, err := p.tokens.issueWhile(ctx, c, Grant{
 		UserID: subj.user, OrganizationID: subj.org, Scopes: scopes, Resource: resource,
 		DPoPJKT: req.DPoPJKT, Actor: actor, AuthTime: subj.authTime, NotAfter: subj.expiresAt,
-	})
+	}, again)
 	if err != nil {
 		return TokenResponse{}, err
 	}

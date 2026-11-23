@@ -218,7 +218,7 @@ type capabilities struct {
 	list       []*Capability
 	byName     map[string]*Capability
 	byLocation map[string]*Capability
-	byPath     map[string][]*Capability // the locations' paths, whatever their host
+	byPath     map[string][]*Capability // the locations' paths (decodedPath), whatever their host
 }
 
 func newCapabilities(list []Capability) (*capabilities, error) {
@@ -242,7 +242,7 @@ func newCapabilities(list []Capability) (*capabilities, error) {
 			}
 			c.byLocation[route] = &capability
 			_, path, _ := strings.Cut(route, "/")
-			c.byPath[path] = append(c.byPath[path], &capability)
+			c.byPath[decodedPath(path)] = append(c.byPath[decodedPath(path)], &capability)
 		}
 		c.byName[capability.Name] = &capability
 		c.list = append(c.list, &capability)
@@ -307,7 +307,16 @@ func (c *capabilities) at(r *http.Request, url string) (capability *Capability, 
 	if found := c.byLocation[routeOf(url)]; found != nil {
 		return found, false
 	}
-	switch on := c.byPath[strings.TrimPrefix(normalizePath(requestPath(r)), "/")]; len(on) {
+	// Decoded whole, as a router may: an escaped character is the character, a slash included.
+	var on []*Capability
+	for _, path := range []string{decodedPath(requestPath(r)), decodedPath(r.URL.EscapedPath())} {
+		for _, found := range c.byPath[path] {
+			if !slices.Contains(on, found) {
+				on = append(on, found)
+			}
+		}
+	}
+	switch len(on) {
 	case 0:
 		return nil, false
 	case 1:

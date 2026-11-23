@@ -5,6 +5,7 @@ endpoint:
   summary: Create an API key
   tags: [api-keys]
   auth: bearer
+  step_up: true
   effect: write
   receipt: true
 
@@ -56,6 +57,7 @@ output:
 
 errors:
   - { status: 401, code: unauthorized }
+  - { status: 401, code: step_up_required }
   - { status: 403, code: api_keys_forbidden }
   - { status: 403, code: api_keys_permission_not_held }
   - { status: 409, code: api_keys_too_many }
