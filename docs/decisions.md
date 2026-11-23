@@ -2975,3 +2975,117 @@ Go API: compatible. Routes, specs and contract fixtures: unchanged. No schema ch
 
 Security review (rule 6): no check is weaker except `locked`, which was never a check on these paths'
 own credentials and let anyone turn them off.
+
+## 81. 2026-11-23 — The plugins before 1.0: what a check reads, whose authority a credential carries, what ends it
+
+A review of the areas earlier ones had not reached. Each item was reproduced and its fix has a test that
+fails without it, except where said.
+
+- **`agents.Guard` matched a capability by the whole URL, Host included,** which the client writes: any
+  other Host passed through. `capabilities.at` falls back to the path; several hosts' locations on one
+  path under a Host that is none of them is refused. The rule that a JWT for several capabilities cannot
+  use a location follows it (no test of its own for an unknown Host). Tests:
+  `testEverySpellingOfALocationIsGuardedAndABoundMiddlewareGuardsItsRoute`,
+  `TestABodyWhoseMembersAreAmbiguousIsRefused`.
+  The path is compared decoded whole, as a router may read it, slash included
+  (`TestGuardDecodesThePathAsARouterDoes`: `net/http.ServeMux` and a handler matching `URL.Path`).
+- **A body two readers read differently is refused.** encoding/json matches struct fields by case folding
+  and keeps the last; the constraint check read a map. Exact duplicates are refused too (a nested object
+  given twice merges into a struct and replaces in a map), so is a declared argument in another case
+  (`TestAMisspelledArgumentIsFound`) and a body that begins as an object and is not exactly one. A body
+  that is no JSON object still has no arguments.
+- **`AutoApprove`'s window is the window.** `withinPolicy` takes the policy's window or none asked. A shorter
+  one was the whole budget again each time it passed, spent or not; decision 76's rule only saw spent
+  ones.
+- **A user's OAuth grants take the user's lock** (decision 79's idiom, the user before the user's tokens): every
+  mint, rotation and revocation. Under read committed a revocation waited for the rotation in flight and
+  missed the token it inserted. A code, an approved request, a session or a token behind a mint is looked
+  at again under the lock (`issueWhile`), and taking a grant back deletes its codes and requests, which a
+  redemption in flight then finds gone. Tests: `TestARotationInFlightDoesNotOutliveARevocation`
+  (PostgreSQL, MySQL; fails on PostgreSQL without the lock), `TestTakingAGrantBackEndsWhatWasNotRedeemedYet`.
+  Client-wide revocations (an agent's kill switch, deleting a client) do not take its users' locks: the
+  client is disabled or gone, so at most an access token being minted at that moment is left.
+- **`trusted` and CIBA take an owner of the instance** (`TestOnlyAnInstanceOwnerRegistersATrustedClient`).
+  Clients registered before are not changed: the changelog asks to review them.
+- **A token exchanged from a token ends with it** (`Grant.NotAfter`, additive;
+  `TestAnExchangedTokenDoesNotOutliveItsSubject`). The recorded fixtures exchange an exchanged token at
+  once and expect a whole lifetime, so that suite now runs on a standing clock; no fixture changed.
+- **Revoking a client revokes its tokens, consent or not** (`TestRevokingAClientEndsItsTokensWithoutAConsent`).
+- **Adding a credential takes a recent authentication.** The three MFA confirm routes,
+  `/one-time-token/generate` and creating and rotating an API key are `step_up` (passkeys, phones and social
+  links were; `TestRoutesThatAddACredentialTakeAStepUp` lists them). Consent decisions (OAuth, device, CIBA,
+  agents) are not: they answer an application the user is using. A user with no
+  factor is unaffected, as on every step-up route. Enrolling stays open: an unconfirmed factor does
+  nothing. Tests: `TestConfirmingAnotherFactorTakesAFreshStepUp`, `TestConfirmingTheFirstFactorTakesNone`,
+  `TestCreatingAndRotatingAKeyTakeAStepUp`.
+- **MFA factors and recovery codes.** A fresh batch of recovery codes retires the one before, so codes of an
+  earlier enrolment do not work after the next (`TestANewBatchRetiresTheOneBefore`); removing a factor
+  is decided under the user's lock, so two concurrent removals do not leave a user for whom MFA is
+  enforced without one (`TestConcurrentRemovalsLeaveAnEnforcedUserAFactor`, PostgreSQL and MySQL).
+- **A social link is made while the session that started it lives** (`TestALinkEndsWithTheSessionThatStartedIt`),
+  checked under the user's lock. A link in flight across the upgrade is refused; starting again works.
+- **Passkey keys are bounded above** (`TestAWeakRSAKeyIsRefusedWhateverItsEncodedLength`,
+  `TestCBORAllocatesWhatItReads`).
+- **A credential acts as who reads its secret** (`TestARotatedKeyActsAsWhoRotatedIt`), and
+  `/api-keys/verify` answers what the key would do (`TestVerifyAnswersWhatTheKeyWouldDo`).
+- **Sentinel judges `endpoint.NewInput`** (`TestTheGuardReadsTheRequestAsTheEndpointDoes`); quiet mode follows
+  enforced decisions and never drops account-change mail
+  (`TestQuietModeFollowsEnforcedDecisionsAndLeavesSecurityMail`). A recipient's `Caps` still bound every
+  message: they are the host's own limit.
+- **SCIM's `active` is the membership's** (`TestADirectoryDoesNotUndoAnOperatorsBan`). A directory's own
+  deprovisioning disables an account and removes it from the organization, which ends its ownership, so
+  nothing else used the lines removed.
+- **SSO:** `TestADiscoveryDocumentsEndpointsAreWebURLs`, `TestOnlyAMemberLogsOutThroughAnOrganization`,
+  `TestSAMLRefusesSHA1Signatures` (the library's `RejectSHA1Signatures`; decided now because refusing
+  later would break 1.x).
+- **Passwordless sends** are bounded per destination and per account
+  (`TestSendsAreBoundedPerDestinationAndPerAccount`). A destination's window is a message's own lifetime, so
+  whoever spends its budget leaves its owner a live message; an account's is counted before the number is
+  looked up, so it does not tell whose the number is.
+- **The audit chain with per-name retention.** A checkpoint now carries each gap as the pair of hashes it
+  joins (`gaps` in the `audit.pruned` event's data, additive; `last_hash` stays and older checkpoints
+  read as before), re-recorded when a checkpoint is itself pruned, and none where the pruned rows did not
+  chain (`TestAPrunedChainWithPerNameRetentionVerifies`). A pruning walks the table twice with the chain
+  on.
+- **`Migrate` reads indexes from the catalog's rows on PostgreSQL.** `pg_indexes` calls `pg_get_indexdef`, which
+  does not read the query's snapshot: replicas migrating at once could fail with `cache lookup failed`
+  (7 of 300 runs of `TestMigrateIsSafeOnConcurrentReplicas`, none of 1000 since).
+- **Accepted for 1.0.** `amr` after the MFA gate is `pwd, otp` whatever the first step was (the recorded
+  contract). The audit chain is unkeyed: it shows an alteration to whoever keeps a hash elsewhere (a sink
+  or a drain), not to one who can rewrite the table; a keyed one is additive. Refresh cookies are
+  path-bound and so `__Secure-`, not `__Host-`. Passwordless sends answer later for a known address where
+  the host's mailer is slow: queue in the mailer. A provider's test route answers its organization's
+  administrators the transport's error. Personal keys of a removed member (no permissions), the
+  `MaxPerOwner` race, the lack of a prune for passwordless secrets and sentinel decisions, and sentinel's
+  full IPv6 addresses are left for 1.x: none gives anyone authority they lack. The per-principal rate limit
+  is the user's for every credential that acts for them. Two presentations of one refresh token (or code)
+  at the same moment give one success and one plain `invalid_grant`, without the reuse alert: a client
+  that submits twice does not lose its session, and a later presentation raises it. A destination is sent
+  at most `SendMax` codes while one lives and as many links, more an hour than core's codes, so that
+  nobody can lock its owner out; the per-address route limits bound the rest. `RevokeClientTokens` on a
+  client left enabled can miss a grant being refreshed at that moment on PostgreSQL: disable the client
+  first, as an agent's kill switch does. The spelling check of an agent's body covers the declared
+  properties of `Protect` and `Guard`, not `additionalProperties` schemas nor `Handler` capabilities, whose
+  handlers read the decoded arguments; constraints and budgets fail closed either way. These are 1.x work.
+
+Go API: compatible (`oauth.Grant.NotAfter` added). Route specs: `step_up` and its 401 on six routes,
+descriptions on five; `testdata/manifest/{core,all}*.json` follow. Contract fixtures: one step re-recorded (an
+API key creating a key now answers `api-keys/not_allowed`, as on every step-up route). No schema change.
+
+Security review (rule 6): every change refuses more than before, except quiet mode (which drops less) and
+`DELETE /oauth2/consents` (which revokes more).
+
+
+## 82. 2026-11-23 — 1.0: Go versions, dependencies before their 1.0, skipping v0.7.4
+
+The three things `docs/v1.md` left to decide.
+
+- **Go versions.** `go.mod` says `go 1.26.0`; the tests run on the latest 1.26 and on the newest Go (CI,
+  decision 80). A minor release may raise the `go` line, never past the older of the two releases the Go team
+  supports at the time. A patch release does not raise it, unless a security fix needs the Go release.
+- **Dependencies before their 1.0.** `crewjam/saml` (v0.6), `otelhttp` (v0.72) and `skip2/go-qrcode` stay. None
+  of their types is in the exported API (`go doc -all`), so any can be replaced in a 1.x release without a
+  break: SAML is behind `sso.SAML` and `sso.DefaultSAML`, the QR code is drawn in `internal/mfa`, and only
+  `telemetry/otel` imports OpenTelemetry. `govulncheck` watches them; its one ignore (GO-2026-6909) is
+  re-reviewed at each release that moves `crewjam/saml`.
+- **No v0.7.4.** Decision 81's fixes go from `main` into v1.0.0, whose notes carry them.

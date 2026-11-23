@@ -61,7 +61,7 @@ Register `BaseURL + "/social/<provider>/callback"` at each provider.
 | POST | `/social/exchange` | trade the one-minute `code` for the login envelope (or `{status: linked, account}` after a link). The code is not bound to a browser: before exchanging it, check that this browser started a sign-in (a short-lived cookie your page set), or someone can send the redirect with their own code to another person |
 | POST | `/social/google/one-tap` | sign in with a One Tap `credential` (needs `google` configured) |
 | GET | `/social/accounts` | bearer: your linked provider accounts |
-| POST | `/social/{provider}/link` | bearer, step-up gated: start linking a provider to your account |
+| POST | `/social/{provider}/link` | bearer, step-up gated, live session only: start linking a provider to your account; the callback refuses the link when that session has ended since |
 | DELETE | `/social/{provider}` | bearer, step-up gated: unlink (refused if it is your last credential) |
 | POST | `/social/{provider}/token` | bearer, step-up gated: the provider access token, refreshed first if expiring |
 

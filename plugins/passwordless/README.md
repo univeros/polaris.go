@@ -53,7 +53,7 @@ Every field is optional; the zero value is the defaults.
 | POST | `/phone/verify` | sign in with `phone` + `code` |
 | POST | `/phone/add` | bearer, step-up gated: text a code to a new `phone`; 202 |
 | POST | `/phone/confirm` | bearer, step-up gated: confirm `phone` + `code` |
-| POST | `/one-time-token/generate` | bearer, live session only: a token valid once for 3 minutes |
+| POST | `/one-time-token/generate` | bearer, step-up gated, live session only: a token valid once for 3 minutes |
 | POST | `/one-time-token/verify` | trade the `token` for a session inheriting the first one's amr, mfa, auth_time, organization |
 
 A phone never signs anyone up. A user with a confirmed factor gets core's `mfa_required` envelope
@@ -97,7 +97,11 @@ second factor delivers where the sign-in did), `…/phone_taken` (409). Go error
 
 ## Host integration
 
-- A failed delivery is logged and still answers 202; check your Mailer/SMS logs, not the response.
+- A failed delivery is logged and still answers 202; check your Mailer/SMS logs, not the response. Queue in
+  the mailer: one that delivers while it is called makes an address with an account answer later.
+- What a destination is sent is bounded: `Auth.OTP.SendMax` links while one lives, and as many codes; an
+  account adding phones asks for at most `SendMax` in `SendWindow`. Over it the answer is the same and
+  nothing is sent.
 - Rate-limit the send and sign-in routes with `plugins/sentinel`: add `passwordless.SentinelRoutes`
   to `sentinel.Config.Routes` (alongside `sentinel.DefaultRoutes`).
 - A front end that opened the magic link with a GET and expected the 302 (v0.4 and earlier) now gets

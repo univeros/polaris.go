@@ -93,14 +93,22 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 
 - On every other Polaris route and behind `p.Protect`, an agent's OAuth token is its owner delegated
   to its live grants, with claims `agents.ClaimActorType` (`"agent"`) and `agents.ClaimAgentID`.
-- `ag.Guard(mux)` guards every capability `Location` on a whole mux; `Protect` panics for a name
-  that is not a configured `Location` capability (use it after `polaris.New`).
+- `ag.Guard(mux)` guards every capability `Location` on a whole mux: by its URL, or by its path (decoded as a
+  router decodes it) when the request's `Host` is no location's. On a path several hosts' locations
+  share, another `Host` answers 404 `agents/capability_not_found`. `Protect` binds one handler to one
+  capability, whatever the URL; it panics for a name that is not a configured `Location` capability
+  (use it after `polaris.New`).
+- `Protect` and `Guard` refuse a body (`agents/invalid_arguments`) your handler could read differently from
+  the check: two members of one object with the same name, upper and lower case alike, a declared
+  argument in another case, or a body that begins as a JSON object and is not exactly one. A body that is
+  no JSON object has no arguments.
 - A request JWT's `aud` on the plugin's own routes (`/agents/…`) is the path called on
   `Config.BaseURL`'s origin (default: the oauth plugin's base URL); the `Host` header and `r.TLS`
   are not read, so a TLS-terminating proxy needs no setup and another host name is refused
   (`aud_mismatch`). On your routes behind `Protect` / `Guard` the `aud` is the URL as the request
   names it (`Host`, and `r.TLS` for the scheme): serve them only under your own host names.
-- The policy (`AutoApprove`) does not refill a budget: once an agent has exhausted a grant of a
+- The policy (`AutoApprove`) approves a budget with its own window (or none asked) and no larger than its
+  own; any other window waits for a person. It does not refill a budget: once an agent has exhausted a grant of a
   capability, its next request for that capability waits for a person (`pending`) until the spent
   grant's window has passed; a budget without a window is granted by the policy once. A person can
   approve the new request as usual.

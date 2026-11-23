@@ -36,12 +36,12 @@ Every field is optional; the zero value is the defaults.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api-keys` | the caller's live keys, newest first; `organization_id` lists the organization's |
-| POST | `/api-keys` | create a key; the secret is in this response only |
+| POST | `/api-keys` | step-up gated: create a key; the secret is in this response only |
 | GET | `/api-keys/{id}` | read a key (never the secret) |
 | PATCH | `/api-keys/{id}` | change name, permissions, rate limit, expiry, metadata |
 | DELETE | `/api-keys/{id}` | revoke at once |
-| POST | `/api-keys/{id}/rotate` | new secret; the old one answers until the grace ends |
-| POST | `/api-keys/verify` | check a key (`key` in the body) for a proxy that checks keys itself |
+| POST | `/api-keys/{id}/rotate` | step-up gated: new secret, acting as the caller; the old one answers until the grace ends |
+| POST | `/api-keys/verify` | check a key (`key` in the body) for a proxy that checks keys itself: `valid` as the key itself would be accepted, and the `permissions` its user still holds |
 
 Create body: `name` (required, ≤ 80), `permissions` (subset of what the caller holds in the active
 organization), `organization_id` (makes it the organization's key; needs `org.update`), `environment`

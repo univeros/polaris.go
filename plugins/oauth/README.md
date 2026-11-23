@@ -62,7 +62,7 @@ off, no device flow.
 | POST | `/oauth2/register` | dynamic registration (when `DynamicRegistration`) |
 | GET, POST | `/orgs/{id}/oauth/clients` | list / register the organization's clients (`org.update`) |
 | GET, PATCH, DELETE | `/orgs/{id}/oauth/clients/{clientId}` | read / update / delete one (`org.update`) |
-| GET, POST | `/admin/oauth/clients` | operators: every client / register one, `trusted` allowed |
+| GET, POST | `/admin/oauth/clients` | operators: every client / register one; `trusted` and the CIBA grant take an owner of the instance |
 | DELETE | `/admin/oauth/clients/{id}` | operators: delete a client |
 
 ## Events and permissions
@@ -118,14 +118,16 @@ changes `name`, `logo_uri`, `policy_uri`, `tos_uri` and `disabled`, and nothing 
 A consent is the user's for one client in one organization (the session's active organization
 when they approved; none for a session outside any). The same client asking in another
 organization shows the screen again. `GET /oauth2/consents` lists one entry per client and
-organization; `DELETE /oauth2/consents/{clientId}` removes them all and revokes the client's
-tokens for the user. `Migrate` replaces the table's unique index (`polaris_oauth_consent_unique`
+organization; `DELETE /oauth2/consents/{clientId}` removes them all, revokes the client's tokens for the
+user and drops its unredeemed codes and pending requests, whether or not there was a consent (a device,
+a backchannel request, an exchange and a trusted client need none). `Migrate` replaces the table's unique index (`polaris_oauth_consent_unique`
 by `polaris_oauth_consent_org_unique`); a consent recorded before counts for the organization it
 names.
 
 A grant outlives the session it was given in: logging out, logging out everywhere and a password reset
 or change do not end it. Taking the consent back does (or `POST /oauth2/revoke` by the client, or
-erasing the account). While an account is disabled its grants issue nothing and its tokens introspect
+erasing the account). To end everything a client holds, disable or delete it, then
+`RevokeClientTokens`. While an account is disabled its grants issue nothing and its tokens introspect
 as inactive; enabling it restores them. A lockout (failed passwords) changes nothing.
 
 ## Token exchange and introspection
@@ -139,7 +141,8 @@ as inactive; enabling it restores them. A lockout (failed passwords) changes not
 - an access token this provider issued **to the same client**, or whose `aud` is the client's id.
   Another client's token is refused (`invalid_grant`) unless the exchanging client is trusted.
 
-The new token's audience is the subject's (RFC 8707). Without `resource` it is the subject's own:
+A token exchanged from one of the provider's own expires no later than it. The new token's audience is
+the subject's (RFC 8707). Without `resource` it is the subject's own:
 a token for `https://api.example` stays one, it does not become a token for this server. With
 `resource`: a subject for this server (a session, `aud` the issuer or one of `Config.Audiences`)
 narrows to any resource; a subject for another resource keeps it (`invalid_target` otherwise)
