@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -72,7 +73,11 @@ func (p *Plugin) protocolFail(ctx context.Context, err error) endpoint.Result {
 	case ErrBudgetExhausted:
 		e = as(ErrLimitExceeded)
 	}
-	return e.result()
+	out := e.result()
+	if over, ok := errors.AsType[overLimit](err); ok {
+		out.Header = over.header
+	}
+	return out
 }
 
 // protocolGrants authenticates the caller of a capability route (§5.2) and answers the names its
@@ -85,11 +90,14 @@ func (p *Plugin) protocolGrants(ctx context.Context, in *endpoint.Input) (map[st
 	}
 	if m := bearerOnly.FindStringSubmatch(authorization); m != nil {
 		if _, isHost := peekJWT(m[1], HostJWTType); isHost {
-			_, _, err := p.s.hostOf(in.Request)
+			h, _, err := p.s.hostOf(in.Request)
+			if err == nil {
+				err = p.s.spendHost(ctx, h)
+			}
 			return nil, err
 		}
 	}
-	pr, err := p.s.authenticateWith(p.s.issuerJWTs, in.Request, rawBody(ctx), ownURL(p.s.settings.baseURL, in.Request))
+	pr, err := p.agentCalling(ctx, p.s.issuerJWTs, in)
 	if err != nil {
 		return nil, err
 	}

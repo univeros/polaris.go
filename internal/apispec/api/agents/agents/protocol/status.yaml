@@ -5,7 +5,6 @@ endpoint:
   summary: An agent's status (Agent Auth Protocol)
   tags: [agents]
   auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
-  rate_limit: token_refresh
   effect: read
   receipt: false
 

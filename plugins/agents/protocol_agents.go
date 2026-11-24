@@ -127,6 +127,9 @@ func requestItem(item any) (any, error) {
 // know waits for a person with its agent (§2.8).
 func (p *Plugin) protocolRegister(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	host, claims, err := p.s.hostCalling(in.Request, true)
+	if err == nil {
+		err = p.s.spendHost(ctx, host)
+	}
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -324,6 +327,9 @@ func protocolStatusOf(a Agent) string {
 // protocolStatus is GET /agent/status (§5.5).
 func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoint.Result {
 	host, _, err := p.s.hostCalling(in.Request, true)
+	if err == nil {
+		err = p.s.spendHost(ctx, host)
+	}
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -358,7 +364,7 @@ func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoin
 // protocolRequest is POST /agent/request-capability (§5.4). status is what the reference client reads
 // to know that a person must approve.
 func (p *Plugin) protocolRequest(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	pr, err := p.s.authenticateWith(p.s.issuerJWTs, in.Request, rawBody(ctx), ownURL(p.s.settings.baseURL, in.Request))
+	pr, err := p.agentCalling(ctx, p.s.issuerJWTs, in)
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -467,7 +473,7 @@ func endedReason(g Grant) string {
 // protocolExecute is POST /capability/execute (§5.11): the execution every other path runs, its budget
 // and receipt included, answered as the protocol does; the receipt's id is in ReceiptHeader.
 func (p *Plugin) protocolExecute(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	pr, err := p.s.authenticateWith(p.s.executeJWTs, in.Request, rawBody(ctx), ownURL(p.s.settings.baseURL, in.Request))
+	pr, err := p.agentCalling(ctx, p.s.executeJWTs, in)
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -513,5 +519,5 @@ func (s *service) executionRefusal(ctx context.Context, a Agent, name string, er
 		}
 		return &Error{Type: e.Type, Detail: e.Detail, Extra: map[string]any{"violations": shown}}
 	}
-	return e
+	return err
 }

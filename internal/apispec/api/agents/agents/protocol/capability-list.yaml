@@ -41,5 +41,6 @@ errors:
   - { status: 403, code: agent_pending }
   - { status: 403, code: agent_rejected }
   - { status: 403, code: host_revoked }
+  - { status: 429, code: rate_limited }
 
 events: []

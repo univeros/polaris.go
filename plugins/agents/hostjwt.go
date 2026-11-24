@@ -184,6 +184,9 @@ func (s *service) checkHost(ctx context.Context, a Agent, iss any, hasISS bool) 
 		if ok && h.hasKey() && h.RevokedAt != nil {
 			return refuse(ErrHostRevoked, "The agent's host is revoked.")
 		}
+		if !ok && a.ofHostJWT() {
+			return invalidJWT("The agent's host is unknown.")
+		}
 	}
 	if !hasISS {
 		return nil

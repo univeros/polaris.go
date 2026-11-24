@@ -152,3 +152,18 @@ func TestAMisspelledArgumentIsFound(t *testing.T) {
 		t.Error("the capability's own schema")
 	}
 }
+
+// The arguments the checks read are the ones the handler reads: an object, as it was sent, or nothing.
+func TestTheArgumentsOfAnExecution(t *testing.T) {
+	c := &Capability{Name: "invite"}
+	for body, want := range map[string]string{
+		`{"capability":"invite"}`: "{}", `{"capability":"invite","arguments":null}`: "{}", ` {"arguments": {"a" : 1.0} , "capability":"invite"} `: `{"a" : 1.0}`,
+		`{"capability":"invite","arguments":[]}`: "", `{"capability":"invite","arguments":"{}"}`: "", `{"capability":"invite","arguments":1}`: "",
+		`{"capability":null}`: "", `{"capability":"Invite"}`: "", `{}`: "",
+	} {
+		got, err := executionArguments([]byte(body), c)
+		if string(got) != want || (err == nil) != (want != "") {
+			t.Errorf("%s: %s %v", body, got, err)
+		}
+	}
+}

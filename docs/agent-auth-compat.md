@@ -1,6 +1,6 @@
 # Agent Auth Protocol compatibility
 
-Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3) and 86 (5.9, 5.3) in
+Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3), 86 (5.9, 5.3) and 87 (5.8, 5.7) in
 [`decisions.md`](decisions.md). Target release: `v1.1.0` (additive; nothing in v1 breaks).
 
 Reference: Agent Auth Protocol, published as `v1.0-draft`,
@@ -344,7 +344,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 1 | Discovery modes, `GET /agents/configuration`, SDK fallback; `/capability/list` with `query`, `cursor`, `limit`; `/capability/describe` | M | A protocol client reads the server's configuration and lists capabilities; existing discovery fixture unchanged |
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
 | 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
-| 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4. 5.9 and 5.3 done; next 5.8 and 5.7 | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
+| 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4. Done | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
 | 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
@@ -413,22 +413,22 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 6. **Version label. Decided: unchanged.** The protocol's own version is `1.0-draft`, so the Polaris
    document claims nothing the protocol's does not, and it is frozen for v1.
 7. **Rate limits (§8.13, a MUST). Decided: by identity, after the JWT verifies, with a wide limit per address
-   before it.** Not built. Today these routes share `token_refresh`, 60 a minute per address, with
+   before it.** Built (decision 87). Until then these routes shared `token_refresh`, 60 a minute per address, with
    `POST /auth/token/refresh`: five agents waiting for approval behind one office address, polling each 5 s,
-   use all of it, and then nobody there refreshes a session. So:
+   used all of it, and then nobody there refreshed a session. So:
    - per agent 60 a minute and per host 300 a minute (§8.13's examples), in `agents.Config.RateLimits`, counted
      only for a verified JWT: a `sub` or `iss` anyone can write spends nobody's budget;
    - per address 600 a minute, its own key, before anything is verified, on these routes and the capability ones;
      discovery is a cached constant and has none. Unknown hosts keep their 5 an hour;
    - per capability is what budgets with a window do already; per user is left out until somebody needs it.
    The Polaris agent routes of v1.0.0 keep `token_refresh`; that they share it with the refresh is a follow-up.
-8. **Capabilities with a `Location`. Decided: unwrap, for agents of a host with a key.** Not built. What decides is the
-   stored host, never the body's shape: a capability may itself take arguments called `capability` and `arguments`.
+8. **Capabilities with a `Location`. Decided: unwrap, for agents of a host with a key.** Built (decision 87). What decides is how
+   the agent was registered, never the body's shape: a capability may itself take arguments called `capability` and `arguments`.
    No other kind of agent belongs to such a host, so no v1.0.0 caller changes.
    - The body is `{capability, arguments}` and nothing else; `capability` must be the one of the location. `next`
      reads the bytes of `arguments` as they were sent, with `ContentLength` to match, so what was checked is what
      is read; `body_hash` covers the body as sent.
-   - The JWT rules are 2.4's, which `Protect` does not apply today: `aud` exactly the configured `Location` (the
+   - The JWT rules are 2.4's, which `Protect` did not apply: `aud` exactly the configured `Location` (the
      Host header plays no part), 30 s of skew, the host's `iss` and revocation.
    - A 2xx JSON body is answered as `{"data": …}`, an empty one as `{"data": null}`: §5.11 requires it, and a
      handler's own `{"status": "pending", "status_url": …}` would otherwise read as an asynchronous answer that

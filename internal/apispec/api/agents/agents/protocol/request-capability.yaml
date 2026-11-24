@@ -5,7 +5,6 @@ endpoint:
   summary: Request capabilities (Agent Auth Protocol)
   tags: [agents]
   auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
-  rate_limit: token_refresh
   effect: write
   receipt: true
 

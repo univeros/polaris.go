@@ -47,6 +47,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `Discovery` | `DiscoveryPolaris` | the document at `/.well-known/agent-configuration`: `DiscoveryPolaris` (the Go agent SDK's) or `DiscoveryAgentAuth` (the Agent Auth Protocol's) |
 | `DisableJWKSURLs` | false | refuse hosts that publish their keys at a `jwks_url` (taken with `DiscoveryAgentAuth` only) |
 | `DisableDynamicHosts` | false | refuse hosts the server does not know (taken with `DiscoveryAgentAuth` only): only hosts an owner registered sign agents in |
+| `RateLimits` | 60 / 300 / 600 a minute | the protocol's routes, per `Agent`, per `Host` and per `Address`; see Agent Auth Protocol |
 | `HTTPClient` | guarded | fetches those key sets; the default connects to public addresses only, and no client follows a redirect |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
 | `RequestJWTMaxAge` | 5 min (also the maximum) | bound on `exp - iat` |
@@ -110,6 +111,8 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 
 - On every other Polaris route and behind `p.Protect`, an agent's OAuth token is its owner delegated
   to its live grants, with claims `agents.ClaimActorType` (`"agent"`) and `agents.ClaimAgentID`.
+- The arguments checked are the JSON body and nothing else: a handler behind `Protect` or `Guard` reads them from
+  the body or from `CallFrom`, never from the query or a form (`FormValue` reads both).
 - `ag.Guard(mux)` guards every capability `Location` on a whole mux: by its URL, or by its path (decoded as a
   router decodes it) when the request's `Host` is no location's. On a path several hosts' locations
   share, another `Host` answers 404 `agents/capability_not_found`. `Protect` binds one handler to one
@@ -153,8 +156,7 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 The protocol's own client (`@auth/agent`) signs in through a host whose key its owner registered
 (`POST /agents/hosts` with `public_key` and `proof`), or, with `DiscoveryAgentAuth`, through a host the server does not
 know: it registers an agent, waits for a person where one must approve, requests capabilities and executes
-them. A capability with a `Location` is refused for now: such a client calls it with another body than
-`Protect` reads. What is built and what is next is
+them, at their `Location` too. What is built and what is next is
 [docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
 
 - An origin has one `/.well-known/agent-configuration` and the two client families read it differently.
@@ -190,6 +192,13 @@ them. A capability with a `Location` is refused for now: such a client calls it 
   Such a host sends its key (`host_public_key`); a `jwks_url` is for hosts an owner registered.
 - A person can be sent a code by somebody else and asked to approve it, as with any device code: the page
   should ask whether they started this themselves.
+- At a capability's `Location` an agent of a host with a key posts `{capability, arguments}`, as to the execute
+  route. Behind `Protect` and `Guard` your handler reads the arguments alone, as any other agent sends them, and its
+  JSON answer (2xx) is sent as `{"data": ...}` with status 200; other answers pass as they are. Such a call has no query. The JWT's `aud` is
+  the `Location` exactly as configured. The client always posts: serve such a capability at `POST`.
+- Requests an agent or a host signed are limited per agent (60 a minute) and per host (300), at a `Location` too, and
+  everything on the protocol's routes per address (600) before it is verified: 429 `rate_limited` with `Retry-After`. `RateLimits` sets others.
+  What one capability may be used for is a budget with a window.
 - New registrations of unknown hosts are limited per address at the budget of sign-up
   (`RateLimits.Register`, 5 an hour). The address is the request's `RemoteAddr`: behind a proxy, set it to the
   client's before Polaris, or every client shares one budget.
