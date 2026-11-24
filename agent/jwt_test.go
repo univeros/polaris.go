@@ -104,3 +104,26 @@ func TestCanonicalURLDropsQueryAndFragmentOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestSignHostLink(t *testing.T) {
+	key, _ := GenerateKey(EdDSA)
+	raw, err := SignHostLink(key, "https://auth.polaris.test/", "user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, c := decodeJWT(t, raw)
+	thumbprint, _ := Thumbprint(key.PublicJWK())
+	if h["typ"] != "host-link+jwt" || h["alg"] != "EdDSA" || c["iss"] != thumbprint || c["sub"] != "user-1" || c["aud"] != "https://auth.polaris.test" ||
+		c["exp"].(float64)-c["iat"].(float64) != 300 || c["jti"] == "" || !verifiesWith(raw, key.PublicJWK()) {
+		t.Errorf("header %v claims %v", h, c)
+	}
+	ec, _ := GenerateKey(ES256)
+	for _, try := range []struct {
+		k             *Key
+		issuer, owner string
+	}{{ec, "https://auth.polaris.test", "user-1"}, {key, "", "user-1"}, {key, "https://auth.polaris.test", ""}} {
+		if _, err := SignHostLink(try.k, try.issuer, try.owner); err == nil {
+			t.Errorf("%v %q %q: no error", try.k, try.issuer, try.owner)
+		}
+	}
+}

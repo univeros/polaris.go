@@ -27482,6 +27482,9 @@
                                     },
                                     "jwks_url": {
                                         "type": "string"
+                                    },
+                                    "proof": {
+                                        "type": "string"
                                     }
                                 },
                                 "required": [
@@ -27587,7 +27590,7 @@
                         }
                     },
                     "403": {
-                        "description": "agents_forbidden",
+                        "description": "agents_forbidden | agents_step_up_required",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -27618,6 +27621,16 @@
                     },
                     "422": {
                         "description": "agents_invalid_input",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "too_many_requests",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -29920,7 +29933,7 @@
                         }
                     },
                     "403": {
-                        "description": "agents_forbidden",
+                        "description": "agents_forbidden | agents_step_up_required",
                         "content": {
                             "application/problem+json": {
                                 "schema": {

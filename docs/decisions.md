@@ -3286,3 +3286,47 @@ something pruned it, the size of the cleanup a registration runs, and an agent k
 answering 500. Accepted: linking a host is a standing grant to what the policy approves, which the approval
 page must say (README); a person can be sent somebody else's code, as with any device code; guessing a code
 (19^8) is bounded per account, not across accounts; confusable names are shown as they are.
+
+## 86. 2026-11-24 — Agent Auth Protocol: a host's key is proven, and approvals prove a person
+
+What parts 2 and 3 left open in [`agent-auth-compat.md`](agent-auth-compat.md) §5 is decided there (5.2, 5.3, 5.4,
+5.7 to 5.10). This entry builds the two that were holes, 5.9 and 5.3. Neither is in a release: `public_key`,
+`jwks_url` and `DiscoveryAgentAuth` are all new since v1.0.0.
+
+- **A key is registered with its holder's proof (5.9).** `POST /agents/hosts` took any public key: Eve could
+  register Ada's, and Ada's client was then active at once as Eve's agent, with nobody asked, what it wrote in
+  Eve's account, and Ada's own registration refused. `public_key` and `jwks_url` now need `proof`, a JWT signed by
+  that key (`typ` `host-link+jwt`) whose `sub` is the account that will own the host. A host JWT would prove
+  possession and not consent, and a server a client was lured to may hold one for this server (§8.9). With a URL,
+  the account, the audience and the times are read before the URL is fetched, how many a person sends is limited
+  (the `MFAConfirm` budget), what the URL served is not told, and the host is known from the start by the key that
+  signed. Refused with 422 like any other field.
+- **`agent.SignHostLink`** makes it. The reference client cannot, and comes in as an unknown host instead; its
+  `enroll_host` posts an unsigned key, so it would prove nothing.
+- **Approvals in `DiscoveryAgentAuth` mode (5.3).** The defaults are `step_up` for low risk and `passkey` for medium
+  and high (§8.11: proof of presence for what changes data; an undeclared risk is medium). Every approval needs
+  a sign-in within `StepUpMaxAge`, whatever `Strengths` says, which `step_up` alone does not ask of a person without
+  a second factor. `passkey` needs the session's `mfa`: a passkey that only proved presence (possible with the passkey
+  plugin's `NoMFAFactor`) is not enough. API keys and OAuth tokens have no `auth_time` and approve nothing there.
+- **Linking a host takes the strength of what the policy then gives without a person.** With
+  `AutoApprove[high]` and `Strengths[high]: passkey`, a `step_up` link was followed by a high-risk execution nobody
+  approved.
+- **What an owner registers by hand needs the same.** A host or an agent the owner creates (`POST /agents/hosts`,
+  `POST /agents/register`) gets what the policy approves too. In `DiscoveryAgentAuth` mode both need the strength an
+  unknown host's approval has, a recent sign-in included (403 `step_up_required`).
+- **It fails closed.** Such a server without the passkey plugin could approve nothing, so it does not start unless it
+  sets `Strengths` for the tiers it uses; the error names both ways out.
+- In the default mode nothing changes: strengths, `satisfies` and its passkey rule are v1.0.0's.
+
+Go API: additions only: `agents.HostLinkJWTType`, `agent.HostLinkJWTType`, `agent.SignHostLink`. Routes: none added;
+`POST /agents/hosts` has one more field. Fixtures: three of part 2's, in no release, re-recorded, because their request
+now carries the proof; their responses replay unchanged. No schema or stored format.
+
+Security review (rule 6), independent, of the whole change: no way to register a key for an account its holder did not
+name, and no way to approve in protocol mode below the approval's strength. Fixed from it, each with a test: an owner's
+old session could create a host (and, found beside it, an agent) that the policy then serves; the unbounded fetches
+and the telling refusals of an unproven `jwks_url`; a proof `SignHostLink` makes being refused where
+`RequestJWTMaxAge` is under five minutes (a link has its own bound now). Two tests it showed missing were added.
+Accepted: an approval keeps the strength it was opened with, so one opened before a restart with stricter `Strengths` is
+decided at the old one until `ApprovalTTL` ends (the recent sign-in is asked all the same); `Strengths` set to
+`passkey` without the passkey plugin starts, as another plugin may sign people in with passkeys.

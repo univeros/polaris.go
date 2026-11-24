@@ -42,7 +42,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `BaseURL` | the oauth plugin's | where Polaris is mounted; the discovery document derives from it |
 | `ApprovalURL` | none | your page where a person types a user code; empty: approvals are in-app |
 | `AutoApprove` | low risk, 100 executions | risk tier → `agents.Budget` granted without a person; empty map turns it off. A budget is granted once per window: see Host integration |
-| `Strengths` | low, medium `session`; high `step_up` | risk tier → `StrengthSession`, `StrengthStepUp`, `StrengthPasskey` |
+| `Strengths` | low, medium `session`; high `step_up`. With `DiscoveryAgentAuth`: low `step_up`; medium, high `passkey` | risk tier → `StrengthSession`, `StrengthStepUp`, `StrengthPasskey` |
 | `ApprovalTTL` | 10 min | how long an approval waits |
 | `Discovery` | `DiscoveryPolaris` | the document at `/.well-known/agent-configuration`: `DiscoveryPolaris` (the Go agent SDK's) or `DiscoveryAgentAuth` (the Agent Auth Protocol's) |
 | `DisableJWKSURLs` | false | refuse hosts that publish their keys at a `jwks_url` (taken with `DiscoveryAgentAuth` only) |
@@ -151,7 +151,7 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 ## Agent Auth Protocol
 
 The protocol's own client (`@auth/agent`) signs in through a host whose key its owner registered
-(`POST /agents/hosts` with `public_key`), or, with `DiscoveryAgentAuth`, through a host the server does not
+(`POST /agents/hosts` with `public_key` and `proof`), or, with `DiscoveryAgentAuth`, through a host the server does not
 know: it registers an agent, waits for a person where one must approve, requests capabilities and executes
 them. A capability with a `Location` is refused for now: such a client calls it with another body than
 `Protect` reads. What is built and what is next is
@@ -169,15 +169,24 @@ them. A capability with a `Location` is refused for now: such a client calls it 
 - An agent belongs to its host's owner, organization included. It is `pending` when a person must approve
   everything it asked for at registration, and `rejected` for good when they deny it. Approvals are
   decided as ever (`/agents/approvals`); with `ApprovalURL` the client shows that page and the code.
-- The public key an owner registers is not proven to be theirs: register the key of a host you run.
+- A key or URL is registered with `proof`: a JWT (`typ` `host-link+jwt`, EdDSA) signed by that key whose `sub` is
+  the id of the account that will own the host, yours or the organization's. `agent.SignHostLink` makes one. The
+  reference client cannot: a host that uses it comes in by itself (next), or you sign with its stored key.
+- Approving, in `DiscoveryAgentAuth` mode, always needs a sign-in within `StepUpMaxAge`, and proof that a person
+  is there for capabilities of medium (the default) or high risk: a passkey sign-in (not a step-up with one)
+  whose authenticator verified them. Add the passkey plugin, with `UserVerification: passkey.UVRequired` as the
+  protocol asks (§8.11), or set `Strengths`; without either the server does not start. Registering a host or an
+  agent by hand takes the strength of the riskiest capability `AutoApprove` gives, and a recent sign-in too. `step_up` for a
+  capability that changes data departs from the protocol: an agent that controls the person's browser may sign
+  in again with a stored password and approve itself. Declare what only reads `RiskLow`.
 - A host the server does not know registers with its key, and nothing exists until a person approves: no
   host, no agent, no OAuth client. The client shows them your `ApprovalURL` and a code; your page reads
   `GET /agents/approvals/code` with their session and posts their decision. Who approves owns the host and
   the agent, in their active organization, and from then on the policy applies to the host's agents; show
   them that, what is asked (`agent`, `grants`) and who asks (`host`, `reason`). `host.name`, the agent's name
   and `reason` are what the host says, proven by nothing: render them as text, and say so. Approving needs at least
-  `step_up` and a sign-in within `StepUpMaxAge` (403 `step_up_required` otherwise: send them to sign in again),
-  whatever `Strengths` says. Denying rejects that agent for good; the host may ask again with another key.
+  `step_up` (403 `step_up_required` otherwise: send them to sign in again), and the strength of the riskiest
+  capability that `AutoApprove` gives without a person, as nobody is asked again for those. Denying rejects that agent for good; the host may ask again with another key.
   Such a host sends its key (`host_public_key`); a `jwks_url` is for hosts an owner registered.
 - A person can be sent a code by somebody else and asked to approve it, as with any device code: the page
   should ask whether they started this themselves.

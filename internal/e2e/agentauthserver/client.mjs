@@ -3,6 +3,7 @@
 //
 // Exit status: 0 the whole flow passed; 1 anything else.
 import assert from "node:assert/strict";
+import { createHash, createPrivateKey, randomUUID, sign } from "node:crypto";
 import { AgentAuthClient, generateKeypair, MemoryStorage } from "@auth/agent";
 
 const url = process.env.AGENT_AUTH_URL;
@@ -66,6 +67,18 @@ async function owner(method, path, body) {
   return answer.data;
 }
 
+// hostLink is the proof POST /agents/hosts takes with a key (decision 5.9), which the client has no way to
+// make: signed with the client's own key, for the owner of the session.
+function hostLink({ publicKey, privateKey }) {
+  const b64 = (v) => Buffer.from(typeof v === "string" ? v : JSON.stringify(v)).toString("base64url");
+  const { crv, kty, x } = publicKey;
+  const iss = createHash("sha256").update(JSON.stringify({ crv, kty, x })).digest("base64url");
+  const { sub } = JSON.parse(Buffer.from(process.env.AGENT_AUTH_OWNER.split(".")[1], "base64url"));
+  const iat = Math.floor(Date.now() / 1000);
+  const input = `${b64({ typ: "host-link+jwt", alg: "EdDSA" })}.${b64({ iss, sub, aud: url, iat, exp: iat + 60, jti: randomUUID() })}`;
+  return `${input}.${sign(null, Buffer.from(input), createPrivateKey({ key: privateKey, format: "jwk" })).toString("base64url")}`;
+}
+
 // decide is what a person does with the code the client showed them.
 let decision = "approve";
 async function decide(approval) {
@@ -80,7 +93,7 @@ async function aPreRegisteredHost() {
   const keypair = await generateKeypair();
   const storage = new MemoryStorage();
   await storage.setHostIdentity({ keypair, createdAt: Date.now() });
-  const host = await owner("POST", "/agents/hosts", { name: "Nightwatch", public_key: keypair.publicKey });
+  const host = await owner("POST", "/agents/hosts", { name: "Nightwatch", public_key: keypair.publicKey, proof: hostLink(keypair) });
   const client = new AgentAuthClient({ urls: [url], storage, hostName: "polaris-e2e", approvalTimeoutMs: 20_000, onApprovalRequired: decide });
   await client.init();
 

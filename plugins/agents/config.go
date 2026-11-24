@@ -41,6 +41,9 @@ var (
 	baseURLFormat   = regexp.MustCompile(`^https?://[^/\s]+`)
 	pageURLFormat   = regexp.MustCompile(`^https?://[^\s?]+$`)
 	defaultStrength = map[string]string{RiskLow: StrengthSession, RiskMedium: StrengthSession, RiskHigh: StrengthStepUp}
+	// protocolStrength is defaultStrength with DiscoveryAgentAuth: what changes data needs proof that a
+	// person is there, which an agent that controls their browser cannot give (§8.11).
+	protocolStrength = map[string]string{RiskLow: StrengthStepUp, RiskMedium: StrengthPasskey, RiskHigh: StrengthPasskey}
 )
 
 // Handler runs a capability executed at POST /agents/execute (or as an MCP tool). Its result is
@@ -95,7 +98,9 @@ type Config struct {
 	// turns auto-approval off.
 	AutoApprove map[string]Budget
 	// Strengths maps a risk tier to the approval strength it needs; unset tiers keep the default
-	// (low and medium: session, high: step_up).
+	// (low and medium: session, high: step_up). With DiscoveryAgentAuth the defaults are step_up for low
+	// and passkey for medium and high, which need the passkey plugin; whatever is set here, an approval
+	// then needs a sign-in within StepUpMaxAge, and a passkey that verified the person.
 	Strengths map[string]string
 	// ApprovalTTL is how long an approval waits; default 10 min.
 	ApprovalTTL time.Duration
@@ -136,6 +141,7 @@ type settings struct {
 	baseURL, approvalURL      string
 	autoApprove               map[string]*budget // nil value: approve without a budget
 	strengths                 map[string]string
+	needsPasskeys             bool // a capability needs them by default, the host having said nothing
 	approvalTTL               int64
 	providerName, description string
 	discovery                 DiscoveryMode
@@ -213,7 +219,11 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 		}
 		s.autoApprove[risk] = parsed
 	}
-	for risk, st := range defaultStrength {
+	defaults := defaultStrength
+	if s.discovery == DiscoveryAgentAuth {
+		defaults = protocolStrength
+	}
+	for risk, st := range defaults {
 		s.strengths[risk] = st
 	}
 	for risk, st := range cfg.Strengths {
@@ -238,6 +248,12 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	caps, err := newCapabilities(cfg.Capabilities)
 	if err != nil {
 		errs = append(errs, err)
+	}
+	if caps != nil {
+		s.needsPasskeys = slices.ContainsFunc(caps.list, func(c *Capability) bool {
+			_, chosen := cfg.Strengths[c.Risk]
+			return !chosen && s.strengths[c.Risk] == StrengthPasskey
+		})
 	}
 	return s, caps, errors.Join(errs...)
 }

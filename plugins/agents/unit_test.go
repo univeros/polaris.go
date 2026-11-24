@@ -18,11 +18,13 @@ import (
 	"testing"
 	"time"
 
+	polaris "github.com/univeros/polaris.go"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
 	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/plugins/passkey"
 	"github.com/univeros/polaris.go/polaristest"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
@@ -164,6 +166,11 @@ func TestSettingsAndCapabilitiesAreValidated(t *testing.T) {
 	s, _, _ = Config{Strengths: map[string]string{RiskHigh: StrengthPasskey}}.resolve()
 	if s.strengthFor(RiskHigh) != StrengthPasskey {
 		t.Error("strength override")
+	}
+	// §8.11: proof of presence for what changes data, an undeclared risk included, in the protocol's mode.
+	s, _, _ = Config{Discovery: DiscoveryAgentAuth, Strengths: map[string]string{RiskHigh: StrengthStepUp}}.resolve()
+	if s.strengthFor(RiskLow) != StrengthStepUp || s.strengthFor(RiskMedium) != StrengthPasskey || s.strengthFor(RiskHigh) != StrengthStepUp {
+		t.Errorf("the protocol's mode: %v", s.strengths)
 	}
 	h := func(context.Context, Call) (any, error) { return nil, nil }
 	for name, cfg := range map[string]Config{
@@ -897,5 +904,83 @@ func TestARevokedCapabilityIsNotAutoApprovedAgain(t *testing.T) {
 	must(t, err)
 	if again := ask(h); again.Status != GrantPending {
 		t.Errorf("after a person revoked it, the capability came back as %s via %q", again.Status, again.ApprovedVia)
+	}
+}
+
+// The protocol's mode asks for passkeys by default: a server without the plugin could approve nothing, and
+// does not start unless it says what it asks for instead.
+func TestTheProtocolsModeNeedsPasskeysOrStrengths(t *testing.T) {
+	medium := []Capability{unitCapability("deploy", "", "deploy.staging")}
+	low := []Capability{unitCapability("deploy", RiskLow, "deploy.staging")}
+	for name, c := range map[string]struct {
+		cfg      Config
+		passkeys bool
+		fails    bool
+	}{
+		"passkeys missing":         {cfg: Config{Capabilities: medium, Discovery: DiscoveryAgentAuth}, fails: true},
+		"passkeys there":           {cfg: Config{Capabilities: medium, Discovery: DiscoveryAgentAuth}, passkeys: true},
+		"its own strengths":        {cfg: Config{Capabilities: medium, Discovery: DiscoveryAgentAuth, Strengths: map[string]string{RiskMedium: StrengthStepUp}}},
+		"passkeys its own way":     {cfg: Config{Capabilities: medium, Discovery: DiscoveryAgentAuth, Strengths: map[string]string{RiskMedium: StrengthPasskey}}},
+		"nothing needs them":       {cfg: Config{Capabilities: low, Discovery: DiscoveryAgentAuth}},
+		"the default mode":         {cfg: Config{Capabilities: medium}},
+		"another tier's strengths": {cfg: Config{Capabilities: medium, Discovery: DiscoveryAgentAuth, Strengths: map[string]string{RiskHigh: StrengthStepUp}}, fails: true},
+	} {
+		plugins := []polaris.Plugin{oauth.New(oauth.Config{BaseURL: unitBase}), New(c.cfg)}
+		if c.passkeys {
+			plugins = append(plugins, passkey.New(passkey.Config{RPID: "polaris.test", RPName: "Polaris", Origins: []string{"https://polaris.test"}}))
+		}
+		var host polaris.Config
+		polaristest.New(t, polaristest.WithConfig(func(c *polaris.Config) { host = *c }))
+		host.Plugins = plugins
+		_, err := polaris.New(host)
+		if (err != nil) != c.fails || (c.fails && !strings.Contains(err.Error(), "Config.Strengths")) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// A passkey proves that somebody is there only when it verified them (§8.11).
+func TestSection8_11APasskeyVerifiesThePerson(t *testing.T) {
+	protocol, _ := bootUnit(t, Config{Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
+	classic, _ := bootUnit(t, Config{})
+	now := time.Now()
+	tok := func(mfa bool, amr string, at time.Time) *token.Token {
+		return token.NewPrincipal(map[string]any{"sub": "user-1", "mfa": mfa, "amr": []any{amr}, "auth_time": at.Unix()})
+	}
+	for name, c := range map[string]struct {
+		p    *Plugin
+		tok  *token.Token
+		want bool
+	}{
+		"verified":              {protocol, tok(true, "passkey", now), true},
+		"present only":          {protocol, tok(false, "passkey", now), false},
+		"not a passkey":         {protocol, tok(true, "pwd", now), false},
+		"verified long ago":     {protocol, tok(true, "passkey", now.Add(-time.Hour)), false},
+		"present only, classic": {classic, tok(false, "passkey", now), true}, // as in v1.0.0
+		"long ago, classic":     {classic, tok(true, "passkey", now.Add(-time.Hour)), false},
+	} {
+		got, err := c.p.s.satisfies(t.Context(), StrengthPasskey, c.tok)
+		if err != nil || got != c.want {
+			t.Errorf("%s: %v %v", name, got, err)
+		}
+	}
+}
+
+// noPasskeys are the strengths of a server in the protocol's mode whose people have no passkeys.
+var noPasskeys = map[string]string{RiskMedium: StrengthStepUp, RiskHigh: StrengthStepUp}
+
+// The proof SignHostLink makes is good for five minutes, whatever bounds a request JWT.
+func TestAHostLinksLifeIsItsOwn(t *testing.T) {
+	p, _ := bootUnit(t, Config{RequestJWTMaxAge: 10 * time.Second})
+	k := newTestKey(AlgEdDSA)
+	thumbprint, _ := oauth.Thumbprint(k.jwk())
+	h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, k.jwk(), nil)
+	must(t, err)
+	for life, ok := range map[int64]bool{300: true, 301: false} {
+		now := time.Now().Unix()
+		proof := k.jwt(map[string]any{"iss": thumbprint, "sub": "user-1", "aud": unitBase, "iat": now, "exp": now + life, "jti": newID()}, map[string]any{"typ": HostLinkJWTType})
+		if _, err := p.s.proven(t.Context(), h, proof); (err == nil) != ok {
+			t.Errorf("%d: %v", life, err)
+		}
 	}
 }

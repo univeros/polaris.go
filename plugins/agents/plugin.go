@@ -96,6 +96,10 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	if g.Tokens() == nil { // core services are built with the codec
 		return errors.New("agents: the graph has no token codec, pepper or MFA service; build the plugin through polaris.New")
 	}
+	if p.settings.needsPasskeys && g.Plugin("passkey") == nil {
+		return errors.New("agents: with DiscoveryAgentAuth a capability of medium or high risk (medium is the default) is approved with a passkey, " +
+			"and no plugin signs in with one: add passkey.New(...) to Config.Plugins, or set agents.Config.Strengths (and read what that gives up in plugins/agents/README.md)")
+	}
 	settings := p.settings
 	if settings.baseURL == "" {
 		settings.baseURL = op.BaseURL()
@@ -114,10 +118,11 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		jwts:        &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge},
 		issuerJWTs:  &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge, audience: settings.baseURL, skew: protocolSkew},
 		executeJWTs: &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge, audience: settings.baseURL + pathExecute, skew: protocolSkew},
-		rates:       g.RateStore(), unknownHosts: g.Auth().RateLimits.Register, codeGuesses: g.Auth().RateLimits.MFAConfirm,
+		linkJWTs:    &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: hostLinkMaxAge, audience: settings.baseURL, skew: protocolSkew},
+		rates:       g.RateStore(), unknownHosts: g.Auth().RateLimits.Register, codeGuesses: g.Auth().RateLimits.MFAConfirm, hostURLs: g.Auth().RateLimits.MFAConfirm,
 		jwks: &jwksKeys{client: settings.httpClient, cache: g.Cache(), log: g.Logger()},
 	}
-	p.s.unknownHosts.KeyPrefix, p.s.codeGuesses.KeyPrefix = "agents.unknown_host", "agents.user_code"
+	p.s.unknownHosts.KeyPrefix, p.s.codeGuesses.KeyPrefix, p.s.hostURLs.KeyPrefix = "agents.unknown_host", "agents.user_code", "agents.host_url"
 	return nil
 }
 

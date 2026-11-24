@@ -256,9 +256,14 @@ func (s *service) settle(ctx context.Context, agentID string, approved bool) err
 
 // satisfies reports whether the deciding session is strong enough: session any; step_up core's
 // step-up rule (a user with a confirmed factor re-authenticated within the step-up max age);
-// passkey a recent passkey sign-in.
+// passkey a recent passkey sign-in. In the protocol's mode (§8.11) every approval needs a recent sign-in,
+// step_up being satisfied by any session of a person without a second factor, and a passkey must have
+// verified the person, as the session's mfa says.
 func (s *service) satisfies(ctx context.Context, strength string, tok *token.Token) (bool, error) {
-	recent := s.recent(tok)
+	recent, protocol := s.recent(tok), s.settings.discovery == DiscoveryAgentAuth
+	if protocol && !recent {
+		return false, nil
+	}
 	switch strength {
 	case StrengthStepUp:
 		if recent {
@@ -268,7 +273,8 @@ func (s *service) satisfies(ctx context.Context, strength string, tok *token.Tok
 		return !has, err
 	case StrengthPasskey:
 		amr, _ := tok.Claim("amr").([]any)
-		return recent && slices.Contains(amr, any("passkey")), nil
+		verified, _ := tok.Claim("mfa").(bool)
+		return recent && slices.Contains(amr, any("passkey")) && (verified || !protocol), nil
 	}
 	return true, nil
 }

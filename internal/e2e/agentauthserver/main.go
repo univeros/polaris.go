@@ -76,6 +76,7 @@ func newServer(ctx context.Context, url string) (http.Handler, string, error) {
 		BaseURL:      url,
 		ProviderName: "polaris-e2e",
 		Description:  "The Agent Auth Protocol interop server",
+		Strengths:    map[string]string{agents.RiskHigh: agents.StrengthStepUp}, // the person has no passkey here
 		Capabilities: []agents.Capability{
 			{Name: "invoices.list", Description: "List the invoices", Permission: "org.read", Risk: agents.RiskLow,
 				Handler: func(context.Context, agents.Call) (any, error) { return []string{"inv_1", "inv_2"}, nil }},

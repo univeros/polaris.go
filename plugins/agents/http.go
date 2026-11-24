@@ -304,6 +304,9 @@ func (p *Plugin) register(ctx context.Context, in *endpoint.Input) endpoint.Resu
 	if err != nil {
 		return p.fail(ctx, err)
 	}
+	if err := p.mayLink(ctx, tok); err != nil {
+		return p.fail(ctx, err)
+	}
 	c := clientOf(ctx)
 	owner := Agent{OwnerType: ownerType, OwnerID: ownerID, OrganizationID: org, CreatedBy: tok.Subject()}
 	a, secret, grants, ap, err := p.enrolment(ctx, in.All(), owner, asked, false, c)
@@ -312,6 +315,20 @@ func (p *Plugin) register(ctx context.Context, in *endpoint.Input) endpoint.Resu
 	}
 	p.s.dispatch(ctx, byUser(EventRegistered, a, tok.Subject(), map[string]any{"name": a.Name, "mode": a.Mode, "auth": a.Auth, "owner_type": ownerType}, c))
 	return p.registered(a, secret, grants, ap)
+}
+
+// mayLink refuses, in the protocol's mode, a session too weak to register a host or an agent by hand: it gets
+// what the policy approves, as a host does that a person approves with its code.
+func (p *Plugin) mayLink(ctx context.Context, tok *token.Token) error {
+	if p.s.settings.discovery != DiscoveryAgentAuth {
+		return nil
+	}
+	strength := p.s.linkStrength(nil)
+	ok, err := p.s.satisfies(ctx, strength, tok)
+	if err != nil || ok {
+		return err
+	}
+	return &Error{Type: ErrStepUpRequired, Detail: "Registering a host or an agent needs a recent sign-in of strength \"" + strength + "\".", Extra: map[string]any{"strength": strength}}
 }
 
 // listOf reads an optional JSON list field (absent or null: empty); ok is false for anything
@@ -438,6 +455,21 @@ func (p *Plugin) createHost(ctx context.Context, in *endpoint.Input) endpoint.Re
 		return p.fail(ctx, err)
 	}
 	h, err := p.s.withKey(Host{OwnerType: ownerType, OwnerID: ownerID, OrganizationID: org, CreatedBy: tok.Subject()}, in.Value("public_key"), in.Value("jwks_url"))
+	if err == nil {
+		err = p.mayLink(ctx, tok)
+	}
+	if err == nil && h.JWKSURL != "" { // fetched to verify the proof
+		limited, spent, err := p.limited(ctx, p.s.hostURLs, "user:"+tok.Subject())
+		if err != nil {
+			return p.fail(ctx, err)
+		}
+		if spent {
+			return limited
+		}
+	}
+	if err == nil {
+		h, err = p.s.proven(ctx, h, in.Value("proof"))
+	}
 	if err != nil {
 		return p.fail(ctx, err)
 	}
@@ -638,9 +670,6 @@ func (p *Plugin) decideApproval(ctx context.Context, in *endpoint.Input) endpoin
 	if approve {
 		if err := p.mayApprove(ctx, ap, a, tok); err != nil {
 			return p.fail(ctx, err)
-		}
-		if reg != nil && !p.s.recent(tok) { // step_up takes any session of a person without a second factor
-			return p.fail(ctx, &Error{Type: ErrStepUpRequired, Detail: "Approving an unknown host needs a recent sign-in.", Extra: map[string]any{"strength": ap.Strength}})
 		}
 	}
 	ap, decided, err := p.s.decide(ctx, ap, approve, tok.Subject(), constraints, reg)
