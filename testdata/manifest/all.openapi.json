@@ -28150,6 +28150,16 @@
                                 }
                             }
                         }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -28281,6 +28291,16 @@
                     },
                     "403": {
                         "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28501,7 +28521,6 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -28619,7 +28638,6 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -28852,7 +28870,6 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -29061,7 +29078,6 @@
                 "x-polaris-effect": "read",
                 "x-polaris-receipt": false,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
                 "parameters": [
                     {
                         "name": "agent_id",

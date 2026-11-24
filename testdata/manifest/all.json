@@ -11507,6 +11507,10 @@
                 {
                     "status": 404,
                     "code": "capability_not_found"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
                 }
             ],
             "events": []
@@ -11580,6 +11584,10 @@
                 {
                     "status": 403,
                     "code": "host_revoked"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
                 }
             ],
             "events": []
@@ -11608,7 +11616,7 @@
             "path": "/capability/execute",
             "summary": "Execute a capability (Agent Auth Protocol)",
             "auth": "public",
-            "rate_limit": "token_refresh",
+            "rate_limit": null,
             "effect": "write",
             "receipt": true,
             "step_up": false,
@@ -11697,7 +11705,7 @@
             "path": "/agent/register",
             "summary": "Register an agent (Agent Auth Protocol)",
             "auth": "public",
-            "rate_limit": "token_refresh",
+            "rate_limit": null,
             "effect": "write",
             "receipt": true,
             "step_up": false,
@@ -11827,7 +11835,7 @@
             "path": "/agent/request-capability",
             "summary": "Request capabilities (Agent Auth Protocol)",
             "auth": "public",
-            "rate_limit": "token_refresh",
+            "rate_limit": null,
             "effect": "write",
             "receipt": true,
             "step_up": false,
@@ -11941,7 +11949,7 @@
             "path": "/agent/status",
             "summary": "An agent's status (Agent Auth Protocol)",
             "auth": "public",
-            "rate_limit": "token_refresh",
+            "rate_limit": null,
             "effect": "read",
             "receipt": false,
             "step_up": false,

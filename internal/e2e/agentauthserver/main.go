@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -65,8 +66,8 @@ func run(ctx context.Context, command []string) (int, error) {
 	return 0, err
 }
 
-// newServer is a Polaris host mounted at url, with a low-risk and a high-risk capability, and the
-// session of a person who owns an organization there.
+// newServer is a Polaris host mounted at url, with a low-risk and a high-risk capability, one at a location of
+// the host's own, and the session of a person who owns an organization there.
 func newServer(ctx context.Context, url string) (http.Handler, string, error) {
 	if err := polaris.DevEnv(url); err != nil {
 		return nil, "", err
@@ -85,6 +86,8 @@ func newServer(ctx context.Context, url string) (http.Handler, string, error) {
 				Handler: func(_ context.Context, c agents.Call) (any, error) {
 					return map[string]any{"refunded": c.Arguments["invoice_id"]}, nil
 				}},
+			{Name: "invoices.send", Description: "Send an invoice, at the host's own route", Permission: "org.update", Risk: agents.RiskHigh, Location: url + "/api/invoices/send",
+				Input: map[string]any{"type": "object", "required": []string{"invoice_id"}, "properties": map[string]any{"invoice_id": map[string]any{"type": "string"}}}},
 		},
 	})
 	cfg, err := polaris.FromEnv(memstore.New(), oauth.New(oauth.Config{BaseURL: url}), ag)
@@ -110,5 +113,18 @@ func newServer(ctx context.Context, url string) (http.Handler, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return p.Handler(), tokens.AccessToken, nil
+	mux := http.NewServeMux()
+	mux.Handle("/", p.Handler())
+	mux.Handle("POST /api/invoices/send", ag.Protect("invoices.send", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			InvoiceID string `json:"invoice_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "pending", "sent": in.InvoiceID}) // a status of its own
+	})))
+	return mux, tokens.AccessToken, nil
 }

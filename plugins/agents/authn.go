@@ -110,21 +110,32 @@ func deref(p *principal) principal {
 }
 
 func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw string, peeked peekedJWT, body []byte, url string) (principal, error) {
-	ctx := r.Context()
-	a, ok, err := s.agent(ctx, peeked.sub)
+	a, err := s.named(r.Context(), peeked.sub)
 	if err != nil {
 		return principal{}, err
 	}
-	if !ok {
-		var reg registration
-		if reg, ok, err = s.registration(ctx, peeked.sub); err != nil {
-			return principal{}, err
-		}
-		if !ok {
-			return principal{}, invalidJWT("sub does not name a registered agent.")
-		}
-		a = reg.agent() // never active
+	return s.signedBy(a, jwts, r, raw, peeked, body, url)
+}
+
+// named is the agent a JWT's sub names, or the one an unknown host's registration may become.
+func (s *service) named(ctx context.Context, sub string) (Agent, error) {
+	a, ok, err := s.agent(ctx, sub)
+	if err != nil || ok {
+		return a, err
 	}
+	reg, ok, err := s.registration(ctx, sub)
+	if err != nil {
+		return Agent{}, err
+	}
+	if !ok {
+		return Agent{}, invalidJWT("sub does not name a registered agent.")
+	}
+	return reg.agent(), nil // never active
+}
+
+// signedBy is the principal of a request whose JWT a signed, by the rules of jwts.
+func (s *service) signedBy(a Agent, jwts *requestJWTs, r *http.Request, raw string, peeked peekedJWT, body []byte, url string) (principal, error) {
+	ctx := r.Context()
 	if err := assertActive(a); err != nil {
 		return principal{}, err
 	}

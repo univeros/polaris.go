@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/internal/netguard"
 )
@@ -116,6 +117,8 @@ type Config struct {
 	// approves with the code their client shows: only hosts an owner registered sign agents in then.
 	// Such hosts are only taken with DiscoveryAgentAuth.
 	DisableDynamicHosts bool
+	// RateLimits bound the Agent Auth Protocol's routes.
+	RateLimits RateLimits
 	// HTTPClient fetches hosts' key sets. Default: a client that connects to public addresses only,
 	// with a timeout. Redirects are never followed, whichever client is used.
 	HTTPClient *http.Client
@@ -148,6 +151,9 @@ type settings struct {
 	jwksURLs                  bool
 	dynamicHosts              bool
 	httpClient                *http.Client
+	agentLimit                config.RateLimit
+	hostLimit                 config.RateLimit
+	addressLimit              config.RateLimit
 	maxAge                    int64
 	operators                 OperatorFunc
 	maxBody                   int64
@@ -188,6 +194,7 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	s.jwksURLs = s.discovery == DiscoveryAgentAuth && !cfg.DisableJWKSURLs
 	s.dynamicHosts = s.discovery == DiscoveryAgentAuth && !cfg.DisableDynamicHosts
 	s.httpClient = netguard.NoRedirects(cfg.HTTPClient)
+	cfg.RateLimits.resolve(&s, bad)
 	if s.providerName == "" {
 		s.providerName = "Polaris"
 	}

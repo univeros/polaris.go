@@ -14,7 +14,7 @@ Breaking changes are marked **Breaking**.
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
   `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
   Agent Auth Protocol's, for its clients (`@auth/agent`)
-  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 86). Those clients sign in through
+  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 87). Those clients sign in through
   a host whose key its owner registered, or through a host the server does not know, which a signed-in
   person approves with the code the client shows: the host and the agent are theirs then.
   `agents.Config.DisableDynamicHosts` takes registered hosts only.
@@ -36,6 +36,11 @@ Breaking changes are marked **Breaking**.
   `StepUpMaxAge`, and a passkey must have verified the person.
   Without the passkey plugin such a server starts only when `Strengths` says what it asks for instead.
   The default mode is as it was.
+- `agents.Plugin.Protect` and `Guard` serve an agent of a host with a key in the protocol's way: its body is
+  `{capability, arguments}`, the handler reads the arguments, and its JSON answer is `{"data": ...}`. Any other
+  agent is served as before.
+- `agents.Config.RateLimits`: the protocol's routes are limited per agent, per host and per address (60, 300 and 600
+  a minute), answering 429 `rate_limited` (`agents.ErrRateLimited`).
 - An agent's `status` may be `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
   registration that waits for a person, or was denied. Neither acts anywhere.
 - An agent's registration through a host is idempotent by the host's and the agent's key: pending answers

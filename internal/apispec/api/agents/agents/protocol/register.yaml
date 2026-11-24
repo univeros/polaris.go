@@ -5,7 +5,6 @@ endpoint:
   summary: Register an agent (Agent Auth Protocol)
   tags: [agents]
   auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
-  rate_limit: token_refresh
   effect: write
   receipt: true
 

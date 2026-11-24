@@ -19,6 +19,7 @@ import (
 	"time"
 
 	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/plugins/admin"
@@ -172,11 +173,20 @@ func TestSettingsAndCapabilitiesAreValidated(t *testing.T) {
 	if s.strengthFor(RiskLow) != StrengthStepUp || s.strengthFor(RiskMedium) != StrengthPasskey || s.strengthFor(RiskHigh) != StrengthStepUp {
 		t.Errorf("the protocol's mode: %v", s.strengths)
 	}
+	// §8.13's examples, and what a host says instead.
+	s, _, _ = Config{RateLimits: RateLimits{Host: config.RateLimit{Limit: 5, Window: time.Hour}}}.resolve()
+	if s.agentLimit.Limit != 60 || s.agentLimit.Window != time.Minute || s.hostLimit.Limit != 5 || s.hostLimit.Window != time.Hour || s.addressLimit.Limit != 600 ||
+		s.agentLimit.KeyPrefix != "agents.agent" || s.hostLimit.KeyPrefix != "agents.host" || s.addressLimit.KeyPrefix != "agents.address" {
+		t.Errorf("rate limits: %+v %+v %+v", s.agentLimit, s.hostLimit, s.addressLimit)
+	}
 	h := func(context.Context, Call) (any, error) { return nil, nil }
 	for name, cfg := range map[string]Config{
 		"base url":        {BaseURL: "not a url"},
 		"approval url":    {ApprovalURL: "https://app.test/approve?x=1"},
 		"discovery":       {Discovery: "both"},
+		"agent limit":     {RateLimits: RateLimits{Agent: config.RateLimit{Limit: -1, Window: time.Minute}}},
+		"host limit":      {RateLimits: RateLimits{Host: config.RateLimit{Limit: 1}}},
+		"address limit":   {RateLimits: RateLimits{Address: config.RateLimit{Window: time.Minute}}},
 		"risk tier":       {AutoApprove: map[string]Budget{"critical": {}}},
 		"budget":          {AutoApprove: map[string]Budget{RiskLow: {Count: -1}}},
 		"window":          {AutoApprove: map[string]Budget{RiskLow: {Count: 1, Window: time.Millisecond}}},

@@ -34,15 +34,16 @@ async function readsTheServer() {
   });
   await step("list the capabilities (§5.2)", async () => {
     const page = await client.listCapabilities({ provider: url });
-    assert.deepEqual(names(page), ["invoices.list", "invoices.refund"]);
+    assert.deepEqual(names(page), ["invoices.list", "invoices.refund", "invoices.send"]);
+    assert.equal(page.capabilities[2].location, `${url}/api/invoices/send`);
     assert.equal(page.has_more, false);
     assert.ok(page.capabilities.every((c) => !("grant_status" in c)), "no grant status without an agent");
   });
   await step("list them page by page (§5.2)", async () => {
     const first = await client.listCapabilities({ provider: url, limit: 1 });
     assert.deepEqual([names(first), first.has_more], [["invoices.list"], true]);
-    const last = await client.listCapabilities({ provider: url, limit: 1, cursor: first.next_cursor });
-    assert.deepEqual([names(last), last.has_more], [["invoices.refund"], false]);
+    const last = await client.listCapabilities({ provider: url, limit: 2, cursor: first.next_cursor });
+    assert.deepEqual([names(last), last.has_more], [["invoices.refund", "invoices.send"], false]);
   });
   await step("search them (§5.2)", async () => {
     assert.deepEqual(names(await client.listCapabilities({ provider: url, query: "Refund" })), ["invoices.refund"]);
@@ -98,7 +99,7 @@ async function aPreRegisteredHost() {
   await client.init();
 
   await step("list the capabilities with a host's key (§5.2)", async () => {
-    assert.equal((await client.listCapabilities({ provider: url })).capabilities.length, 2);
+    assert.equal((await client.listCapabilities({ provider: url })).capabilities.length, 3);
   });
   const agent = await step("register an agent, approved by policy (§5.3)", async () => {
     const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "e2e", reason: "the harness" });
@@ -111,7 +112,7 @@ async function aPreRegisteredHost() {
   });
   await step("list with grant status (§5.2)", async () => {
     const page = await client.listCapabilities({ provider: url, agentId: agent });
-    assert.deepEqual(page.capabilities.map((c) => c.grant_status), ["granted", "not_granted"]);
+    assert.deepEqual(page.capabilities.map((c) => c.grant_status), ["granted", "not_granted", "not_granted"]);
     assert.equal((await client.describeCapability({ provider: url, name: "invoices.list", agentId: agent })).grant_status, "granted");
   });
   await step("request a capability, approved by a person (§5.4)", async () => {
@@ -126,18 +127,25 @@ async function aPreRegisteredHost() {
     const other = client.executeCapability({ agentId: agent, capability: "invoices.refund", arguments: { invoice_id: "inv_2" } });
     await assert.rejects(other, { code: "constraint_violated", status: 403 });
   });
+  await step("execute a capability at its location (§2.15)", async () => {
+    const asked = await client.requestCapability({ agentId: agent, capabilities: ["invoices.send"] });
+    assert.ok(asked.granted.includes("invoices.send"), JSON.stringify(asked));
+    const out = await client.executeCapability({ agentId: agent, capability: "invoices.send", arguments: { invoice_id: "inv_1" } });
+    assert.deepEqual(out, { data: { status: "pending", sent: "inv_1" } });
+    await assert.rejects(client.executeCapability({ agentId: agent, capability: "invoices.send", arguments: {} }), { code: "invalid_request", status: 400 });
+  });
   await step("execute in a batch: the client falls back to one by one", async () => {
     const { responses } = await client.batchExecuteCapabilities({ agentId: agent, requests: [{ capability: "invoices.list" }] });
     assert.deepEqual(responses.map((r) => r.status), ["completed"]);
   });
   await step("status (§5.5)", async () => {
     const out = await client.agentStatus(agent);
-    assert.deepEqual([out.status, out.mode, out.agent_capability_grants.map((g) => g.status)], ["active", "delegated", ["active", "active"]]);
+    assert.deepEqual([out.status, out.mode, out.agent_capability_grants.map((g) => g.status)], ["active", "delegated", ["active", "active", "active"]]);
     assert.ok(out.created_at);
   });
   await step("every execution left a receipt, and each verifies", async () => {
     const receipts = await owner("GET", `/agents/${agent}/receipts`);
-    assert.equal(receipts.length, 3);
+    assert.equal(receipts.length, 4);
     for (const r of receipts) assert.equal((await owner("GET", `/agents/receipts/${r.id}/verify`)).valid, true);
   });
   await step("register an agent a person must approve (§5.3)", async () => {
@@ -167,7 +175,7 @@ async function anUnknownHost() {
 
   await step("list the capabilities with a key the server does not know (§5.2)", async () => {
     await storage.setHostIdentity({ keypair: await generateKeypair(), createdAt: Date.now() });
-    assert.equal(names(await client.listCapabilities({ provider: url })).length, 2);
+    assert.equal(names(await client.listCapabilities({ provider: url })).length, 3);
   });
   await step("a denied registration of an unknown host is rejected (§7.1)", async () => {
     decision = "deny";

@@ -173,6 +173,9 @@ func (a Agent) Subject() string {
 	return a.CreatedBy
 }
 
+// ofHostJWT reports whether a host's JWT registered the agent (Agent Auth Protocol), so its host has a key.
+func (a Agent) ofHostJWT() bool { return a.keyThumbprint != "" }
+
 // Active reports whether the agent may act.
 func (a Agent) Active() bool { return a.Status == StatusActive }
 

@@ -521,23 +521,6 @@ func TestAHostsKeyIsProven(t *testing.T) {
 	h.status(h.addHost(h.session, h.orgID, fleet, map[string]any{"organization_id": h.orgID}), 201, "the organization's")
 }
 
-// §8.13: a limited route answers 429 rate_limited with Retry-After.
-func TestSection8_13ARateLimitedRoute(t *testing.T) {
-	h := unrecorded(t)
-	for range 100 {
-		resp := h.c.Get("/agent/status?agent_id=x", contracttest.Bearer(h.host.hostJWT(nil, nil)))
-		if resp.StatusCode != 429 {
-			continue
-		}
-		body := h.json(resp)
-		h.equal([]any{body["error"], resp.Header.Get("Retry-After") != ""}, []any{"rate_limited", true}, "§8.13")
-		other := h.c.Get("/agents/session", contracttest.Bearer("x"))
-		h.equal([]any{other.StatusCode, h.json(other)["error"]}, []any{429, "too_many_requests"}, "a Polaris route keeps its code")
-		return
-	}
-	t.Fatal("never limited")
-}
-
 // A pending agent's key mints a token that carries and opens nothing.
 func TestAPendingAgentsTokenOpensNothing(t *testing.T) {
 	h := unrecorded(t)

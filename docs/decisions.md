@@ -3330,3 +3330,43 @@ and the telling refusals of an unproven `jwks_url`; a proof `SignHostLink` makes
 Accepted: an approval keeps the strength it was opened with, so one opened before a restart with stricter `Strengths` is
 decided at the old one until `ApprovalTTL` ends (the recent sign-in is asked all the same); `Strengths` set to
 `passkey` without the passkey plugin starts, as another plugin may sign people in with passkeys.
+
+## 87. 2026-11-24 — Agent Auth Protocol: capabilities at a Location, and rate limits
+
+The other half of part 3b of [`agent-auth-compat.md`](agent-auth-compat.md): 5.8 and 5.7.
+
+- **A protocol agent at a `Location` (5.8).** Its client posts `{capability, arguments}` there (§2.15), which `Protect`
+  and `Guard` read as the arguments, so none could be called. They now unwrap it for an agent a host's JWT
+  registered (it has a `key_thumbprint`). What is stored decides, never the body: a capability may take arguments of those names,
+  and no agent v1.0.0 had is one, so every caller it had is served as it was. Such an agent
+  whose host is gone is refused.
+- The body is those two members and nothing else, `capability` is the location's, and `next` reads the bytes of
+  `arguments` as they were sent: what was checked is what is read. `body_hash` covers the body as sent.
+- The JWT is held to 2.4 there: `aud` is exactly the configured `Location` (the Host header plays no part), 30 s of
+  skew, the host's `iss` and revocation. Refusals of the caller and of what it sends are §5.13's.
+- Only the body is checked, so such a call has no query, the handler is told the body is JSON, and trailers and
+  `Content-Encoding` are dropped.
+- A handler's JSON success is answered as `{"data": ...}`, 200: §5.11 requires it, and a handler's own
+  `{"status": "pending", "status_url": ...}` would read as an asynchronous answer, which the client polls with its
+  JWT. An empty success is `{"data": null}`, and headers that described the body are dropped. Anything encoded, partial,
+  not JSON or not a success passes as it is.
+- **Rate limits by identity (5.7, §8.13).** Per agent 60 and per host 300 a minute, its agents' requests included, counted
+  only once the JWT verified: a `sub` or an `iss` anybody can write spends nobody's budget. Per address 600, before
+  anything is verified. `Config.RateLimits` sets others. They apply on the six protocol routes, and per agent and host
+  at a `Location`. Discovery, a cached constant, has none; an unknown host's new registration keeps its 5 an hour.
+- **These routes left the `token_refresh` group,** which they shared with the refresh of people's sessions: five agents
+  waiting for approval behind one address used it up. A group of their own would be a field of `config.RateLimits`,
+  which breaks a host that fills that struct in, so the plugin counts. Their successes no longer carry `X-RateLimit-*`.
+  The Polaris agent routes of v1.0.0 keep the group: a follow-up.
+
+Go API: additions only: `agents.Config.RateLimits`, `agents.RateLimits`, `agents.ErrRateLimited`. Routes: none added; four
+lost `rate_limit`, two declare 429. Fixtures: five of parts 2 and 3, in no release, re-recorded; statuses and headers
+compared with the old ones, only `X-RateLimit-*` left. No schema or stored format.
+
+Security review (rule 6), independent, of the whole change: nothing critical or high. Fixed from it, each with a test: an
+argument in the query or a form, which only the handler would read; an agent whose host row is missing being served by
+the looser rules; a wrapped answer keeping headers, or a type, of the body it replaced; the agent read twice per
+call. Three checks no test held now have one. Accepted: 413 and an ambiguous URL are answered before the caller is
+known, in Polaris's words; the same agent on the Polaris routes is bounded by the `token_refresh` group and its budgets,
+not by these limits; at another route `Protect` guards for the same capability the JWT still names the `Location`. For
+an agent v1.0.0 had, a query is passed on as it was; the README says to read the body.

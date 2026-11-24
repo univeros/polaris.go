@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/internal/strictjson"
 )
 
@@ -33,6 +34,9 @@ func CallFrom(ctx context.Context) (Call, bool) {
 // status: below 300 is success) is appended, in one transaction. next reads the execution with
 // CallFrom; the response carries X-Polaris-Receipt. The response is buffered until the receipt is
 // written.
+//
+// An agent of a host with a key (an Agent Auth Protocol client's) posts {capability, arguments} and is
+// answered {"data": ...}: next reads the arguments alone, and its JSON answer is wrapped.
 //
 //	mux.Handle("POST /invitations", agentsPlugin.Protect("invite", inviteHandler))
 //
@@ -74,10 +78,30 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 			return
 		}
 		ctx := r.Context()
-		pr, err := p.s.authenticate(r, body, requestURL(r))
-		if err != nil {
+		pr, protocol, err := p.s.atLocation(r, body, capability)
+		refused := func(err error) {
+			if protocol {
+				endpoint.Write(w, p.protocolFail(ctx, p.s.executionRefusal(ctx, pr.agent, capability.Name, err)))
+				return
+			}
 			p.answer(w, r, err)
+		}
+		if err != nil {
+			refused(err)
 			return
+		}
+		if protocol {
+			if err = p.s.spendAgent(ctx, pr.agent); err != nil {
+				refused(err)
+				return
+			}
+			if body, err = executionArguments(body, capability); err == nil {
+				r, err = withArguments(r, body)
+			}
+			if err != nil {
+				refused(err)
+				return
+			}
 		}
 		args, err := bodyArguments(body)
 		if err == nil {
@@ -91,7 +115,7 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 			if e, ok := asError(err); ok {
 				p.s.deny(ctx, pr.agent, capability.Name, e, client{})
 			}
-			p.answer(w, r, err)
+			refused(err)
 			return
 		}
 		rec := &buffered{header: http.Header{}, status: http.StatusOK}
@@ -107,8 +131,11 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 		}
 		done, err := p.s.run(ctx, ev, run, outcome, client{})
 		if err != nil {
-			p.answer(w, r, err)
+			refused(err)
 			return
+		}
+		if protocol {
+			rec.asData()
 		}
 		for k, v := range rec.header {
 			w.Header()[k] = v
