@@ -182,7 +182,7 @@ func TestSection8_10NothingExistsBeforeTheApproval(t *testing.T) {
 	u.equal([]any{len(u.list(u.c.Get("/agents", contracttest.Bearer(u.session)))), len(u.list(u.c.Get("/agents/approvals", contracttest.Bearer(u.session))))}, []any{0, 0}, "listed")
 	u.agentsProblem(u.c.Get("/agents/"+id, contracttest.Bearer(u.session)), 404, "not_found", "", "shown")
 	u.agentsProblem(u.c.Post("/agents/"+id+"/revoke", nil, contracttest.Bearer(u.session)), 404, "not_found", "", "revoked")
-	grant := str(u.rows(agents.TableGrants, store.Criteria{})[0]["id"])
+	grant := u.rows(agents.TableGrants, store.Criteria{})[0].String("id")
 	u.agentsProblem(u.c.Delete("/agents/grants/"+grant, contracttest.Bearer(u.session)), 404, "not_found", "", "its grant")
 	u.status(u.decides(u.session, registered, approve), 200, "approve")
 	u.equal([]any{len(u.rows(agents.TableHosts, store.Criteria{})), len(u.rows(agents.TableAgents, store.Criteria{})), len(u.rows(oauth.TableClients, store.Criteria{"client_id": id})), len(u.rows(agents.TableRegistrations, store.Criteria{}))},
