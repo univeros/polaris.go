@@ -3162,8 +3162,8 @@ them `polaris.agents.protocol.*`. Decide before a release carries the names.
 
 Go API: additions only (`make apicheck BASE=v1.0.0`): `Config.Discovery`, `DiscoveryMode` and its two
 values, three `Err*` names. Fixtures: three added, none changed; `testdata/discovery-v1.0.0.json`, written
-by v1.0.0's code, holds the default document. Manifest goldens: three routes added and one description. No
-schema or stored format.
+by v1.0.0's code, holds the default document. Manifest goldens: three routes added. No schema or stored
+format.
 
 Security review (rule 6): `requestJWTs` gains an exact audience and a clock leeway, used only by the two
 capability routes; with neither set, what the Polaris routes check is unchanged, and their tests and
