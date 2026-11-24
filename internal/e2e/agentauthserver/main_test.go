@@ -15,7 +15,7 @@ func TestRunServesTheCommand(t *testing.T) {
 	if err != nil {
 		t.Skip("needs curl")
 	}
-	status, err := run(t.Context(), []string{"sh", "-c", curl + ` -fsS "$AGENT_AUTH_URL/.well-known/agent-configuration" | grep -q '"/capability/list"' && exit 3; exit 1`})
+	status, err := run(t.Context(), []string{"sh", "-c", curl + ` -fsS "$AGENT_AUTH_URL/.well-known/agent-configuration" | grep -q '"/capability/list"' && [ -n "$AGENT_AUTH_OWNER" ] && exit 3; exit 1`})
 	if err != nil || status != 3 {
 		t.Errorf("status %d, %v", status, err)
 	}

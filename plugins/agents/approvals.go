@@ -171,6 +171,9 @@ func (s *service) decide(ctx context.Context, ap Approval, approve bool, by stri
 	}
 	var decided []Grant
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
+		if err := s.lockAgent(ctx, ap.AgentID); err != nil { // the order the kill switch locks in
+			return err
+		}
 		n, err := s.db.Update(ctx, TableApprovals, store.Criteria{"id": ap.ID, "status": ApprovalPending, "expires_at": store.Gt(s.now())},
 			store.Data{"status": status, "decided_by": by, "updated_at": s.now()})
 		if err != nil {
@@ -197,13 +200,32 @@ func (s *service) decide(ctx context.Context, ap Approval, approve bool, by stri
 			}
 			decided = append(decided, g)
 		}
-		return nil
+		return s.settle(ctx, ap.AgentID, approve)
 	})
 	if err != nil {
 		return ap, nil, err
 	}
 	ap.Status, ap.DecidedBy, ap.UpdatedAt = status, by, s.now()
 	return ap, decided, nil
+}
+
+// settle ends a registration that waited for this decision (StatusPending): the agent is active, or
+// rejected for good (§7.1), its OAuth client disabled and its tokens
+// revoked. Any other agent stays as it is.
+func (s *service) settle(ctx context.Context, agentID string, approved bool) error {
+	status := StatusRejected
+	if approved {
+		status = StatusActive
+	}
+	n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": agentID, "status": StatusPending}, store.Data{"status": status, "updated_at": s.now()})
+	if err != nil || n == 0 || approved {
+		return err
+	}
+	if err := s.disableClient(ctx, agentID); err != nil {
+		return err
+	}
+	_, err = s.oauth.RevokeClientTokens(ctx, agentID)
+	return err
 }
 
 // satisfies reports whether the deciding session is strong enough: session any; step_up core's

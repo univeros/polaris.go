@@ -1,0 +1,42 @@
+# GET /agent/status: the Agent Auth Protocol's agent status (§5.5).
+endpoint:
+  method: GET
+  path: /agent/status
+  summary: An agent's status (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
+  rate_limit: token_refresh
+  effect: read
+  receipt: false
+
+input:
+  source: query
+  fields:
+    agent_id: { type: string, rules: [required] }
+
+domain:
+  description: >
+    An agent of the calling host: pending, active, rejected or revoked (a suspended agent reads pending),
+    and one entry per capability it has or had a grant of: active (in full, with granted_by), pending, or
+    denied with the reason. Another host's agent is answered as none.
+
+output:
+  status: 200
+  example:
+    agent_id: "018f..."
+    host_id: "018f..."
+    name: "Claude Code"
+    status: active
+    mode: delegated
+    agent_capability_grants: [{ capability: "deploy.staging", status: active, granted_by: "018f...", description: "Deploy a build to staging", input: { type: object }, constraints: { build: { in: ["42"] } } }, { capability: "refund", status: denied, reason: "A person denied the request." }]
+    user_id: "018f..."
+    created_at: "2026-10-10T10:00:00Z"
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: host_revoked }
+  - { status: 404, code: agent_not_found }
+  - { status: 429, code: rate_limited }
+
+events: []

@@ -3169,3 +3169,63 @@ fixtures pass untouched. On the new routes the `aud` is compared exactly (§8.18
 `htu` is still the URL called. They answer what `GET /agents/capabilities` already answers anyone, and write
 nothing. §4.5's host checks wait for host keys: no agent registered through the protocol exists yet. Tests
 name the section of each rule.
+
+## 84. 2026-11-24 — Agent Auth Protocol, part 2: hosts with keys, registration, status, requests, execution
+
+Part 2 of [`agent-auth-compat.md`](agent-auth-compat.md). The unmodified `@auth/agent` client signs in
+through a host whose key its owner registered: register, wait for a person, request a capability, execute
+it, read its status. A receipt is appended and verifies. Hosts the server does not know are part 3.
+
+- **A host with a key** is a `polaris_agent_host` row with `public_key` or `jwks_url` from
+  `POST /agents/hosts`, and no enrolment token (the column holds the hash of a secret nobody is given).
+  There is no `status` column: a stored host is live or revoked, and one nobody approved is never stored.
+  A key and a URL are one host's for good (unique, revoked hosts included, §8.8.1).
+- **A host JWT** is verified against the stored host only: `iss` finds it, its stored key (or the key `kid`
+  names in its set) verifies, and `iss` must be that key's thumbprint. The delivery mode is fixed (§8.7).
+  The shared rules (time, lifetime, single use) are `requestJWTs`' own methods, so the two edges differ
+  only in what §2.4 lists.
+- **JWKS URLs** go through `netguard`, follow no redirect (§8.12 allows three, none is needed), are bounded
+  in size and time, and are fetched at most once a minute each, only for a host an owner registered. The
+  whole set is validated first; one bad key refuses it. Taken with `DiscoveryAgentAuth` unless
+  `DisableJWKSURLs`. `agent_jwks_url` is refused: no client needs it yet.
+- **An agent's `iss`** is checked when it is there, as the reference client sends none (decision 83). Its
+  host is the one it is stored under; a revoked one refuses it.
+- **`pending` and `rejected`** are new agent statuses, for a registration in which a person must approve
+  everything. Reporting an active agent with pending grants would not work: the client shows an approval
+  only for a `status` of `pending`. They are stored, not computed, so "a pending agent cannot
+  authenticate" (§2.3) is the check every suspended agent meets, on every surface. The decision and the
+  status change in one transaction; a denial is terminal (§7.1) and disables the agent's OAuth client.
+  §5.3 also describes a fully denied registration as active; §7.1 and the client agree on `rejected`.
+- **Revoking a host with a key revokes its agents** (§8.5) with the kill switch, in one transaction that
+  takes the host's row first, as a registration does: a registration in flight is revoked with it or
+  finds it revoked. `decide` now takes the agent's row first too, the kill switch's order.
+- **Answers.** `status` beside §5.4's members, because the client reads it; one grant per capability;
+  `violations` with the constraint's operand; `limit_exceeded` for a spent budget; 400 `invalid_request`
+  for arguments the schema refuses; a removed capability is 403 (§2.12). An exact value (§2.13) becomes
+  `in` with one value; an unknown operator is refused by name.
+- **429** answers the code a plugin route's spec declares: `rate_limited` on these four.
+- **A protocol key has one spelling.** base64url's last character has spare bits and Go's decoder ignores
+  them, so one Ed25519 key had four spellings and four thumbprints: one key could be several hosts. Keys
+  of the protocol surface are taken in the canonical form only, and points of small order (for which
+  anyone can make signatures) are refused. `/agents/register` and `/agents/enroll` take keys as in v1.0.0.
+- **Left open, in §5 and §6 of the document:** capabilities with a `Location`, whose protocol body
+  `Protect` does not read (5.8); proof that a pre-registered key is the owner's (5.9); limits per host and
+  agent (5.7); what `suspended` reports (5.2; `pending` for now).
+
+Go API: additions only. Routes: four added, two (`POST`, `DELETE /agents/hosts`) describe more and answer as
+before without a key. Fixtures: three added, none changed; the harness masks the receipt's id in a header.
+Schema: three nullable columns and two unique indexes on `polaris_agent_host`; `testdata/upgrade` gains the
+v1.0.0 export and `Migrate` reaches HEAD from it. Fuzz targets: `FuzzHostJWT`, `FuzzKeySet`. The interop
+harness now stops at an unknown host, exit status 3.
+
+Security review (rule 6), independent, of the whole change: no bypass, confusion of credentials, SSRF or
+escalation. Fixed from it, each with a test: the spellings and small-order keys above; a host revocation
+that read before it locked, and on MySQL could miss an agent registered at that moment
+(`TestARegistrationDoesNotOutliveItsHost`; SQLite answered busy); what an unverified `iss`,
+`host_jwks_url` or `sub` may look up (a NUL was a 500 on PostgreSQL, for `sub` since v1.0.0); a denied
+registration's tokens, now revoked; a revoked host's URL, no longer fetched. Accepted: a pending agent's
+OAuth client can mint tokens, which nothing accepts, as a suspended one's; an agent of a token host that
+sends an `iss` is refused on the protocol routes, where it has no host key to name; a removed key of a
+JWKS host verifies until the cached set expires (five minutes, §10.4). For part 3: the cleanup also
+deletes a known host's registrations whose approval expired, which stay pending until then.
+

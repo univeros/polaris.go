@@ -57,8 +57,13 @@ func assertActive(a Agent) error {
 		return nil
 	}
 	code := ErrAgentSuspended
-	if a.Status == StatusRevoked {
+	switch a.Status {
+	case StatusRevoked:
 		code = ErrAgentRevoked
+	case StatusPending:
+		code = ErrAgentPending
+	case StatusRejected:
+		code = ErrAgentRejected
 	}
 	return &Error{Type: ErrAgentInactive, Detail: "The agent is " + a.Status + ".", Code: code}
 }
@@ -79,7 +84,7 @@ func (s *service) authenticateWith(jwts *requestJWTs, r *http.Request, body []by
 	}
 	raw := m[2]
 	if peeked, ok := peekRequestJWT(raw); ok {
-		return s.byJWT(jwts, r, raw, peeked.sub, body, url)
+		return s.byJWT(jwts, r, raw, peeked, body, url)
 	}
 	if h := oauth.JWTHeader(raw); h != nil && h["typ"] == oauth.AccessTokenType {
 		tok, err := s.oauth.ResolveBearer(r)
@@ -104,9 +109,9 @@ func deref(p *principal) principal {
 	return *p
 }
 
-func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw, sub string, body []byte, url string) (principal, error) {
+func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw string, peeked peekedJWT, body []byte, url string) (principal, error) {
 	ctx := r.Context()
-	a, ok, err := s.agent(ctx, sub)
+	a, ok, err := s.agent(ctx, peeked.sub)
 	if err != nil {
 		return principal{}, err
 	}
@@ -119,6 +124,11 @@ func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw, sub string, bod
 	caps, err := jwts.verify(ctx, raw, a, r.Method, url, body)
 	if err != nil {
 		return principal{}, err
+	}
+	if jwts.audience != "" { // an Agent Auth Protocol route
+		if err := s.checkHost(ctx, a, peeked.iss, peeked.hasISS); err != nil {
+			return principal{}, err
+		}
 	}
 	// A JWT for one capability's location may not open the door to several.
 	if located, ambiguous := s.caps.at(r, url); len(caps) > 1 && (located != nil || ambiguous) {

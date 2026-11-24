@@ -48,12 +48,17 @@ func Forbidden(message string) Result { return Error(http.StatusForbidden, "forb
 func NotFound(message string) Result { return Error(http.StatusNotFound, "not_found", message) }
 
 // TooManyRequests answers 429 too_many_requests in rt's error style: core's envelope for a core
-// route or no route (a host route behind Protect), a problem document for a plugin route. The
-// caller sets Retry-After and the X-RateLimit-* headers.
+// route or no route (a host route behind Protect), a problem document for a plugin route, whose error
+// member is the code the route's spec gives a 429 when it gives one. The caller sets Retry-After and the X-RateLimit-* headers.
 func TooManyRequests(rt *manifest.Route) Result {
 	const message = "Too many requests. Try again after the Retry-After delay."
 	if rt == nil || rt.Plugin == "" {
 		return Error(http.StatusTooManyRequests, "too_many_requests", message)
+	}
+	for _, e := range rt.Errors {
+		if e.Status == http.StatusTooManyRequests && e.Code != "" { // the route's own word for it
+			return Problem(http.StatusTooManyRequests, "too_many_requests", "Too many requests", message, map[string]any{"error": e.Code})
+		}
 	}
 	return Problem(http.StatusTooManyRequests, "too_many_requests", "Too many requests", message, nil)
 }

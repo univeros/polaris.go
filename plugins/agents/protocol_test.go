@@ -245,8 +245,9 @@ func TestSection5_1TheAgentAuthDocument(t *testing.T) {
 	for prefix, issuer := range map[string]string{"": base, "/auth": base + "/auth"} {
 		srv, p := bootDiscovery(t, agents.DiscoveryAgentAuth, capabilities(), issuer, prefix)
 		w := fetch(srv.Handler(), prefix+"/.well-known/agent-configuration")
-		want := `{"algorithms":["Ed25519"],"approval_methods":["device_authorization","ciba"],"description":"Polaris for Go agent provider",` +
-			`"endpoints":{"capabilities":"/capability/list","describe_capability":"/capability/describe"},"issuer":"` + issuer + `",` +
+		want := `{"algorithms":["Ed25519"],"approval_methods":["device_authorization","ciba"],"default_location":"` + issuer + `/capability/execute",` +
+			`"description":"Polaris for Go agent provider","endpoints":{"capabilities":"/capability/list","describe_capability":"/capability/describe","execute":"/capability/execute",` +
+			`"register":"/agent/register","request_capability":"/agent/request-capability","status":"/agent/status"},"issuer":"` + issuer + `",` +
 			`"jwks_uri":"` + issuer + `/auth/.well-known/jwks.json","modes":["delegated","autonomous"],"provider_name":"Polaris","version":"1.0-draft"}`
 		if w.Code != 200 || w.Body.String() != want || w.Header().Get("Cache-Control") != "public, max-age=3600" {
 			t.Errorf("mounted at %q: %d %v %s", prefix, w.Code, w.Header(), w.Body)
@@ -263,8 +264,14 @@ func TestSection5_1TheAgentAuthDocument(t *testing.T) {
 		}
 		// Whatever the document names is served, where the client looks for it.
 		for name, path := range doc.Endpoints {
-			if got := fetch(srv.Handler(), strings.TrimPrefix(issuer, base)+path+"?name=invite"); got.Code != 200 {
-				t.Errorf("%s at %s: %d", name, path, got.Code)
+			method := http.MethodPost
+			if slices.Contains([]string{"capabilities", "describe_capability", "status"}, name) {
+				method = http.MethodGet
+			}
+			w := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(w, httptest.NewRequest(method, strings.TrimPrefix(issuer, base)+path+"?name=invite", nil))
+			if w.Code != 200 && w.Code != 401 { // 404 and 405 are the router's
+				t.Errorf("%s at %s: %d", name, path, w.Code)
 			}
 		}
 		if got := fetch(srv.Handler(), strings.TrimPrefix(doc.JWKS, base)); got.Code != 200 {

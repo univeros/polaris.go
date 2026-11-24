@@ -25,7 +25,7 @@ var update = flag.Bool("update", false, "rewrite the plugin DDL goldens in testd
 // releases are the tags whose schema the upgrade test starts from: testdata/upgrade/<tag>.<dialect>.sql
 // is `polaris schema:export --target=sql:<dialect> --plugins=<every plugin>` run at that tag.
 // Add the previous tag here when a release changes the schema.
-var releases = []string{"v0.4.1", "v0.5.0", "v0.6.0"}
+var releases = []string{"v0.4.1", "v0.5.0", "v0.6.0", "v1.0.0"}
 
 var sqlDialects = []store.Dialect{store.Postgres, store.MySQL, store.SQLite}
 

@@ -4,7 +4,7 @@ endpoint:
   path: /capability/describe
   summary: Describe a capability (Agent Auth Protocol)
   tags: [agents]
-  auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
+  auth: public   # an agent (a request JWT, aud the issuer, or its access token) or a host (a host JWT) authenticates itself
   effect: read
   receipt: false
 
@@ -28,6 +28,9 @@ errors:
   - { status: 401, code: invalid_jwt }
   - { status: 403, code: agent_revoked }
   - { status: 403, code: agent_suspended }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_rejected }
+  - { status: 403, code: host_revoked }
   - { status: 404, code: capability_not_found }
 
 events: []

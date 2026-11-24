@@ -23,6 +23,9 @@ const (
 	StatusActive    = "active"
 	StatusSuspended = "suspended"
 	StatusRevoked   = "revoked"
+	// A registration through the Agent Auth Protocol that a person must approve, and one denied.
+	StatusPending  = "pending"
+	StatusRejected = "rejected"
 )
 
 // Grant statuses, budget kinds and the auto-approval marker.
@@ -211,7 +214,8 @@ func agentFromRow(r store.Row) Agent {
 	return a
 }
 
-// Host is a runtime that enrols agents (polaris_agent_host) with its enrolment token.
+// Host is a runtime that enrols agents (polaris_agent_host): with its enrolment token, or, when it has
+// a key, with JWTs it signs (the Agent Auth Protocol).
 type Host struct {
 	ID                  string
 	OwnerType           string
@@ -222,33 +226,56 @@ type Host struct {
 	CreatedBy           string
 	RevokedAt           *time.Time
 	CreatedAt           time.Time
+	PublicJWK           map[string]any // the host's Ed25519 key; nil with a JWKSURL or an enrolment token
+	JWKSURL             string         // where the host publishes its keys; "" unless it does
+	KeyThumbprint       string         // RFC 7638, of the key it signs with; "" before a JWKS host's first call
 
 	tokenHash string
 }
 
+// hasKey reports whether the host signs with a key of its own.
+func (h Host) hasKey() bool { return h.PublicJWK != nil || h.JWKSURL != "" }
+
 func (h Host) view() map[string]any {
-	return map[string]any{
+	out := map[string]any{
 		"id": h.ID, "owner_type": h.OwnerType, "owner_id": h.OwnerID, "organization_id": null(h.OrganizationID),
 		"name": h.Name, "default_capabilities": h.DefaultCapabilities, "created_by": h.CreatedBy,
 		"revoked_at": timestampPtr(h.RevokedAt), "created_at": timestamp(h.CreatedAt),
 	}
+	if h.hasKey() {
+		out["jwks_url"], out["key_thumbprint"], out["public_jwk"] = null(h.JWKSURL), null(h.KeyThumbprint), nil
+		if h.PublicJWK != nil {
+			out["public_jwk"] = h.PublicJWK
+		}
+	}
+	return out
 }
 
 func (h Host) row() store.Row {
+	var jwk any
+	if h.PublicJWK != nil {
+		jwk = jsonColumn(h.PublicJWK)
+	}
 	return store.Row{
 		"id": h.ID, "owner_type": h.OwnerType, "owner_id": h.OwnerID, "organization_id": null(h.OrganizationID),
 		"name": h.Name, "enrollment_token_hash": h.tokenHash, "default_capabilities": jsonColumn(h.DefaultCapabilities),
 		"created_by": h.CreatedBy, "revoked_at": store.Nullable(h.RevokedAt), "created_at": h.CreatedAt,
+		"public_jwk": jwk, "jwks_url": null(h.JWKSURL), "key_thumbprint": null(h.KeyThumbprint),
 	}
 }
 
 func hostFromRow(r store.Row) Host {
-	return Host{
+	h := Host{
 		ID: r.String("id"), OwnerType: r.String("owner_type"), OwnerID: r.String("owner_id"),
 		OrganizationID: r.String("organization_id"), Name: r.String("name"),
 		DefaultCapabilities: strings_(rowJSON(r, "default_capabilities")), CreatedBy: r.String("created_by"),
 		RevokedAt: r.TimePtr("revoked_at"), CreatedAt: rowTime(r, "created_at"), tokenHash: r.String("enrollment_token_hash"),
+		JWKSURL: r.String("jwks_url"), KeyThumbprint: r.String("key_thumbprint"),
 	}
+	if jwk, ok := rowJSON(r, "public_jwk").(map[string]any); ok {
+		h.PublicJWK = jwk
+	}
+	return h
 }
 
 // Grant is a capability grant (polaris_agent_grant): the agent may execute the capability within

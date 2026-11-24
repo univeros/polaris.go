@@ -13,15 +13,28 @@ Breaking changes are marked **Breaking**.
 
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
   `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
-  Agent Auth Protocol's, for its clients (`@auth/agent`). Those clients can read the server and its
-  capabilities; they cannot register an agent yet ([docs/agent-auth-compat.md](docs/agent-auth-compat.md),
-  decision 83).
+  Agent Auth Protocol's, for its clients (`@auth/agent`). Those clients sign in through a host whose key
+  its owner registered; unknown hosts are not taken yet
+  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 and 84).
 - `GET /agents/configuration`: Polaris's discovery document in every mode. `agent.New` and
   `agent.Discover` fall back to it when the well-known document names no `enroll` endpoint. A Go agent
   SDK of v1.0.0 does not: upgrade it before a server switches to `DiscoveryAgentAuth`.
-- `GET /capability/list` and `GET /capability/describe`: the Agent Auth Protocol's capability routes, in
-  both modes; `agents.ErrInvalidRequest`, `ErrAgentRevoked` and `ErrAgentSuspended` are problems only they
-  answer. A third-party plugin that declares one of the three new paths is refused by `polaris.New`.
+- The Agent Auth Protocol's routes, in both modes: `GET /capability/list`, `GET /capability/describe`,
+  `POST /agent/register`, `GET /agent/status`, `POST /agent/request-capability` and
+  `POST /capability/execute`, with the protocol's codes (new `agents.Err*` names). Budgets, approval
+  strengths, receipts and the kill switch apply to an agent registered this way as to any other. A
+  third-party plugin that declares one of the new paths is refused by `polaris.New`.
+- `POST /agents/hosts` takes a host's `public_key` (an Ed25519 JWK) or, with `DiscoveryAgentAuth`,
+  `jwks_url`: the host signs with its key and has no enrolment token. Revoking such a host revokes its
+  agents. `agents.Host` has `PublicJWK`, `JWKSURL` and `KeyThumbprint`; `agents.Config` has `HTTPClient`
+  (for those key sets; the default reaches public addresses only) and `DisableJWKSURLs`.
+- An agent's `status` may be `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
+  registration that waits for a person, or was denied. Neither acts anywhere.
+- Run `Migrate`: `polaris_agent_host` gains three nullable columns and two unique indexes.
+
+### Fixed
+
+- An agent JWT whose `sub` holds a control character is 401, where PostgreSQL answered 500.
 
 ## [1.0.0] - 2026-11-23
 

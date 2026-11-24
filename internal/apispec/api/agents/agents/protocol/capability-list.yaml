@@ -4,7 +4,7 @@ endpoint:
   path: /capability/list
   summary: List the capabilities (Agent Auth Protocol)
   tags: [agents]
-  auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
+  auth: public   # an agent (a request JWT, aud the issuer, or its access token) or a host (a host JWT) authenticates itself
   effect: read
   receipt: false
 
@@ -21,7 +21,8 @@ domain:
     location a capability runs at when it has one; grant_status (granted, not_granted) on every one when
     an agent authenticates. query keeps those whose name or description holds each of its words; cursor is
     the next_cursor of the page before (null at the end); limit is at most 100, the default. Without a
-    credential the answer is cached for five minutes; a credential that is not an agent's is refused.
+    credential the answer is cached for five minutes; a host sees what
+    everyone does; any other credential is refused.
 
 output:
   status: 200
@@ -37,5 +38,8 @@ errors:
   - { status: 401, code: invalid_jwt }
   - { status: 403, code: agent_revoked }
   - { status: 403, code: agent_suspended }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_rejected }
+  - { status: 403, code: host_revoked }
 
 events: []

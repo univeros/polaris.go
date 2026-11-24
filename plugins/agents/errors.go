@@ -34,14 +34,24 @@ const (
 
 // Problem names only the Agent Auth Protocol routes answer.
 const (
-	ErrInvalidRequest = "invalid_request"
-	ErrAgentRevoked   = "agent_revoked"
-	ErrAgentSuspended = "agent_suspended" // the owner paused the agent; not a protocol code
+	ErrInvalidRequest       = "invalid_request"
+	ErrAgentRevoked         = "agent_revoked"
+	ErrAgentSuspended       = "agent_suspended" // the owner paused the agent; not a protocol code
+	ErrAgentPending         = "agent_pending"
+	ErrAgentRejected        = "agent_rejected"
+	ErrAgentNotFound        = "agent_not_found"
+	ErrHostRevoked          = "host_revoked"
+	ErrUnsupportedMode      = "unsupported_mode"
+	ErrUnsupportedAlgorithm = "unsupported_algorithm"
+	ErrInvalidCapabilities  = "invalid_capabilities"
+	ErrAlreadyGranted       = "already_granted"
+	ErrLimitExceeded        = "limit_exceeded"
 )
 
 var protocolCodes = []string{ErrInvalidJWT, ErrAudMismatch, ErrAgentInactive, ErrCapabilityNotFound,
 	ErrCapabilityNotGranted, ErrConstraintViolated, ErrBudgetExhausted, ErrUnknownConstraintOperator,
-	ErrInvalidRequest, ErrAgentRevoked, ErrAgentSuspended}
+	ErrInvalidRequest, ErrAgentRevoked, ErrAgentSuspended, ErrAgentPending, ErrAgentRejected, ErrAgentNotFound, ErrHostRevoked,
+	ErrUnsupportedMode, ErrUnsupportedAlgorithm, ErrInvalidCapabilities, ErrAlreadyGranted, ErrLimitExceeded}
 
 var statuses = map[string]int{
 	ErrUnauthorized: 401, ErrInvalidJWT: 401, ErrAudMismatch: 401, ErrAgentInactive: 401,
@@ -49,6 +59,8 @@ var statuses = map[string]int{
 	ErrUnknownConstraintOperator: 400, ErrInvalidArguments: 422, ErrInvalidInput: 422, ErrNotFound: 404,
 	ErrForbidden: 403, ErrConflict: 409, ErrStepUpRequired: 403, ErrPermissionNotHeld: 403, ErrSealed: 409,
 	ErrPayloadTooLarge: 413, ErrInvalidRequest: 400, ErrAgentRevoked: 403, ErrAgentSuspended: 403,
+	ErrAgentPending: 403, ErrAgentRejected: 403, ErrAgentNotFound: 404, ErrHostRevoked: 403, ErrUnsupportedMode: 400,
+	ErrUnsupportedAlgorithm: 400, ErrInvalidCapabilities: 400, ErrAlreadyGranted: 409, ErrLimitExceeded: 403,
 }
 
 // Error is a refused agent request, answered as the RFC 9457 problem agents/<Type>. Branch on it

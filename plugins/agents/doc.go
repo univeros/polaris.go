@@ -16,7 +16,7 @@
 //	}})
 //	p, err := polaris.New(polaris.Config{Secrets: s, Auth: a, DB: db,
 //		Plugins: []polaris.Plugin{audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag}})
-//	mux.Handle("/", p.Handler())                                         // the 26 agents routes among Polaris's
+//	mux.Handle("/", p.Handler())                                         // the 30 agents routes among Polaris's
 //	mux.Handle("POST /refunds", ag.Protect("invoices.refund", refunds))  // checked BEFORE refunds runs
 //	mux.Handle("GET /.well-known/agent-configuration", ag.DiscoveryHandler()) // when Polaris is not at the root
 //

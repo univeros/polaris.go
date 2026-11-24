@@ -11295,6 +11295,22 @@
                             "optional"
                         ],
                         "sensitive": false
+                    },
+                    {
+                        "name": "public_key",
+                        "type": "?object",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "jwks_url",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
                     }
                 ]
             },
@@ -11311,6 +11327,10 @@
                 {
                     "status": 404,
                     "code": "capability_not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "agents_conflict"
                 },
                 {
                     "status": 422,
@@ -11447,6 +11467,18 @@
                     "code": "agent_suspended"
                 },
                 {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
                     "status": 404,
                     "code": "capability_not_found"
                 }
@@ -11510,6 +11542,18 @@
                 {
                     "status": 403,
                     "code": "agent_suspended"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
                 }
             ],
             "events": []
@@ -11531,6 +11575,383 @@
             },
             "name": "polaris.agents.protocol.configuration",
             "errors": [],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/capability/execute",
+            "summary": "Execute a capability (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": "token_refresh",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "capability",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "arguments",
+                        "type": "?object",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.execute",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_suspended"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "capability_not_granted"
+                },
+                {
+                    "status": 403,
+                    "code": "constraint_violated"
+                },
+                {
+                    "status": 403,
+                    "code": "limit_exceeded"
+                },
+                {
+                    "status": 404,
+                    "code": "capability_not_found"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.executed",
+                "agent.execution_denied",
+                "agent.grant.exhausted"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/agent/register",
+            "summary": "Register an agent (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": "token_refresh",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "rules": [
+                            "required",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "host_name",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "mode",
+                        "type": "?string",
+                        "rules": [
+                            "optional",
+                            "in:delegated,autonomous"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "capabilities",
+                        "type": "?list<mixed>",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "reason",
+                        "type": "?string",
+                        "rules": [
+                            "optional",
+                            "max:500"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "preferred_method",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "login_hint",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "binding_message",
+                        "type": "?string",
+                        "rules": [
+                            "optional",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.register",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 400,
+                    "code": "unsupported_mode"
+                },
+                {
+                    "status": 400,
+                    "code": "unsupported_algorithm"
+                },
+                {
+                    "status": 400,
+                    "code": "invalid_capabilities"
+                },
+                {
+                    "status": 400,
+                    "code": "unknown_constraint_operator"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.enrolled",
+                "agent.grant.requested",
+                "agent.grant.approved"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/agent/request-capability",
+            "summary": "Request capabilities (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": "token_refresh",
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "capabilities",
+                        "type": "list<mixed>",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "reason",
+                        "type": "?string",
+                        "rules": [
+                            "optional",
+                            "max:500"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "preferred_method",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "login_hint",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "binding_message",
+                        "type": "?string",
+                        "rules": [
+                            "optional",
+                            "max:160"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.request-capability",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 400,
+                    "code": "invalid_capabilities"
+                },
+                {
+                    "status": 400,
+                    "code": "unknown_constraint_operator"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_suspended"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 409,
+                    "code": "already_granted"
+                },
+                {
+                    "status": 409,
+                    "code": "agents_conflict"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.grant.requested",
+                "agent.grant.approved"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/agent/status",
+            "summary": "An agent's status (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": "token_refresh",
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "query",
+                "fields": [
+                    {
+                        "name": "agent_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.status",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 404,
+                    "code": "agent_not_found"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
             "events": []
         },
         {

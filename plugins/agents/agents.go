@@ -44,6 +44,8 @@ type service struct {
 	caps         *capabilities
 	jwts         *requestJWTs
 	issuerJWTs   *requestJWTs // the Agent Auth Protocol's non-execution routes
+	executeJWTs  *requestJWTs // its POST /capability/execute
+	jwks         *jwksKeys
 }
 
 func (s *service) now() time.Time { return s.clock.Now().UTC().Truncate(time.Second) }
@@ -134,9 +136,14 @@ func clientFields(a Agent) oauth.ClientFields {
 	return f
 }
 
+// maxID is the length of the id columns.
+const maxID = 36
+
 // agent finds an agent by id; ok is false when there is none.
 func (s *service) agent(ctx context.Context, id string) (Agent, bool, error) {
-	if id == "" {
+	// An id comes from a JWT or a query before anything is verified: what no id can be is not looked up
+	// (a NUL is an error on PostgreSQL).
+	if id == "" || len(id) > maxID || !utf8.ValidString(id) || strings.ContainsFunc(id, unicode.IsControl) {
 		return Agent{}, false, nil
 	}
 	row, err := s.db.FindOne(ctx, TableAgents, store.Criteria{"id": id})
@@ -181,7 +188,7 @@ func (s *service) revoke(ctx context.Context, a Agent, byUserID, how string, c c
 	var grants int64
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		now := s.now()
-		n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": a.ID, "status": []string{StatusActive, StatusSuspended}},
+		n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": a.ID, "status": []string{StatusActive, StatusSuspended, StatusPending}},
 			store.Data{"status": StatusRevoked, "sealed_at": now, "updated_at": now})
 		if err != nil {
 			return err
@@ -190,11 +197,7 @@ func (s *service) revoke(ctx context.Context, a Agent, byUserID, how string, c c
 			return refuse(ErrConflict, "The agent is already revoked.")
 		}
 		a.Status, a.SealedAt, a.UpdatedAt = StatusRevoked, &now, now
-		if cl, err := s.oauth.Client(ctx, a.ID); err == nil {
-			if _, _, err := s.oauth.UpdateClient(ctx, cl, oauth.ClientFields{"disabled": true}, false); err != nil {
-				return err
-			}
-		} else if !errors.Is(err, oauth.ErrClientNotFound) {
+		if err := s.disableClient(ctx, a.ID); err != nil {
 			return err
 		}
 		if _, err := s.oauth.RevokeClientTokens(ctx, a.ID); err != nil {
@@ -221,6 +224,19 @@ func (s *service) revoke(ctx context.Context, a Agent, byUserID, how string, c c
 	}
 	s.dispatch(ctx, revoked, bySystem(EventReceiptSealed, a, map[string]any{"receipt_id": sealed.ID, "seq": sealed.Seq, "hash": sealed.Hash}))
 	return a, sealed, nil
+}
+
+// disableClient disables an agent's OAuth client, when it still has one.
+func (s *service) disableClient(ctx context.Context, agentID string) error {
+	cl, err := s.oauth.Client(ctx, agentID)
+	if errors.Is(err, oauth.ErrClientNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	_, _, err = s.oauth.UpdateClient(ctx, cl, oauth.ClientFields{"disabled": true}, false)
+	return err
 }
 
 // erase leaves nothing of an agent: its client and tokens, grants, approvals and receipts.

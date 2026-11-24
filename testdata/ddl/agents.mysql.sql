@@ -31,10 +31,17 @@ CREATE TABLE `polaris_agent_host` (
     `created_by` VARCHAR(36) NOT NULL,
     `revoked_at` DATETIME NULL,
     `created_at` DATETIME NOT NULL,
+    `public_jwk` JSON NULL,
+    `jwks_url` VARCHAR(500) NULL,
+    `key_thumbprint` VARCHAR(64) NULL,
     PRIMARY KEY (`id`)
 );
 
 CREATE UNIQUE INDEX `polaris_agent_host_token_unique` ON `polaris_agent_host` (`enrollment_token_hash`);
+
+CREATE UNIQUE INDEX `polaris_agent_host_key_unique` ON `polaris_agent_host` (`key_thumbprint`);
+
+CREATE UNIQUE INDEX `polaris_agent_host_jwks_unique` ON `polaris_agent_host` (`jwks_url`);
 
 CREATE INDEX `polaris_agent_host_owner_index` ON `polaris_agent_host` (`owner_type`, `owner_id`);
 

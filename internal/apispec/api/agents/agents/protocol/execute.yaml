@@ -1,0 +1,43 @@
+# POST /capability/execute: the Agent Auth Protocol's execution (§5.11).
+endpoint:
+  method: POST
+  path: /capability/execute
+  summary: Execute a capability (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the agent authenticates itself: a request JWT (aud this URL) or its access token
+  rate_limit: token_refresh
+  effect: write
+  receipt: true
+
+input:
+  source: body
+  fields:
+    capability: { type: string, rules: [required] }
+    arguments: { type: "?object", rules: [optional] }
+
+domain:
+  description: >
+    POST /agents/execute in the protocol's body: data and nothing else, the receipt's id in the
+    X-Polaris-Receipt header. The same checks, budget and receipt chain. A capability with a location is
+    executed there. A spent budget is limit_exceeded; arguments its schema refuses are invalid_request.
+
+output:
+  status: 200
+  example:
+    data: { deployed: true }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_suspended }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_rejected }
+  - { status: 403, code: host_revoked }
+  - { status: 403, code: capability_not_granted }
+  - { status: 403, code: constraint_violated }
+  - { status: 403, code: limit_exceeded }
+  - { status: 404, code: capability_not_found }
+  - { status: 429, code: rate_limited }
+
+events: [agent.executed, agent.execution_denied, agent.grant.exhausted]

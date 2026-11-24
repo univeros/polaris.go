@@ -3,7 +3,8 @@
 // free local port.
 //
 //	go run ./internal/e2e/agentauthserver                 # serve, for a client by hand
-//	go run ./internal/e2e/agentauthserver node client.mjs # run a command with AGENT_AUTH_URL set
+//	go run ./internal/e2e/agentauthserver node client.mjs # run a command with AGENT_AUTH_URL and
+//	                                                      # AGENT_AUTH_OWNER (a session) set
 package main
 
 import (
@@ -42,19 +43,19 @@ func run(ctx context.Context, command []string) (int, error) {
 		return 0, err
 	}
 	url := "http://" + ln.Addr().String()
-	h, err := newServer(ctx, url)
+	h, session, err := newServer(ctx, url)
 	if err != nil {
 		return 0, err
 	}
 	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	if len(command) == 0 {
-		log.Printf("serving %s", url)
+		log.Printf("serving %s; the owner's access token: %s", url, session)
 		return 0, srv.Serve(ln)
 	}
 	go func() { _ = srv.Serve(ln) }() // ends with Close; a failure shows as the command's
 	defer func() { _ = srv.Close() }()
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
-	cmd.Env = append(os.Environ(), "AGENT_AUTH_URL="+url)
+	cmd.Env = append(os.Environ(), "AGENT_AUTH_URL="+url, "AGENT_AUTH_OWNER="+session)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	err = cmd.Run()
 	var exit *exec.ExitError
@@ -64,10 +65,11 @@ func run(ctx context.Context, command []string) (int, error) {
 	return 0, err
 }
 
-// newServer is a Polaris host mounted at url, with a low-risk and a high-risk capability.
-func newServer(ctx context.Context, url string) (http.Handler, error) {
+// newServer is a Polaris host mounted at url, with a low-risk and a high-risk capability, and the
+// session of a person who owns an organization there.
+func newServer(ctx context.Context, url string) (http.Handler, string, error) {
 	if err := polaris.DevEnv(url); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	ag := agents.New(agents.Config{
 		Discovery:    agents.DiscoveryAgentAuth,
@@ -86,14 +88,26 @@ func newServer(ctx context.Context, url string) (http.Handler, error) {
 	})
 	cfg, err := polaris.FromEnv(memstore.New(), oauth.New(oauth.Config{BaseURL: url}), ag)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	p, err := polaris.New(cfg)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if _, err := p.Migrate(ctx); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return p.Handler(), nil
+	owner, err := p.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+	if err != nil {
+		return nil, "", err
+	}
+	org, err := p.Orgs().Create(ctx, owner.ID, "Acme", "")
+	if err != nil {
+		return nil, "", err
+	}
+	tokens, err := p.Sessions().Issue(ctx, polaris.SignIn{UserID: owner.ID, OrganizationID: org.ID})
+	if err != nil {
+		return nil, "", err
+	}
+	return p.Handler(), tokens.AccessToken, nil
 }

@@ -14,12 +14,18 @@ input:
     name: { type: string, rules: [required, "max:160"] }
     organization_id: { type: "?string", rules: [optional] }
     default_capabilities: { type: "?list<string>", rules: [optional] }
+    public_key: { type: "?object", rules: [optional] }
+    jwks_url: { type: "?string", rules: [optional] }
 
 domain:
   description: >
     A runtime that enrols agents (a Claude Code install, a worker) for the caller, or for an organization
     they hold org.update in (their active one). The enrolment token (peh_...) is in this response only
-    and stored as a keyed hash; default_capabilities are asked for by every agent it enrols.
+    and stored as a keyed hash; default_capabilities are asked for by every agent it enrols. With
+    public_key (an Ed25519 JWK) or, where the server takes them, jwks_url, the host signs JWTs with its
+    key instead (Agent Auth Protocol, POST /agent/register): there is no enrolment token, and the answer
+    has public_jwk, jwks_url and key_thumbprint. Its agents ask for what they need, not for
+    default_capabilities. A key (one spelling) or URL is one host's for good.
 
 output:
   status: 201
@@ -30,6 +36,7 @@ errors:
   - { status: 401, code: unauthorized }
   - { status: 403, code: agents_forbidden }
   - { status: 404, code: capability_not_found }
+  - { status: 409, code: agents_conflict }
   - { status: 422, code: agents_invalid_input }
 
 events: []

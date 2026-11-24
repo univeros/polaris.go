@@ -15,7 +15,8 @@ input:
 
 domain:
   description: >
-    The enrolment token stops working; the agents the host enrolled stay (revoke them one by one).
+    The enrolment token stops working; the agents it enrolled stay (revoke them one by one).
+    A host with a key takes every agent registered under it with it (agent.revoked for each).
 
 output:
   status: 200

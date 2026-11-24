@@ -112,3 +112,68 @@ func TestConcurrentGrantRequestsRespectTheApprovalCap(t *testing.T) {
 		})
 	}
 }
+
+// A registration racing its host's revocation finds the host revoked, or its agent is revoked with it.
+func TestARegistrationDoesNotOutliveItsHost(t *testing.T) {
+	for _, b := range storetest.Backends() {
+		t.Run(b.Name, func(t *testing.T) {
+			p := bootOn(t, b, Config{Capabilities: unitCaps()})
+			ctx := context.Background()
+			for round := range 8 {
+				h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, newTestKey(AlgEdDSA).jwk(), nil)
+				must(t, err)
+				h, _, err = p.s.createHost(ctx, h, "Host", nil)
+				must(t, err)
+				register := func() error {
+					_, _, _, err := p.s.registerUnder(ctx, h, map[string]any{"name": "Bot", "jwk": newTestKey(AlgEdDSA).jwk()}, asking{}, client{})
+					return err
+				}
+				revoke := func() error { return p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}) }
+				for i, err := range race(register, revoke, register, register) {
+					if e, refused := asError(err); err != nil && (i == 1 || !refused || e.Type != ErrHostRevoked) {
+						t.Fatalf("round %d, %d: %v", round, i, err)
+					}
+				}
+				left, err := p.s.agentsWhere(ctx, store.Criteria{"host_id": h.ID, "status": StatusActive})
+				if err != nil || len(left) != 0 {
+					t.Fatalf("round %d: %d agents outlived their host, %v", round, len(left), err)
+				}
+			}
+		})
+	}
+}
+
+// Deciding a registration and pulling its kill switch at once: the agent ends revoked, or it was
+// rejected first; neither waits for the other for good.
+func TestADecisionRacesTheKillSwitch(t *testing.T) {
+	for _, b := range storetest.Backends() {
+		t.Run(b.Name, func(t *testing.T) {
+			p := bootOn(t, b, Config{Capabilities: unitCaps()})
+			ctx := context.Background()
+			for round := range 8 {
+				h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, newTestKey(AlgEdDSA).jwk(), nil)
+				must(t, err)
+				h, _, err = p.s.createHost(ctx, h, "Host", nil)
+				must(t, err)
+				a, _, approval, err := p.s.registerUnder(ctx, h, map[string]any{"name": "Bot", "jwk": newTestKey(AlgEdDSA).jwk()}, asking{capabilities: []any{"refund"}, method: MethodDevice}, client{})
+				if err != nil || a.Status != StatusPending {
+					t.Fatalf("%+v %v", a, err)
+				}
+				decide := func() error { _, _, err := p.s.decide(ctx, *approval, round%2 == 0, "user-1", nil); return err }
+				kill := func() error { _, _, err := p.s.revoke(ctx, a, "user-1", "owner", client{}); return err }
+				for _, err := range race(decide, kill) {
+					if e, refused := asError(err); err != nil && (!refused || e.Type != ErrConflict) {
+						t.Fatalf("round %d: %v", round, err)
+					}
+				}
+				got, _, err := p.s.agent(ctx, a.ID)
+				if err != nil || got.Status != StatusRevoked && (got.Status != StatusRejected || round%2 == 0) {
+					t.Fatalf("round %d: %s %v", round, got.Status, err)
+				}
+				if live, err := p.s.liveGrants(ctx, a); err != nil || len(live) != 0 {
+					t.Fatalf("round %d: %d live grants, %v", round, len(live), err)
+				}
+			}
+		})
+	}
+}
