@@ -3089,3 +3089,86 @@ The three things `docs/v1.md` left to decide.
   `telemetry/otel` imports OpenTelemetry. `govulncheck` watches them; its one ignore (GO-2026-6909) is
   re-reviewed at each release that moves `crewjam/saml`.
 - **No v0.7.4.** Decision 81's fixes go from `main` into v1.0.0, whose notes carry them.
+
+## 83. 2026-11-24 — Agent Auth Protocol, parts 0.1, 0.2 and 1: the client read, a harness, discovery and capabilities
+
+The work package is [`agent-auth-compat.md`](agent-auth-compat.md): an unmodified Agent Auth Protocol
+(v1.0-draft) client signs in to a Polaris server, with nothing in v1 breaking. This entry covers the
+reading, the interop harness, and discovery with the capability routes; parts 2 to 4 (host keys,
+registration, lifecycle) are not started.
+
+**What the reading answered** (the protocol whole; `@auth/agent` 0.6.2 and 0.5.1 as published,
+`better-auth/agent-auth` at `e89bd03`; §1.1 of the document has the detail).
+
+- *How it finds the document:* `{url}/.well-known/agent-configuration`, then two `/api/auth/…` paths; the
+  first with `version`, `issuer` and `endpoints`. It checks no version. Without `urls` (or
+  `allowDirectDiscovery`) it asks only `agent-auth.directory`.
+- *Absolute URLs in `endpoints`:* accepted, and Better Auth's own server sends them, against §5.1.
+- *Which endpoints, in what order:* capabilities (host JWT when it has a host key; after a 401, and only a
+  401, again without one), register, status while pending, execute (at the `location` the **list** gave,
+  else `default_location`, else `endpoints.execute`), request-capability and status again. It reads status
+  before an execution whose grant it does not know to be active, so `/agent/status` moves from part 4 to 2.
+- *Each agent status:* `active` and `claimed` end a wait, `rejected` and `revoked` throw; `pending`,
+  `expired` and any non-2xx answer keep it polling to the sooner of `expires_in` and 5 minutes. It never
+  reactivates by itself.
+- *`limit_exceeded`:* not in it. Any refusal is an error with the body's code and message.
+- *Not asked, and it matters:* its agent JWTs carry no `iss`, which §4.3 requires. Part 2 checks `iss` when
+  it is there; requiring it would refuse every agent this client registers.
+- The protocol's published version is `1.0-draft`, so the document's `version` was not a gap.
+
+**Discovery (5.1): a document the host chooses,** not a merged one. Absolute URLs do not rule a merged
+document out; the names do. `register`, `capabilities`, `request_capability`, `status`, `revoke` and
+`execute` are in the v1 document with other URLs and meanings, and that document stays as it is.
+`Config.Discovery` is `DiscoveryPolaris` (the zero value) or `DiscoveryAgentAuth`;
+`GET /agents/configuration` is always Polaris's, and the Go SDK falls back to it when the well-known
+document names no `enroll` (a usable document without one is still used when there is no second). A
+v1.0.0 SDK finds no server in `DiscoveryAgentAuth` mode: documented, and the mode is opt-in.
+
+- The protocol document's `issuer` is `Config.BaseURL`, not `AUTH_ISSUER`: §5 resolves its relative paths
+  against it, and `AUTH_ISSUER` may be any string and knows no mount prefix. It is the `aud` too.
+- It names only the endpoints served, so it never promises a 404; each part adds its own.
+- Also decided: 5.5 (`limit_exceeded`, from §5.13) and 5.6 (the version label stays). Open with what is
+  now known: 5.2, 5.3, 5.4, and a new 5.7, the rate limit of the protocol routes (§8.13): the three
+  routes here have none, as the two they sit beside.
+
+**The capability routes.**
+
+- List entries carry `location`, which §5.2's text leaves out: the reference client executes at the list's
+  location and at no other (Better Auth's server lists it). `permission` and `risk` stay off the protocol's
+  bodies. `query` matches when each word is in the name or the description; `cursor` is opaque (the last
+  name), and one the server did not answer is 400 `invalid_request`; a page is at most 100.
+- An agent authenticates with a request JWT or its OAuth token (§12.1 allows it) and then gets
+  `grant_status` on every entry, `granted` or `not_granted`. Any other credential is 401 `invalid_jwt`, a
+  host JWT included until part 2: never read as anonymous, and the client asks again without it.
+- Codes and statuses are §5.13's: 400 `invalid_request`, 401 `invalid_jwt` (a wrong `aud` too), 403
+  `agent_revoked`; a suspended agent is 403 `agent_suspended`, an extra code, until 5.2 is decided.
+- Anonymous answers are cached for five minutes with `Vary: Authorization`, an agent's not at all.
+
+**The router prefers a literal path.** It took the first match in load order, so `/agents/{id}` hid
+`/agents/configuration`, whose spec is in another directory. A route without parameters now wins. Every
+route of the manifest was compared under both rules, each method: only `/agents/configuration` differs.
+
+**The harness.** `scripts/e2e-agent-auth.sh` runs `@auth/agent` against `internal/e2e/agentauthserver`, in
+its own CI job, which is not a required check. It exits 3 when it stops exactly where the server stops
+today, at registration and for a missing route, with every step before it passed, and 1 for anything else;
+CI accepts 0 and 3. So a regression before registration fails the job, and the job cannot go quiet when
+registration starts to work. New dependency, for this job only: `@auth/agent` 0.6.2 and its `jose`, from
+npm, pinned by hash in the harness's lock file and installed without scripts; nothing a host builds, and
+no change to `go.mod`.
+
+**Not settled:** the specs' directory makes the routes `polaris.protocol.*`, with `x-polaris-plugin:
+protocol` (the manifest takes the plugin from the first directory). `agents/agents/protocol/` would make
+them `polaris.agents.protocol.*`. Decide before a release carries the names.
+
+Go API: additions only (`make apicheck BASE=v1.0.0`): `Config.Discovery`, `DiscoveryMode` and its two
+values, three `Err*` names. Fixtures: three added, none changed; `testdata/discovery-v1.0.0.json`, written
+by v1.0.0's code, holds the default document. Manifest goldens: three routes added and one description. No
+schema or stored format.
+
+Security review (rule 6): `requestJWTs` gains an exact audience and a clock leeway, used only by the two
+capability routes; with neither set, what the Polaris routes check is unchanged, and their tests and
+fixtures pass untouched. On the new routes the `aud` is compared exactly (§8.18), `iat` and `exp` have 30 s
+(§8.2), a `jti` is spent once across both surfaces and remembered past lifetime plus leeway (§4.6), and
+`htu` is still the URL called. They answer what `GET /agents/capabilities` already answers anyone, and write
+nothing. §4.5's host checks wait for host keys: no agent registered through the protocol exists yet. Tests
+name the section of each rule.

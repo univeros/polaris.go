@@ -152,7 +152,9 @@ POST /agent/rotate-key          POST /agent/introspect
 
 They are singular (`/agent`, `/host`, `/capability`), so none collides with `/agents/*`. Each gets a
 spec in `internal/apispec/api/agents/protocol/*.yaml` and a recorded fixture, like every other route
-(AGENT.md rules 3 and 4).
+(AGENT.md rules 3 and 4). The manifest names a route after its file, so these are `polaris.protocol.*`
+and their OpenAPI `x-polaris-plugin` is `protocol`, not `agents`; `agents/agents/protocol/` would make
+them `polaris.agents.protocol.*`. To settle before a release carries the names.
 
 An agent registered through either surface is the same `polaris_agent` row and the same OAuth client.
 It can be listed, suspended, revoked and audited through the existing owner and operator routes, and
@@ -304,7 +306,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 0.2 | Interop harness: `scripts/e2e-agent-auth.sh` starts a small server (`internal/e2e/agentauthserver`) and runs the unmodified `@auth/agent` client against it. Decision 30 did this for `@polaris-auth/agent`; that script and its server were removed with decision 53, so this one is new. It needs Node in CI: a separate job, not part of `make qa` | S | The script runs and stops at registration, for the expected reason (exit status 3; any other failure is 1) |
 | 1 | Discovery modes, `GET /agents/configuration`, SDK fallback; `/capability/list` with `query`, `cursor`, `limit`; `/capability/describe` | M | A protocol client reads the server's configuration and lists capabilities; existing discovery fixture unchanged |
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
-| 3 | Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations, strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code; a denied registration is `rejected` and is not retried |
+| 3 | Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations, strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
 | 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |

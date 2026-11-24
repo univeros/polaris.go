@@ -186,6 +186,12 @@ Risk tiers set the approval strength (low/medium: session, high: step-up). Low-r
 auto-approved with a budget of 100 by default (`Config.AutoApprove`). Every execution writes a signed,
 hash-chained receipt; `POST /agents/{id}/revoke` is the kill switch.
 
+Agent Auth Protocol clients (`@auth/agent`): `Config.Discovery: agents.DiscoveryAgentAuth` serves the
+protocol's document at `/.well-known/agent-configuration`; the default, `agents.DiscoveryPolaris`, serves
+Polaris's, which is always at `GET /agents/configuration` too (the Go agent SDK falls back to it).
+`GET /capability/list` (`query`, `cursor`, `limit`) and `GET /capability/describe` (`name`) answer the
+protocol's bodies in both modes. Registration of such a client is not there yet.
+
 ## Agents: sign in from Go (the agent side)
 
 ```go

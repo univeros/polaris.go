@@ -7,7 +7,9 @@ credentials when autonomous, token exchange with `act` when delegated). It signs
 capability grants with constraints and budgets that a person approves (device code, CIBA, in-app) at
 the strength the risk needs, or the policy approves; every execution spends the budget and appends a
 signed, hash-chained receipt; a kill switch seals the agent. Needs
-`plugins/oauth` (`Init` fails without it); records to `plugins/audit` and uses `plugins/admin` for
+`plugins/oauth` (`Init` fails without it); speaks part of the
+[Agent Auth Protocol](https://agent-auth-protocol.com/specification) to its own clients
+(see [Agent Auth Protocol](#agent-auth-protocol)); records to `plugins/audit` and uses `plugins/admin` for
 `/admin/agents` when they are registered.
 
 ## Install
@@ -42,6 +44,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `AutoApprove` | low risk, 100 executions | risk tier → `agents.Budget` granted without a person; empty map turns it off. A budget is granted once per window: see Host integration |
 | `Strengths` | low, medium `session`; high `step_up` | risk tier → `StrengthSession`, `StrengthStepUp`, `StrengthPasskey` |
 | `ApprovalTTL` | 10 min | how long an approval waits |
+| `Discovery` | `DiscoveryPolaris` | the document at `/.well-known/agent-configuration`: `DiscoveryPolaris` (the Go agent SDK's) or `DiscoveryAgentAuth` (the Agent Auth Protocol's) |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
 | `RequestJWTMaxAge` | 5 min (also the maximum) | bound on `exp - iat` |
 | `Operators` | the admin plugin | authorizes `/admin/agents`; without admin nobody (401) |
@@ -51,7 +54,10 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/.well-known/agent-configuration` | discovery (`ag.DiscoveryHandler()` when Polaris is not at the root) |
+| GET | `/.well-known/agent-configuration` | discovery, as `Config.Discovery` says (`ag.DiscoveryHandler()` when Polaris is not at the root) |
+| GET | `/agents/configuration` | Polaris's discovery document, whatever `Config.Discovery` says |
+| GET | `/capability/list` | Agent Auth Protocol: the capabilities (`query`, `cursor`, `limit` ≤ 100), with `grant_status` for an agent |
+| GET | `/capability/describe` | Agent Auth Protocol: one capability (`name`) |
 | GET | `/agents/capabilities` | the capabilities (with `grant_status` for an agent) |
 | POST | `/agents/register` | the owner registers an agent |
 | POST | `/agents/enroll` | a host enrols an agent with its `peh_` token |
@@ -87,7 +93,8 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 `constraint_violated` (with `violations`), `budget_exhausted`, `step_up_required`,
 `permission_not_held`, `forbidden` (403); `capability_not_found`, `not_found` (404); `conflict`,
 `sealed` (409); `invalid_arguments`, `invalid_input` (422); `unknown_constraint_operator` (400);
-`payload_too_large` (413). A `Handler` may return `*agents.Error` to refuse with one.
+`payload_too_large` (413). Only on the protocol routes: `invalid_request` (400), `agent_revoked`,
+`agent_suspended` (403). A `Handler` may return `*agents.Error` to refuse with one.
 
 ## Host integration
 
@@ -130,6 +137,22 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 - Times are RFC 3339 in UTC (`2026-11-22T10:00:00Z`), except a receipt's `created_at`, which its
   hash and signature cover: it keeps the form every receipt was hashed in (`+00:00`), and a verifier
   hashes it as sent.
+
+## Agent Auth Protocol
+
+The protocol's own client (`@auth/agent`) reads this server and lists and describes its capabilities;
+it cannot register an agent yet. What is built and what is next is
+[docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
+
+- An origin has one `/.well-known/agent-configuration` and the two client families read it differently.
+  `Discovery: agents.DiscoveryAgentAuth` gives it to the protocol's clients; the Go agent SDK then reads
+  `/agents/configuration` by itself (SDK v1.1.0 or newer: an older one fails with
+  `agent.ErrNotConfiguration`). The capability routes are served in both modes.
+- The protocol document's `issuer` is `BaseURL`, where Polaris is mounted: its paths resolve against it,
+  and it is the exact `aud` of an agent's request JWT on `/capability/*` (`AUTH_ISSUER` plays no part).
+  A JWT's `iat` may be at most 30 s ahead there. An agent's OAuth token works too.
+- A credential on those routes that is not an agent's, a host JWT included, is 401 `invalid_jwt`, never
+  read as anonymous; the reference client then asks again without one.
 
 ## Example
 
