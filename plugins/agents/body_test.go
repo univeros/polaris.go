@@ -43,9 +43,14 @@ func TestProtectedRoutesBoundTheBody(t *testing.T) {
 // one JSON value has none, so a constrained argument is missing and refused, rather than checked on
 // the first value while the handler reads another.
 func TestBodyArgumentsAreTheWholeBody(t *testing.T) {
-	for body, want := range map[string]int{`{"amount":1}`: 1, " {\"amount\":1}\n": 1, `null`: 0, `[]`: 0, ``: 0} {
+	for body, want := range map[string]int{`{"amount":1}`: 1, " {\"amount\":1}\n": 1, ``: 0, " \r\n\t": 0} {
 		if got, err := bodyArguments([]byte(body)); got == nil || len(got) != want || err != nil {
 			t.Errorf("%q: %v %v", body, got, err)
+		}
+	}
+	for _, body := range []string{`null`, `[]`, `"x"`, `amount=1`, "\xef\xbb\xbf{}"} {
+		if _, err := bodyArguments([]byte(body)); err == nil {
+			t.Errorf("%q is taken as no arguments, and a handler may read it", body)
 		}
 	}
 }
@@ -61,11 +66,11 @@ func TestABodyWhoseMembersAreAmbiguousIsRefused(t *testing.T) {
 		`{"x":{"a":{"y":1}},"z":[{"k":1,"K":2}]}`: false,
 		`{"x":{"a":1},"y":{"a":1}}`:               true,
 		`{"email":["email","Email"],"e":"email"}`: true,
-		`[{"a":1},{"A":1}]`:                       true,
+		`[{"a":1},{"A":1}]`:                       false, // no object
 		`{"email":"a"} x`:                         false, // a handler reads the first value
 		` {"email":"a"}{"email":"b"}`:             false,
 		`{"email":`:                               false,
-		`email=a`:                                 true, // not JSON: no arguments
+		`email=a`:                                 false,
 	} {
 		if _, err := bodyArguments([]byte(body)); (err == nil) != ok {
 			t.Errorf("%s: %v", body, err)

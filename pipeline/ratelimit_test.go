@@ -134,6 +134,10 @@ func TestRateLimitMiddleware(t *testing.T) {
 				t.Errorf("%s: %+v", name, p)
 			}
 		}
+		l.TokenRefresh = config.RateLimit{Limit: 7, Window: time.Hour, KeyPrefix: "app.refresh"}
+		if p, ok := group(l, "agents"); !ok || p != (config.RateLimit{Limit: 7, Window: time.Hour, KeyPrefix: "app.refresh.agents"}) {
+			t.Errorf("agents: as large as token_refresh, counted apart: %+v", p)
+		}
 		if _, ok := group(l, "unknown"); ok {
 			t.Error("unknown group limited")
 		}

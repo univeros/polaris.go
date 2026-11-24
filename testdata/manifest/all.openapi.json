@@ -26465,7 +26465,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
+                "x-polaris-rate-limit": "agents",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -26849,7 +26849,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
+                "x-polaris-rate-limit": "agents",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -27168,7 +27168,7 @@
                 "x-polaris-effect": "write",
                 "x-polaris-receipt": true,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
+                "x-polaris-rate-limit": "agents",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -31190,7 +31190,7 @@
                 "x-polaris-effect": "read",
                 "x-polaris-receipt": false,
                 "x-polaris-plugin": "agents",
-                "x-polaris-rate-limit": "token_refresh",
+                "x-polaris-rate-limit": "agents",
                 "responses": {
                     "200": {
                         "description": "Success",

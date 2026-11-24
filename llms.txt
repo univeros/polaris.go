@@ -182,6 +182,7 @@ mux.Handle("POST /api/refunds", ag.Protect("refund", refundHandler)) // grant, c
 // in refundHandler: call, _ := agents.CallFrom(r.Context()); the response gets X-Polaris-Receipt.
 ```
 
+Behind `ag.Protect` the arguments are the JSON body (`Content-Type: application/json`): a query or any other body is refused.
 Risk tiers set the approval strength (low/medium: session, high: step-up). Low-risk grants are
 auto-approved with a budget of 100 by default (`Config.AutoApprove`). Every execution writes a signed,
 hash-chained receipt; `POST /agents/{id}/revoke` is the kill switch.

@@ -52,6 +52,9 @@ func group(l config.RateLimits, name string) (config.RateLimit, bool) {
 		return l.PasswordForgot, true
 	case "token_refresh":
 		return l.TokenRefresh, true
+	case "agents": // as large as token_refresh, counted apart: agents do not spend what people refresh with
+		l.TokenRefresh.KeyPrefix += ".agents"
+		return l.TokenRefresh, true
 	case "mfa_enroll":
 		return l.MFAEnroll, true
 	case "mfa_confirm":

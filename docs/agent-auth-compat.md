@@ -421,7 +421,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    - per address 600 a minute, its own key, before anything is verified, on these routes and the capability ones;
      discovery is a cached constant and has none. Unknown hosts keep their 5 an hour;
    - per capability is what budgets with a window do already; per user is left out until somebody needs it.
-   The Polaris agent routes of v1.0.0 keep `token_refresh`; that they share it with the refresh is a follow-up.
+   The Polaris agent routes of v1.0.0 have a counter of their own since decision 89, as large as `token_refresh`.
 8. **Capabilities with a `Location`. Decided: unwrap, for agents of a host with a key.** Built (decision 87). What decides is how
    the agent was registered, never the body's shape: a capability may itself take arguments called `capability` and `arguments`.
    No other kind of agent belongs to such a host, so no v1.0.0 caller changes.

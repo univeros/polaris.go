@@ -394,7 +394,8 @@ func (a *Agent) serverKeys(ctx context.Context) ([]JWK, error) {
 
 // Do sends req as the agent: it signs a request JWT for req's exact URL, method and body (or sets
 // the access token) and sends it with the Agent's HTTP client. Use it for a capability with a
-// Location (its response carries the receipt id in X-Polaris-Receipt) or any other route that
+// Location (its response carries the receipt id in X-Polaris-Receipt; its arguments are the JSON body,
+// so set Content-Type: application/json, and it takes no query) or any other route that
 // authenticates agents. Like http.Client.Do, it consumes req.Body and a non-2xx status is no
 // error; req's headers are left as they were.
 func (a *Agent) Do(req *http.Request) (*http.Response, error) {

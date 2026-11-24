@@ -5,7 +5,7 @@ endpoint:
   summary: Request capability grants
   tags: [agents]
   auth: public   # the agent authenticates itself: a signed request JWT or its access token
-  rate_limit: token_refresh
+  rate_limit: agents
   effect: write
   receipt: true
 
