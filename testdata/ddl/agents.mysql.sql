@@ -14,6 +14,8 @@ CREATE TABLE `polaris_agent` (
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
     `key_thumbprint` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    `activated_at` DATETIME NULL,
+    `last_used_at` DATETIME NULL,
     PRIMARY KEY (`id`)
 );
 
@@ -37,6 +39,7 @@ CREATE TABLE `polaris_agent_host` (
     `public_jwk` JSON NULL,
     `jwks_url` VARCHAR(500) NULL,
     `key_thumbprint` VARCHAR(64) NULL,
+    `claimed_thumbprint` VARCHAR(64) NULL,
     PRIMARY KEY (`id`)
 );
 
@@ -45,6 +48,8 @@ CREATE UNIQUE INDEX `polaris_agent_host_token_unique` ON `polaris_agent_host` (`
 CREATE UNIQUE INDEX `polaris_agent_host_key_unique` ON `polaris_agent_host` (`key_thumbprint`);
 
 CREATE UNIQUE INDEX `polaris_agent_host_jwks_unique` ON `polaris_agent_host` (`jwks_url`);
+
+CREATE INDEX `polaris_agent_host_claimed_index` ON `polaris_agent_host` (`claimed_thumbprint`);
 
 CREATE INDEX `polaris_agent_host_owner_index` ON `polaris_agent_host` (`owner_type`, `owner_id`);
 

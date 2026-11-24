@@ -21,13 +21,16 @@ const HostJWTType = "host+jwt"
 // hostOf is the host a request authenticates as with a host JWT (§4.5.1), and the JWT's claims. The
 // host is one somebody owns: an unknown key is refused.
 func (s *service) hostOf(r *http.Request) (Host, map[string]any, error) {
-	return s.hostCalling(r, false)
+	return s.hostCalling(r, false, "")
 }
 
 // hostCalling is hostOf where a host the server does not know may call (§2.8): to register, and to read
 // that registration's status. Such a host has no ID: its JWT verifies with the key it presents, which
 // its iss names, and that is all that is known of it.
-func (s *service) hostCalling(r *http.Request, unknown bool) (Host, map[string]any, error) {
+//
+// A host that was rotated to a key is known by it only once a call the key signed names one of the host's
+// agents (agentID), which nobody else is told: the key alone is anybody's to rotate to.
+func (s *service) hostCalling(r *http.Request, unknown bool, agentID string) (Host, map[string]any, error) {
 	ctx := r.Context()
 	m := bearerOnly.FindStringSubmatch(r.Header.Get("Authorization"))
 	if m == nil {
@@ -60,6 +63,11 @@ func (s *service) hostCalling(r *http.Request, unknown bool) (Host, map[string]a
 	if err != nil {
 		return Host{}, nil, err
 	}
+	if !ok && hasKey {
+		if h, ok, err = s.claimant(ctx, agentID, iss); err != nil {
+			return Host{}, nil, err
+		}
+	}
 	if !ok {
 		if h, err = s.unknownHost(inline, iss, unknown); err != nil {
 			return Host{}, nil, err
@@ -84,6 +92,15 @@ func (s *service) hostCalling(r *http.Request, unknown bool) (Host, map[string]a
 	}
 	if h.RevokedAt != nil {
 		return Host{}, nil, refuse(ErrHostRevoked, "The host is revoked.")
+	}
+	if h.claimedThumbprint == iss {
+		err := s.takeKey(ctx, h.ID, iss)
+		if _, taken := asError(err); taken {
+			err = invalidJWT("The key is not this host's.")
+		}
+		if err != nil {
+			return Host{}, nil, err
+		}
 	}
 	if h.KeyThumbprint != iss { // a JWKS host signing with a new key (§4.5.1 step 3, §8.7)
 		if err := s.renameHost(ctx, h, iss); err != nil {
@@ -123,6 +140,37 @@ func (s *service) hostNamed(ctx context.Context, thumbprint string, url any) (Ho
 		return Host{}, false, err
 	}
 	return hostFromRow(row), true, nil
+}
+
+// claimant is the host of the agent, when it was rotated to the key of the thumbprint.
+func (s *service) claimant(ctx context.Context, agentID, thumbprint string) (Host, bool, error) {
+	a, ok, err := s.agent(ctx, agentID)
+	if err != nil || !ok || a.HostID == "" {
+		return Host{}, false, err
+	}
+	h, ok, err := s.host(ctx, a.HostID)
+	if err != nil || !ok || h.claimedThumbprint != thumbprint {
+		return Host{}, false, err
+	}
+	h.KeyThumbprint = thumbprint
+	return h, true, nil
+}
+
+// takeKey makes the key the host was rotated to its own; refused when it is another host's, or the host was
+// rotated to another meanwhile.
+func (s *service) takeKey(ctx context.Context, hostID, thumbprint string) error {
+	n, err := s.db.Update(ctx, TableHosts, store.Criteria{"id": hostID, "claimed_thumbprint": thumbprint}, store.Data{"key_thumbprint": thumbprint, "claimed_thumbprint": nil})
+	if errors.Is(err, store.ErrDuplicate) {
+		return refuse(ErrConflict, "The key belongs to another host.")
+	}
+	if err != nil || n == 1 {
+		return err
+	}
+	h, ok, err := s.host(ctx, hostID) // another call of its holder may have come first
+	if err == nil && (!ok || h.KeyThumbprint != thumbprint) {
+		err = refuse(ErrConflict, "The host changed meanwhile.")
+	}
+	return err
 }
 
 // hostKey is the key the host signs with, delivered as it was registered (§8.7): the stored one, or
@@ -192,7 +240,7 @@ func (s *service) checkHost(ctx context.Context, a Agent, iss any, hasISS bool) 
 		return nil
 	}
 	named, _ := iss.(string)
-	if named != "" && named == h.KeyThumbprint {
+	if named != "" && (named == h.KeyThumbprint || named == h.claimedThumbprint) {
 		return nil
 	}
 	if named != "" && h.JWKSURL != "" && s.settings.jwksURLs {

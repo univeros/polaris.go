@@ -3370,3 +3370,55 @@ call. Three checks no test held now have one. Accepted: 413 and an ambiguous URL
 known, in Polaris's words; the same agent on the Polaris routes is bounded by the `token_refresh` group and its budgets,
 not by these limits; at another route `Protect` guards for the same capability the JWT still names the `Location`. For
 an agent v1.0.0 had, a query is passed on as it was; the README says to read the body.
+
+## 88. 2026-11-24 — Agent Auth Protocol, part 4: the lifecycle
+
+Part 4 of [`agent-auth-compat.md`](agent-auth-compat.md): all twelve endpoints are served. The unmodified client reads a
+paused agent, rotates its host's key and revokes an agent in the harness.
+
+- **Revoking** (§5.7, §5.10) is the kill switch the owner has, called with the host's JWT; again, it answers the same. A
+  denied registration is over already (`agent_rejected`).
+- **Rotating an agent's key** (§5.8) takes the host's JWT only (5.11), as the section says and the reference client does
+  not: whoever stole an agent's key could otherwise replace it. The old key and every token it minted stop in one
+  transaction. A suspended agent's leaked key is replaced too.
+- **Rotating a host's key** (§5.9) proves nothing of the new key, so it would have reopened what decision 86 closed. The
+  new key is only claimed (`claimed_thumbprint`, not unique; `key_thumbprint` is null): it is the host's once a call it
+  signs names an agent of the host, or the host's owner approves a registration it signs, or with `proof`. Until then
+  the server does not know the key, and a claim keeps nobody from using theirs. A host's key is refused. A JWKS host
+  rotates at its URL.
+- **Lifetimes** (§2.4), off by default, bound the agents hosts' JWTs registered: the others have no host to reactivate
+  them. `expired`, and `revoked` past the absolute lifetime, are read from the clocks, not stored, so every check meets
+  them wherever an agent is loaded; `Prune` and a reactivation run the kill switch past the absolute one. The last use
+  is written at most once a minute, so a session lasts at least two.
+- **Reactivating** (§5.6) brings an agent back to its host's default capabilities. What a person gave, and what is no
+  default, ends. A live grant the policy gave of a default is kept with what is left of its budget: ended and given
+  again it would be refilled, which the policy never does. When a person must approve all of it the agent is pending,
+  its clocks unchanged: denied, it is expired as it was, not rejected, and a pruning does not delete it.
+- **`suspended` is `pending`** (5.2), reactivation included: 403 `agent_pending`. The absolute lifetime outranks it.
+- **Introspection** (§5.12) is for an OAuth client an operator trusted (5.4), as `POST /oauth2/introspect`;
+  `oauth.Plugin.AuthenticateTrusted` is the check. The JWT's `aud` must be the issuer, the execute route or a configured
+  `Location` and is answered, so that one resource server's JWT is not another's. The `jti` is not spent. A refused
+  caller spends the address's budget, a resource server none.
+
+Go API: additions only: `agents.Config.Lifetimes`, `agents.Lifetimes`, `agents.StatusExpired`, `Agent.ActivatedAt`,
+`Agent.LastUsedAt`, two `Err*`, three `Event*`, `oauth.Plugin.AuthenticateTrusted`. Routes: six
+added. Fixtures: one added; three of parts 2 and 3, in no release, re-recorded, as a status now has `activated_at` and
+`last_used_at`. Schema: two nullable columns on `polaris_agent`, one, and an index, on `polaris_agent_host`; `Migrate` reaches HEAD from
+every released schema.
+
+Security review (rule 6), independent, of the whole change: nothing critical or high, no way to gain anything from
+another's client, and no expired agent that acts. Fixed from it, each with a test except where said: a claimed key
+took the unique column, so that it locked a JWKS host out of a key it published (the claim above is the second design);
+two reactivations at once (a check in the transaction, no test: a race); a denied registration reading revoked past
+the absolute lifetime. Two checks of introspection no test held now have one. Accepted: introspection limits who is
+refused, not who is right, and a client's secret is 256 random bits; it counts as a use of the agent; an approval denied
+after `Lifetimes` was turned off leaves the agent active with no grant it had to ask for; a registration that waited under
+a host's old key expires; an agent past its absolute lifetime keeps its OAuth client until `Prune`, and nothing here
+accepts its tokens.
+
+The claim was reviewed once more on its own: nothing critical or high. Fixed from it, each with a test: a colleague's
+claim, by an organization's host, on the key of a registration its approver made (only a host the approver registered
+counts now); a claim made over between being read and taken. Accepted: a host JWT taken from an open TLS connection
+before it is spent can rotate the host's key, as §5.9 binds it to no body; a host revoked while its new key is only
+claimed no longer reserves its old key, which must then be approved by a person as any unknown one; the 409 tells that a
+key is a host's.

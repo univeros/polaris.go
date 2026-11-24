@@ -1,0 +1,37 @@
+# POST /host/rotate-key: the Agent Auth Protocol's host key rotation (§5.9).
+endpoint:
+  method: POST
+  path: /host/rotate-key
+  summary: Replace a host's key (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
+  effect: write
+  receipt: true
+
+input:
+  source: body
+  fields:
+    public_key: { type: object, rules: [required] }
+    proof: { type: "?string", rules: [optional] }
+
+domain:
+  description: >
+    The calling host's key becomes public_key (an Ed25519 JWK); the old one stops at once and its agents go
+    on. A host that publishes its keys rotates them at its URL. Nothing here proves the new key, so it is only
+    claimed: it is the host's once a call it signs names one of the host's agents (GET /agent/status), or the
+    host's owner approves a registration it signs, and until then the server does not know it. proof, a host
+    link JWT as POST /agents/hosts takes, signed by the new key, proves it at once. A host's key is refused.
+
+output:
+  status: 200
+  example: { host_id: "018f...", status: active }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: host_revoked }
+  - { status: 400, code: unsupported_algorithm }
+  - { status: 409, code: agents_conflict }
+  - { status: 429, code: rate_limited }
+
+events: [agent.host.key_rotated]

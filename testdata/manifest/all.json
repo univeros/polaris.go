@@ -11498,6 +11498,10 @@
                 },
                 {
                     "status": 403,
+                    "code": "agent_expired"
+                },
+                {
+                    "status": 403,
                     "code": "agent_rejected"
                 },
                 {
@@ -11576,6 +11580,10 @@
                 {
                     "status": 403,
                     "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_expired"
                 },
                 {
                     "status": 403,
@@ -11667,6 +11675,10 @@
                 },
                 {
                     "status": 403,
+                    "code": "agent_expired"
+                },
+                {
+                    "status": 403,
                     "code": "agent_rejected"
                 },
                 {
@@ -11698,6 +11710,252 @@
                 "agent.executed",
                 "agent.execution_denied",
                 "agent.grant.exhausted"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/host/revoke",
+            "summary": "Revoke a host (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": []
+            },
+            "name": "polaris.agents.protocol.host-revoke",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.revoked",
+                "agent.receipt.sealed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/host/rotate-key",
+            "summary": "Replace a host's key (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "public_key",
+                        "type": "object",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "proof",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.host-rotate-key",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 400,
+                    "code": "unsupported_algorithm"
+                },
+                {
+                    "status": 409,
+                    "code": "agents_conflict"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.host.key_rotated"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/agent/introspect",
+            "summary": "Introspect an agent's JWT (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "token",
+                        "type": "string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "client_id",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "client_secret",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": true
+                    },
+                    {
+                        "name": "client_assertion",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": true
+                    },
+                    {
+                        "name": "client_assertion_type",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.introspect",
+            "errors": [
+                {
+                    "status": 401,
+                    "code": "unauthorized"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "POST",
+            "path": "/agent/reactivate",
+            "summary": "Reactivate an agent (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "agent_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.reactivate",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 403,
+                    "code": "absolute_lifetime_exceeded"
+                },
+                {
+                    "status": 404,
+                    "code": "agent_not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "agents_conflict"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.reactivated",
+                "agent.grant.requested",
+                "agent.grant.approved",
+                "agent.revoked",
+                "agent.receipt.sealed"
             ]
         },
         {
@@ -11920,6 +12178,10 @@
                 },
                 {
                     "status": 403,
+                    "code": "agent_expired"
+                },
+                {
+                    "status": 403,
                     "code": "agent_rejected"
                 },
                 {
@@ -11942,6 +12204,149 @@
             "events": [
                 "agent.grant.requested",
                 "agent.grant.approved"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/agent/revoke",
+            "summary": "Revoke an agent (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "destructive",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "agent_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.revoke",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 404,
+                    "code": "agent_not_found"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.revoked",
+                "agent.receipt.sealed"
+            ]
+        },
+        {
+            "method": "POST",
+            "path": "/agent/rotate-key",
+            "summary": "Replace an agent's key (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "write",
+            "receipt": true,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "body",
+                "fields": [
+                    {
+                        "name": "agent_id",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "public_key",
+                        "type": "object",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.rotate-key",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
+                    "status": 400,
+                    "code": "unsupported_algorithm"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_pending"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_expired"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_rejected"
+                },
+                {
+                    "status": 404,
+                    "code": "agent_not_found"
+                },
+                {
+                    "status": 409,
+                    "code": "agent_exists"
+                },
+                {
+                    "status": 409,
+                    "code": "agents_conflict"
+                },
+                {
+                    "status": 429,
+                    "code": "rate_limited"
+                }
+            ],
+            "events": [
+                "agent.key.rotated"
             ]
         },
         {

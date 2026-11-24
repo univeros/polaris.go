@@ -47,7 +47,9 @@ func (p *Plugin) protocolDiscovery() map[string]any {
 		"approval_methods": []string{MethodDevice, MethodCIBA},
 		"default_location": p.s.settings.baseURL + pathExecute,
 		"endpoints": map[string]string{"register": "/agent/register", "capabilities": "/capability/list", "describe_capability": "/capability/describe",
-			"execute": pathExecute, "request_capability": "/agent/request-capability", "status": "/agent/status"},
+			"execute": pathExecute, "request_capability": "/agent/request-capability", "status": "/agent/status",
+			"reactivate": "/agent/reactivate", "introspect": "/agent/introspect",
+			"revoke": "/agent/revoke", "revoke_host": "/host/revoke", "rotate_key": "/agent/rotate-key", "rotate_host_key": "/host/rotate-key"},
 		"jwks_uri": p.s.settings.baseURL + "/auth/.well-known/jwks.json",
 	}
 }

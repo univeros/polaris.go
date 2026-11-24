@@ -31,6 +31,7 @@ errors:
   - { status: 403, code: agent_revoked }
   - { status: 403, code: agent_suspended }
   - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_expired }
   - { status: 403, code: agent_rejected }
   - { status: 403, code: host_revoked }
   - { status: 403, code: capability_not_granted }

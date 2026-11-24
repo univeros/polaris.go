@@ -14,7 +14,7 @@ Breaking changes are marked **Breaking**.
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
   `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
   Agent Auth Protocol's, for its clients (`@auth/agent`)
-  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 87). Those clients sign in through
+  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 88). Those clients sign in through
   a host whose key its owner registered, or through a host the server does not know, which a signed-in
   person approves with the code the client shows: the host and the agent are theirs then.
   `agents.Config.DisableDynamicHosts` takes registered hosts only.
@@ -41,7 +41,12 @@ Breaking changes are marked **Breaking**.
   agent is served as before.
 - `agents.Config.RateLimits`: the protocol's routes are limited per agent, per host and per address (60, 300 and 600
   a minute), answering 429 `rate_limited` (`agents.ErrRateLimited`).
-- An agent's `status` may be `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
+- The Agent Auth Protocol's lifecycle: `POST /agent/revoke`, `/agent/rotate-key`, `/agent/reactivate`, `/host/revoke`,
+  `/host/rotate-key` and `/agent/introspect` (for an OAuth client an operator trusted; `oauth.Plugin.AuthenticateTrusted`
+  is what it asks). `agents.Config.Lifetimes` expires and ends agents hosts' JWTs registered; by default nothing does.
+  New events `agents.EventKeyRotated`, `EventHostKeyRotated` and `EventReactivated`; `agents.Plugin.Prune` also revokes
+  agents past their absolute lifetime.
+- An agent's `status` may be `expired` (`agents.StatusExpired`), with `Lifetimes` only, `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
   registration that waits for a person, or was denied. Neither acts anywhere.
 - An agent's registration through a host is idempotent by the host's and the agent's key: pending answers
   the same agent, any other state 409 `agent_exists` (`agents.ErrAgentExists`).
@@ -50,8 +55,8 @@ Breaking changes are marked **Breaking**.
 - Where unknown hosts are taken, `GET /agents/approvals/code` answers 429 after too many codes that stand for none of the caller's agents'
   approvals (the `MFAConfirm` budget, per person).
 - `oauth.Plugin.CreateClientAs`: `CreateClient` under a `client_id` the caller chose.
-- Run `Migrate`: `polaris_agent_host` gains three nullable columns and two unique indexes, `polaris_agent`
-  one nullable column and a unique index, and `polaris_agent_registration` is new.
+- Run `Migrate`: `polaris_agent_host` gains four nullable columns, two unique indexes and an index, `polaris_agent`
+  three nullable columns and a unique index, and `polaris_agent_registration` is new.
 
 ### Fixed
 

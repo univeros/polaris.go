@@ -119,6 +119,8 @@ type Config struct {
 	DisableDynamicHosts bool
 	// RateLimits bound the Agent Auth Protocol's routes.
 	RateLimits RateLimits
+	// Lifetimes bound the agents hosts' JWTs registered; the zero value is unlimited.
+	Lifetimes Lifetimes
 	// HTTPClient fetches hosts' key sets. Default: a client that connects to public addresses only,
 	// with a timeout. Redirects are never followed, whichever client is used.
 	HTTPClient *http.Client
@@ -151,6 +153,7 @@ type settings struct {
 	jwksURLs                  bool
 	dynamicHosts              bool
 	httpClient                *http.Client
+	lifetimes                 Lifetimes
 	agentLimit                config.RateLimit
 	hostLimit                 config.RateLimit
 	addressLimit              config.RateLimit
@@ -195,6 +198,8 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	s.dynamicHosts = s.discovery == DiscoveryAgentAuth && !cfg.DisableDynamicHosts
 	s.httpClient = netguard.NoRedirects(cfg.HTTPClient)
 	cfg.RateLimits.resolve(&s, bad)
+	cfg.Lifetimes.check(bad)
+	s.lifetimes = cfg.Lifetimes
 	if s.providerName == "" {
 		s.providerName = "Polaris"
 	}

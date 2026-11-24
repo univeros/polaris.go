@@ -197,7 +197,8 @@ host its owner registered (`POST /agents/hosts` with `public_key`, the host's Ed
 shows at your `ApprovalURL` page (`GET /agents/approvals/code`, `POST /agents/approvals/{id}/decide`) and the
 host and the agent become theirs. In that mode approvals need a recent sign-in, and a passkey for medium (the default) and high risk: add the
 passkey plugin or set `Config.Strengths`, or the server does not start. At a capability's `Location`, `Protect` and `Guard` read
-such a client's `{capability, arguments}` and answer `{data}`. `Config.RateLimits` bounds these routes.
+such a client's `{capability, arguments}` and answer `{data}`. `Config.RateLimits` bounds these routes, `Config.Lifetimes` how
+long such agents live. A resource server introspects an agent's JWT (`POST /agent/introspect`) as a trusted OAuth client.
 `Config.DisableDynamicHosts` turns unknown hosts off; schedule `ag.Prune(ctx)`.
 
 ## Agents: sign in from Go (the agent side)

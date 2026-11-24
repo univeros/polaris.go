@@ -48,6 +48,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `DisableJWKSURLs` | false | refuse hosts that publish their keys at a `jwks_url` (taken with `DiscoveryAgentAuth` only) |
 | `DisableDynamicHosts` | false | refuse hosts the server does not know (taken with `DiscoveryAgentAuth` only): only hosts an owner registered sign agents in |
 | `RateLimits` | 60 / 300 / 600 a minute | the protocol's routes, per `Agent`, per `Host` and per `Address`; see Agent Auth Protocol |
+| `Lifetimes` | unlimited | `Session`, `Max` and `Absolute` of agents hosts' JWTs registered; see Agent Auth Protocol |
 | `HTTPClient` | guarded | fetches those key sets; the default connects to public addresses only, and no client follows a redirect |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
 | `RequestJWTMaxAge` | 5 min (also the maximum) | bound on `exp - iat` |
@@ -199,6 +200,18 @@ them, at their `Location` too. What is built and what is next is
 - Requests an agent or a host signed are limited per agent (60 a minute) and per host (300), at a `Location` too, and
   everything on the protocol's routes per address (600) before it is verified: 429 `rate_limited` with `Retry-After`. `RateLimits` sets others.
   What one capability may be used for is a budget with a window.
+- The host's client revokes its agents and itself (`POST /agent/revoke`, `/host/revoke`: the kill switch, as ever) and
+  replaces their keys (`/agent/rotate-key`, `/host/rotate-key`, with the host's JWT). A new host key is
+  the host's once its holder names one of the host's agents (their client's next status call), or with `proof`, a
+  host link JWT of the new key: a public key alone is anybody's to send, and takes nothing from its holder.
+- `Lifetimes` bound the agents hosts' JWTs registered: without a request for `Session`, or `Max` after its activation,
+  an agent is `expired` until `POST /agent/reactivate` brings it back to its host's default capabilities; `Absolute`
+  after its creation it is revoked. A grant the policy gave keeps what is left of its budget; a person's is asked
+  again. Schedule `ag.Prune(ctx)`: it also revokes those past `Absolute`. Setting one applies to the agents there are,
+  from their activation (or creation): a short `Absolute` revokes the older ones for good.
+- A resource server of yours asks `POST /agent/introspect` about an agent's JWT, as an OAuth client you marked trusted
+  (or listed in the oauth plugin's `TrustedClients`). Compare the answer's `aud` with your own URL and take each `jti`
+  once: introspection does not spend it.
 - New registrations of unknown hosts are limited per address at the budget of sign-up
   (`RateLimits.Register`, 5 an hour). The address is the request's `RemoteAddr`: behind a proxy, set it to the
   client's before Polaris, or every client shares one budget.

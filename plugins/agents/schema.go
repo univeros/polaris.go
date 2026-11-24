@@ -35,6 +35,8 @@ func Models() []schema.Model {
 			schema.DateTimeField("createdAt"),
 			schema.DateTimeField("updatedAt"),
 			schema.StringField("keyThumbprint", 64).AsASCII().AsNullable(),
+			schema.DateTimeField("activatedAt").AsNullable(),
+			schema.DateTimeField("lastUsedAt").AsNullable(),
 		).
 			Unique([]string{"host_id", "key_thumbprint"}, "polaris_agent_host_key_thumbprint_unique").
 			Index([]string{"owner_type", "owner_id"}, "polaris_agent_owner_index").
@@ -53,10 +55,12 @@ func Models() []schema.Model {
 			schema.JSONField("publicJwk").AsNullable(),
 			schema.StringField("jwksUrl", 500).AsNullable(),
 			schema.StringField("keyThumbprint", 64).AsNullable(),
+			schema.StringField("claimedThumbprint", 64).AsNullable(),
 		).
 			Unique([]string{"enrollment_token_hash"}, "polaris_agent_host_token_unique").
 			Unique([]string{"key_thumbprint"}, "polaris_agent_host_key_unique").
 			Unique([]string{"jwks_url"}, "polaris_agent_host_jwks_unique").
+			Index([]string{"claimed_thumbprint"}, "polaris_agent_host_claimed_index").
 			Index([]string{"owner_type", "owner_id"}, "polaris_agent_host_owner_index"),
 		schema.Table(TableGrants,
 			schema.StringField("id", 36).AsPrimary(),

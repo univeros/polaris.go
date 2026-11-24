@@ -25,6 +25,11 @@ const (
 	// EventEnrolled.
 	EventRegistrationRequested = "agent.registration.requested"
 	EventRegistrationDenied    = "agent.registration.denied"
+	// A host replaced its agent's key, or its own.
+	EventKeyRotated     = "agent.key.rotated"
+	EventHostKeyRotated = "agent.host.key_rotated"
+	// A host reactivated its expired agent.
+	EventReactivated = "agent.reactivated"
 )
 
 var auditNames = map[string]string{
@@ -44,6 +49,9 @@ var auditNames = map[string]string{
 
 	EventRegistrationRequested: "A host the server does not know asked to register an agent (host, name, capabilities)",
 	EventRegistrationDenied:    "A person denied the registration of an agent of a host the server does not know (host, name)",
+	EventKeyRotated:            "A host replaced its agent's key; the old key and its tokens ended (host, key)",
+	EventReactivated:           "A host reactivated its expired agent: its grants ended, its default capabilities asked again (host, status)",
+	EventHostKeyRotated:        "A host replaced its own key (host, key, whether the new one was proven)",
 }
 
 // Event is what happened to or through an agent: a domain event the host may listen to (a CIBA

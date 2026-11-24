@@ -1,0 +1,29 @@
+# POST /host/revoke: the Agent Auth Protocol's host revocation (§5.10).
+endpoint:
+  method: POST
+  path: /host/revoke
+  summary: Revoke a host (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
+  effect: destructive
+  receipt: true
+
+input:
+  source: body
+  fields: {}
+
+domain:
+  description: >
+    The calling host and every agent under it, each with the kill switch; agents_revoked counts them.
+
+output:
+  status: 200
+  example: { host_id: "018f...", status: revoked, agents_revoked: 3 }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: host_revoked }
+  - { status: 429, code: rate_limited }
+
+events: [agent.revoked, agent.receipt.sealed]

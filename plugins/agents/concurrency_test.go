@@ -129,7 +129,7 @@ func TestARegistrationDoesNotOutliveItsHost(t *testing.T) {
 					_, _, _, err := p.s.registerUnder(ctx, h, map[string]any{"name": "Bot", "jwk": newTestKey(AlgEdDSA).jwk()}, asking{}, client{})
 					return err
 				}
-				revoke := func() error { return p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}) }
+				revoke := func() error { _, err := p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}); return err }
 				for i, err := range race(register, revoke, register, register) {
 					if e, refused := asError(err); err != nil && (i == 1 || !refused || e.Type != ErrHostRevoked) {
 						t.Fatalf("round %d, %d: %v", round, i, err)
@@ -325,7 +325,7 @@ func TestARegistrationIsDecidedOnce(t *testing.T) {
 				second, secondAp := waitingRegistration(t, p, host, "refund")
 				second.becomes = second.agentFor(h, "user-1", "")
 				for _, err := range race(func() error { _, _, err := p.s.decide(ctx, secondAp, true, "user-1", nil, &second); return err },
-					func() error { return p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}) }) {
+					func() error { _, err := p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}); return err }) {
 					if e, refused := asError(err); err != nil && (!refused || e.Type != ErrHostRevoked) {
 						t.Fatalf("round %d: %v", round, err)
 					}

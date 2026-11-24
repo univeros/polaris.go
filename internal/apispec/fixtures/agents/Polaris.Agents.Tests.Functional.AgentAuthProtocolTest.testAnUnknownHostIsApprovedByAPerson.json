@@ -26,7 +26,7 @@
                     "4"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795539600"
+                    "1795543200"
                 ]
             },
             "body": {
@@ -44,7 +44,7 @@
                 ]
             },
             "body": {
-                "token": "Q8TWKvCNKCp6qiyk1T6M-L-u3ifLVM_pnuItdMNJWbQ.b7ffb8349994fe8af03633144ca0b55b"
+                "token": "4WhPAObXiWyaacfrt7Riib9d5_zLvY967bVYuyP1PXE.0ad6cb1e1d3675b68b604791c8dd563e"
             }
         },
         "response": {
@@ -60,7 +60,7 @@
                     "9"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795539000"
+                    "1795541400"
                 ]
             },
             "body": {
@@ -95,19 +95,19 @@
                     "9"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795539000"
+                    "1795541400"
                 ]
             },
             "body": {
                 "data": {
-                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM1ZS03NGM2LTkxZjEtNzdlMmViNjllZDViIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTczLTFjNWUtNzM1Ny1iZDQxLTgzYjEwYWM4ZDIyMiIsImF1dGhfdGltZSI6MTc5NTUzODc1NH0.cCkET6caq4jPzFdwasy33EvGe7tIoJxEF9igh89DyOIJd_GOdK9hkyzC9wbF_F4RnQhhEfWRJ_MTTLX7WN7RG-2UiVdp0pFQ7E5HoAL9yb5wsjCTF6lQb8rUc4HAQlNRga_9o1FfDYr4zRabGOGlZHSIAJdoOHX25mlSC3ix3RLilPwd9n9rF0oYExNnUs0ZNfpnQYdyJg8djFjQCCLNC_aI9Gb-nHGnSe5viW_7MwSvDMqygfdtoE0Uwk82Rx2ORa73bekWXvYosAwVgcjJ0oNHi8n1r-fzc_dm_tkyO0Mf-d9n5sUJh8cHId5b4-_IhI6lnl4FBHw21oCGFCfuTw",
+                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmMy03OGQxLWI4ZTAtNTIzMWUzNzZkZDUyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTlhLTQ2ZjMtNzcyOC1hNjQ0LTJiNmQ0MWZlMGExMiIsImF1dGhfdGltZSI6MTc5NTU0MTMyMX0.QbHnoe45fweMT2WgxPqf6WTTB6Bf_71zd0nPq519Ro31_v0c95rbsWVd3eJXS7j6BKUAYPWmg6KkGqaWDaVIOdNh1ST2ufS_OkyRnCTzjeh2Tq-WxOaSStn6UjQbwJ8YolkdCQmWhYEflX2n_pF1LUH5EBuVcruA-s0OrMQtoSOFoMQod8FKcY2sqiLP_LXMKOtu0CRSjNQJv3TYDZsAdn15AF9wf7eFIH0GDsNVqyx7A0Bl5t0-8UmaZlB1OJCSI_joo3HEOl65fUjJy8Z93IErPL2oc5g-uP1JjwAIiWZ82L4obR8xdKcnCFUgI2MLP-ISc-Y3mM3oTpPwCsZ5ZA",
                     "expires_in": 900,
-                    "refresh_token": "h9FS9TQt0r6XaXYRIhzImntfM8CL25-JlVVlfYgOgCc",
+                    "refresh_token": "RQcckCdbAUWlLL809Fc_DzFosldy_GRA0InIgEwR56Q",
                     "token_type": "Bearer",
                     "user": {
                         "email": "ada@example.com",
                         "email_verified": true,
-                        "id": "01a20e73-1c5b-71f7-adea-3e10c3438039"
+                        "id": "01a20e9a-46f0-7140-89b6-8b100789df56"
                     }
                 }
             }
@@ -119,7 +119,7 @@
             "uri": "/orgs",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM1ZS03NGM2LTkxZjEtNzdlMmViNjllZDViIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTczLTFjNWUtNzM1Ny1iZDQxLTgzYjEwYWM4ZDIyMiIsImF1dGhfdGltZSI6MTc5NTUzODc1NH0.cCkET6caq4jPzFdwasy33EvGe7tIoJxEF9igh89DyOIJd_GOdK9hkyzC9wbF_F4RnQhhEfWRJ_MTTLX7WN7RG-2UiVdp0pFQ7E5HoAL9yb5wsjCTF6lQb8rUc4HAQlNRga_9o1FfDYr4zRabGOGlZHSIAJdoOHX25mlSC3ix3RLilPwd9n9rF0oYExNnUs0ZNfpnQYdyJg8djFjQCCLNC_aI9Gb-nHGnSe5viW_7MwSvDMqygfdtoE0Uwk82Rx2ORa73bekWXvYosAwVgcjJ0oNHi8n1r-fzc_dm_tkyO0Mf-d9n5sUJh8cHId5b4-_IhI6lnl4FBHw21oCGFCfuTw"
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmMy03OGQxLWI4ZTAtNTIzMWUzNzZkZDUyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTlhLTQ2ZjMtNzcyOC1hNjQ0LTJiNmQ0MWZlMGExMiIsImF1dGhfdGltZSI6MTc5NTU0MTMyMX0.QbHnoe45fweMT2WgxPqf6WTTB6Bf_71zd0nPq519Ro31_v0c95rbsWVd3eJXS7j6BKUAYPWmg6KkGqaWDaVIOdNh1ST2ufS_OkyRnCTzjeh2Tq-WxOaSStn6UjQbwJ8YolkdCQmWhYEflX2n_pF1LUH5EBuVcruA-s0OrMQtoSOFoMQod8FKcY2sqiLP_LXMKOtu0CRSjNQJv3TYDZsAdn15AF9wf7eFIH0GDsNVqyx7A0Bl5t0-8UmaZlB1OJCSI_joo3HEOl65fUjJy8Z93IErPL2oc5g-uP1JjwAIiWZ82L4obR8xdKcnCFUgI2MLP-ISc-Y3mM3oTpPwCsZ5ZA"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -142,12 +142,12 @@
                     "599"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795538760"
+                    "1795541340"
                 ]
             },
             "body": {
                 "data": {
-                    "id": "01a20e73-1c61-7061-8486-3c77836f3327",
+                    "id": "01a20e9a-46f6-738a-acde-1875f35ae83c",
                     "name": "Acme",
                     "role": "owner",
                     "slug": "acme"
@@ -161,14 +161,14 @@
             "uri": "/auth/switch-org",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM1ZS03NGM2LTkxZjEtNzdlMmViNjllZDViIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTczLTFjNWUtNzM1Ny1iZDQxLTgzYjEwYWM4ZDIyMiIsImF1dGhfdGltZSI6MTc5NTUzODc1NH0.cCkET6caq4jPzFdwasy33EvGe7tIoJxEF9igh89DyOIJd_GOdK9hkyzC9wbF_F4RnQhhEfWRJ_MTTLX7WN7RG-2UiVdp0pFQ7E5HoAL9yb5wsjCTF6lQb8rUc4HAQlNRga_9o1FfDYr4zRabGOGlZHSIAJdoOHX25mlSC3ix3RLilPwd9n9rF0oYExNnUs0ZNfpnQYdyJg8djFjQCCLNC_aI9Gb-nHGnSe5viW_7MwSvDMqygfdtoE0Uwk82Rx2ORa73bekWXvYosAwVgcjJ0oNHi8n1r-fzc_dm_tkyO0Mf-d9n5sUJh8cHId5b4-_IhI6lnl4FBHw21oCGFCfuTw"
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmMy03OGQxLWI4ZTAtNTIzMWUzNzZkZDUyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwZTlhLTQ2ZjMtNzcyOC1hNjQ0LTJiNmQ0MWZlMGExMiIsImF1dGhfdGltZSI6MTc5NTU0MTMyMX0.QbHnoe45fweMT2WgxPqf6WTTB6Bf_71zd0nPq519Ro31_v0c95rbsWVd3eJXS7j6BKUAYPWmg6KkGqaWDaVIOdNh1ST2ufS_OkyRnCTzjeh2Tq-WxOaSStn6UjQbwJ8YolkdCQmWhYEflX2n_pF1LUH5EBuVcruA-s0OrMQtoSOFoMQod8FKcY2sqiLP_LXMKOtu0CRSjNQJv3TYDZsAdn15AF9wf7eFIH0GDsNVqyx7A0Bl5t0-8UmaZlB1OJCSI_joo3HEOl65fUjJy8Z93IErPL2oc5g-uP1JjwAIiWZ82L4obR8xdKcnCFUgI2MLP-ISc-Y3mM3oTpPwCsZ5ZA"
                 ],
                 "Content-Type": [
                     "application/json"
                 ]
             },
             "body": {
-                "organization_id": "01a20e73-1c61-7061-8486-3c77836f3327"
+                "organization_id": "01a20e9a-46f6-738a-acde-1875f35ae83c"
             }
         },
         "response": {
@@ -184,14 +184,14 @@
                     "598"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795538760"
+                    "1795541340"
                 ]
             },
             "body": {
                 "data": {
-                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM2NC03MTZmLWExZjItNDFmYzI0Y2RhMDVjIiwib3JnIjoiMDFhMjBlNzMtMWM2MS03MDYxLTg0ODYtM2M3NzgzNmYzMzI3Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlNzMtMWM1ZS03MzU3LWJkNDEtODNiMTBhYzhkMjIyIiwiYXV0aF90aW1lIjoxNzk1NTM4NzU0fQ.Ae0j5c_F0_LW0Z3IAfbfhX2-T3G9YFM9eRqayavBm1Cbk2nHNYJWH5IoX5wNDdqioPSJrK0jE45YuxD_I9zzpM6cffmJGumU52pRJ2CbDQbragvlgzgWjyP1qJWdwAdRDw1G_JCfaglOzKNPfUrQXsPovxfQB_XEVG5pmSYtoDmjEAhu7hMBNflFBLP_npJO-WazfvyMpiMaw1LCjuzZ9XFCpRsjhizZ4TSOXbfWCHk6mmcwNLJevRZ0KFO_hdhFCGZd4q4cQU5lpKLoowcpDp5M14xJAaKZH8Q0jIXV4bu8-QTiANWISbz-9QU0d6PmYO4UqjdG151_ztg_1DM4WQ",
+                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmOC03ZTMwLWE0NmYtNmZmNjk5ZWZlNDg4Iiwib3JnIjoiMDFhMjBlOWEtNDZmNi03MzhhLWFjZGUtMTg3NWYzNWFlODNjIiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlOWEtNDZmMy03NzI4LWE2NDQtMmI2ZDQxZmUwYTEyIiwiYXV0aF90aW1lIjoxNzk1NTQxMzIxfQ.P33-fpUZ4hW8PbjKR9ZfJdPJXu7LONL887Y-O6MEWX2_BMLbbXUnofWDugZJ_FbA9dKqh_dQnZs7bz8gFx5aN5g4JHyLeb2AqcKahJxOnMqeJubAyFuEktD3j38n7jDss3THANHuSXVBmRb_BBLbK_HqgFZa_RxC8jnrvDjNqX4Mov---M7571MN6YB2OZ5XzOyGbmp3uRtb9Nt9sAlaqTQ48IYenQj-kHj3MlXCX6wGUEimmtGusCXWumiLyJMg-TlnGs-7tzQ-YXyfSYZSH09d8XYa5POkwomgozupvGOKtRqkdc8cGuXdBg3A7WM0r4XoDXhKuPHY8EnA1uLX5A",
                     "expires_in": 900,
-                    "org": "01a20e73-1c61-7061-8486-3c77836f3327",
+                    "org": "01a20e9a-46f6-738a-acde-1875f35ae83c",
                     "token_type": "Bearer"
                 }
             }
@@ -203,7 +203,7 @@
             "uri": "/agent/register",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6InhJVlgyaC1HN015dUVqRGhhNmkyZ0R1YUhfVDhMWjlCZ0lOVzNlSHFET0EiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhZ2VudF9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4Ijoib19ycTY5NUxCcWE3MjdTZEhaMUZNVEpTUHRIU0Z3WVhqVmFVLWU5Y1NvcyJ9LCJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTM4ODE0LCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJVa3YwaGZObVA4T0duRm4xQXQxN2NWa1FzbmdzZDVWVy15RWVQYWZudWpRIn0sImlhdCI6MTc5NTUzODc1NCwiaXNzIjoieElWWDJoLUc3TXl1RWpEaGE2aTJnRHVhSF9UOExaOUJnSU5XM2VIcURPQSIsImp0aSI6ImgyMEZkMjRtSmd6Q3dOLTJTbHk3WEEiLCJzdWIiOiJ4SVZYMmgtRzdNeXVFakRoYTZpMmdEdWFIX1Q4TFo5QmdJTlczZUhxRE9BIn0.kX8a5uWzyZRIaviZKJiAr_VHp3wJYKCs_1DIaxakN3XjT7PoWSi4VAlk7Zk53XgD69bkb0hCY4INaZ2zI440Dw"
+                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6IkJvSXBoZDZVQXpKU18tRkpjWnFST1V0Uks1VFJyY0taWUpGUW52dEk1cVUiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhZ2VudF9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoicFlRSnZnZXNybTdLVG53aGpzRTRRRWJRdWt0czhqT2FQdWhwZ2pMODJGayJ9LCJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTQxMzgxLCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJHWWgwcl80VnRXUHhLdU1IaElMdUZJZEoxeHI4NEFpVWlJaU1ZTlg2S3JvIn0sImlhdCI6MTc5NTU0MTMyMSwiaXNzIjoiQm9JcGhkNlVBekpTXy1GSmNacVJPVXRSSzVUUnJjS1pZSkZRbnZ0STVxVSIsImp0aSI6IjgxNk94cTJ4LWtDcmw2Qzg5anVNTWciLCJzdWIiOiJCb0lwaGQ2VUF6SlNfLUZKY1pxUk9VdFJLNVRScmNLWllKRlFudnRJNXFVIn0.57LP1feeWOz2BnLv1lI1mwG2CwnbE35XB7Fy30By6OZpop67sOfl6yXD97UkBAbYtzqVDTqYT_7Ev_jOPfKiBw"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -253,19 +253,19 @@
                         "status": "pending"
                     }
                 ],
-                "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
+                "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
                 "approval": {
                     "binding_message": "Tidy?",
                     "expires_in": 600,
-                    "id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                    "id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                     "interval": 5,
                     "method": "device_authorization",
                     "strength": "step_up",
-                    "user_code": "QVPD-PFSF",
+                    "user_code": "NBHV-RSDN",
                     "verification_uri": "https://app.polaris.test/agents/approve",
-                    "verification_uri_complete": "https://app.polaris.test/agents/approve?user_code=QVPD-PFSF"
+                    "verification_uri_complete": "https://app.polaris.test/agents/approve?user_code=NBHV-RSDN"
                 },
-                "host_id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
+                "host_id": "01a20e9a-46fc-75ef-962d-b20170688626",
                 "mode": "delegated",
                 "name": "Reader",
                 "status": "pending"
@@ -275,10 +275,10 @@
     {
         "request": {
             "method": "GET",
-            "uri": "/agent/status?agent_id=01a20e73-1c67-7cec-9640-fdab548687ba",
+            "uri": "/agent/status?agent_id=01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6InhJVlgyaC1HN015dUVqRGhhNmkyZ0R1YUhfVDhMWjlCZ0lOVzNlSHFET0EiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTM4ODE0LCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJVa3YwaGZObVA4T0duRm4xQXQxN2NWa1FzbmdzZDVWVy15RWVQYWZudWpRIn0sImlhdCI6MTc5NTUzODc1NCwiaXNzIjoieElWWDJoLUc3TXl1RWpEaGE2aTJnRHVhSF9UOExaOUJnSU5XM2VIcURPQSIsImp0aSI6IklkYXp0a3ltQWQtUHY1RXFmaHFQWnciLCJzdWIiOiJ4SVZYMmgtRzdNeXVFakRoYTZpMmdEdWFIX1Q4TFo5QmdJTlczZUhxRE9BIn0.6JV04fPirW4tvEmZyNOpkLnJyZsNJniWipMKP-oDaVsfSdbYo64qAf4i974HiVfbrcwlZdAvzktAlOG7EwpRBw"
+                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6IkJvSXBoZDZVQXpKU18tRkpjWnFST1V0Uks1VFJyY0taWUpGUW52dEk1cVUiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTQxMzgxLCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJHWWgwcl80VnRXUHhLdU1IaElMdUZJZEoxeHI4NEFpVWlJaU1ZTlg2S3JvIn0sImlhdCI6MTc5NTU0MTMyMSwiaXNzIjoiQm9JcGhkNlVBekpTXy1GSmNacVJPVXRSSzVUUnJjS1pZSkZRbnZ0STVxVSIsImp0aSI6ImFpcGxBeG5ZdWlwY0g0U2lQQ29KT1EiLCJzdWIiOiJCb0lwaGQ2VUF6SlNfLUZKY1pxUk9VdFJLNVRScmNLWllKRlFudnRJNXFVIn0.CBPqySGzUdtx11ip69mPy0Bzq9X4LvnQ2c-ueJ5Ufj7wRk-atrmnVCzjwfBZmKw_S9rcoBwH1Zpur2SHHIj3Bw"
                 ]
             },
             "body": ""
@@ -304,9 +304,9 @@
                         "status": "pending"
                     }
                 ],
-                "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                "created_at": "2026-11-24T16:45:54Z",
-                "host_id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
+                "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                "created_at": "2026-11-24T17:28:41Z",
+                "host_id": "01a20e9a-46fc-75ef-962d-b20170688626",
                 "mode": "delegated",
                 "name": "Reader",
                 "status": "pending",
@@ -320,7 +320,7 @@
             "uri": "/capability/execute",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTUzODg3NCwiaWF0IjoxNzk1NTM4NzU0LCJqdGkiOiJkSGVVaHZzSWZPVk52NGhlWDBBd2N3Iiwic3ViIjoiMDFhMjBlNzMtMWM2Ny03Y2VjLTk2NDAtZmRhYjU0ODY4N2JhIn0.0np9UlEsz0gb2AoisHPCcsdfywAYlDq1uKMRzM4IX_iy-Ik28eOt88FAugofQGM1o5sWQ2z7NvonKA4tHifVDA"
+                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTU0MTQ0MSwiaWF0IjoxNzk1NTQxMzIxLCJqdGkiOiJnVU9jdVhQZDhueGV6MlB5MEVYektBIiwic3ViIjoiMDFhMjBlOWEtNDZmYy03NWViLTg0ZDctMTIyMmQ4ZTU1Y2E0In0.QGCj78HYUm-xqP-Xqb7ytWMmVJRguPSRa-PFvuDiACC-OneElNybtndXg7eTdo0AJsakCxdbJOryRZ2jU5aeAg"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -354,10 +354,10 @@
     {
         "request": {
             "method": "GET",
-            "uri": "/agents/approvals/code?user_code=QVPD-PFSF",
+            "uri": "/agents/approvals/code?user_code=NBHV-RSDN",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM2NC03MTZmLWExZjItNDFmYzI0Y2RhMDVjIiwib3JnIjoiMDFhMjBlNzMtMWM2MS03MDYxLTg0ODYtM2M3NzgzNmYzMzI3Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlNzMtMWM1ZS03MzU3LWJkNDEtODNiMTBhYzhkMjIyIiwiYXV0aF90aW1lIjoxNzk1NTM4NzU0fQ.Ae0j5c_F0_LW0Z3IAfbfhX2-T3G9YFM9eRqayavBm1Cbk2nHNYJWH5IoX5wNDdqioPSJrK0jE45YuxD_I9zzpM6cffmJGumU52pRJ2CbDQbragvlgzgWjyP1qJWdwAdRDw1G_JCfaglOzKNPfUrQXsPovxfQB_XEVG5pmSYtoDmjEAhu7hMBNflFBLP_npJO-WazfvyMpiMaw1LCjuzZ9XFCpRsjhizZ4TSOXbfWCHk6mmcwNLJevRZ0KFO_hdhFCGZd4q4cQU5lpKLoowcpDp5M14xJAaKZH8Q0jIXV4bu8-QTiANWISbz-9QU0d6PmYO4UqjdG151_ztg_1DM4WQ"
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmOC03ZTMwLWE0NmYtNmZmNjk5ZWZlNDg4Iiwib3JnIjoiMDFhMjBlOWEtNDZmNi03MzhhLWFjZGUtMTg3NWYzNWFlODNjIiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlOWEtNDZmMy03NzI4LWE2NDQtMmI2ZDQxZmUwYTEyIiwiYXV0aF90aW1lIjoxNzk1NTQxMzIxfQ.P33-fpUZ4hW8PbjKR9ZfJdPJXu7LONL887Y-O6MEWX2_BMLbbXUnofWDugZJ_FbA9dKqh_dQnZs7bz8gFx5aN5g4JHyLeb2AqcKahJxOnMqeJubAyFuEktD3j38n7jDss3THANHuSXVBmRb_BBLbK_HqgFZa_RxC8jnrvDjNqX4Mov---M7571MN6YB2OZ5XzOyGbmp3uRtb9Nt9sAlaqTQ48IYenQj-kHj3MlXCX6wGUEimmtGusCXWumiLyJMg-TlnGs-7tzQ-YXyfSYZSH09d8XYa5POkwomgozupvGOKtRqkdc8cGuXdBg3A7WM0r4XoDXhKuPHY8EnA1uLX5A"
                 ]
             },
             "body": ""
@@ -378,62 +378,62 @@
                     "597"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795538760"
+                    "1795541340"
                 ]
             },
             "body": {
                 "data": {
                     "agent": {
                         "auth": "private_key_jwt",
-                        "created_at": "2026-11-24T16:45:54Z",
-                        "created_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
-                        "host_id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
-                        "id": "01a20e73-1c67-7cec-9640-fdab548687ba",
+                        "created_at": "2026-11-24T17:28:41Z",
+                        "created_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
+                        "host_id": "01a20e9a-46fc-75ef-962d-b20170688626",
+                        "id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
                         "mode": "delegated",
                         "name": "Reader",
-                        "organization_id": "01a20e73-1c61-7061-8486-3c77836f3327",
-                        "owner_id": "01a20e73-1c5b-71f7-adea-3e10c3438039",
+                        "organization_id": "01a20e9a-46f6-738a-acde-1875f35ae83c",
+                        "owner_id": "01a20e9a-46f0-7140-89b6-8b100789df56",
                         "owner_type": "user",
                         "public_jwk": {
                             "alg": "EdDSA",
                             "crv": "Ed25519",
-                            "kid": "4Bgkl9X2d2AVr8ekFK2-ri0QrCr5fxVPbLiR5GZ2gwY",
+                            "kid": "V80i_0WCoaKFV9erJjCJAs9EbHDdhUI3h050KCJtLhc",
                             "kty": "OKP",
                             "use": "sig",
-                            "x": "o_rq695LBqa727SdHZ1FMTJSPtHSFwYXjVaU-e9cSos"
+                            "x": "pYQJvgesrm7KTnwhjsE4QEbQukts8jOaPuhpgjL82Fk"
                         },
                         "sealed_at": null,
                         "status": "pending",
-                        "updated_at": "2026-11-24T16:45:54Z"
+                        "updated_at": "2026-11-24T17:28:41Z"
                     },
-                    "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
+                    "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
                     "binding_message": "Tidy?",
-                    "created_at": "2026-11-24T16:45:54Z",
+                    "created_at": "2026-11-24T17:28:41Z",
                     "decided_by": null,
-                    "expires_at": "2026-11-24T16:55:54Z",
+                    "expires_at": "2026-11-24T17:38:41Z",
                     "expires_in": 600,
                     "grant_ids": [
-                        "01a20e73-1c68-7207-a077-07c7aa478132",
-                        "01a20e73-1c68-73a9-99bc-3f7abe61e24e"
+                        "01a20e9a-46fc-7962-bac1-1ff067db3f32",
+                        "01a20e9a-46fc-7b1b-9461-50c1c9928697"
                     ],
                     "grants": [
                         {
-                            "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                            "approval_id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                            "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                            "approval_id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                             "approved_via": null,
                             "budget": null,
                             "capability": "members.list",
                             "constraints": {},
-                            "created_at": "2026-11-24T16:45:54Z",
+                            "created_at": "2026-11-24T17:28:41Z",
                             "expires_at": null,
                             "granted_by": null,
-                            "id": "01a20e73-1c68-7207-a077-07c7aa478132",
+                            "id": "01a20e9a-46fc-7962-bac1-1ff067db3f32",
                             "status": "pending",
-                            "updated_at": "2026-11-24T16:45:54Z"
+                            "updated_at": "2026-11-24T17:28:41Z"
                         },
                         {
-                            "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                            "approval_id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                            "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                            "approval_id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                             "approved_via": null,
                             "budget": null,
                             "capability": "org.rename",
@@ -444,30 +444,30 @@
                                     ]
                                 }
                             },
-                            "created_at": "2026-11-24T16:45:54Z",
+                            "created_at": "2026-11-24T17:28:41Z",
                             "expires_at": null,
                             "granted_by": null,
-                            "id": "01a20e73-1c68-73a9-99bc-3f7abe61e24e",
+                            "id": "01a20e9a-46fc-7b1b-9461-50c1c9928697",
                             "status": "pending",
-                            "updated_at": "2026-11-24T16:45:54Z"
+                            "updated_at": "2026-11-24T17:28:41Z"
                         }
                     ],
                     "host": {
-                        "id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
-                        "key_thumbprint": "xIVX2h-G7MyuEjDha6i2gDuaH_T8LZ9BgINW3eHqDOA",
+                        "id": "01a20e9a-46fc-75ef-962d-b20170688626",
+                        "key_thumbprint": "BoIphd6UAzJS_-FJcZqROUtRK5TRrcKZYJFQnvtI5qU",
                         "known": false,
                         "name": "Ada's laptop"
                     },
-                    "id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                    "id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                     "interval": 5,
                     "method": "device_authorization",
                     "reason": "to tidy up",
                     "status": "pending",
                     "strength": "step_up",
-                    "updated_at": "2026-11-24T16:45:54Z",
-                    "user_code": "QVPD-PFSF",
+                    "updated_at": "2026-11-24T17:28:41Z",
+                    "user_code": "NBHV-RSDN",
                     "verification_uri": "https://app.polaris.test/agents/approve",
-                    "verification_uri_complete": "https://app.polaris.test/agents/approve?user_code=QVPD-PFSF"
+                    "verification_uri_complete": "https://app.polaris.test/agents/approve?user_code=NBHV-RSDN"
                 }
             }
         }
@@ -475,10 +475,10 @@
     {
         "request": {
             "method": "POST",
-            "uri": "/agents/approvals/01a20e73-1c68-74da-8523-d4b709fd3be4/decide",
+            "uri": "/agents/approvals/01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79/decide",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM2NC03MTZmLWExZjItNDFmYzI0Y2RhMDVjIiwib3JnIjoiMDFhMjBlNzMtMWM2MS03MDYxLTg0ODYtM2M3NzgzNmYzMzI3Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlNzMtMWM1ZS03MzU3LWJkNDEtODNiMTBhYzhkMjIyIiwiYXV0aF90aW1lIjoxNzk1NTM4NzU0fQ.Ae0j5c_F0_LW0Z3IAfbfhX2-T3G9YFM9eRqayavBm1Cbk2nHNYJWH5IoX5wNDdqioPSJrK0jE45YuxD_I9zzpM6cffmJGumU52pRJ2CbDQbragvlgzgWjyP1qJWdwAdRDw1G_JCfaglOzKNPfUrQXsPovxfQB_XEVG5pmSYtoDmjEAhu7hMBNflFBLP_npJO-WazfvyMpiMaw1LCjuzZ9XFCpRsjhizZ4TSOXbfWCHk6mmcwNLJevRZ0KFO_hdhFCGZd4q4cQU5lpKLoowcpDp5M14xJAaKZH8Q0jIXV4bu8-QTiANWISbz-9QU0d6PmYO4UqjdG151_ztg_1DM4WQ"
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmOC03ZTMwLWE0NmYtNmZmNjk5ZWZlNDg4Iiwib3JnIjoiMDFhMjBlOWEtNDZmNi03MzhhLWFjZGUtMTg3NWYzNWFlODNjIiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlOWEtNDZmMy03NzI4LWE2NDQtMmI2ZDQxZmUwYTEyIiwiYXV0aF90aW1lIjoxNzk1NTQxMzIxfQ.P33-fpUZ4hW8PbjKR9ZfJdPJXu7LONL887Y-O6MEWX2_BMLbbXUnofWDugZJ_FbA9dKqh_dQnZs7bz8gFx5aN5g4JHyLeb2AqcKahJxOnMqeJubAyFuEktD3j38n7jDss3THANHuSXVBmRb_BBLbK_HqgFZa_RxC8jnrvDjNqX4Mov---M7571MN6YB2OZ5XzOyGbmp3uRtb9Nt9sAlaqTQ48IYenQj-kHj3MlXCX6wGUEimmtGusCXWumiLyJMg-TlnGs-7tzQ-YXyfSYZSH09d8XYa5POkwomgozupvGOKtRqkdc8cGuXdBg3A7WM0r4XoDXhKuPHY8EnA1uLX5A"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -501,38 +501,38 @@
                     "9"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795539000"
+                    "1795541400"
                 ]
             },
             "body": {
                 "data": {
-                    "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
+                    "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
                     "binding_message": "Tidy?",
-                    "created_at": "2026-11-24T16:45:54Z",
-                    "decided_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
-                    "expires_at": "2026-11-24T16:55:54Z",
+                    "created_at": "2026-11-24T17:28:41Z",
+                    "decided_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
+                    "expires_at": "2026-11-24T17:38:41Z",
                     "grant_ids": [
-                        "01a20e73-1c68-7207-a077-07c7aa478132",
-                        "01a20e73-1c68-73a9-99bc-3f7abe61e24e"
+                        "01a20e9a-46fc-7962-bac1-1ff067db3f32",
+                        "01a20e9a-46fc-7b1b-9461-50c1c9928697"
                     ],
                     "grants": [
                         {
-                            "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                            "approval_id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                            "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                            "approval_id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                             "approved_via": "device_authorization",
                             "budget": null,
                             "capability": "members.list",
                             "constraints": {},
-                            "created_at": "2026-11-24T16:45:54Z",
+                            "created_at": "2026-11-24T17:28:41Z",
                             "expires_at": null,
-                            "granted_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
-                            "id": "01a20e73-1c68-7207-a077-07c7aa478132",
+                            "granted_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
+                            "id": "01a20e9a-46fc-7962-bac1-1ff067db3f32",
                             "status": "active",
-                            "updated_at": "2026-11-24T16:45:54Z"
+                            "updated_at": "2026-11-24T17:28:41Z"
                         },
                         {
-                            "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                            "approval_id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                            "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                            "approval_id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                             "approved_via": "device_authorization",
                             "budget": null,
                             "capability": "org.rename",
@@ -543,20 +543,20 @@
                                     ]
                                 }
                             },
-                            "created_at": "2026-11-24T16:45:54Z",
+                            "created_at": "2026-11-24T17:28:41Z",
                             "expires_at": null,
-                            "granted_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
-                            "id": "01a20e73-1c68-73a9-99bc-3f7abe61e24e",
+                            "granted_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
+                            "id": "01a20e9a-46fc-7b1b-9461-50c1c9928697",
                             "status": "active",
-                            "updated_at": "2026-11-24T16:45:54Z"
+                            "updated_at": "2026-11-24T17:28:41Z"
                         }
                     ],
-                    "id": "01a20e73-1c68-74da-8523-d4b709fd3be4",
+                    "id": "01a20e9a-46fc-7c6b-a5e3-f7bb27b25d79",
                     "method": "device_authorization",
                     "status": "approved",
                     "strength": "step_up",
-                    "updated_at": "2026-11-24T16:45:54Z",
-                    "user_code": "QVPDPFSF"
+                    "updated_at": "2026-11-24T17:28:41Z",
+                    "user_code": "NBHVRSDN"
                 }
             }
         }
@@ -564,10 +564,10 @@
     {
         "request": {
             "method": "GET",
-            "uri": "/agent/status?agent_id=01a20e73-1c67-7cec-9640-fdab548687ba",
+            "uri": "/agent/status?agent_id=01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6InhJVlgyaC1HN015dUVqRGhhNmkyZ0R1YUhfVDhMWjlCZ0lOVzNlSHFET0EiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTM4ODE0LCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJVa3YwaGZObVA4T0duRm4xQXQxN2NWa1FzbmdzZDVWVy15RWVQYWZudWpRIn0sImlhdCI6MTc5NTUzODc1NCwiaXNzIjoieElWWDJoLUc3TXl1RWpEaGE2aTJnRHVhSF9UOExaOUJnSU5XM2VIcURPQSIsImp0aSI6IklmTjM2WXlfRVhRbnE4Q3dhc0hhYUEiLCJzdWIiOiJ4SVZYMmgtRzdNeXVFakRoYTZpMmdEdWFIX1Q4TFo5QmdJTlczZUhxRE9BIn0.P9DxWt0co9LUGDfksqA1s1CIdQqyOhFQ-tnrkEDMh6zh9x7iU8cf4RP1aDLLfqnV5rocRwEFtX8IcucwC7ofCA"
+                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6IkJvSXBoZDZVQXpKU18tRkpjWnFST1V0Uks1VFJyY0taWUpGUW52dEk1cVUiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTQxMzgxLCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJHWWgwcl80VnRXUHhLdU1IaElMdUZJZEoxeHI4NEFpVWlJaU1ZTlg2S3JvIn0sImlhdCI6MTc5NTU0MTMyMSwiaXNzIjoiQm9JcGhkNlVBekpTXy1GSmNacVJPVXRSSzVUUnJjS1pZSkZRbnZ0STVxVSIsImp0aSI6Ilh3RktfM3Z2UXlvRVJxV1MyeTFlU2ciLCJzdWIiOiJCb0lwaGQ2VUF6SlNfLUZKY1pxUk9VdFJLNVRScmNLWllKRlFudnRJNXFVIn0.LVcj2lhygjkd1suwsyuDibDfBqW-WTEfnc1HBa5mvmF9FxrXh-s4LZO9NvR9JRyG_gFIPzZadf296Nt403aKAQ"
                 ]
             },
             "body": ""
@@ -583,11 +583,12 @@
                 ]
             },
             "body": {
+                "activated_at": "2026-11-24T17:28:41Z",
                 "agent_capability_grants": [
                     {
                         "capability": "members.list",
                         "description": "Count the members",
-                        "granted_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
+                        "granted_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
                         "input": {
                             "additionalProperties": false,
                             "properties": {},
@@ -606,7 +607,7 @@
                             }
                         },
                         "description": "Rename the organization",
-                        "granted_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
+                        "granted_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
                         "input": {
                             "additionalProperties": false,
                             "properties": {
@@ -622,13 +623,13 @@
                         "status": "active"
                     }
                 ],
-                "agent_id": "01a20e73-1c67-7cec-9640-fdab548687ba",
-                "created_at": "2026-11-24T16:45:54Z",
-                "host_id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
+                "agent_id": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
+                "created_at": "2026-11-24T17:28:41Z",
+                "host_id": "01a20e9a-46fc-75ef-962d-b20170688626",
                 "mode": "delegated",
                 "name": "Reader",
                 "status": "active",
-                "user_id": "01a20e73-1c5b-71f7-adea-3e10c3438039"
+                "user_id": "01a20e9a-46f0-7140-89b6-8b100789df56"
             }
         }
     },
@@ -638,7 +639,7 @@
             "uri": "/capability/execute",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTUzODg3NCwiaWF0IjoxNzk1NTM4NzU0LCJqdGkiOiJvZFI5WWFZMldkakQwY3UtZ2hyVnB3Iiwic3ViIjoiMDFhMjBlNzMtMWM2Ny03Y2VjLTk2NDAtZmRhYjU0ODY4N2JhIn0.ASWlR2B8vQ0dp_WSXhJyED-73deQQK6001zjW2MIbsDlT5KgyHvTk4ie-ppLVmcOBcb4b5NABCViqzj-rZrFAg"
+                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTU0MTQ0MSwiaWF0IjoxNzk1NTQxMzIxLCJqdGkiOiJvQ2g2UTFnUXlXMHhzQjRyQ25DcHhBIiwic3ViIjoiMDFhMjBlOWEtNDZmYy03NWViLTg0ZDctMTIyMmQ4ZTU1Y2E0In0.bjWBSp7rF7M3OQGT2TJI4fTZITh5TcbWdaHXpL8CNSjz34CMF6PI0E-pk5DB1H9EQvAwjfIGgz4zx2oqJLa9Bw"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -659,12 +660,12 @@
                     "application/json"
                 ],
                 "X-Polaris-Receipt": [
-                    "01a20e73-1c6f-72a7-a665-5eeee8c7fdd7"
+                    "01a20e9a-4703-74c2-97b6-7ec43a2eaa54"
                 ]
             },
             "body": {
                 "data": {
-                    "agent": "01a20e73-1c67-7cec-9640-fdab548687ba",
+                    "agent": "01a20e9a-46fc-75eb-84d7-1222d8e55ca4",
                     "members": 1
                 }
             }
@@ -676,7 +677,7 @@
             "uri": "/capability/execute",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTUzODg3NCwiaWF0IjoxNzk1NTM4NzU0LCJqdGkiOiJ2bTBKbWNSSDl3V0YxcTNFVVlMaUN3Iiwic3ViIjoiMDFhMjBlNzMtMWM2Ny03Y2VjLTk2NDAtZmRhYjU0ODY4N2JhIn0.0MdSAHzWeIX8vQK1WJAjb7WmAG2LokfXEvjySEhf3j0M6afQXSNEL2vavzaa2CsRKUDJoa4p0Zx9y935d2K2CA"
+                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0L2NhcGFiaWxpdHkvZXhlY3V0ZSIsImV4cCI6MTc5NTU0MTQ0MSwiaWF0IjoxNzk1NTQxMzIxLCJqdGkiOiJ5QTJURlRLaXhhWUVCSXV0M0RGdzhBIiwic3ViIjoiMDFhMjBlOWEtNDZmYy03NWViLTg0ZDctMTIyMmQ4ZTU1Y2E0In0.fsRlW4kLvWoWf5BAzfd6GCbblGZdYqN0_c7Qi3N8_VGAE8c78F3xUZZ8xlIuUHBv9GhqSirysQ65adpDlbz3CA"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -726,7 +727,7 @@
             "uri": "/agents/hosts",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Inl0cWhOVlBnelNwNUI0QUJuY2ZJNXRyNFdwUkZJTW1yOG9jdTBEb21PUTAifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTM4NzU0LCJuYmYiOjE3OTU1Mzg3NTQsImV4cCI6MTc5NTUzOTY1NCwic3ViIjoiMDFhMjBlNzMtMWM1Yi03MWY3LWFkZWEtM2UxMGMzNDM4MDM5IiwianRpIjoiMDFhMjBlNzMtMWM2NC03MTZmLWExZjItNDFmYzI0Y2RhMDVjIiwib3JnIjoiMDFhMjBlNzMtMWM2MS03MDYxLTg0ODYtM2M3NzgzNmYzMzI3Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlNzMtMWM1ZS03MzU3LWJkNDEtODNiMTBhYzhkMjIyIiwiYXV0aF90aW1lIjoxNzk1NTM4NzU0fQ.Ae0j5c_F0_LW0Z3IAfbfhX2-T3G9YFM9eRqayavBm1Cbk2nHNYJWH5IoX5wNDdqioPSJrK0jE45YuxD_I9zzpM6cffmJGumU52pRJ2CbDQbragvlgzgWjyP1qJWdwAdRDw1G_JCfaglOzKNPfUrQXsPovxfQB_XEVG5pmSYtoDmjEAhu7hMBNflFBLP_npJO-WazfvyMpiMaw1LCjuzZ9XFCpRsjhizZ4TSOXbfWCHk6mmcwNLJevRZ0KFO_hdhFCGZd4q4cQU5lpKLoowcpDp5M14xJAaKZH8Q0jIXV4bu8-QTiANWISbz-9QU0d6PmYO4UqjdG151_ztg_1DM4WQ"
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IkFXUVZqYVNlQVBya21FaWZuZkprRC0tam9XcjhQTElILWNEZWFsSVhTaTgifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTQxMzIxLCJuYmYiOjE3OTU1NDEzMjEsImV4cCI6MTc5NTU0MjIyMSwic3ViIjoiMDFhMjBlOWEtNDZmMC03MTQwLTg5YjYtOGIxMDA3ODlkZjU2IiwianRpIjoiMDFhMjBlOWEtNDZmOC03ZTMwLWE0NmYtNmZmNjk5ZWZlNDg4Iiwib3JnIjoiMDFhMjBlOWEtNDZmNi03MzhhLWFjZGUtMTg3NWYzNWFlODNjIiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBlOWEtNDZmMy03NzI4LWE2NDQtMmI2ZDQxZmUwYTEyIiwiYXV0aF90aW1lIjoxNzk1NTQxMzIxfQ.P33-fpUZ4hW8PbjKR9ZfJdPJXu7LONL887Y-O6MEWX2_BMLbbXUnofWDugZJ_FbA9dKqh_dQnZs7bz8gFx5aN5g4JHyLeb2AqcKahJxOnMqeJubAyFuEktD3j38n7jDss3THANHuSXVBmRb_BBLbK_HqgFZa_RxC8jnrvDjNqX4Mov---M7571MN6YB2OZ5XzOyGbmp3uRtb9Nt9sAlaqTQ48IYenQj-kHj3MlXCX6wGUEimmtGusCXWumiLyJMg-TlnGs-7tzQ-YXyfSYZSH09d8XYa5POkwomgozupvGOKtRqkdc8cGuXdBg3A7WM0r4XoDXhKuPHY8EnA1uLX5A"
                 ]
             },
             "body": ""
@@ -744,29 +745,29 @@
                     "595"
                 ],
                 "X-Ratelimit-Reset": [
-                    "1795538760"
+                    "1795541340"
                 ]
             },
             "body": {
                 "data": [
                     {
-                        "created_at": "2026-11-24T16:45:54Z",
-                        "created_by": "01a20e73-1c5b-71f7-adea-3e10c3438039",
+                        "created_at": "2026-11-24T17:28:41Z",
+                        "created_by": "01a20e9a-46f0-7140-89b6-8b100789df56",
                         "default_capabilities": [],
-                        "id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
+                        "id": "01a20e9a-46fc-75ef-962d-b20170688626",
                         "jwks_url": null,
-                        "key_thumbprint": "xIVX2h-G7MyuEjDha6i2gDuaH_T8LZ9BgINW3eHqDOA",
+                        "key_thumbprint": "BoIphd6UAzJS_-FJcZqROUtRK5TRrcKZYJFQnvtI5qU",
                         "name": "Ada's laptop",
-                        "organization_id": "01a20e73-1c61-7061-8486-3c77836f3327",
-                        "owner_id": "01a20e73-1c5b-71f7-adea-3e10c3438039",
+                        "organization_id": "01a20e9a-46f6-738a-acde-1875f35ae83c",
+                        "owner_id": "01a20e9a-46f0-7140-89b6-8b100789df56",
                         "owner_type": "user",
                         "public_jwk": {
                             "alg": "EdDSA",
                             "crv": "Ed25519",
-                            "kid": "xIVX2h-G7MyuEjDha6i2gDuaH_T8LZ9BgINW3eHqDOA",
+                            "kid": "BoIphd6UAzJS_-FJcZqROUtRK5TRrcKZYJFQnvtI5qU",
                             "kty": "OKP",
                             "use": "sig",
-                            "x": "Ukv0hfNmP8OGnFn1At17cVkQsngsd5VW-yEePafnujQ"
+                            "x": "GYh0r_4VtWPxKuMHhILuFIdJ1xr84AiUiIiMYNX6Kro"
                         },
                         "revoked_at": null
                     }
@@ -780,7 +781,7 @@
             "uri": "/agent/register",
             "headers": {
                 "Authorization": [
-                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6InhJVlgyaC1HN015dUVqRGhhNmkyZ0R1YUhfVDhMWjlCZ0lOVzNlSHFET0EiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhZ2VudF9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiaUtBQW4tTG5SZ2ZIOF9nMTZPbGdhNGxBTUt5NHdrb1J3V1kwcTNhZGlhOCJ9LCJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTM4ODE0LCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJVa3YwaGZObVA4T0duRm4xQXQxN2NWa1FzbmdzZDVWVy15RWVQYWZudWpRIn0sImlhdCI6MTc5NTUzODc1NCwiaXNzIjoieElWWDJoLUc3TXl1RWpEaGE2aTJnRHVhSF9UOExaOUJnSU5XM2VIcURPQSIsImp0aSI6Im8wbnNjSmxTbEhmYmZWVXZjZGlreVEiLCJzdWIiOiJ4SVZYMmgtRzdNeXVFakRoYTZpMmdEdWFIX1Q4TFo5QmdJTlczZUhxRE9BIn0.K0Zo64JPcn8SZGzub0s1hHoYsFE2jYAEApeATrkBPHMYCrlJEii4SEcPO698RDTc79csEEHJyLIop-wTJcRMCQ"
+                    "Bearer eyJhbGciOiJFZERTQSIsImtpZCI6IkJvSXBoZDZVQXpKU18tRkpjWnFST1V0Uks1VFJyY0taWUpGUW52dEk1cVUiLCJ0eXAiOiJob3N0K2p3dCJ9.eyJhZ2VudF9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiUkZaZThfOE5XbFRGSjI5WjBUbEtPZEFqdi1Tb3loN0JGRi1EQS1hYXp6cyJ9LCJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTQxMzgxLCJob3N0X3B1YmxpY19rZXkiOnsiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJHWWgwcl80VnRXUHhLdU1IaElMdUZJZEoxeHI4NEFpVWlJaU1ZTlg2S3JvIn0sImlhdCI6MTc5NTU0MTMyMSwiaXNzIjoiQm9JcGhkNlVBekpTXy1GSmNacVJPVXRSSzVUUnJjS1pZSkZRbnZ0STVxVSIsImp0aSI6ImxlVkdGWE9mZ2VoWXdOdFNFRnpRSnciLCJzdWIiOiJCb0lwaGQ2VUF6SlNfLUZKY1pxUk9VdFJLNVRScmNLWllKRlFudnRJNXFVIn0.Qt4hC3G4NRM-eHDRCoIOtgVFcNXNXsT-yocayfvr1U6zRGDPY5tXqTFQjIx5piwS06Jn2eoSXGRr8jjzWgXsDQ"
                 ],
                 "Content-Type": [
                     "application/json"
@@ -825,8 +826,8 @@
                         "status": "active"
                     }
                 ],
-                "agent_id": "01a20e73-1c72-7d94-96c8-f1f0b8f78836",
-                "host_id": "01a20e73-1c67-7cf0-abb0-690d9c6cc0ac",
+                "agent_id": "01a20e9a-4706-7d98-a6fa-5d03ce2d3cb6",
+                "host_id": "01a20e9a-46fc-75ef-962d-b20170688626",
                 "mode": "delegated",
                 "name": "Reader",
                 "status": "active"

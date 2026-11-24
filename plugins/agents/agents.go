@@ -109,6 +109,9 @@ func (s *service) createAgent(ctx context.Context, fields map[string]any, owner 
 	}
 	agent.CreatedAt = s.now()
 	agent.UpdatedAt = agent.CreatedAt
+	if agent.ofHostJWT() {
+		agent.ActivatedAt = &agent.UpdatedAt
+	}
 	create := s.oauth.CreateClient
 	if agent.ID != "" { // a registration's, announced before it
 		create = func(ctx context.Context, fields oauth.ClientFields, org, by string, mayTrust bool) (oauth.IssuedClient, error) {
@@ -167,7 +170,7 @@ func (s *service) agent(ctx context.Context, id string) (Agent, bool, error) {
 	if err != nil || row == nil {
 		return Agent{}, false, err
 	}
-	return agentFromRow(row), true, nil
+	return s.loaded(row), true, nil
 }
 
 func (s *service) agentsWhere(ctx context.Context, c store.Criteria) ([]Agent, error) {
@@ -177,7 +180,7 @@ func (s *service) agentsWhere(ctx context.Context, c store.Criteria) ([]Agent, e
 	}
 	out := make([]Agent, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, agentFromRow(r))
+		out = append(out, s.loaded(r))
 	}
 	return out, nil
 }

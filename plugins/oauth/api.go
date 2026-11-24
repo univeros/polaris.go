@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -22,6 +23,20 @@ func (p *Plugin) Client(ctx context.Context, clientID string) (Client, error) {
 	}
 	if c == nil {
 		return Client{}, ErrClientNotFound
+	}
+	return *c, nil
+}
+
+// AuthenticateTrusted is the client the request authenticates as, when an operator trusted it: a resource
+// server that may read other clients' tokens. It is for another plugin's route (path, under the mount) that
+// asks the same of its caller as POST /oauth2/introspect. Any other caller is an error.
+func (p *Plugin) AuthenticateTrusted(ctx context.Context, in *endpoint.Input, path string) (Client, error) {
+	c, err := p.authenticated(ctx, in, path)
+	if err != nil {
+		return Client{}, err
+	}
+	if c.TokenEndpointAuthMethod == AuthNone || !p.settings.trusts(*c) {
+		return Client{}, unauthorizedClient("The client is not a trusted one.")
 	}
 	return *c, nil
 }

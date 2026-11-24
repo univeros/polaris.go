@@ -64,6 +64,8 @@ func assertActive(a Agent) error {
 		code = ErrAgentPending
 	case StatusRejected:
 		code = ErrAgentRejected
+	case StatusExpired:
+		code = ErrAgentExpired
 	}
 	return &Error{Type: ErrAgentInactive, Detail: "The agent is " + a.Status + ".", Code: code}
 }
@@ -152,7 +154,7 @@ func (s *service) signedBy(a Agent, jwts *requestJWTs, r *http.Request, raw stri
 	if located, ambiguous := s.caps.at(r, url); len(caps) > 1 && (located != nil || ambiguous) {
 		return principal{}, refuse(ErrAudMismatch, "A JWT listing several capabilities cannot use a capability location as its aud.")
 	}
-	return principal{agent: a, via: ViaJWT, capabilities: caps}, nil
+	return principal{agent: a, via: ViaJWT, capabilities: caps}, s.used(ctx, a)
 }
 
 // fromToken is the agent behind a principal a bearer resolver built (an OAuth access token whose
@@ -175,7 +177,7 @@ func (s *service) fromToken(ctx context.Context, tok *token.Token) (*principal, 
 	if sub := tok.Subject(); sub != a.ID && sub != a.Subject() {
 		return nil, invalidJWT("The token's subject is neither the agent nor the user the agent acts for.")
 	}
-	return &principal{agent: a, via: ViaOAuth, delegated: append([]string{}, delegated...)}, nil
+	return &principal{agent: a, via: ViaOAuth, delegated: append([]string{}, delegated...)}, s.used(ctx, a)
 }
 
 // agentPrincipal is an agent's token as the rest of the pipeline sees it: delegated to the token's

@@ -1,0 +1,35 @@
+# POST /agent/introspect: the Agent Auth Protocol's token introspection (§5.12).
+endpoint:
+  method: POST
+  path: /agent/introspect
+  summary: Introspect an agent's JWT (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the caller authenticates itself: an OAuth client an operator trusted
+  effect: read
+  receipt: false
+
+input:
+  source: body
+  fields:
+    token: { type: string, rules: [optional] }
+    client_id: { type: "?string", rules: [optional] }
+    client_secret: { type: "?string", rules: [optional], sensitive: true }
+    client_assertion: { type: "?string", rules: [optional], sensitive: true }
+    client_assertion_type: { type: "?string", rules: [optional] }
+
+domain:
+  description: >
+    Whether an agent's JWT is live, for a resource server: an OAuth client that authenticates (as at
+    POST /oauth2/token) and that an operator marked trusted or TrustedClients names. The JWT must be made for
+    this server's issuer, its execute route or a capability's location; aud says which, and the caller
+    compares it with its own. It is not spent: the caller takes its jti once. Anything else is active false.
+
+output:
+  status: 200
+  example: { active: true, agent_id: "018f...", host_id: "018f...", user_id: "018f...", agent_capability_grants: [{ capability: "deploy.staging", status: active }], mode: delegated, aud: "https://app.example.com/api/deploy", expires_at: "2026-10-11T10:30:00Z" }
+
+errors:
+  - { status: 401, code: unauthorized }
+  - { status: 429, code: rate_limited }
+
+events: []

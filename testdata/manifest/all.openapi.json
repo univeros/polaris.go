@@ -28132,7 +28132,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_expired | agent_rejected | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28290,7 +28290,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_expired | agent_rejected | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28596,7 +28596,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked | capability_not_granted | constraint_violated | limit_exceeded",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_expired | agent_rejected | host_revoked | capability_not_granted | constraint_violated | limit_exceeded",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28607,6 +28607,547 @@
                     },
                     "404": {
                         "description": "capability_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/host/revoke": {
+            "post": {
+                "operationId": "polaris.agents.protocol.host-revoke",
+                "summary": "Revoke a host (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "destructive",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "agents_revoked": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "host_id",
+                                        "status",
+                                        "agents_revoked"
+                                    ]
+                                },
+                                "example": {
+                                    "host_id": "018f...",
+                                    "status": "revoked",
+                                    "agents_revoked": 3
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/host/rotate-key": {
+            "post": {
+                "operationId": "polaris.agents.protocol.host-rotate-key",
+                "summary": "Replace a host's key (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "public_key": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "proof": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "public_key"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "host_id",
+                                        "status"
+                                    ]
+                                },
+                                "example": {
+                                    "host_id": "018f...",
+                                    "status": "active"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request | unsupported_algorithm",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "agents_conflict",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/introspect": {
+            "post": {
+                "operationId": "polaris.agents.protocol.introspect",
+                "summary": "Introspect an agent's JWT (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "agents",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "token": {
+                                        "type": "string"
+                                    },
+                                    "client_id": {
+                                        "type": "string"
+                                    },
+                                    "client_secret": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "x-polaris-sensitive": true
+                                    },
+                                    "client_assertion": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "x-polaris-sensitive": true
+                                    },
+                                    "client_assertion_type": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "active": {
+                                            "type": "boolean"
+                                        },
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "user_id": {
+                                            "type": "string"
+                                        },
+                                        "agent_capability_grants": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "capability": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "capability",
+                                                    "status"
+                                                ]
+                                            }
+                                        },
+                                        "mode": {
+                                            "type": "string"
+                                        },
+                                        "aud": {
+                                            "type": "string"
+                                        },
+                                        "expires_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "active",
+                                        "agent_id",
+                                        "host_id",
+                                        "user_id",
+                                        "agent_capability_grants",
+                                        "mode",
+                                        "aud",
+                                        "expires_at"
+                                    ]
+                                },
+                                "example": {
+                                    "active": true,
+                                    "agent_id": "018f...",
+                                    "host_id": "018f...",
+                                    "user_id": "018f...",
+                                    "agent_capability_grants": [
+                                        {
+                                            "capability": "deploy.staging",
+                                            "status": "active"
+                                        }
+                                    ],
+                                    "mode": "delegated",
+                                    "aud": "https://app.example.com/api/deploy",
+                                    "expires_at": "2026-10-11T10:30:00Z"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/reactivate": {
+            "post": {
+                "operationId": "polaris.agents.protocol.reactivate",
+                "summary": "Reactivate an agent (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "agent_id"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "mode": {
+                                            "type": "string"
+                                        },
+                                        "agent_capability_grants": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "capability": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "input": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "type": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "type"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "capability",
+                                                    "status",
+                                                    "description",
+                                                    "input"
+                                                ]
+                                            }
+                                        },
+                                        "user_id": {
+                                            "type": "string"
+                                        },
+                                        "created_at": {
+                                            "type": "string"
+                                        },
+                                        "activated_at": {
+                                            "type": "string"
+                                        },
+                                        "last_used_at": {
+                                            "type": "string"
+                                        },
+                                        "expires_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "host_id",
+                                        "name",
+                                        "status",
+                                        "mode",
+                                        "agent_capability_grants",
+                                        "user_id",
+                                        "created_at",
+                                        "activated_at",
+                                        "last_used_at",
+                                        "expires_at"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "host_id": "018f...",
+                                    "name": "Claude Code",
+                                    "status": "active",
+                                    "mode": "delegated",
+                                    "agent_capability_grants": [
+                                        {
+                                            "capability": "deploy.staging",
+                                            "status": "active",
+                                            "description": "Deploy a build to staging",
+                                            "input": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    ],
+                                    "user_id": "018f...",
+                                    "created_at": "2026-10-10T10:00:00Z",
+                                    "activated_at": "2026-10-11T10:00:00Z",
+                                    "last_used_at": "2026-10-11T10:00:00Z",
+                                    "expires_at": "2026-10-11T10:30:00Z"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked | agent_revoked | agent_pending | agent_rejected | absolute_lifetime_exceeded",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "agent_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "agents_conflict",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -29036,7 +29577,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_expired | agent_rejected | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -29047,6 +29588,237 @@
                     },
                     "409": {
                         "description": "already_granted | agents_conflict",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/revoke": {
+            "post": {
+                "operationId": "polaris.agents.protocol.revoke",
+                "summary": "Revoke an agent (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "destructive",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "agent_id"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "status"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "status": "revoked"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked | agent_rejected",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "agent_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/rotate-key": {
+            "post": {
+                "operationId": "polaris.agents.protocol.rotate-key",
+                "summary": "Replace an agent's key (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {
+                                        "type": "string"
+                                    },
+                                    "public_key": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "required": [
+                                    "agent_id",
+                                    "public_key"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "status"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "status": "active"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request | unsupported_algorithm",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked | agent_revoked | agent_pending | agent_expired | agent_rejected",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "agent_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "agent_exists | agents_conflict",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -29176,6 +29948,15 @@
                                         },
                                         "created_at": {
                                             "type": "string"
+                                        },
+                                        "activated_at": {
+                                            "type": "string"
+                                        },
+                                        "last_used_at": {
+                                            "type": "string"
+                                        },
+                                        "expires_at": {
+                                            "type": "string"
                                         }
                                     },
                                     "required": [
@@ -29186,7 +29967,10 @@
                                         "mode",
                                         "agent_capability_grants",
                                         "user_id",
-                                        "created_at"
+                                        "created_at",
+                                        "activated_at",
+                                        "last_used_at",
+                                        "expires_at"
                                     ]
                                 },
                                 "example": {
@@ -29219,7 +30003,10 @@
                                         }
                                     ],
                                     "user_id": "018f...",
-                                    "created_at": "2026-10-10T10:00:00Z"
+                                    "created_at": "2026-10-10T10:00:00Z",
+                                    "activated_at": "2026-10-10T10:00:00Z",
+                                    "last_used_at": "2026-10-10T10:20:00Z",
+                                    "expires_at": "2026-10-10T10:50:00Z"
                                 }
                             }
                         }

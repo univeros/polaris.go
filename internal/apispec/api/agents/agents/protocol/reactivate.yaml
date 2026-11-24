@@ -1,0 +1,51 @@
+# POST /agent/reactivate: the Agent Auth Protocol's agent reactivation (§5.6).
+endpoint:
+  method: POST
+  path: /agent/reactivate
+  summary: Reactivate an agent (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
+  effect: write
+  receipt: true
+
+input:
+  source: body
+  fields:
+    agent_id: { type: string, rules: [required] }
+
+domain:
+  description: >
+    An expired agent of the calling host becomes active with new session and maximum clocks (Config.Lifetimes),
+    its grants ended and the host's default capabilities asked again by the policy. When a person must
+    approve all of them it is pending with an approval, the same one when asked again; denied, it is expired
+    as it was. An active agent is answered as it is. The absolute clock is never reset: past it the agent is
+    revoked. A suspended one is its owner's to resume.
+
+output:
+  status: 200
+  example:
+    agent_id: "018f..."
+    host_id: "018f..."
+    name: "Claude Code"
+    status: active
+    mode: delegated
+    agent_capability_grants: [{ capability: "deploy.staging", status: active, description: "Deploy a build to staging", input: { type: object } }]
+    user_id: "018f..."
+    created_at: "2026-10-10T10:00:00Z"
+    activated_at: "2026-10-11T10:00:00Z"
+    last_used_at: "2026-10-11T10:00:00Z"
+    expires_at: "2026-10-11T10:30:00Z"
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: host_revoked }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_rejected }
+  - { status: 403, code: absolute_lifetime_exceeded }
+  - { status: 404, code: agent_not_found }
+  - { status: 409, code: agents_conflict }
+  - { status: 429, code: rate_limited }
+
+events: [agent.reactivated, agent.grant.requested, agent.grant.approved, agent.revoked, agent.receipt.sealed]

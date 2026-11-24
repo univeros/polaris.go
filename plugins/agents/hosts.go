@@ -127,10 +127,11 @@ func (s *service) liveHosts(ctx context.Context, c store.Criteria) ([]Host, erro
 }
 
 // revokeHosts revokes the live hosts the criteria select (a conditional update: once), and with a
-// host that has a key every agent under it (§2.11, §8.5). The agents a token enrolled stay, as their
-// own credentials do.
-func (s *service) revokeHosts(ctx context.Context, c store.Criteria) error {
-	return s.db.Tx(ctx, func(ctx context.Context) error {
+// host that has a key every agent under it (§2.11, §8.5), which it counts. The agents a token enrolled
+// stay, as their own credentials do.
+func (s *service) revokeHosts(ctx context.Context, c store.Criteria) (int, error) {
+	revoked := 0
+	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		live := maps.Clone(c)
 		live["revoked_at"] = nil
 		// The first statement: it waits for a registration in flight, which holds the host's row
@@ -157,11 +158,14 @@ func (s *service) revokeHosts(ctx context.Context, c store.Criteria) error {
 					if e, ok := asError(err); !ok || e.Type != ErrConflict { // revoked meanwhile
 						return err
 					}
+					continue
 				}
+				revoked++
 			}
 		}
 		return nil
 	})
+	return revoked, err
 }
 
 // lockHost serializes a registration with the host's revocation: it takes the live host's row lock, as

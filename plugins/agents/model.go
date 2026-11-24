@@ -24,6 +24,7 @@ const (
 	StatusSuspended = "suspended"
 	StatusRevoked   = "revoked"
 	// A registration through the Agent Auth Protocol that a person must approve, and one denied.
+	StatusExpired  = "expired" // past its lifetimes (Lifetimes); computed, never stored
 	StatusPending  = "pending"
 	StatusRejected = "rejected"
 )
@@ -160,6 +161,8 @@ type Agent struct {
 	SealedAt       *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	ActivatedAt    *time.Time // when an agent a host's JWT registered was last activated; nil before
+	LastUsedAt     *time.Time // its last request, to the minute; nil for other agents
 
 	keyThumbprint string // of its key, when a host's JWT registered it: such a key is one agent of its host
 }
@@ -202,6 +205,7 @@ func (a Agent) row() store.Row {
 		"name": a.Name, "mode": a.Mode, "host_id": null(a.HostID), "auth": a.Auth, "public_jwk": jwk,
 		"status": a.Status, "created_by": a.CreatedBy, "sealed_at": store.Nullable(a.SealedAt),
 		"created_at": a.CreatedAt, "updated_at": a.UpdatedAt, "key_thumbprint": null(a.keyThumbprint),
+		"activated_at": store.Nullable(a.ActivatedAt), "last_used_at": store.Nullable(a.LastUsedAt),
 	}
 }
 
@@ -212,6 +216,7 @@ func agentFromRow(r store.Row) Agent {
 		HostID: r.String("host_id"), Auth: r.String("auth"), Status: r.String("status"),
 		CreatedBy: r.String("created_by"), SealedAt: r.TimePtr("sealed_at"),
 		CreatedAt: rowTime(r, "created_at"), UpdatedAt: rowTime(r, "updated_at"), keyThumbprint: r.String("key_thumbprint"),
+		ActivatedAt: r.TimePtr("activated_at"), LastUsedAt: r.TimePtr("last_used_at"),
 	}
 	if jwk, ok := rowJSON(r, "public_jwk").(map[string]any); ok {
 		a.PublicJWK = jwk
@@ -235,7 +240,8 @@ type Host struct {
 	JWKSURL             string         // where the host publishes its keys; "" unless it does
 	KeyThumbprint       string         // RFC 7638, of the key it signs with; "" before a JWKS host's first call
 
-	tokenHash string
+	tokenHash         string
+	claimedThumbprint string // of the key it was rotated to, until that key's holder shows it knows the host
 }
 
 // hasKey reports whether the host signs with a key of its own.
@@ -266,6 +272,7 @@ func (h Host) row() store.Row {
 		"name": h.Name, "enrollment_token_hash": h.tokenHash, "default_capabilities": jsonColumn(h.DefaultCapabilities),
 		"created_by": h.CreatedBy, "revoked_at": store.Nullable(h.RevokedAt), "created_at": h.CreatedAt,
 		"public_jwk": jwk, "jwks_url": null(h.JWKSURL), "key_thumbprint": null(h.KeyThumbprint),
+		"claimed_thumbprint": null(h.claimedThumbprint),
 	}
 }
 
@@ -275,7 +282,7 @@ func hostFromRow(r store.Row) Host {
 		OrganizationID: r.String("organization_id"), Name: r.String("name"),
 		DefaultCapabilities: strings_(rowJSON(r, "default_capabilities")), CreatedBy: r.String("created_by"),
 		RevokedAt: r.TimePtr("revoked_at"), CreatedAt: rowTime(r, "created_at"), tokenHash: r.String("enrollment_token_hash"),
-		JWKSURL: r.String("jwks_url"), KeyThumbprint: r.String("key_thumbprint"),
+		JWKSURL: r.String("jwks_url"), KeyThumbprint: r.String("key_thumbprint"), claimedThumbprint: r.String("claimed_thumbprint"),
 	}
 	if jwk, ok := rowJSON(r, "public_jwk").(map[string]any); ok {
 		h.PublicJWK = jwk
