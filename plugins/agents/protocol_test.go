@@ -248,8 +248,8 @@ func TestSection5_1TheAgentAuthDocument(t *testing.T) {
 		srv, p := bootDiscovery(t, agents.DiscoveryAgentAuth, capabilities(), issuer, prefix)
 		w := fetch(srv.Handler(), prefix+"/.well-known/agent-configuration")
 		want := `{"algorithms":["Ed25519"],"approval_methods":["device_authorization","ciba"],"default_location":"` + issuer + `/capability/execute",` +
-			`"description":"Polaris for Go agent provider","endpoints":{"capabilities":"/capability/list","describe_capability":"/capability/describe","execute":"/capability/execute",` +
-			`"register":"/agent/register","request_capability":"/agent/request-capability","status":"/agent/status"},"issuer":"` + issuer + `",` +
+			`"description":"Polaris for Go agent provider","endpoints":{"capabilities":"/capability/list","describe_capability":"/capability/describe","execute":"/capability/execute","introspect":"/agent/introspect","reactivate":"/agent/reactivate",` +
+			`"register":"/agent/register","request_capability":"/agent/request-capability","revoke":"/agent/revoke","revoke_host":"/host/revoke","rotate_host_key":"/host/rotate-key","rotate_key":"/agent/rotate-key","status":"/agent/status"},"issuer":"` + issuer + `",` +
 			`"jwks_uri":"` + issuer + `/auth/.well-known/jwks.json","modes":["delegated","autonomous"],"provider_name":"Polaris","version":"1.0-draft"}`
 		if w.Code != 200 || w.Body.String() != want || w.Header().Get("Cache-Control") != "public, max-age=3600" {
 			t.Errorf("mounted at %q: %d %v %s", prefix, w.Code, w.Header(), w.Body)

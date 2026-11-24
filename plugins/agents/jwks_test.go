@@ -172,6 +172,36 @@ func TestAHostsURLIsProven(t *testing.T) {
 	}
 }
 
+// A host that rotates to a key another host publishes, and has not used yet, does not keep it from using it.
+func TestAClaimedKeyIsStillItsPublishers(t *testing.T) {
+	first, second := newTestKey(AlgEdDSA), newTestKey(AlgEdDSA)
+	web := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(jwkSet(withKid(first, "1"), withKid(second, "2")))
+	}))
+	defer web.Close()
+	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys, HTTPClient: web.Client()})
+	polaristest.New(t, polaristest.WithPlugins(oauth.New(oauth.Config{BaseURL: unitBase}), p))
+	host := func(owner string, jwk, url any) Host {
+		h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: owner, CreatedBy: owner}, jwk, url)
+		must(t, err)
+		h, _, err = p.s.createHost(t.Context(), h, owner, nil)
+		must(t, err)
+		return h
+	}
+	publisher := host("user-1", nil, web.URL+"/jwks")
+	eve := host("user-2", newTestKey(AlgEdDSA).jwk(), nil)
+	next := eve
+	next.PublicJWK = second.jwk()
+	next.KeyThumbprint, _ = oauth.Thumbprint(second.jwk())
+	must(t, p.s.rekeyHost(t.Context(), eve, next, false))
+	now := time.Now().Unix()
+	r := httptest.NewRequest(http.MethodGet, "/agent/status", nil)
+	r.Header.Set("Authorization", "Bearer "+second.jwt(map[string]any{"iss": next.KeyThumbprint, "aud": unitBase, "iat": now, "exp": now + 60, "jti": newID(), "host_jwks_url": web.URL + "/jwks"}, map[string]any{"typ": HostJWTType, "kid": "2"}))
+	if got, _, err := p.s.hostOf(r); err != nil || got.ID != publisher.ID {
+		t.Errorf("%q %v", got.ID, err)
+	}
+}
+
 // §8.7: a host that publishes its keys signs with any of them; the thumbprint it is known by follows.
 // Its delivery mode is fixed, and turning JWKS URLs off refuses it.
 func TestSection8_7AHostThatPublishesItsKeys(t *testing.T) {
@@ -303,7 +333,7 @@ func FuzzUnknownHostJWT(f *testing.F) {
 		jwt := input + "." + enc(ed25519.Sign(k.ed, []byte(input)))
 		call := func(unknown bool) (Host, error) {
 			r := (&http.Request{Header: http.Header{"Authorization": {"Bearer " + jwt}}}).WithContext(context.Background())
-			h, _, err := s.hostCalling(r, unknown)
+			h, _, err := s.hostCalling(r, unknown, "")
 			return h, err
 		}
 		if _, err := call(false); err == nil {

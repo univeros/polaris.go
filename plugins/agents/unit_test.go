@@ -698,7 +698,8 @@ func TestHostsAuthenticateByTheirEnrolmentToken(t *testing.T) {
 			t.Error(bad)
 		}
 	}
-	must(t, p.s.revokeHosts(ctx, store.Criteria{"id": h.ID}))
+	_, err = p.s.revokeHosts(ctx, store.Criteria{"id": h.ID})
+	must(t, err)
 	if _, ok, _ := p.s.hostByToken(ctx, secret); ok {
 		t.Error("revoked")
 	}
@@ -886,7 +887,7 @@ func TestTheDiscoveryDocumentMatchesTheProtocolSchema(t *testing.T) {
 	if Of(srv.Graph()) != p {
 		t.Error("Of")
 	}
-	if names := p.AuditNames(); len(names) != 15 {
+	if names := p.AuditNames(); len(names) != 18 {
 		t.Error("audit names")
 	}
 	if perms := p.Permissions(); perms["deploy.staging"] == "" || perms["members.read"] != "" {
@@ -993,4 +994,31 @@ func TestAHostLinksLifeIsItsOwn(t *testing.T) {
 			t.Errorf("%d: %v", life, err)
 		}
 	}
+}
+
+// A host rotated elsewhere between its owner's reading the approval and their decision is not given the registration.
+func TestAClaimThatChangedMeanwhileAdmitsNothing(t *testing.T) {
+	p, _ := bootUnit(t, Config{Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
+	h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, newTestKey(AlgEdDSA).jwk(), nil)
+	must(t, err)
+	h, _, err = p.s.createHost(t.Context(), h, "Host", nil)
+	must(t, err)
+	r := registration{ID: "r", HostID: "announced", HostThumbprint: "another key", becomes: Agent{HostID: h.ID, OwnerType: OwnerUser, OwnerID: "user-1"}}
+	_ = wantType(t, p.s.admit(t.Context(), r), ErrConflict, "the claim changed")
+}
+
+// Two calls of a rotated key's holder at once both find it theirs; a claim made over finds nothing.
+func TestTakingAClaimedKey(t *testing.T) {
+	p, _ := bootUnit(t, Config{Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
+	h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, newTestKey(AlgEdDSA).jwk(), nil)
+	must(t, err)
+	h, _, err = p.s.createHost(t.Context(), h, "Host", nil)
+	must(t, err)
+	next := h
+	next.PublicJWK = newTestKey(AlgEdDSA).jwk()
+	next.KeyThumbprint, _ = oauth.Thumbprint(next.PublicJWK)
+	must(t, p.s.rekeyHost(t.Context(), h, next, false))
+	_ = wantType(t, p.s.takeKey(t.Context(), h.ID, h.KeyThumbprint), ErrConflict, "the old key")
+	must(t, p.s.takeKey(t.Context(), h.ID, next.KeyThumbprint))
+	must(t, p.s.takeKey(t.Context(), h.ID, next.KeyThumbprint))
 }

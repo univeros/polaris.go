@@ -245,6 +245,19 @@ func (s *service) admit(ctx context.Context, r registration) error {
 	if err != nil {
 		return err
 	}
+	if h == nil && a.HostID != r.HostID { // the approver's host, which was rotated to the key
+		if err := s.takeKey(ctx, a.HostID, r.HostThumbprint); err != nil {
+			return err
+		}
+		claiming, ok, err := s.host(ctx, a.HostID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return refuse(ErrConflict, "The host changed meanwhile; decide again.")
+		}
+		h = &claiming
+	}
 	if h == nil {
 		created, _, err := s.createHost(ctx, Host{ID: r.HostID, OwnerType: a.OwnerType, OwnerID: a.OwnerID, OrganizationID: a.OrganizationID, CreatedBy: a.CreatedBy,
 			PublicJWK: r.HostJWK, KeyThumbprint: r.HostThumbprint}, r.HostName, nil)
@@ -275,13 +288,17 @@ func (s *service) reject(ctx context.Context, r registration) error {
 
 // Prune deletes what nobody decided (Agent Auth Protocol §7.1): a day after its approval expired, the
 // registration of a host the server does not know and the pending agent of one it knows; and a denied
-// registration a day after. They are deleted, not revoked: they never were active. It returns the rows
+// registration a day after. They are deleted, not revoked: they never were active. An agent past its absolute
+// lifetime (Lifetimes) is revoked, not deleted. It returns the rows
 // deleted per table; a host schedules it beside polaris.Polaris.Prune.
 func (p *Plugin) Prune(ctx context.Context) (map[string]int64, error) {
 	registrations, err := p.s.pruneRegistrations(ctx, store.Criteria{}, 0)
 	var pending int64
 	if err == nil {
 		pending, err = p.s.prunePending(ctx)
+	}
+	if err == nil {
+		err = p.s.revokeOver(ctx)
 	}
 	return map[string]int64{TableRegistrations: registrations, TableAgents: pending}, err
 }
@@ -326,7 +343,7 @@ func (s *service) deleteOf(ctx context.Context, agentID string, tables ...string
 // prunePending erases the agents of known hosts whose registration nobody decided.
 func (s *service) prunePending(ctx context.Context) (int64, error) {
 	cutoff := s.now().Add(-registrationKept)
-	agents, err := s.agentsWhere(ctx, store.Criteria{"status": StatusPending, "created_at": store.Lt(cutoff)})
+	agents, err := s.agentsWhere(ctx, store.Criteria{"status": StatusPending, "activated_at": nil, "created_at": store.Lt(cutoff)})
 	if err != nil {
 		return 0, err
 	}
@@ -360,7 +377,7 @@ func (s *service) agentOfKey(ctx context.Context, hostID, thumbprint string) (Ag
 	if err != nil || row == nil {
 		return Agent{}, false, err
 	}
-	return agentFromRow(row), true, nil
+	return s.loaded(row), true, nil
 }
 
 // thumbprintOf is the RFC 7638 thumbprint of a key protocolKey validated.

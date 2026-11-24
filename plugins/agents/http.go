@@ -11,6 +11,7 @@ import (
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
 	"github.com/univeros/polaris.go/wiring"
 )
@@ -54,6 +55,12 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 		"polaris.agents.protocol.status":              p.perAddress(p.protocolStatus),
 		"polaris.agents.protocol.request-capability":  p.perAddress(p.protocolRequest),
 		"polaris.agents.protocol.execute":             p.perAddress(p.protocolExecute),
+		"polaris.agents.protocol.reactivate":          p.perAddress(p.protocolReactivate),
+		"polaris.agents.protocol.introspect":          endpoint.Func(p.protocolIntrospect),
+		"polaris.agents.protocol.revoke":              p.perAddress(p.protocolRevoke),
+		"polaris.agents.protocol.rotate-key":          p.perAddress(p.protocolRotateKey),
+		"polaris.agents.protocol.host-revoke":         p.perAddress(p.protocolRevokeHost),
+		"polaris.agents.protocol.host-rotate-key":     p.perAddress(p.protocolRotateHostKey),
 	}
 }
 
@@ -524,7 +531,7 @@ func (p *Plugin) deleteHost(ctx context.Context, in *endpoint.Input) endpoint.Re
 	if !ok || h.RevokedAt != nil {
 		return p.fail(ctx, refuse(ErrNotFound, "The host does not exist."))
 	}
-	if err := p.s.revokeHosts(ctx, map[string]any{"id": h.ID}); err != nil {
+	if _, err := p.s.revokeHosts(ctx, map[string]any{"id": h.ID}); err != nil {
 		return p.fail(ctx, err)
 	}
 	return endpoint.JSON(http.StatusOK, data(map[string]any{"status": "revoked"}))
@@ -711,6 +718,9 @@ func (p *Plugin) decidable(ctx context.Context, ap Approval, tok *token.Token) (
 		return a, nil, false, err
 	}
 	h, err := p.s.registeredHost(ctx, r)
+	if err == nil && h == nil {
+		h, err = p.claimingHost(ctx, r, tok)
+	}
 	if err != nil {
 		return a, nil, false, err
 	}
@@ -722,6 +732,23 @@ func (p *Plugin) decidable(ctx context.Context, ap Approval, tok *token.Token) (
 	}
 	r.becomes = r.agentFor(h, tok.Subject(), endpoint.ActorOrganization(tok))
 	return r.becomes, &r, true, nil
+}
+
+// claimingHost is the host the caller registered that was rotated to the registration's key, whose holder has
+// not shown yet that it knows the host: the registration it signed and that person's approval show it. nil for
+// none. An organization's host somebody else registered is not theirs to prove: that person chose the key.
+func (p *Plugin) claimingHost(ctx context.Context, r registration, tok *token.Token) (*Host, error) {
+	rows, err := p.s.db.FindMany(ctx, TableHosts, store.Criteria{"claimed_thumbprint": r.HostThumbprint, "created_by": tok.Subject(), "revoked_at": nil}, store.Query{OrderBy: []store.Order{{Column: "id"}}})
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		h := hostFromRow(row)
+		if ok, err := p.manages(ctx, h.OwnerType, h.OwnerID, tok); err != nil || ok {
+			return &h, err
+		}
+	}
+	return nil, nil
 }
 
 // mayApprove checks the deciding session's strength and that the permission each capability

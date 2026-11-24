@@ -110,6 +110,22 @@ func (j *requestJWTs) addressed(aud, url string) bool {
 // verify checks raw for this request (method, the URL called, the raw body) and the agent, and
 // returns the capabilities claim (nil when the JWT does not restrict them).
 func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, url string, body []byte) ([]string, error) {
+	claims, err := j.signed(raw, a)
+	if err != nil {
+		return nil, err
+	}
+	if err := j.checkClaims(claims, a, method, url, body); err != nil {
+		return nil, err
+	}
+	if err := j.once(ctx, a.ID, claims); err != nil {
+		return nil, err
+	}
+	caps, _, err := jwtCapabilities(claims)
+	return caps, err
+}
+
+// signed are the claims of raw, signed with the agent's key and within its time.
+func (j *requestJWTs) signed(raw string, a Agent) (map[string]any, error) {
 	peeked, ok := peekRequestJWT(raw)
 	if !ok {
 		return nil, invalidJWT("The credential is not an agent JWT (typ agent+jwt).")
@@ -128,17 +144,20 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 	if err != nil {
 		return nil, invalidJWT("The JWT does not verify: " + err.Error())
 	}
-	if err := j.checkClaims(claims, a, method, url, body); err != nil {
-		return nil, err
+	return claims, nil
+}
+
+// jwtCapabilities are the capabilities a JWT restricts itself to; listed is false when it does not.
+func jwtCapabilities(claims map[string]any) (caps []string, listed bool, err error) {
+	v, has := claims["capabilities"]
+	if !has || v == nil {
+		return nil, false, nil
 	}
-	if err := j.once(ctx, a.ID, claims); err != nil {
-		return nil, err
+	list, ok := v.([]any)
+	if !ok || len(list) > maxJWTCapabilities || len(strings_(list)) != len(list) {
+		return nil, true, invalidJWT("capabilities is a list of capability names.")
 	}
-	caps, has := claims["capabilities"].([]any)
-	if !has {
-		return nil, nil
-	}
-	return strings_(caps), nil
+	return strings_(list), true, nil
 }
 
 // decode verifies the signature and the time claims, with the leeway: nbf and iat not after
@@ -198,13 +217,8 @@ func (j *requestJWTs) checkClaims(claims map[string]any, a Agent, method, url st
 			return invalidJWT("body_hash does not match the request body.")
 		}
 	}
-	if v, has := claims["capabilities"]; has && v != nil {
-		list, ok := v.([]any)
-		if !ok || len(list) > maxJWTCapabilities || len(strings_(list)) != len(list) {
-			return invalidJWT("capabilities is a list of capability names.")
-		}
-	}
-	return nil
+	_, _, err := jwtCapabilities(claims)
+	return err
 }
 
 // lifetime checks that iat and exp are there and bound the JWT's life.

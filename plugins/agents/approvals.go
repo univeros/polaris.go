@@ -236,15 +236,21 @@ func (s *service) decide(ctx context.Context, ap Approval, approve bool, by stri
 }
 
 // settle ends a registration that waited for this decision (StatusPending): the agent is active, or
-// rejected for good (§7.1), its OAuth client disabled and its tokens
-// revoked. Any other agent stays as it is.
+// rejected for good (§7.1), its OAuth client disabled and its tokens revoked. One that was active before
+// waited to be reactivated (§5.6): denied, it is expired as it was. Any other agent stays as it is.
 func (s *service) settle(ctx context.Context, agentID string, approved bool) error {
-	status := StatusRejected
+	now := s.now()
 	if approved {
-		status = StatusActive
+		_, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": agentID, "status": StatusPending},
+			store.Data{"status": StatusActive, "activated_at": now, "last_used_at": now, "updated_at": now})
+		return err
 	}
-	n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": agentID, "status": StatusPending}, store.Data{"status": status, "updated_at": s.now()})
-	if err != nil || n == 0 || approved {
+	n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": agentID, "status": StatusPending, "activated_at": nil}, store.Data{"status": StatusRejected, "updated_at": now})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		_, err = s.db.Update(ctx, TableAgents, store.Criteria{"id": agentID, "status": StatusPending}, store.Data{"status": StatusActive, "updated_at": now})
 		return err
 	}
 	if err := s.disableClient(ctx, agentID); err != nil {

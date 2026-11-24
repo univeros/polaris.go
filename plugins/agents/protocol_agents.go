@@ -126,7 +126,7 @@ func requestItem(item any) (any, error) {
 // owner, and is active unless a person must approve everything it asked for. A host the server does not
 // know waits for a person with its agent (§2.8).
 func (p *Plugin) protocolRegister(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	host, claims, err := p.s.hostCalling(in.Request, true)
+	host, claims, err := p.s.hostCalling(in.Request, true, "")
 	if err == nil {
 		err = p.s.spendHost(ctx, host)
 	}
@@ -284,9 +284,9 @@ func (s *service) registerUnder(ctx context.Context, host Host, fields map[strin
 				return err
 			}
 		}
-		if approval != nil && !slices.ContainsFunc(grants, func(g Grant) bool { return g.Status == GrantActive }) {
-			a.Status = StatusPending
-			_, err = s.db.Update(ctx, TableAgents, store.Criteria{"id": a.ID}, store.Data{"status": StatusPending})
+		if approval != nil && !anyActive(grants) {
+			a.Status, a.ActivatedAt = StatusPending, nil
+			_, err = s.db.Update(ctx, TableAgents, store.Criteria{"id": a.ID}, store.Data{"status": StatusPending, "activated_at": nil})
 		}
 		return err
 	})
@@ -316,7 +316,7 @@ func (s *service) retriedAgent(ctx context.Context, a Agent, asked asking) ([]Gr
 }
 
 // protocolStatusOf is the agent's status as the protocol names it (§2.3). A suspended agent reads
-// pending: it cannot act until a person lets it, and it is not for its client to reactivate.
+// pending (5.2): it cannot act until a person lets it, and it is not for its client to reactivate.
 func protocolStatusOf(a Agent) string {
 	if a.Status == StatusSuspended {
 		return StatusPending
@@ -326,22 +326,22 @@ func protocolStatusOf(a Agent) string {
 
 // protocolStatus is GET /agent/status (§5.5).
 func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	host, _, err := p.s.hostCalling(in.Request, true)
+	id := in.String("agent_id")
+	host, _, err := p.s.hostCalling(in.Request, true, id)
 	if err == nil {
 		err = p.s.spendHost(ctx, host)
 	}
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	id := in.String("agent_id")
 	if id == "" {
 		return p.protocolFail(ctx, refuse(ErrInvalidRequest, "agent_id is required."))
 	}
-	a, ok, err := p.s.agent(ctx, id)
+	a, ok, err := p.s.agentUnder(ctx, host, id)
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	if ok = ok && host.ID != "" && a.HostID == host.ID; !ok { // another host's agent is not told from none
+	if !ok { // another host's agent is not told from none
 		var reg registration
 		if reg, ok, err = p.s.registration(ctx, id); err != nil {
 			return p.protocolFail(ctx, err)
@@ -357,8 +357,27 @@ func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoin
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	return noStore(http.StatusOK, map[string]any{"agent_id": a.ID, "host_id": a.HostID, "name": a.Name, "status": protocolStatusOf(a), "mode": a.Mode,
-		"agent_capability_grants": p.grantStates(grants, true), "user_id": null(a.Subject()), "created_at": timestamp(a.CreatedAt)})
+	return noStore(http.StatusOK, p.agentState(a, grants))
+}
+
+// agentState is §5.5's answer: the agent and every grant.
+func (p *Plugin) agentState(a Agent, grants []Grant) map[string]any {
+	body := map[string]any{"agent_id": a.ID, "host_id": a.HostID, "name": a.Name, "status": protocolStatusOf(a), "mode": a.Mode,
+		"agent_capability_grants": p.grantStates(grants, true), "user_id": null(a.Subject()), "created_at": timestamp(a.CreatedAt)}
+	if a.ActivatedAt != nil {
+		body["activated_at"] = timestamp(*a.ActivatedAt)
+	}
+	if a.LastUsedAt != nil {
+		body["last_used_at"] = timestamp(*a.LastUsedAt)
+	}
+	if expiry := p.s.settings.lifetimes.expiry(a); expiry != nil && a.Status == StatusActive {
+		body["expires_at"] = timestamp(*expiry)
+	}
+	return body
+}
+
+func anyActive(grants []Grant) bool {
+	return slices.ContainsFunc(grants, func(g Grant) bool { return g.Status == GrantActive })
 }
 
 // protocolRequest is POST /agent/request-capability (§5.4). status is what the reference client reads

@@ -159,9 +159,9 @@ func (p *Plugin) Listeners(*wiring.Graph) []event.Listener {
 				p.s.eraseWhere(ctx, store.Criteria{"organization_id": e.OrganizationID}),
 				deleteHosts(ctx, p.s.db, store.Criteria{"organization_id": e.OrganizationID}))
 		case event.MemberRemoved:
-			err = errors.Join(
-				p.s.revokeForMember(ctx, e.OrganizationID, e.UserID),
-				p.s.revokeHosts(ctx, store.Criteria{"owner_type": OwnerOrganization, "owner_id": e.OrganizationID, "created_by": e.UserID}))
+			members := p.s.revokeForMember(ctx, e.OrganizationID, e.UserID)
+			_, hosts := p.s.revokeHosts(ctx, store.Criteria{"owner_type": OwnerOrganization, "owner_id": e.OrganizationID, "created_by": e.UserID})
+			err = errors.Join(members, hosts)
 		}
 		if err != nil {
 			p.s.log.ErrorContext(ctx, "agents: cleaning up after "+e.EventName()+" failed", "error", err)

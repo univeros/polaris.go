@@ -68,16 +68,21 @@ async function owner(method, path, body) {
   return answer.data;
 }
 
-// hostLink is the proof POST /agents/hosts takes with a key (decision 5.9), which the client has no way to
-// make: signed with the client's own key, for the owner of the session.
-function hostLink({ publicKey, privateKey }) {
-  const b64 = (v) => Buffer.from(typeof v === "string" ? v : JSON.stringify(v)).toString("base64url");
+// signed is a JWT of the type signed with a host's own key.
+function signed(typ, { publicKey, privateKey }, claims) {
+  const b64 = (v) => Buffer.from(JSON.stringify(v)).toString("base64url");
   const { crv, kty, x } = publicKey;
   const iss = createHash("sha256").update(JSON.stringify({ crv, kty, x })).digest("base64url");
-  const { sub } = JSON.parse(Buffer.from(process.env.AGENT_AUTH_OWNER.split(".")[1], "base64url"));
   const iat = Math.floor(Date.now() / 1000);
-  const input = `${b64({ typ: "host-link+jwt", alg: "EdDSA" })}.${b64({ iss, sub, aud: url, iat, exp: iat + 60, jti: randomUUID() })}`;
+  const input = `${b64({ typ, alg: "EdDSA" })}.${b64({ iss, aud: url, iat, exp: iat + 60, jti: randomUUID(), ...claims })}`;
   return `${input}.${sign(null, Buffer.from(input), createPrivateKey({ key: privateKey, format: "jwk" })).toString("base64url")}`;
+}
+
+// hostLink is the proof POST /agents/hosts takes with a key (decision 5.9), which the client has no way to
+// make: for the owner of the session.
+function hostLink(keypair) {
+  const { sub } = JSON.parse(Buffer.from(process.env.AGENT_AUTH_OWNER.split(".")[1], "base64url"));
+  return signed("host-link+jwt", keypair, { sub });
 }
 
 // decide is what a person does with the code the client showed them.
@@ -152,6 +157,43 @@ async function aPreRegisteredHost() {
     const out = await client.connectAgent({ provider: url, capabilities: ["invoices.refund"], name: "approved" });
     assert.deepEqual([out.status, out.capabilityGrants.map((g) => g.status)], ["active", ["active"]]);
   });
+  await step("a paused agent: the client is told to wait, and cannot reactivate it (5.2)", async () => {
+    await owner("POST", `/agents/${agent}/suspend`);
+    assert.equal((await client.agentStatus(agent)).status, "pending");
+    await assert.rejects(client.executeCapability({ agentId: agent, capability: "invoices.list" }), { code: "agent_suspended", status: 403 });
+    await assert.rejects(client.reactivateAgent(agent), { code: "agent_pending", status: 403 });
+    await owner("POST", `/agents/${agent}/resume`);
+    assert.equal((await client.reactivateAgent(agent)).status, "active", "§5.6: an active agent is answered as it is");
+  });
+  await step("rotate the agent's key (§5.8): with the host's JWT, which the client does not send (5.11)", async () => {
+    await assert.rejects(client.rotateAgentKey(agent), { code: "invalid_jwt", status: 401 });
+    const next = await generateKeypair();
+    const res = await fetch(`${url}/agent/rotate-key`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${signed("host+jwt", keypair, { host_public_key: keypair.publicKey })}`, "content-type": "application/json" },
+      body: JSON.stringify({ agent_id: agent, public_key: next.publicKey }),
+    });
+    assert.deepEqual([res.status, await res.json()], [200, { agent_id: agent, status: "active" }]);
+    await assert.rejects(client.executeCapability({ agentId: agent, capability: "invoices.list" }), { code: "invalid_jwt", status: 401 });
+    await storage.setAgentConnection(agent, { ...(await storage.getAgentConnection(agent)), agentKeypair: next });
+    assert.deepEqual(await client.executeCapability({ agentId: agent, capability: "invoices.list" }), { data: ["inv_1", "inv_2"] });
+  });
+  await step("rotate the host's key (§5.9): it is the host's once it names an agent of it", async () => {
+    assert.equal((await client.rotateHostKey(url)).status, "active");
+    assert.equal((await client.agentStatus(agent)).status, "active");
+    const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "rotated" });
+    assert.deepEqual([out.status, out.hostId], ["active", host.id]);
+  });
+  await step("rotate it again and register at once: its owner approves, and the host stays one (5.12)", async () => {
+    await client.rotateHostKey(url);
+    const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "rotated again" });
+    assert.deepEqual([out.status, (await client.agentStatus(out.agentId)).host_id], ["active", host.id]);
+  });
+  await step("revoke an agent (§5.7)", async () => {
+    const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "done" });
+    await client.disconnectAgent(out.agentId);
+    assert.equal((await owner("GET", `/agents/${out.agentId}`)).status, "revoked");
+  });
   await step("a denied registration is rejected (§7.1)", async () => {
     decision = "deny";
     const denied = client.connectAgent({ provider: url, capabilities: ["invoices.refund"], name: "denied" });
@@ -210,7 +252,7 @@ try {
   await readsTheServer();
   await aPreRegisteredHost();
   await anUnknownHost();
-  console.log("PASS the whole flow of docs/agent-auth-compat.md, parts 1 to 3");
+  console.log("PASS the whole flow of docs/agent-auth-compat.md, parts 1 to 4");
 } catch (err) {
   console.error(err);
   process.exit(1);

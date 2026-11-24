@@ -1,6 +1,6 @@
 # Agent Auth Protocol compatibility
 
-Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3), 86 (5.9, 5.3) and 87 (5.8, 5.7) in
+Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3), 86 (5.9, 5.3), 87 (5.8, 5.7) and 88 (part 4) in
 [`decisions.md`](decisions.md). Target release: `v1.1.0` (additive; nothing in v1 breaks).
 
 Reference: Agent Auth Protocol, published as `v1.0-draft`,
@@ -283,11 +283,11 @@ suspended one is, and a rejected one's OAuth client is disabled. A registration 
 capabilities the policy approved is `active`, with the others pending.
 
 `agents.Config.Lifetimes{Session, Max, Absolute}`: zero means unlimited, the default, so existing
-deployments do not change. `polaris_agent` gains nullable `activatedAt` and `lastUsedAt`;
+deployments do not change. They bound agents hosts' JWTs registered only. `polaris_agent` gains nullable `activatedAt` and `lastUsedAt`;
 `lastUsedAt` is written at most once a minute per agent, not per request. `expired` is computed from
 those and the clock, not stored, so no job has to flip it. `POST /agent/reactivate` follows §5.6:
-only an expired agent; existing grants revoked; the host's default capabilities asked again through
-the same policy; session and max clocks reset, the absolute clock never.
+only an expired agent; grants beyond the host's default capabilities revoked, those asked again through
+the same policy (a live one it gave is kept, so that its budget is not refilled); session and max clocks reset, the absolute clock never.
 
 Revoking through `/agent/revoke` or `/host/revoke` runs the existing kill switch (client and tokens
 disabled, receipt chain sealed, in one transaction), so "revocation is permanent" and "cascade to the
@@ -329,7 +329,7 @@ host may still set `Strengths` itself, and the README says what that departs fro
 ### 2.8 Introspection
 
 `POST /agent/introspect` follows §5.12 and RFC 7662. It is not public: the caller is a trusted OAuth
-client (5.4), and the route is rate limited. A valid JWT is not consumed by introspection (its `jti` is not spent).
+client (5.4); a refused caller is rate limited. A valid JWT is not consumed by introspection (its `jti` is not spent).
 
 ---
 
@@ -345,7 +345,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
 | 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
 | 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4. Done | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
-| 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
+| 4 | Done. Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
 
@@ -384,7 +384,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    an expired one it must reactivate, which would let a host lift its owner's pause (or be refused against the
    section). The client's tool text asks for `reactivate` on `expired` only. A pause outranks the lifetimes: a
    suspended agent past its TTL reads `pending`, one past its absolute lifetime `revoked`. Its own calls stay 403
-   `agent_suspended` (§5.13 allows more codes) and it introspects as inactive. Part 4 checks it in the harness.
+   `agent_suspended` (§5.13 allows more codes) and it introspects as inactive. Built, and tried in the harness (decision 88).
 3. **Approval strength in protocol mode. Decided: 2.7, with three rules it lacked.** Built (decision 86). Shown by throwaway tests
    on part 3: in this mode, with the defaults, a 14-minute-old session of a person without a second factor
    approves a high-risk grant; and with `AutoApprove[high]` and `Strengths[high]: passkey`, a `step_up` approval
@@ -402,7 +402,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
      approve nothing, so it does not start: the error says to add the plugin or set `Strengths`.
    CIBA is not a second way to prove presence: nothing shows that it reaches another device.
 4. **Who may introspect. Decided: trusted OAuth clients,** the rule `POST /oauth2/introspect` has, not a permission.
-   Not built. A resource server is a confidential client an operator marked trusted (or listed in `TrustedClients`),
+   Built (decision 88). A resource server is a confidential client an operator marked trusted (or listed in `TrustedClients`),
    authenticated as it is there. A permission would be held in an organization, so its administrators could give
    away reading other organizations' agents, and API keys act as people. Any other caller is 401. The answer adds
    `aud` (RFC 7662), and a JWT whose `aud` is not the issuer, the execute URL or a capability's `Location` is
@@ -452,9 +452,15 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    no way to send one, and a host has one owner (§2.9), so a shared cloud host with one URL could be linked to one
    person only. Such a host is registered by its owner (with 9's proof).
 11. **Agent key rotation, for part 4.** The reference client's `rotateAgentKey` sends an agent JWT and no `agent_id`;
-   §5.8 and §4.5.1 require a host JWT. Recommended: the host JWT only. Whoever stole an agent's key could otherwise
+   §5.8 and §4.5.1 require a host JWT. Decided: the host JWT only (decision 88). Whoever stole an agent's key could otherwise
    replace it and lock the agent out. §4's acceptance then rotates the host's key with the client and the agent's
    with the client's keys, signed as §5.8 says.
+12. **A rotated host key (found in part 4). Decided: a claim, until its holder shows that it knows the host.** §5.9 takes
+   any public key, signed for by the old one: a host could rotate to somebody else's key and own what their client then
+   does, the hole 9 closed. The client cannot prove the new key, and need not: its next status call names an agent of
+   the host, which nobody else is told; or it registers, and the approval of the host's owner is the proof. A claim
+   takes nothing: the key is not the host's, nor anybody's, until then, so its holder's client does what it would
+   have done. (The first design kept the key in its unique column, where a claim locked its holder out.)
 
 ## 6. Risks
 

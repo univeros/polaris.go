@@ -1,0 +1,41 @@
+# POST /agent/rotate-key: the Agent Auth Protocol's agent key rotation (§5.8).
+endpoint:
+  method: POST
+  path: /agent/rotate-key
+  summary: Replace an agent's key (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the host authenticates itself: a host JWT (typ host+jwt)
+  effect: write
+  receipt: true
+
+input:
+  source: body
+  fields:
+    agent_id: { type: string, rules: [required] }
+    public_key: { type: object, rules: [required] }
+
+domain:
+  description: >
+    The key of an agent of the calling host, active or suspended, becomes public_key (an Ed25519 JWK). The old
+    one and every token it minted stop at once. The host's JWT is needed: an agent's own is refused, as whoever
+    stole its key could otherwise replace it. Another host's agent is answered as none.
+
+output:
+  status: 200
+  example: { agent_id: "018f...", status: active }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: host_revoked }
+  - { status: 400, code: unsupported_algorithm }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_expired }
+  - { status: 403, code: agent_rejected }
+  - { status: 404, code: agent_not_found }
+  - { status: 409, code: agent_exists }
+  - { status: 409, code: agents_conflict }
+  - { status: 429, code: rate_limited }
+
+events: [agent.key.rotated]
