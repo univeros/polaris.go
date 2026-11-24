@@ -274,7 +274,7 @@ every agent route (§12.1). Only Ed25519 keys register through the protocol rout
 | `rejected`: that registration, denied (§7.1) | `rejected` |
 | `active`, inside its lifetimes | `active` |
 | `active`, past session TTL or max lifetime | `expired` |
-| `suspended` | `pending` for now; open decision 5.2 |
+| `suspended` | `pending` (5.2) |
 | `revoked` (kill switch, or absolute lifetime passed) | `revoked` |
 
 `pending` and `rejected` are new values of `polaris_agent.status`, written only by protocol
@@ -324,13 +324,12 @@ The protocol requires fresh authentication on every approval, and proof of prese
 user verification, or out-of-band CIBA) for capabilities that change data or act for the user
 (§8.11). Polaris's defaults are `session` for low and medium risk and `step_up` for high. In
 `DiscoveryAgentAuth` mode the defaults become `step_up` for low and `passkey` for medium and high; a
-host may still set `Strengths` itself, and the README says what that departs from. Open decision 5.3.
+host may still set `Strengths` itself, and the README says what that departs from. Decision 5.3 adds three rules.
 
 ### 2.8 Introspection
 
-`POST /agent/introspect` follows §5.12 and RFC 7662. It is not public: the caller presents a Polaris
-credential (API key or OAuth client) holding a new permission, `agents.introspect`, and the route is
-rate limited. A valid JWT is not consumed by introspection (its `jti` is not spent).
+`POST /agent/introspect` follows §5.12 and RFC 7662. It is not public: the caller is a trusted OAuth
+client (5.4), and the route is rate limited. A valid JWT is not consumed by introspection (its `jti` is not spent).
 
 ---
 
@@ -345,6 +344,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 1 | Discovery modes, `GET /agents/configuration`, SDK fallback; `/capability/list` with `query`, `cursor`, `limit`; `/capability/describe` | M | A protocol client reads the server's configuration and lists capabilities; existing discovery fixture unchanged |
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
 | 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
+| 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4; 5.9 first | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
 | 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
@@ -370,7 +370,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    a JWKS URL that resolves to a private address.
 8. A security review of parts 2 to 4, recorded in decision 83, before the tag.
 
-## 5. Open decisions
+## 5. Decisions
 
 1. **Discovery. Decided: 2.2.** The question was whether clients tolerate absolute URLs in `endpoints`.
    The reference client does (0.6.2 and 0.5.1), and Better Auth's server sends them, so absolute URLs do
@@ -379,39 +379,81 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    (its fixture, rule 4, and any v1 client that reads `endpoints.register`). As a third choice for
    `Config.Discovery` it would only spare a v1.0.0 Go SDK its upgrade, at the price of an `execute` that
    is not the protocol's and of absolute URLs §5.1 does not allow.
-2. **`suspended`.** `pending` since part 2, which needs an answer for `/agent/status`. The protocol has no
-   paused state. Options: report `expired` or `pending`. Open until
-   part 4 tries both in the harness, with what 1.1 says: neither loops by itself. `expired` leads an
-   agent to call `reactivate` once (the client's tool text says so), which answers 403 with the owner's
-   pause in the message; `pending` leads to no call. While an approval is being waited for, both poll
-   until the timeout. The agent's own calls answer 403 `agent_suspended`, an extra code §5.13
-   allows.
-3. **Approval strength defaults in protocol mode.** As 2.7, or keep today's defaults and document the
-   departure from §8.11. Recommended: 2.7. Still open: nothing so far touches `Strengths`. Approving an
-   unknown host's registration is `step_up` at least, whatever this becomes: it is new, so nothing changes.
-4. **Who may introspect.** A permission (2.8), or operators only. Still open (part 4); the client never
-   calls it.
+2. **`suspended`. Decided: `pending`.** It is the protocol's only state that means "waits for a person" and that a
+   host cannot leave by itself: §5.6 answers `reactivate` for a pending agent with 403 `agent_pending`, while for
+   an expired one it must reactivate, which would let a host lift its owner's pause (or be refused against the
+   section). The client's tool text asks for `reactivate` on `expired` only. A pause outranks the lifetimes: a
+   suspended agent past its TTL reads `pending`, one past its absolute lifetime `revoked`. Its own calls stay 403
+   `agent_suspended` (§5.13 allows more codes) and it introspects as inactive. Part 4 checks it in the harness.
+3. **Approval strength in protocol mode. Decided: 2.7, with three rules it lacked.** Not built. Shown by throwaway tests
+   on part 3: in this mode, with the defaults, a 14-minute-old session of a person without a second factor
+   approves a high-risk grant; and with `AutoApprove[high]` and `Strengths[high]: passkey`, a `step_up` approval
+   that links a host is followed by a high-risk execution nobody approved.
+   - Every approval needs a sign-in within `StepUpMaxAge`, whatever `Strengths` says and with or without a second
+     factor (§8.11, a MUST): `recent`, which only registrations check today.
+   - Linking a host takes the strength of the riskiest tier `AutoApprove` names too: the link is the only time a
+     person decides those. This holds wherever dynamic hosts are taken.
+   - `passkey` means user verification: the session must have `mfa`, as a passkey session has only with it. With
+     the passkey plugin's defaults it always does; with `NoMFAFactor` it may not. §8.11 also asks for
+     `userVerification: "required"` in the challenge; the README tells the host to set it.
+   - Defaults: `step_up` low, `passkey` medium and high (an undeclared risk is medium, so it fails closed). They
+     apply in this mode only, which no release has. A server with them and without the passkey plugin could
+     approve nothing, so it does not start: the error says to add the plugin or set `Strengths`.
+   CIBA is not a second way to prove presence: nothing shows that it reaches another device.
+4. **Who may introspect. Decided: trusted OAuth clients,** the rule `POST /oauth2/introspect` has, not a permission.
+   Not built. A resource server is a confidential client an operator marked trusted (or listed in `TrustedClients`),
+   authenticated as it is there. A permission would be held in an organization, so its administrators could give
+   away reading other organizations' agents, and API keys act as people. Any other caller is 401. The answer adds
+   `aud` (RFC 7662), and a JWT whose `aud` is not the issuer, the execute URL or a capability's `Location` is
+   inactive, so that one resource server's JWT is not taken by another that reads only `active`.
 5. **`budget_exhausted` on the protocol routes. Decided: `limit_exceeded`.** §5.13 defines it as a
    granted capability whose limits the request exceeds; `constraint_violated` is for arguments. The
    client treats neither specially.
 6. **Version label. Decided: unchanged.** The protocol's own version is `1.0-draft`, so the Polaris
    document claims nothing the protocol's does not, and it is frozen for v1.
-7. **Rate limits (§8.13, a MUST).** Part 2's four routes share the group their Polaris siblings do
-   (`token_refresh`, per IP) and answer 429 `rate_limited`, the code their specs declare. Open: a limit
-   per host and agent, and the read-only discovery and capability routes, which have none, as their
-   siblings do not. Unknown hosts (part 3): a new registration spends a budget per address of its own, at
-   `RateLimits.Register` (5 an hour, §8.13's example); a retry does not.
-8. **Capabilities with a `Location`.** A protocol client posts `{capability, arguments}` there (1.1), and
-   `Protect` / `Guard` read the whole body as the arguments, so such a call is refused (schema or
-   constraints) and no protocol client can execute one yet. Options: unwrap that body for an agent
-   registered under a host with a key, handing the host's handler the arguments alone; or leave
-   `location` out of what the protocol lists and run nothing there. Recommended: the first, in its own
-   change with its own review, because it decides what a guarded handler reads.
-9. **Proof of possession for a pre-registered key** (§6). A host JWT made for the purpose would prove it,
-   but the reference client offers no way to make one to paste.
-10. **JWKS URLs of unknown hosts** (§4.5.1 lets one register with `host_jwks_url`). Refused in part 3: the
-   server would fetch a URL an anonymous caller chose. The reference client sends its key. Such a host is
-   registered by its owner with `jwks_url`.
+7. **Rate limits (§8.13, a MUST). Decided: by identity, after the JWT verifies, with a wide limit per address
+   before it.** Not built. Today these routes share `token_refresh`, 60 a minute per address, with
+   `POST /auth/token/refresh`: five agents waiting for approval behind one office address, polling each 5 s,
+   use all of it, and then nobody there refreshes a session. So:
+   - per agent 60 a minute and per host 300 a minute (§8.13's examples), in `agents.Config.RateLimits`, counted
+     only for a verified JWT: a `sub` or `iss` anyone can write spends nobody's budget;
+   - per address 600 a minute, its own key, before anything is verified, on these routes and the capability ones;
+     discovery is a cached constant and has none. Unknown hosts keep their 5 an hour;
+   - per capability is what budgets with a window do already; per user is left out until somebody needs it.
+   The Polaris agent routes of v1.0.0 keep `token_refresh`; that they share it with the refresh is a follow-up.
+8. **Capabilities with a `Location`. Decided: unwrap, for agents of a host with a key.** Not built. What decides is the
+   stored host, never the body's shape: a capability may itself take arguments called `capability` and `arguments`.
+   No other kind of agent belongs to such a host, so no v1.0.0 caller changes.
+   - The body is `{capability, arguments}` and nothing else; `capability` must be the one of the location. `next`
+     reads the bytes of `arguments` as they were sent, with `ContentLength` to match, so what was checked is what
+     is read; `body_hash` covers the body as sent.
+   - The JWT rules are 2.4's, which `Protect` does not apply today: `aud` exactly the configured `Location` (the
+     Host header plays no part), 30 s of skew, the host's `iss` and revocation.
+   - A 2xx JSON body is answered as `{"data": …}`, an empty one as `{"data": null}`: §5.11 requires it, and a
+     handler's own `{"status": "pending", "status_url": …}` would otherwise read as an asynchronous answer that
+     the client polls with its JWT. Other types and statuses pass as they are. Refusals are §5.13's.
+   Leaving `location` out of the list was the other choice; a capability nobody can call is worse.
+9. **Proof of possession for a pre-registered key. Decided: required, and it must be in before `v1.1.0` is tagged.** Not
+   built. Shown by a throwaway test: Eve posts Ada's public key to `POST /agents/hosts`; Ada's client then
+   registers and is `active` at once as Eve's agent, executes with nobody asked, and Ada's own registration of her key
+   is 409. What Ada's agent writes lands in Eve's account. A public key is known to every server the host uses.
+   - `POST /agents/hosts` with `public_key` or `jwks_url` takes `proof`: a JWT signed by that key, `typ`
+     `host-link+jwt`, `iss` its thumbprint, `aud` the issuer, `sub` the account that will own the host (the user's
+     id, or the organization's), `iat`, `exp` at most five minutes, `jti` once. Without it, 422.
+   - Its own `typ` and `sub` matter: a host JWT would do for possession, but a server the client was lured to
+     may claim our issuer (§8.9) and hold one; it says nothing of whose account the host joins.
+   - The Go SDK signs one (`agent.SignHostLink`). The reference client cannot, and need not: its way in is the
+     dynamic registration, where its own signature and a person's approval are the proof. Its `enroll_host` is no
+     substitute: it posts a token and a public key, unsigned, so anyone's key could be sent with one's own token.
+   Nothing released takes a key here, so nothing breaks.
+10. **JWKS URLs of unknown hosts. Decided: refused, for good until a client needs them.** The server would fetch a
+   URL an anonymous caller chose; §8.12's protections bound that, they do not make it free. The reference client has
+   no way to send one, and a host has one owner (§2.9), so a shared cloud host with one URL could be linked to one
+   person only. Such a host is registered by its owner (with 9's proof).
+11. **Agent key rotation, for part 4.** The reference client's `rotateAgentKey` sends an agent JWT and no `agent_id`;
+   §5.8 and §4.5.1 require a host JWT. Recommended: the host JWT only. Whoever stole an agent's key could otherwise
+   replace it and lock the agent out. §4's acceptance then rotates the host's key with the client and the agent's
+   with the client's keys, signed as §5.8 says.
 
 ## 6. Risks
 
@@ -431,5 +473,5 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
   host may turn JWKS URLs off (`Config.DisableJWKSURLs`; on in protocol mode only).
 - **A pre-registered key is not proven.** Whoever knows a host's public key (any other server it uses,
   §9.1) could register it under their own account first: the host's agents would then act for them, not
-  for the host's user, who would also get a 409. It gives no authority over anyone's data, but it can
-  misdirect an agent. The dynamic path (part 3) has no such gap. Open decision 5.9.
+  for the host's user, who would also get a 409. It gives no authority over anyone's data, but it
+  misdirects an agent and what it writes. The dynamic path (part 3) has no such gap. Closed by 5.9, before the tag.
