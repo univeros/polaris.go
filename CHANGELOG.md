@@ -13,9 +13,11 @@ Breaking changes are marked **Breaking**.
 
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
   `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
-  Agent Auth Protocol's, for its clients (`@auth/agent`). Those clients sign in through a host whose key
-  its owner registered; unknown hosts are not taken yet
-  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 and 84).
+  Agent Auth Protocol's, for its clients (`@auth/agent`)
+  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 85). Those clients sign in through
+  a host whose key its owner registered, or through a host the server does not know, which a signed-in
+  person approves with the code the client shows: the host and the agent are theirs then.
+  `agents.Config.DisableDynamicHosts` takes registered hosts only.
 - `GET /agents/configuration`: Polaris's discovery document in every mode. `agent.New` and
   `agent.Discover` fall back to it when the well-known document names no `enroll` endpoint. A Go agent
   SDK of v1.0.0 does not: upgrade it before a server switches to `DiscoveryAgentAuth`.
@@ -30,7 +32,15 @@ Breaking changes are marked **Breaking**.
   (for those key sets; the default reaches public addresses only) and `DisableJWKSURLs`.
 - An agent's `status` may be `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
   registration that waits for a person, or was denied. Neither acts anywhere.
-- Run `Migrate`: `polaris_agent_host` gains three nullable columns and two unique indexes.
+- An agent's registration through a host is idempotent by the host's and the agent's key: pending answers
+  the same agent, any other state 409 `agent_exists` (`agents.ErrAgentExists`).
+- `agents.Plugin.Prune` deletes the registrations nobody decided; schedule it beside `Polaris.Prune`.
+  New events `agents.EventRegistrationRequested` and `agents.EventRegistrationDenied`.
+- Where unknown hosts are taken, `GET /agents/approvals/code` answers 429 after too many codes that stand for none of the caller's agents'
+  approvals (the `MFAConfirm` budget, per person).
+- `oauth.Plugin.CreateClientAs`: `CreateClient` under a `client_id` the caller chose.
+- Run `Migrate`: `polaris_agent_host` gains three nullable columns and two unique indexes, `polaris_agent`
+  one nullable column and a unique index, and `polaris_agent_registration` is new.
 
 ### Fixed
 

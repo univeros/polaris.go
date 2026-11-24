@@ -248,6 +248,44 @@ func FuzzKeySet(f *testing.F) {
 	})
 }
 
+// FuzzUnknownHostJWT is FuzzHostJWT for a host the server does not know, whose key is in the JWT: what is
+// accepted is signed by the key it presents, which its iss names.
+func FuzzUnknownHostJWT(f *testing.F) {
+	k := newTestKey(AlgEdDSA)
+	thumb, _ := oauth.Thumbprint(k.jwk())
+	now := time.Unix(1_800_000_000, 0)
+	hj, _ := json.Marshal(map[string]any{"typ": HostJWTType, "alg": AlgEdDSA})
+	cj, _ := json.Marshal(map[string]any{"iss": thumb, "aud": unitBase, "iat": now.Unix(), "exp": now.Unix() + 60, "jti": "j1", "host_public_key": k.jwk()})
+	f.Add(hj, cj)
+	f.Add(hj, []byte(fmt.Sprintf(`{"iss":%q,"aud":%q,"host_public_key":{"kty":"OKP","crv":"Ed25519","x":"AQ"}}`, thumb, unitBase)))
+	f.Add([]byte(`{"typ":"host+jwt","alg":"EdDSA"}`), []byte(fmt.Sprintf(`{"iss":%q,"aud":%q,"host_public_key":[]}`, thumb, unitBase)))
+	s := &service{db: memstore.New(), settings: settings{dynamicHosts: true}}
+	f.Fuzz(func(t *testing.T, header, claims []byte) {
+		clk := clock.NewFrozen(now)
+		s.issuerJWTs = &requestJWTs{cache: cache.NewMemory(clk), clock: clk, maxAge: 300, audience: unitBase, skew: protocolSkew}
+		input := enc(header) + "." + enc(claims)
+		jwt := input + "." + enc(ed25519.Sign(k.ed, []byte(input)))
+		call := func(unknown bool) (Host, error) {
+			r := (&http.Request{Header: http.Header{"Authorization": {"Bearer " + jwt}}}).WithContext(context.Background())
+			h, _, err := s.hostCalling(r, unknown)
+			return h, err
+		}
+		if _, err := call(false); err == nil {
+			t.Fatalf("an unknown host accepted: %s", claims)
+		}
+		h, err := call(true)
+		if err != nil {
+			return
+		}
+		if h.ID != "" || h.KeyThumbprint != thumb {
+			t.Fatalf("accepted as %+v: %s", h, claims)
+		}
+		if _, err := call(true); err == nil {
+			t.Fatal("a host JWT was accepted twice")
+		}
+	})
+}
+
 // FuzzHostJWT signs arbitrary header and claims bytes with a registered host's key, so the fuzzer
 // reaches every check behind the signature. Nothing may panic; an accepted JWT names the host and this
 // server, and is accepted once.

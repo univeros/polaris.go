@@ -99,7 +99,7 @@ func (p *Plugin) serveOrgClientsCreate(ctx context.Context, in *endpoint.Input) 
 	if refused != nil {
 		return *refused
 	}
-	issued, err := p.clients.create(ctx, ClientFields(in.All()), orgID, tok.Subject(), false)
+	issued, err := p.clients.create(ctx, "", ClientFields(in.All()), orgID, tok.Subject(), false)
 	if err != nil {
 		return p.fail(ctx, err)
 	}
@@ -292,7 +292,7 @@ func (p *Plugin) serveAdminClientsCreate(ctx context.Context, in *endpoint.Input
 			return *refused
 		}
 	}
-	issued, err := p.clients.create(ctx, ClientFields(in.All()), orgID, op.id, mayTrust)
+	issued, err := p.clients.create(ctx, "", ClientFields(in.All()), orgID, op.id, mayTrust)
 	var oe *Error
 	if errors.As(err, &oe) {
 		return endpoint.Problem(oe.Status, "oauth/"+oe.Code, "Invalid client metadata", oe.Description,

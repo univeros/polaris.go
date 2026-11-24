@@ -2,19 +2,24 @@ package agents
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/netguard"
+	"github.com/univeros/polaris.go/ratelimit"
 	"github.com/univeros/polaris.go/store"
 )
 
 const (
 	maxReason  = 500
 	maxBinding = 160
+	maxName    = 160
 )
 
 // asking is what a registration or a capability request asks for.
@@ -62,8 +67,17 @@ func (p *Plugin) askingOf(in *endpoint.Input) (asking, error) {
 	return a, nil
 }
 
+// displayable reports whether what a host wrote can be shown to a person as it is (§8.10): short, and
+// without a character that breaks the line or turns the text around.
 func displayable(s string, limit int) bool {
-	return utf8.RuneCountInString(s) <= limit && !strings.ContainsFunc(s, unicode.IsControl)
+	return utf8.RuneCountInString(s) <= limit && !strings.ContainsFunc(s, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.In(r, unicode.Bidi_Control, unicode.Zl, unicode.Zp)
+	})
+}
+
+// visible reports whether a name has anything to see: it is not only spaces and invisible characters.
+func visible(s string) bool {
+	return strings.ContainsFunc(s, func(r rune) bool { return unicode.In(r, unicode.L, unicode.N, unicode.P, unicode.S) })
 }
 
 // requestedName is the capability an item of a request names, and the item when it is an object.
@@ -108,10 +122,11 @@ func requestItem(item any) (any, error) {
 	return map[string]any{"name": name, "constraints": out}, nil
 }
 
-// protocolRegister is POST /agent/register (§5.3) for a host its owner registered: the agent belongs to
-// the host's owner, and is active unless a person must approve everything it asked for.
+// protocolRegister is POST /agent/register (§5.3). An agent of a host somebody owns belongs to that
+// owner, and is active unless a person must approve everything it asked for. A host the server does not
+// know waits for a person with its agent (§2.8).
 func (p *Plugin) protocolRegister(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	host, claims, err := p.s.hostOf(in.Request)
+	host, claims, err := p.s.hostCalling(in.Request, true)
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -130,12 +145,29 @@ func (p *Plugin) protocolRegister(ctx context.Context, in *endpoint.Input) endpo
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
+	thumbprint, err := thumbprintOf(jwk)
+	if err != nil {
+		return p.protocolFail(ctx, err)
+	}
+	// A registration of the host's that waits since before somebody owned it is still that one.
+	earlier, found, err := p.s.registrationOf(ctx, host.KeyThumbprint, thumbprint)
+	if err != nil {
+		return p.protocolFail(ctx, err)
+	}
+	if found || host.ID == "" {
+		return p.registerUnknown(ctx, in, host, earlier, registration{AgentJWK: jwk, AgentThumbprint: thumbprint}, asked)
+	}
 	fields := map[string]any{"name": in.Value("name"), "mode": mode, "auth": AuthPrivateKeyJWT, "jwk": jwk}
 	a, grants, approval, err := p.s.registerUnder(ctx, host, fields, asked, clientOf(ctx))
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	body := map[string]any{"agent_id": a.ID, "host_id": host.ID, "name": a.Name, "mode": a.Mode, "status": protocolStatusOf(a),
+	return p.registrationResult(a, grants, approval)
+}
+
+// registrationResult is §5.3's answer.
+func (p *Plugin) registrationResult(a Agent, grants []Grant, approval *Approval) endpoint.Result {
+	body := map[string]any{"agent_id": a.ID, "host_id": a.HostID, "name": a.Name, "mode": a.Mode, "status": protocolStatusOf(a),
 		"agent_capability_grants": p.grantStates(grants, false)}
 	if approval != nil {
 		body["approval"] = p.s.approvalResponse(*approval)
@@ -143,18 +175,104 @@ func (p *Plugin) protocolRegister(ctx context.Context, in *endpoint.Input) endpo
 	return noStore(http.StatusOK, body)
 }
 
+// registerUnknown answers the registration earlier again, or stores r, of a host the server does not
+// know: new ones are bounded per address (§8.13).
+func (p *Plugin) registerUnknown(ctx context.Context, in *endpoint.Input, host Host, earlier, r registration, asked asking) endpoint.Result {
+	var grants []Grant
+	var approval Approval
+	var err error
+	if earlier.ID == "" {
+		r.HostThumbprint, r.HostJWK, r.Reason = host.KeyThumbprint, host.PublicJWK, asked.reason
+		if r, err = named(r, in); err != nil {
+			return p.protocolFail(ctx, err)
+		}
+		limited, ok, err := p.limited(ctx, p.s.unknownHosts, netguard.RateKey(clientOf(ctx).ip))
+		if err != nil {
+			return p.protocolFail(ctx, err)
+		}
+		if ok {
+			return limited
+		}
+		if r, grants, approval, err = p.s.register(ctx, r, asked, clientOf(ctx)); err == nil {
+			return p.registrationResult(r.agent(), grants, &approval)
+		}
+		if !errors.Is(err, store.ErrDuplicate) {
+			return p.protocolFail(ctx, err)
+		}
+		// The same request, at once: the other one stored it.
+		var found bool
+		if earlier, found, err = p.s.registrationOf(ctx, host.KeyThumbprint, r.AgentThumbprint); err == nil && !found {
+			err = errAgentExists()
+		}
+		if err != nil {
+			return p.protocolFail(ctx, err)
+		}
+	}
+	if grants, approval, err = p.s.retried(ctx, earlier, asked.binding); err != nil {
+		return p.protocolFail(ctx, err)
+	}
+	a := earlier.agent()
+	if host.ID != "" {
+		a.HostID = host.ID
+	}
+	return p.registrationResult(a, grants, &approval)
+}
+
+// named is the registration with the names the request gives, which the approver is shown (§8.10).
+func named(r registration, in *endpoint.Input) (registration, error) {
+	var ok bool
+	if r.Name, ok = displayName(in.String("name")); !ok || !displayable(r.Name, maxName) || !visible(r.Name) {
+		return r, refuse(ErrInvalidRequest, "name is required, at most 160 characters, without control characters.")
+	}
+	if r.HostName = text(in, "host_name"); r.HostName == "" {
+		r.HostName = unnamedHost
+	}
+	if !displayable(r.HostName, maxName) || !visible(r.HostName) {
+		return r, refuse(ErrInvalidRequest, "host_name is at most 160 characters, without control characters.")
+	}
+	if r.Mode = in.String("mode"); r.Mode == "" {
+		r.Mode = ModeDelegated
+	}
+	return r, nil
+}
+
+// limited spends one hit of the policy under key; ok is true, with the answer, when it is spent.
+func (p *Plugin) limited(ctx context.Context, policy config.RateLimit, key string) (endpoint.Result, bool, error) {
+	res, err := ratelimit.Check(ctx, p.s.rates, policy, key)
+	if err != nil || res.Allowed {
+		return endpoint.Result{}, false, err
+	}
+	out := endpoint.TooManyRequests(endpoint.Route(ctx))
+	out.Header = ratelimit.Headers(res, p.s.clock.Now())
+	return out, true, nil
+}
+
 // registerUnder creates the agent under the live host with what it asks for, in one transaction. When
-// a person must approve everything, the agent is pending: it cannot act until they do (§2.3).
+// a person must approve everything, the agent is pending: it cannot act until they do (§2.3). The key of
+// an agent the host registered before answers that one while it is pending, and is refused then (§5.3).
 func (s *service) registerUnder(ctx context.Context, host Host, fields map[string]any, asked asking, c client) (Agent, []Grant, *Approval, error) {
-	owner := Agent{OwnerType: host.OwnerType, OwnerID: host.OwnerID, OrganizationID: host.OrganizationID, CreatedBy: host.CreatedBy, HostID: host.ID}
+	thumbprint, err := thumbprintOf(fields["jwk"])
+	if err != nil {
+		return Agent{}, nil, nil, err
+	}
+	owner := Agent{OwnerType: host.OwnerType, OwnerID: host.OwnerID, OrganizationID: host.OrganizationID, CreatedBy: host.CreatedBy, HostID: host.ID, keyThumbprint: thumbprint}
 	var a Agent
 	var grants []Grant
 	var approval *Approval
-	err := s.db.Tx(ctx, func(ctx context.Context) error {
+	created, reopened := true, false
+	err = s.db.Tx(ctx, func(ctx context.Context) error {
 		if err := s.lockHost(ctx, host.ID); err != nil {
 			return err
 		}
-		var err error
+		earlier, found, err := s.agentOfKey(ctx, host.ID, thumbprint)
+		if err != nil {
+			return err
+		}
+		if found {
+			created, a, approval = false, earlier, &Approval{}
+			grants, *approval, reopened, err = s.retriedAgent(ctx, earlier, asked)
+			return err
+		}
 		if a, _, err = s.createAgent(ctx, fields, owner); err != nil {
 			return err
 		}
@@ -172,8 +290,26 @@ func (s *service) registerUnder(ctx context.Context, host Host, fields map[strin
 	if err != nil {
 		return Agent{}, nil, nil, err
 	}
-	s.dispatch(ctx, byAgent(EventEnrolled, a, map[string]any{"host_id": host.ID, "name": a.Name, "mode": a.Mode, "auth": a.Auth}, c))
+	if created {
+		s.dispatch(ctx, byAgent(EventEnrolled, a, map[string]any{"host_id": host.ID, "name": a.Name, "mode": a.Mode, "auth": a.Auth}, c))
+	}
+	if reopened {
+		s.dispatch(ctx, byAgent(EventGrantRequested, a, requestedData(grants, approval, asked.reason, asked.binding), c))
+	}
 	return a, grants, approval, nil
+}
+
+// retriedAgent is retried for an agent of a known host, whose lock the caller holds.
+func (s *service) retriedAgent(ctx context.Context, a Agent, asked asking) ([]Grant, Approval, bool, error) {
+	// Conditional, so that a decision made meanwhile is seen whatever the transaction read before.
+	n, err := s.db.Update(ctx, TableAgents, store.Criteria{"id": a.ID, "status": StatusPending}, store.Data{"id": a.ID})
+	if err == nil && n != 1 {
+		err = errAgentExists()
+	}
+	if err != nil {
+		return nil, Approval{}, false, err
+	}
+	return s.waiting(ctx, a, asked.method, asked.binding, s.strengthFor)
 }
 
 // protocolStatusOf is the agent's status as the protocol names it (§2.3). A suspended agent reads
@@ -187,7 +323,7 @@ func protocolStatusOf(a Agent) string {
 
 // protocolStatus is GET /agent/status (§5.5).
 func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoint.Result {
-	host, _, err := p.s.hostOf(in.Request)
+	host, _, err := p.s.hostCalling(in.Request, true)
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
@@ -199,15 +335,24 @@ func (p *Plugin) protocolStatus(ctx context.Context, in *endpoint.Input) endpoin
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	if !ok || a.HostID != host.ID { // another host's agent is not told from none
+	if ok = ok && host.ID != "" && a.HostID == host.ID; !ok { // another host's agent is not told from none
+		var reg registration
+		if reg, ok, err = p.s.registration(ctx, id); err != nil {
+			return p.protocolFail(ctx, err)
+		}
+		if a, ok = reg.agent(), ok && reg.HostThumbprint == host.KeyThumbprint; host.ID != "" {
+			a.HostID = host.ID
+		}
+	}
+	if !ok {
 		return p.protocolFail(ctx, refuse(ErrAgentNotFound, "The agent does not exist under this host."))
 	}
 	grants, err := p.s.grantsOf(ctx, a, "")
 	if err != nil {
 		return p.protocolFail(ctx, err)
 	}
-	return noStore(http.StatusOK, map[string]any{"agent_id": a.ID, "host_id": host.ID, "name": a.Name, "status": protocolStatusOf(a), "mode": a.Mode,
-		"agent_capability_grants": p.grantStates(grants, true), "user_id": a.Subject(), "created_at": timestamp(a.CreatedAt)})
+	return noStore(http.StatusOK, map[string]any{"agent_id": a.ID, "host_id": a.HostID, "name": a.Name, "status": protocolStatusOf(a), "mode": a.Mode,
+		"agent_capability_grants": p.grantStates(grants, true), "user_id": null(a.Subject()), "created_at": timestamp(a.CreatedAt)})
 }
 
 // protocolRequest is POST /agent/request-capability (§5.4). status is what the reference client reads

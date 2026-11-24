@@ -26,8 +26,15 @@ domain:
     A host with a key (POST /agents/hosts with public_key or jwks_url) registers an agent with the Ed25519
     key its JWT carries (agent_public_key). The agent belongs to the host's owner. The capabilities asked
     for go through the policy: when a person must approve all of them the agent is pending until they do
-    (approval; GET /agent/status is polled), and rejected when they deny it. host_name and login_hint are
-    not used. Recorded as agent.enrolled.
+    (approval; GET /agent/status is polled), and rejected when they deny it. A host the server does not know
+    (Discovery DiscoveryAgentAuth, unless DisableDynamicHosts) is pending with its agent whatever it asks for: a
+    signed-in person approves both with the code (GET /agents/approvals/code, at least step_up), and the host
+    and the agent are theirs, in their active organization. host_name is what they are shown of it. The host
+    is the key in host_public_key, whose thumbprint iss is; host_jwks_url is for hosts an owner registered.
+    The same host and agent key again answer the same pending agent, with its approval opened again when that
+    expired, and 409 agent_exists once it is not pending. New registrations of unknown hosts are limited per
+    address at the register budget. login_hint is not used. Recorded as agent.enrolled, or for an unknown
+    host agent.registration.requested.
 
 output:
   status: 200
@@ -47,6 +54,7 @@ errors:
   - { status: 400, code: unknown_constraint_operator }
   - { status: 401, code: invalid_jwt }
   - { status: 403, code: host_revoked }
+  - { status: 409, code: agent_exists }
   - { status: 429, code: rate_limited }
 
-events: [agent.enrolled, agent.grant.requested, agent.grant.approved]
+events: [agent.enrolled, agent.registration.requested, agent.grant.requested, agent.grant.approved]

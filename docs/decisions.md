@@ -3229,3 +3229,60 @@ sends an `iss` is refused on the protocol routes, where it has no host key to na
 JWKS host verifies until the cached set expires (five minutes, §10.4). For part 3: the cleanup also
 deletes a known host's registrations whose approval expired, which stay pending until then.
 
+
+## 85. 2026-11-24 — Agent Auth Protocol, part 3: hosts the server does not know
+
+Part 3 of [`agent-auth-compat.md`](agent-auth-compat.md). The unmodified `@auth/agent` client signs in from a
+host nobody registered: it registers an agent, shows a person a code, they approve, and it works. The
+interop harness passes whole (exit status 0), and its CI job stops accepting 3.
+
+- **A registration is a row of its own** (`polaris_agent_registration`), and nothing is a host, an agent or an
+  OAuth client before a person approves it (§8.10). Its grants and its approval are ordinary rows that name
+  the agent it may become, so the approval routes read and decide it as any other. The policy approves none
+  of it. The agent keeps the id the client was told: `oauth.Plugin.CreateClientAs`, new, creates a client
+  under a `client_id` its caller chose. No route lets a requester choose one.
+- **Opt-in.** Taken with `DiscoveryAgentAuth` only, and not with `Config.DisableDynamicHosts`: it is an
+  unauthenticated write, which an upgrade must not switch on. In the default mode nothing changes.
+- **Who approves owns it.** Whoever signs in with the code decides (device authorization, never a push to
+  somebody an unknown host names), and the host and the agent are theirs, in their active organization. The
+  first approval links the host (§2.9); from then on only its owner decides its other waiting registrations,
+  and a key an owner registers meanwhile makes it theirs the same way. The unique key and a check in the
+  transaction hold that under a race; a revoked host's registrations cannot be approved (§2.11).
+- **A fresh sign-in, always** (§8.11): `step_up` at least, whatever `Strengths` says, and `auth_time` within
+  `StepUpMaxAge` for a person without a second factor too, whose any session satisfies `step_up`. 5.3 (the
+  grants' own strengths) stays open.
+- **A denial is of that agent, not of the host.** §2.11's `rejected` host is not stored: anyone signed in with
+  the code could close the server to a device for good. The host may ask again with another key.
+- **A pending host** registers and reads the status of its own registrations, which §7.1 needs and §4.5.1
+  step 8 does not name. Elsewhere it is unknown, 401 (2.4). An agent JWT of it is `agent_pending`, 403.
+- **JWKS URLs of unknown hosts are refused** (5.10): the server would fetch a URL an anonymous caller chose.
+- **Idempotent by host and agent key** (§5.3), known hosts too: pending answers the same agent, its approval
+  opened again when that expired (`expires_in` is what is left of an open one), any other state is 409
+  `agent_exists`. `polaris_agent.key_thumbprint`, unique with the host, holds it.
+- **Cleanup** (§7.1, §10.9): a registration ends a day after its approval expired or was denied, and reads as
+  gone then, deleted or not. A new registration deletes a few ended ones; `Plugin.Prune`, new, deletes all,
+  and the pending agents of known hosts nobody decided, which decision 84 left.
+- **Limits** (§8.13): a new registration of an unknown host spends a budget per address of its own, at
+  `RateLimits.Register` (5 an hour); a retry does not. IPv6 counts per /64, as everywhere: the key moved from
+  `pipeline` to `internal/netguard` so that both use it. Where unknown hosts are taken, on `GET /agents/approvals/code` a code that stands
+  for none of the caller's agents' approvals spends `RateLimits.MFAConfirm` per person, a right one for an unowned
+  registration too: codes used to be worth guessing to nobody but their owner.
+- **What people are shown** (§8.10): names need a visible character, and text written by a host holds no
+  control, bidirectional or line separator character. `host` and `reason` are in the approval, unproven.
+- A host JWT's `jti` is spent under its signing key's thumbprint, not the host's id, so one used before the
+  approval is not usable after it.
+
+Go API: additions only (`make apicheck BASE=v1.0.0`): `Config.DisableDynamicHosts`, `Plugin.Prune`,
+`ErrAgentExists`, `EventRegistrationRequested`, `EventRegistrationDenied`, `TableRegistrations`,
+`oauth.Plugin.CreateClientAs`. Routes: none added; four specs say more. Fixtures: two added, none changed.
+Schema: one table, one nullable column and one unique index on `polaris_agent`; `Migrate` reaches HEAD from every
+released schema. Fuzz target: `FuzzUnknownHostJWT`.
+
+Security review (rule 6), independent, by reading the whole change: no bypass, takeover, replay across the
+approval, or change in the default mode. Fixed from it and from the correctness review, with a test except
+for the last two: the approval's id was in the event (whoever signs in with it may approve), an old session of a person without a
+second factor could approve, names of invisible characters only, a denied key that stayed taken until
+something pruned it, the size of the cleanup a registration runs, and an agent key registered twice
+answering 500. Accepted: linking a host is a standing grant to what the policy approves, which the approval
+page must say (README); a person can be sent somebody else's code, as with any device code; guessing a code
+(19^8) is bounded per account, not across accounts; confusable names are shown as they are.

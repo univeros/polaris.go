@@ -569,7 +569,7 @@ func (p *Plugin) listApprovals(ctx context.Context, _ *endpoint.Input) endpoint.
 		if ok {
 			ptr = &a
 		}
-		d, err := p.s.describe(ctx, ap, ptr)
+		d, err := p.s.describe(ctx, ap, ptr, nil)
 		if err != nil {
 			return p.fail(ctx, err)
 		}
@@ -585,18 +585,27 @@ func (p *Plugin) readApproval(ctx context.Context, in *endpoint.Input) endpoint.
 	}
 	ap, ok, err := p.s.approvalByCode(ctx, in.String("user_code"))
 	var a Agent
+	var reg *registration
 	if err == nil && ok {
-		if a, ok, err = p.s.agent(ctx, ap.AgentID); err == nil && ok {
-			ok, err = p.manages(ctx, a.OwnerType, a.OwnerID, tok)
-		}
+		a, reg, ok, err = p.decidable(ctx, ap, tok)
 	}
 	if err != nil {
 		return p.fail(ctx, err)
 	}
+	if p.s.settings.dynamicHosts && (!ok || (reg != nil && !reg.known)) {
+		// A code may be a guess, and a right one links a stranger's host: both are counted.
+		limited, spent, err := p.limited(ctx, p.s.codeGuesses, "user:"+tok.Subject())
+		if err != nil {
+			return p.fail(ctx, err)
+		}
+		if spent {
+			return limited
+		}
+	}
 	if !ok {
 		return p.fail(ctx, refuse(ErrNotFound, "No pending approval has this code."))
 	}
-	d, err := p.s.describe(ctx, ap, &a)
+	d, err := p.s.describe(ctx, ap, &a, reg)
 	if err != nil {
 		return p.fail(ctx, err)
 	}
@@ -615,10 +624,9 @@ func (p *Plugin) decideApproval(ctx context.Context, in *endpoint.Input) endpoin
 	}
 	ap, ok, err := p.s.approval(ctx, in.String("id"))
 	var a Agent
+	var reg *registration
 	if err == nil && ok {
-		if a, ok, err = p.s.agent(ctx, ap.AgentID); err == nil && ok {
-			ok, err = p.manages(ctx, a.OwnerType, a.OwnerID, tok)
-		}
+		a, reg, ok, err = p.decidable(ctx, ap, tok)
 	}
 	if err != nil {
 		return p.fail(ctx, err)
@@ -631,8 +639,11 @@ func (p *Plugin) decideApproval(ctx context.Context, in *endpoint.Input) endpoin
 		if err := p.mayApprove(ctx, ap, a, tok); err != nil {
 			return p.fail(ctx, err)
 		}
+		if reg != nil && !p.s.recent(tok) { // step_up takes any session of a person without a second factor
+			return p.fail(ctx, &Error{Type: ErrStepUpRequired, Detail: "Approving an unknown host needs a recent sign-in.", Extra: map[string]any{"strength": ap.Strength}})
+		}
 	}
-	ap, decided, err := p.s.decide(ctx, ap, approve, tok.Subject(), constraints)
+	ap, decided, err := p.s.decide(ctx, ap, approve, tok.Subject(), constraints, reg)
 	if err != nil {
 		return p.fail(ctx, err)
 	}
@@ -644,12 +655,44 @@ func (p *Plugin) decideApproval(ctx context.Context, in *endpoint.Input) endpoin
 		name = EventGrantApproved
 	}
 	c := clientOf(ctx)
+	if reg != nil {
+		p.s.dispatch(ctx, decidedRegistration(*reg, a, approve, tok.Subject(), c))
+	}
 	for _, g := range decided {
 		p.s.dispatch(ctx, byUser(name, a, tok.Subject(), map[string]any{"capability": g.Capability, "grant_id": g.ID, "how": ap.Method, "budget": nullInt(g.BudgetTotal)}, c))
 	}
 	out := ap.view()
 	out["grants"] = views(decided, grantView)
 	return endpoint.JSON(http.StatusOK, data(out))
+}
+
+// decidable is the agent an approval is for, ok when the caller may decide it: they manage the agent. An
+// unknown host's registration (reg, not nil) is nobody's: whoever holds its code or its approval's id may
+// decide it, until the host is somebody's, and the agent is as they would own it.
+func (p *Plugin) decidable(ctx context.Context, ap Approval, tok *token.Token) (a Agent, reg *registration, ok bool, err error) {
+	if a, ok, err = p.s.agent(ctx, ap.AgentID); err != nil {
+		return a, nil, false, err
+	}
+	if ok {
+		ok, err = p.manages(ctx, a.OwnerType, a.OwnerID, tok)
+		return a, nil, ok, err
+	}
+	r, ok, err := p.s.registration(ctx, ap.AgentID)
+	if err != nil || !ok {
+		return a, nil, false, err
+	}
+	h, err := p.s.registeredHost(ctx, r)
+	if err != nil {
+		return a, nil, false, err
+	}
+	if h != nil {
+		r.known = true
+		if ok, err = p.manages(ctx, h.OwnerType, h.OwnerID, tok); err != nil || !ok {
+			return a, nil, false, err
+		}
+	}
+	r.becomes = r.agentFor(h, tok.Subject(), endpoint.ActorOrganization(tok))
+	return r.becomes, &r, true, nil
 }
 
 // mayApprove checks the deciding session's strength and that the permission each capability

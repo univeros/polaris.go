@@ -116,7 +116,14 @@ func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw string, peeked p
 		return principal{}, err
 	}
 	if !ok {
-		return principal{}, invalidJWT("sub does not name a registered agent.")
+		var reg registration
+		if reg, ok, err = s.registration(ctx, peeked.sub); err != nil {
+			return principal{}, err
+		}
+		if !ok {
+			return principal{}, invalidJWT("sub does not name a registered agent.")
+		}
+		a = reg.agent() // never active
 	}
 	if err := assertActive(a); err != nil {
 		return principal{}, err

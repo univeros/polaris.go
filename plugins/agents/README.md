@@ -25,7 +25,7 @@ ag := agents.New(agents.Config{Capabilities: []agents.Capability{
 }})
 cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag)
 p, err := polaris.New(cfg)
-_, err = p.Migrate(ctx) // polaris_agent, _host, _grant, _approval, _receipt; seeds capability permissions
+_, err = p.Migrate(ctx) // polaris_agent, _host, _grant, _approval, _receipt, _registration; seeds capability permissions
 
 mux.Handle("/", p.Handler())                                   // /agents/*, /.well-known/agent-configuration
 mux.Handle("POST /api/refunds", ag.Protect("refund", refunds)) // grant, constraints, budget checked BEFORE refunds
@@ -46,6 +46,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `ApprovalTTL` | 10 min | how long an approval waits |
 | `Discovery` | `DiscoveryPolaris` | the document at `/.well-known/agent-configuration`: `DiscoveryPolaris` (the Go agent SDK's) or `DiscoveryAgentAuth` (the Agent Auth Protocol's) |
 | `DisableJWKSURLs` | false | refuse hosts that publish their keys at a `jwks_url` (taken with `DiscoveryAgentAuth` only) |
+| `DisableDynamicHosts` | false | refuse hosts the server does not know (taken with `DiscoveryAgentAuth` only): only hosts an owner registered sign agents in |
 | `HTTPClient` | guarded | fetches those key sets; the default connects to public addresses only, and no client follows a redirect |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
 | `RequestJWTMaxAge` | 5 min (also the maximum) | bound on `exp - iat` |
@@ -60,7 +61,7 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | GET | `/agents/configuration` | Polaris's discovery document, whatever `Config.Discovery` says |
 | GET | `/capability/list` | Agent Auth Protocol: the capabilities (`query`, `cursor`, `limit` ≤ 100), with `grant_status` for an agent |
 | GET | `/capability/describe` | Agent Auth Protocol: one capability (`name`) |
-| POST | `/agent/register` | Agent Auth Protocol: a host with a key registers an agent |
+| POST | `/agent/register` | Agent Auth Protocol: a host registers an agent; one the server does not know waits for a person with it |
 | GET | `/agent/status` | Agent Auth Protocol: an agent of the host (`agent_id`) |
 | POST | `/agent/request-capability` | Agent Auth Protocol: the agent asks for capabilities |
 | POST | `/capability/execute` | Agent Auth Protocol: run a `Handler` capability |
@@ -87,7 +88,8 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 
 Emits `agents.Event` with `EventRegistered`, `EventEnrolled`, `EventSuspended`, `EventResumed`,
 `EventRevoked`, `EventGrantRequested`, `EventGrantApproved`, `EventGrantDenied`, `EventGrantRevoked`,
-`EventGrantExhausted`, `EventExecuted`, `EventExecutionDenied`, `EventReceiptSealed` (`agent.*`);
+`EventGrantExhausted`, `EventExecuted`, `EventExecutionDenied`, `EventReceiptSealed`,
+`EventRegistrationRequested`, `EventRegistrationDenied` (`agent.*`);
 `Plugin.AuditNames` adds them to the audit catalog. `Plugin.Permissions` contributes each capability's
 `Permission` that core's catalog lacks (so it can join roles and be an OAuth scope); declare your own
 with `cfg.Permissions` too if you want descriptions of your choosing.
@@ -102,7 +104,7 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 `payload_too_large` (413). Only on the protocol routes: `invalid_request`,
 `invalid_capabilities`, `unsupported_mode`, `unsupported_algorithm` (400); `agent_revoked`,
 `agent_suspended`, `agent_pending`, `agent_rejected`, `host_revoked`, `limit_exceeded` (403);
-`agent_not_found` (404); `already_granted` (409). A `Handler` may return `*agents.Error` to refuse with one.
+`agent_not_found` (404); `already_granted`, `agent_exists` (409). A `Handler` may return `*agents.Error` to refuse with one.
 
 ## Host integration
 
@@ -149,10 +151,10 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 ## Agent Auth Protocol
 
 The protocol's own client (`@auth/agent`) signs in through a host whose key its owner registered
-(`POST /agents/hosts` with `public_key`): it registers an agent, waits for a person where one must
-approve, requests capabilities and executes them. A host the server does not know is refused (401) for
-now, and so is a capability with a `Location`, which such a client calls with another body than `Protect`
-reads. What is built and what is next is
+(`POST /agents/hosts` with `public_key`), or, with `DiscoveryAgentAuth`, through a host the server does not
+know: it registers an agent, waits for a person where one must approve, requests capabilities and executes
+them. A capability with a `Location` is refused for now: such a client calls it with another body than
+`Protect` reads. What is built and what is next is
 [docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
 
 - An origin has one `/.well-known/agent-configuration` and the two client families read it differently.
@@ -168,6 +170,22 @@ reads. What is built and what is next is
   everything it asked for at registration, and `rejected` for good when they deny it. Approvals are
   decided as ever (`/agents/approvals`); with `ApprovalURL` the client shows that page and the code.
 - The public key an owner registers is not proven to be theirs: register the key of a host you run.
+- A host the server does not know registers with its key, and nothing exists until a person approves: no
+  host, no agent, no OAuth client. The client shows them your `ApprovalURL` and a code; your page reads
+  `GET /agents/approvals/code` with their session and posts their decision. Who approves owns the host and
+  the agent, in their active organization, and from then on the policy applies to the host's agents; show
+  them that, what is asked (`agent`, `grants`) and who asks (`host`, `reason`). `host.name`, the agent's name
+  and `reason` are what the host says, proven by nothing: render them as text, and say so. Approving needs at least
+  `step_up` and a sign-in within `StepUpMaxAge` (403 `step_up_required` otherwise: send them to sign in again),
+  whatever `Strengths` says. Denying rejects that agent for good; the host may ask again with another key.
+  Such a host sends its key (`host_public_key`); a `jwks_url` is for hosts an owner registered.
+- A person can be sent a code by somebody else and asked to approve it, as with any device code: the page
+  should ask whether they started this themselves.
+- New registrations of unknown hosts are limited per address at the budget of sign-up
+  (`RateLimits.Register`, 5 an hour). The address is the request's `RemoteAddr`: behind a proxy, set it to the
+  client's before Polaris, or every client shares one budget.
+- Schedule `ag.Prune(ctx)`: a day after its approval expired, it deletes a registration nobody decided and a
+  known host's agent nobody decided. Unknown hosts' registrations are also deleted as new ones come.
 
 ## Example
 

@@ -3,8 +3,7 @@
 # in internal/e2e/agentauthserver/package-lock.json) against a Polaris server in its discovery mode.
 # Needs Go and Node 22 or newer; not part of `make qa`.
 #
-# Exit status (internal/e2e/agentauthserver/client.mjs): 0 the whole flow passed; 3 it stopped where
-# docs/agent-auth-compat.md says the server stops today, every step before it passed; 1 anything else.
+# Exit status (internal/e2e/agentauthserver/client.mjs): 0 the whole flow passed; 1 anything else.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)

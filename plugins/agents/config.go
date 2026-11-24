@@ -107,6 +107,10 @@ type Config struct {
 	// DisableJWKSURLs refuses hosts that publish their keys at a URL (jwks_url), which this server
 	// fetches. Such hosts are only taken with DiscoveryAgentAuth.
 	DisableJWKSURLs bool
+	// DisableDynamicHosts refuses hosts the server does not know, whose registration a signed-in person
+	// approves with the code their client shows: only hosts an owner registered sign agents in then.
+	// Such hosts are only taken with DiscoveryAgentAuth.
+	DisableDynamicHosts bool
 	// HTTPClient fetches hosts' key sets. Default: a client that connects to public addresses only,
 	// with a timeout. Redirects are never followed, whichever client is used.
 	HTTPClient *http.Client
@@ -136,6 +140,7 @@ type settings struct {
 	providerName, description string
 	discovery                 DiscoveryMode
 	jwksURLs                  bool
+	dynamicHosts              bool
 	httpClient                *http.Client
 	maxAge                    int64
 	operators                 OperatorFunc
@@ -175,6 +180,7 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 		bad("Config.Discovery must be agents.DiscoveryPolaris or agents.DiscoveryAgentAuth, got %q", cfg.Discovery)
 	}
 	s.jwksURLs = s.discovery == DiscoveryAgentAuth && !cfg.DisableJWKSURLs
+	s.dynamicHosts = s.discovery == DiscoveryAgentAuth && !cfg.DisableDynamicHosts
 	s.httpClient = netguard.NoRedirects(cfg.HTTPClient)
 	if s.providerName == "" {
 		s.providerName = "Polaris"

@@ -10849,6 +10849,10 @@
                     "code": "agents_permission_not_held"
                 },
                 {
+                    "status": 403,
+                    "code": "host_revoked"
+                },
+                {
                     "status": 404,
                     "code": "agents_not_found"
                 },
@@ -10863,7 +10867,9 @@
             ],
             "events": [
                 "agent.grant.approved",
-                "agent.grant.denied"
+                "agent.grant.denied",
+                "agent.enrolled",
+                "agent.registration.denied"
             ]
         },
         {
@@ -10923,6 +10929,10 @@
                 {
                     "status": 404,
                     "code": "agents_not_found"
+                },
+                {
+                    "status": 429,
+                    "code": "too_many_requests"
                 }
             ],
             "events": []
@@ -11781,12 +11791,17 @@
                     "code": "host_revoked"
                 },
                 {
+                    "status": 409,
+                    "code": "agent_exists"
+                },
+                {
                     "status": 429,
                     "code": "rate_limited"
                 }
             ],
             "events": [
                 "agent.enrolled",
+                "agent.registration.requested",
                 "agent.grant.requested",
                 "agent.grant.approved"
             ]

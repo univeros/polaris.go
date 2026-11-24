@@ -160,6 +160,8 @@ type Agent struct {
 	SealedAt       *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+
+	keyThumbprint string // of its key, when a host's JWT registered it: such a key is one agent of its host
 }
 
 // Subject is the user the agent acts as or for: its owner, or for an organization's agent the
@@ -196,7 +198,7 @@ func (a Agent) row() store.Row {
 		"id": a.ID, "owner_type": a.OwnerType, "owner_id": a.OwnerID, "organization_id": null(a.OrganizationID),
 		"name": a.Name, "mode": a.Mode, "host_id": null(a.HostID), "auth": a.Auth, "public_jwk": jwk,
 		"status": a.Status, "created_by": a.CreatedBy, "sealed_at": store.Nullable(a.SealedAt),
-		"created_at": a.CreatedAt, "updated_at": a.UpdatedAt,
+		"created_at": a.CreatedAt, "updated_at": a.UpdatedAt, "key_thumbprint": null(a.keyThumbprint),
 	}
 }
 
@@ -206,7 +208,7 @@ func agentFromRow(r store.Row) Agent {
 		OrganizationID: r.String("organization_id"), Name: r.String("name"), Mode: r.String("mode"),
 		HostID: r.String("host_id"), Auth: r.String("auth"), Status: r.String("status"),
 		CreatedBy: r.String("created_by"), SealedAt: r.TimePtr("sealed_at"),
-		CreatedAt: rowTime(r, "created_at"), UpdatedAt: rowTime(r, "updated_at"),
+		CreatedAt: rowTime(r, "created_at"), UpdatedAt: rowTime(r, "updated_at"), keyThumbprint: r.String("key_thumbprint"),
 	}
 	if jwk, ok := rowJSON(r, "public_jwk").(map[string]any); ok {
 		a.PublicJWK = jwk
@@ -371,6 +373,8 @@ type Approval struct {
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+
+	reused bool // opened by an earlier request, which this one repeats
 }
 
 // Pending reports whether the approval still waits for a decision at now.

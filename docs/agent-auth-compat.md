@@ -1,6 +1,6 @@
 # Agent Auth Protocol compatibility
 
-Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1) and 84 (part 2) in
+Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3) in
 [`decisions.md`](decisions.md). Target release: `v1.1.0` (additive; nothing in v1 breaks).
 
 Reference: Agent Auth Protocol, published as `v1.0-draft`,
@@ -206,13 +206,29 @@ is a registration row.
   (§8.8.1). The owner proves no possession: see §6. This is the path for first-party fleets (Vela's Nightwatch, Venant, Tarazed).
 - **Dynamic host.** A host JWT from an unknown thumbprint on `POST /agent/register` creates nothing
   in `polaris_agent_host` or `polaris_agent`. It creates a row in a new table,
-  `polaris_agent_registration` (the future agent id, the host and agent keys or JWKS URLs, names,
-  mode, the capabilities asked, the approval id, expiry). The response is the protocol's `pending`
-  registration with a device-authorization approval. When a signed-in person approves at the required
-  strength, one transaction creates the host owned by that person, the agent (through the existing
-  `createAgent`, so it is an OAuth client like any other) and the grants, and deletes the registration
-  row. Denied: the row is marked `rejected`. Expired: a maintenance pass deletes it (§7.1: cleanup
-  deletes, it does not revoke).
+  `polaris_agent_registration` (the future agent and host ids, both keys, names, mode, reason, expiry), and
+  the pending grants and the approval, as rows that name the future agent: the existing approval routes
+  read and decide them. Nothing of it is approved by the policy. The response is the protocol's `pending`
+  registration with a device-authorization approval (never CIBA: an unknown host names nobody to push to).
+  When a signed-in person approves at the required strength (at least `step_up`, and a sign-in within its max age even without a second factor: §8.11, and the
+  host is linked by it), one transaction creates the host owned by that person in their active organization, the
+  agent (through the existing `createAgent`, so it is an OAuth client like any other) under the announced id,
+  activates the grants, and deletes the registration row. Denied: the row is marked `rejected` and deleted a
+  day later. Undecided: deleted a day after the approval expired (§7.1: cleanup deletes, it does not revoke),
+  by `Plugin.Prune` and as new registrations come.
+- **Which hosts.** With `DiscoveryAgentAuth`, unless `Config.DisableDynamicHosts`. The key is inline: a
+  `host_jwks_url` from an unknown host is refused (5.10). There is no stored pending host: an unknown host
+  may register several agents, each with its own approval, under one announced host id. The first approval
+  makes the host the approver's; from then on only they decide the rest (§2.9). A key an owner registers
+  meanwhile makes it theirs the same way. A revoked host's waiting registrations cannot be approved (§2.11).
+- **A denial is of that agent, not of the host.** §2.11's `rejected` host is not stored: anyone who signs in
+  with the code could otherwise close the server to a device. The host may ask again with another agent key,
+  which a person must approve as before.
+- **What a pending host may do** (§4.5.1 step 8, read with §7.1, which has it poll): register, and read the
+  status of its own registrations. On the capability routes it is unknown (2.4).
+- **Idempotency** (§5.3) by host and agent key, for known hosts too (`polaris_agent.key_thumbprint`, unique
+  with the host): pending answers the same agent, its approval opened again when that expired; any other
+  state is 409 `agent_exists`.
 - Nothing is trusted, granted or shown as an agent before that approval (§8.10). The approving
   person is the only link a host has; a host is never linked to two users (§2.9).
 - Host JWT verification is a new `hostjwt.go` beside `requestjwt.go`: `typ host+jwt` only; `iss`
@@ -328,7 +344,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 0.2 | Interop harness: `scripts/e2e-agent-auth.sh` starts a small server (`internal/e2e/agentauthserver`) and runs the unmodified `@auth/agent` client against it. Decision 30 did this for `@polaris-auth/agent`; that script and its server were removed with decision 53, so this one is new. It needs Node in CI: a separate job, not part of `make qa` | S | The script runs and stops at registration, for the expected reason (exit status 3; any other failure is 1) |
 | 1 | Discovery modes, `GET /agents/configuration`, SDK fallback; `/capability/list` with `query`, `cursor`, `limit`; `/capability/describe` | M | A protocol client reads the server's configuration and lists capabilities; existing discovery fixture unchanged |
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
-| 3 | Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
+| 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
 | 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
@@ -371,7 +387,8 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    until the timeout. The agent's own calls answer 403 `agent_suspended`, an extra code §5.13
    allows.
 3. **Approval strength defaults in protocol mode.** As 2.7, or keep today's defaults and document the
-   departure from §8.11. Recommended: 2.7. Still open (part 3); part 1 does not touch `Strengths`.
+   departure from §8.11. Recommended: 2.7. Still open: nothing so far touches `Strengths`. Approving an
+   unknown host's registration is `step_up` at least, whatever this becomes: it is new, so nothing changes.
 4. **Who may introspect.** A permission (2.8), or operators only. Still open (part 4); the client never
    calls it.
 5. **`budget_exhausted` on the protocol routes. Decided: `limit_exceeded`.** §5.13 defines it as a
@@ -381,8 +398,9 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    document claims nothing the protocol's does not, and it is frozen for v1.
 7. **Rate limits (§8.13, a MUST).** Part 2's four routes share the group their Polaris siblings do
    (`token_refresh`, per IP) and answer 429 `rate_limited`, the code their specs declare. Open: a limit
-   per host and agent, unknown hosts (part 3), and the read-only discovery and capability routes, which
-   have none, as their siblings do not.
+   per host and agent, and the read-only discovery and capability routes, which have none, as their
+   siblings do not. Unknown hosts (part 3): a new registration spends a budget per address of its own, at
+   `RateLimits.Register` (5 an hour, §8.13's example); a retry does not.
 8. **Capabilities with a `Location`.** A protocol client posts `{capability, arguments}` there (1.1), and
    `Protect` / `Guard` read the whole body as the arguments, so such a call is refused (schema or
    constraints) and no protocol client can execute one yet. Options: unwrap that body for an agent
@@ -391,6 +409,9 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    change with its own review, because it decides what a guarded handler reads.
 9. **Proof of possession for a pre-registered key** (§6). A host JWT made for the purpose would prove it,
    but the reference client offers no way to make one to paste.
+10. **JWKS URLs of unknown hosts** (§4.5.1 lets one register with `host_jwks_url`). Refused in part 3: the
+   server would fetch a URL an anonymous caller chose. The reference client sends its key. Such a host is
+   registered by its owner with `jwks_url`.
 
 ## 6. Risks
 
@@ -401,8 +422,11 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
   once in the service. Part 2 moves the shared checks behind one function so the edges differ only in
   what §2.4 lists; the security review reads both edges.
 - **Dynamic registration is an unauthenticated write path.** Anyone can create registration rows. The
-  per-IP limit, the expiry and the cleanup pass bound it; nothing else is written until a person
-  approves.
+  per-IP limit, the expiry and the cleanup (which registering itself runs) bound it; nothing else is
+  written until a person approves.
+- **Device-code phishing.** Somebody may send a person the code of a host that is not theirs (RFC 8628 §5.4).
+  The approval needs a fresh sign-in, shows what is asked and by whom as the host tells it, and the README
+  says what the page must say. A wrong code is counted per person, so codes are not found by trying.
 - **JWKS fetching is server-side request forgery surface.** It goes through `netguard` only, and a
   host may turn JWKS URLs off (`Config.DisableJWKSURLs`; on in protocol mode only).
 - **A pre-registered key is not proven.** Whoever knows a host's public key (any other server it uses,

@@ -111,11 +111,15 @@ func (s *clients) list(ctx context.Context, c store.Criteria) ([]Client, error) 
 	return out, nil
 }
 
-// create registers a client; mayTrust honours trusted (operators) instead of ignoring it.
-func (s *clients) create(ctx context.Context, fields ClientFields, organizationID, createdBy string, mayTrust bool) (IssuedClient, error) {
+// create registers a client under clientID ("": a new one); mayTrust honours trusted (operators)
+// instead of ignoring it.
+func (s *clients) create(ctx context.Context, clientID string, fields ClientFields, organizationID, createdBy string, mayTrust bool) (IssuedClient, error) {
 	now := s.clock.Now()
+	if clientID == "" {
+		clientID = repository.NewID()
+	}
 	c := Client{
-		ID: repository.NewID(), ClientID: repository.NewID(), OrganizationID: organizationID,
+		ID: repository.NewID(), ClientID: clientID, OrganizationID: organizationID,
 		CreatedBy: createdBy, CreatedAt: now, UpdatedAt: now,
 	}
 	c, err := s.apply(c, fields, mayTrust, true)

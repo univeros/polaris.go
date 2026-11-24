@@ -9,12 +9,14 @@ const (
 	TableGrants    = "polaris_agent_grant"
 	TableApprovals = "polaris_agent_approval"
 	TableReceipts  = "polaris_agent_receipt"
+	// TableRegistrations holds the registrations of hosts the server does not know, until a person decides.
+	TableRegistrations = "polaris_agent_registration"
 )
 
-// Models returns the plugin's five tables (their columns are the schema existing databases hold):
+// Models returns the plugin's six tables (their columns are the schema existing databases hold):
 // the agents (each an OAuth
 // client by the same id), the hosts that enrol them, the grants with their budgets, the approvals
-// a person decides and the receipt chain of every execution.
+// a person decides, the receipt chain of every execution, and the registrations of unknown hosts.
 func Models() []schema.Model {
 	return []schema.Model{
 		schema.Table(TableAgents,
@@ -32,7 +34,9 @@ func Models() []schema.Model {
 			schema.DateTimeField("sealedAt").AsNullable(),
 			schema.DateTimeField("createdAt"),
 			schema.DateTimeField("updatedAt"),
+			schema.StringField("keyThumbprint", 64).AsASCII().AsNullable(),
 		).
+			Unique([]string{"host_id", "key_thumbprint"}, "polaris_agent_host_key_thumbprint_unique").
 			Index([]string{"owner_type", "owner_id"}, "polaris_agent_owner_index").
 			Index([]string{"organization_id"}, "polaris_agent_org_index"),
 		schema.Table(TableHosts,
@@ -104,5 +108,23 @@ func Models() []schema.Model {
 			schema.DateTimeField("createdAt"),
 		).
 			Unique([]string{"agent_id", "seq"}, "polaris_agent_receipt_seq_unique"),
+		schema.Table(TableRegistrations,
+			schema.StringField("id", 36).AsPrimary(),
+			schema.StringField("hostId", 36),
+			schema.StringField("hostThumbprint", 64).AsASCII(),
+			schema.JSONField("hostJwk"),
+			schema.StringField("hostName", 160),
+			schema.StringField("agentThumbprint", 64).AsASCII(),
+			schema.JSONField("agentJwk"),
+			schema.StringField("name", 160),
+			schema.StringField("mode", 16),
+			schema.StringField("reason", 500).AsNullable(),
+			schema.StringField("status", 16),
+			schema.DateTimeField("expiresAt"),
+			schema.DateTimeField("createdAt"),
+			schema.DateTimeField("updatedAt"),
+		).
+			Unique([]string{"host_thumbprint", "agent_thumbprint"}, "polaris_agent_registration_keys_unique").
+			Index([]string{"expires_at"}, "polaris_agent_registration_expiry_index"),
 	}
 }

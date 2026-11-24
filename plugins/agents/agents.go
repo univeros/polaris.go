@@ -12,8 +12,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/plugins/oauth"
+	"github.com/univeros/polaris.go/ratelimit"
 	"github.com/univeros/polaris.go/repository"
 	"github.com/univeros/polaris.go/store"
 	"github.com/univeros/polaris.go/token"
@@ -46,6 +48,9 @@ type service struct {
 	issuerJWTs   *requestJWTs // the Agent Auth Protocol's non-execution routes
 	executeJWTs  *requestJWTs // its POST /capability/execute
 	jwks         *jwksKeys
+	rates        ratelimit.Store
+	unknownHosts config.RateLimit // new registrations of unknown hosts, per address
+	codeGuesses  config.RateLimit // user codes that are not the caller's agents', per person
 }
 
 func (s *service) now() time.Time { return s.clock.Now().UTC().Truncate(time.Second) }
@@ -102,7 +107,13 @@ func (s *service) createAgent(ctx context.Context, fields map[string]any, owner 
 	}
 	agent.CreatedAt = s.now()
 	agent.UpdatedAt = agent.CreatedAt
-	issued, err := s.oauth.CreateClient(ctx, clientFields(agent), "", agent.CreatedBy, false)
+	create := s.oauth.CreateClient
+	if agent.ID != "" { // a registration's, announced before it
+		create = func(ctx context.Context, fields oauth.ClientFields, org, by string, mayTrust bool) (oauth.IssuedClient, error) {
+			return s.oauth.CreateClientAs(ctx, agent.ID, fields, org, by, mayTrust)
+		}
+	}
+	issued, err := create(ctx, clientFields(agent), "", agent.CreatedBy, false)
 	if err != nil {
 		var oe *oauth.Error
 		if errors.As(err, &oe) {
@@ -139,11 +150,15 @@ func clientFields(a Agent) oauth.ClientFields {
 // maxID is the length of the id columns.
 const maxID = 36
 
+func possibleID(id string) bool {
+	return id != "" && len(id) <= maxID && utf8.ValidString(id) && !strings.ContainsFunc(id, unicode.IsControl)
+}
+
 // agent finds an agent by id; ok is false when there is none.
 func (s *service) agent(ctx context.Context, id string) (Agent, bool, error) {
 	// An id comes from a JWT or a query before anything is verified: what no id can be is not looked up
 	// (a NUL is an error on PostgreSQL).
-	if id == "" || len(id) > maxID || !utf8.ValidString(id) || strings.ContainsFunc(id, unicode.IsControl) {
+	if !possibleID(id) {
 		return Agent{}, false, nil
 	}
 	row, err := s.db.FindOne(ctx, TableAgents, store.Criteria{"id": id})
@@ -251,10 +266,8 @@ func (s *service) erase(ctx context.Context, a Agent) error {
 		case !errors.Is(err, oauth.ErrClientNotFound):
 			return err
 		}
-		for _, table := range []string{TableGrants, TableApprovals, TableReceipts} {
-			if _, err := s.db.Delete(ctx, table, store.Criteria{"agent_id": a.ID}); err != nil {
-				return err
-			}
+		if err := s.deleteOf(ctx, a.ID, TableGrants, TableApprovals, TableReceipts); err != nil {
+			return err
 		}
 		_, err = s.db.Delete(ctx, TableAgents, store.Criteria{"id": a.ID})
 		return err

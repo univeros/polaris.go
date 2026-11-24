@@ -576,7 +576,7 @@ func TestPendingGrantsAreReusedApprovalsAreCappedAndExpire(t *testing.T) {
 	if pending, _ := p.s.pendingApprovals(ctx, []Agent{a}); len(pending) != 0 {
 		t.Error("expired is not pending")
 	}
-	_, _, err = p.s.decide(ctx, expired, true, "owner", nil)
+	_, _, err = p.s.decide(ctx, expired, true, "owner", nil, nil)
 	if e := wantType(t, err, ErrConflict, "decide expired"); e.Detail != "The approval is expired." {
 		t.Error(e.Detail)
 	}
@@ -609,14 +609,14 @@ func TestADecisionWithBadConstraintsLeavesTheApprovalPending(t *testing.T) {
 	a := newAgent(t, p, nil)
 	grants, ap, err := p.s.requestGrantsAndApproval(ctx, a, []any{"refund"}, "", "", "", true, client{})
 	must(t, err)
-	_, _, err = p.s.decide(ctx, *ap, true, "owner", map[string]any{"amount": map[string]any{"between": []any{}}})
+	_, _, err = p.s.decide(ctx, *ap, true, "owner", map[string]any{"amount": map[string]any{"between": []any{}}}, nil)
 	_ = wantType(t, err, ErrUnknownConstraintOperator, "bad constraints")
 	still, _, _ := p.s.approval(ctx, ap.ID)
 	g, _, _ := p.s.grant(ctx, grants[0].ID)
 	if still.Status != ApprovalPending || g.Status != GrantPending {
 		t.Error("nothing changed")
 	}
-	_, decided, err := p.s.decide(ctx, *ap, true, "owner", map[string]any{"amount": map[string]any{"max": json.Number("5")}})
+	_, decided, err := p.s.decide(ctx, *ap, true, "owner", map[string]any{"amount": map[string]any{"max": json.Number("5")}}, nil)
 	must(t, err)
 	if len(decided) != 1 || decided[0].Status != GrantActive || decided[0].Constraints["amount"]["max"] != json.Number("5") {
 		t.Errorf("decided %+v", decided)
@@ -869,7 +869,7 @@ func TestTheDiscoveryDocumentMatchesTheProtocolSchema(t *testing.T) {
 	if Of(srv.Graph()) != p {
 		t.Error("Of")
 	}
-	if names := p.AuditNames(); len(names) != 13 {
+	if names := p.AuditNames(); len(names) != 15 {
 		t.Error("audit names")
 	}
 	if perms := p.Permissions(); perms["deploy.staging"] == "" || perms["members.read"] != "" {

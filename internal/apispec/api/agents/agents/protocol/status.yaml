@@ -18,7 +18,9 @@ domain:
   description: >
     An agent of the calling host: pending, active, rejected or revoked (a suspended agent reads pending),
     and one entry per capability it has or had a grant of: active (in full, with granted_by), pending, or
-    denied with the reason. Another host's agent is answered as none.
+    denied with the reason. Another host's agent is answered as none. A host the server does not know reads
+    the registrations it made (pending, or rejected for a day), and nothing else; user_id is null then. One
+    nobody decided is deleted a day after its approval expired.
 
 output:
   status: 200

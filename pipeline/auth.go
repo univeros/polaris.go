@@ -3,12 +3,12 @@ package pipeline
 import (
 	"net"
 	"net/http"
-	"net/netip"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/netguard"
 	"github.com/univeros/polaris.go/internal/strutil"
 	"github.com/univeros/polaris.go/manifest"
 	"github.com/univeros/polaris.go/token"
@@ -55,30 +55,14 @@ func sanitizeUserAgent(ua string) string {
 	return ua
 }
 
-// clientIP is the rate-limit key of an anonymous caller: the recorded IP, else "unknown". An
-// IPv6 address is keyed by its /64 (one subscriber holds at least that many addresses, so a
-// budget per address would be none); an IPv4-mapped one by its IPv4 address.
+// clientIP is the rate-limit key of an anonymous caller: the recorded IP's (netguard.RateKey).
 func clientIP(r *http.Request) string {
 	ip := endpoint.Client(r.Context()).IP
 	if ip == "" {
 		ip = remoteIP(r)
 	}
-	if ip == "" {
-		return "unknown"
-	}
-	addr, err := netip.ParseAddr(ip)
-	if err != nil {
-		return ip
-	}
-	if addr = addr.Unmap().WithZone(""); addr.Is4() {
-		return addr.String()
-	}
-	prefix, _ := addr.Prefix(ipv6RateBits)
-	return prefix.String()
+	return netguard.RateKey(ip)
 }
-
-// ipv6RateBits is the prefix length an IPv6 client is rate limited by.
-const ipv6RateBits = 64
 
 var bearerPattern = regexp.MustCompile(`(?i)^Bearer\s+(\S.*)$`)
 
