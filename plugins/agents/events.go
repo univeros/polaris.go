@@ -21,11 +21,15 @@ const (
 	EventExecuted        = "agent.executed"
 	EventExecutionDenied = "agent.execution_denied"
 	EventReceiptSealed   = "agent.receipt.sealed"
+	// A host the server does not know asked to register an agent, and a person denied it; approving is
+	// EventEnrolled.
+	EventRegistrationRequested = "agent.registration.requested"
+	EventRegistrationDenied    = "agent.registration.denied"
 )
 
 var auditNames = map[string]string{
 	EventRegistered:      "An agent was registered by its owner (name, mode, auth, organization)",
-	EventEnrolled:        "A host enrolled an agent (host, name, mode, auth)",
+	EventEnrolled:        "A host enrolled an agent (host, name, mode, auth); the actor is the person who approved an unknown host's",
 	EventSuspended:       "An agent was suspended",
 	EventResumed:         "A suspended agent was resumed",
 	EventRevoked:         "An agent was revoked: its tokens, grants and approvals ended, its receipt chain sealed",
@@ -37,6 +41,9 @@ var auditNames = map[string]string{
 	EventExecuted:        "An agent executed a capability (capability, receipt, outcome)",
 	EventExecutionDenied: "An agent was refused an execution (capability, error)",
 	EventReceiptSealed:   "An agent's receipt chain was sealed with a final receipt (receipt, seq)",
+
+	EventRegistrationRequested: "A host the server does not know asked to register an agent (host, name, capabilities)",
+	EventRegistrationDenied:    "A person denied the registration of an agent of a host the server does not know (host, name)",
 }
 
 // Event is what happened to or through an agent: a domain event the host may listen to (a CIBA
@@ -74,6 +81,15 @@ type client struct{ ip, userAgent string }
 func byAgent(name string, a Agent, data map[string]any, c client) Event {
 	return Event{Name: name, AgentID: a.ID, ActorType: audit.ActorAgent, ActorID: a.ID, SubjectID: a.Subject(),
 		OrganizationID: a.OrganizationID, Data: data, IP: c.ip, UserAgent: c.userAgent}
+}
+
+// decidedRegistration is the event of a person's decision on an unknown host's registration.
+func decidedRegistration(r registration, a Agent, approved bool, userID string, c client) Event {
+	data := map[string]any{"host_id": a.HostID, "host_key": r.HostThumbprint, "host_name": r.HostName, "name": r.Name, "mode": r.Mode, "auth": AuthPrivateKeyJWT}
+	if approved {
+		return byUser(EventEnrolled, a, userID, data, c)
+	}
+	return byUser(EventRegistrationDenied, a, userID, data, c)
 }
 
 func byUser(name string, a Agent, userID string, data map[string]any, c client) Event {

@@ -191,8 +191,10 @@ protocol's document at `/.well-known/agent-configuration`; the default, `agents.
 Polaris's, which is always at `GET /agents/configuration` too (the Go agent SDK falls back to it).
 The protocol's routes (`/capability/list`, `/capability/describe`, `/agent/register`, `/agent/status`,
 `/agent/request-capability`, `/capability/execute`) are served in both modes. A client signs in through a
-host its owner registered: `POST /agents/hosts` with `public_key` (the client's Ed25519 JWK). Hosts the
-server does not know are not taken yet.
+host its owner registered (`POST /agents/hosts` with `public_key`, the client's Ed25519 JWK), or, with
+`DiscoveryAgentAuth`, through one the server does not know: a signed-in person types the code the client
+shows at your `ApprovalURL` page (`GET /agents/approvals/code`, `POST /agents/approvals/{id}/decide`) and the
+host and the agent become theirs. `Config.DisableDynamicHosts` turns that off; schedule `ag.Prune(ctx)`.
 
 ## Agents: sign in from Go (the agent side)
 

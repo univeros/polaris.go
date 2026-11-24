@@ -19,8 +19,15 @@ var thumbprintFormat = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 const HostJWTType = "host+jwt"
 
 // hostOf is the host a request authenticates as with a host JWT (§4.5.1), and the JWT's claims. The
-// host is one an owner registered: an unknown key is refused.
+// host is one somebody owns: an unknown key is refused.
 func (s *service) hostOf(r *http.Request) (Host, map[string]any, error) {
+	return s.hostCalling(r, false)
+}
+
+// hostCalling is hostOf where a host the server does not know may call (§2.8): to register, and to read
+// that registration's status. Such a host has no ID: its JWT verifies with the key it presents, which
+// its iss names, and that is all that is known of it.
+func (s *service) hostCalling(r *http.Request, unknown bool) (Host, map[string]any, error) {
 	ctx := r.Context()
 	m := bearerOnly.FindStringSubmatch(r.Header.Get("Authorization"))
 	if m == nil {
@@ -54,7 +61,9 @@ func (s *service) hostOf(r *http.Request) (Host, map[string]any, error) {
 		return Host{}, nil, err
 	}
 	if !ok {
-		return Host{}, nil, invalidJWT("The host is unknown: its owner registers its key with POST /agents/hosts.")
+		if h, err = s.unknownHost(inline, iss, unknown); err != nil {
+			return Host{}, nil, err
+		}
 	}
 	key, err := s.hostKey(ctx, h, peeked.header["kid"], inline, url)
 	if err != nil {
@@ -70,7 +79,7 @@ func (s *service) hostOf(r *http.Request) (Host, map[string]any, error) {
 	if err := s.issuerJWTs.lifetime(claims); err != nil {
 		return Host{}, nil, err
 	}
-	if err := s.issuerJWTs.once(ctx, h.ID, claims); err != nil {
+	if err := s.issuerJWTs.once(ctx, iss, claims); err != nil {
 		return Host{}, nil, err
 	}
 	if h.RevokedAt != nil {
@@ -83,6 +92,25 @@ func (s *service) hostOf(r *http.Request) (Host, map[string]any, error) {
 		h.KeyThumbprint = iss
 	}
 	return h, claims, nil
+}
+
+// unknownHost is the host a key the server does not know makes, when one is taken here. Its keys are in
+// the JWT: an URL anyone may name is not fetched.
+func (s *service) unknownHost(inline any, iss string, taken bool) (Host, error) {
+	if !s.settings.dynamicHosts {
+		return Host{}, invalidJWT("The host is unknown: its owner registers its key with POST /agents/hosts.")
+	}
+	if !taken {
+		return Host{}, invalidJWT("The host is unknown until a person approves its registration.")
+	}
+	jwk, err := protocolKey(inline)
+	if err != nil {
+		return Host{}, invalidJWT("The host is unknown: it registers with host_public_key, an Ed25519 public key in its canonical form.")
+	}
+	if thumbprint, err := oauth.Thumbprint(jwk); err != nil || thumbprint != iss {
+		return Host{}, invalidJWT("iss must be the thumbprint of the signing key.")
+	}
+	return Host{PublicJWK: jwk, KeyThumbprint: iss}, nil
 }
 
 // hostNamed is the host a thumbprint names, else the one the JWKS URL names (§4.5.1 step 3).

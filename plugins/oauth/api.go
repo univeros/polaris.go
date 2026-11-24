@@ -32,7 +32,17 @@ func (p *Plugin) Client(ctx context.Context, clientID string) (Client, error) {
 // secret, for a client_secret_* client, is in the result only. Validation failures are *Error with
 // CodeInvalidClientMetadata.
 func (p *Plugin) CreateClient(ctx context.Context, fields ClientFields, organizationID, createdBy string, mayTrust bool) (IssuedClient, error) {
-	return p.clients.create(ctx, fields, organizationID, createdBy, mayTrust)
+	return p.clients.create(ctx, "", fields, organizationID, createdBy, mayTrust)
+}
+
+// CreateClientAs is CreateClient for a client_id the caller chose, a UUID of its own (repository.NewID)
+// that no client has: what it names was announced before the client could exist (an agent's
+// registration that waits for a person). It is never a requester's to choose.
+func (p *Plugin) CreateClientAs(ctx context.Context, clientID string, fields ClientFields, organizationID, createdBy string, mayTrust bool) (IssuedClient, error) {
+	if clientID == "" {
+		return IssuedClient{}, errors.New("oauth: CreateClientAs needs a client_id")
+	}
+	return p.clients.create(ctx, clientID, fields, organizationID, createdBy, mayTrust)
 }
 
 // UpdateClient changes a registered client (a field left out keeps its value; disabled true stops

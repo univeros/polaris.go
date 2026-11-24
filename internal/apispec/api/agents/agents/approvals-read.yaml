@@ -17,7 +17,11 @@ domain:
   description: >
     For the host's approval page (device_authorization): the pending approval the signed-in owner's code
     stands for (dashes and case do not matter), the agent, the grants asked and the strength needed, so
-    they can decide with POST /agents/approvals/{id}/decide.
+    they can decide with POST /agents/approvals/{id}/decide. The registration of a host the server does not
+    know (POST /agent/register) is for whoever signs in with its code: it also has host (id, name,
+    key_thumbprint, known) and reason, which the host tells and nothing proves, and the agent as the caller
+    would own it. Where such hosts are taken, codes that stand for none of the caller's agents' approvals are
+    limited per person.
 
 output:
   status: 200
@@ -27,5 +31,6 @@ output:
 errors:
   - { status: 401, code: unauthorized }
   - { status: 404, code: agents_not_found }
+  - { status: 429, code: too_many_requests }
 
 events: []

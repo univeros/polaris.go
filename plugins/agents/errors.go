@@ -45,13 +45,14 @@ const (
 	ErrUnsupportedAlgorithm = "unsupported_algorithm"
 	ErrInvalidCapabilities  = "invalid_capabilities"
 	ErrAlreadyGranted       = "already_granted"
+	ErrAgentExists          = "agent_exists"
 	ErrLimitExceeded        = "limit_exceeded"
 )
 
 var protocolCodes = []string{ErrInvalidJWT, ErrAudMismatch, ErrAgentInactive, ErrCapabilityNotFound,
 	ErrCapabilityNotGranted, ErrConstraintViolated, ErrBudgetExhausted, ErrUnknownConstraintOperator,
 	ErrInvalidRequest, ErrAgentRevoked, ErrAgentSuspended, ErrAgentPending, ErrAgentRejected, ErrAgentNotFound, ErrHostRevoked,
-	ErrUnsupportedMode, ErrUnsupportedAlgorithm, ErrInvalidCapabilities, ErrAlreadyGranted, ErrLimitExceeded}
+	ErrUnsupportedMode, ErrUnsupportedAlgorithm, ErrInvalidCapabilities, ErrAlreadyGranted, ErrAgentExists, ErrLimitExceeded}
 
 var statuses = map[string]int{
 	ErrUnauthorized: 401, ErrInvalidJWT: 401, ErrAudMismatch: 401, ErrAgentInactive: 401,
@@ -60,7 +61,7 @@ var statuses = map[string]int{
 	ErrForbidden: 403, ErrConflict: 409, ErrStepUpRequired: 403, ErrPermissionNotHeld: 403, ErrSealed: 409,
 	ErrPayloadTooLarge: 413, ErrInvalidRequest: 400, ErrAgentRevoked: 403, ErrAgentSuspended: 403,
 	ErrAgentPending: 403, ErrAgentRejected: 403, ErrAgentNotFound: 404, ErrHostRevoked: 403, ErrUnsupportedMode: 400,
-	ErrUnsupportedAlgorithm: 400, ErrInvalidCapabilities: 400, ErrAlreadyGranted: 409, ErrLimitExceeded: 403,
+	ErrUnsupportedAlgorithm: 400, ErrInvalidCapabilities: 400, ErrAlreadyGranted: 409, ErrAgentExists: 409, ErrLimitExceeded: 403,
 }
 
 // Error is a refused agent request, answered as the RFC 9457 problem agents/<Type>. Branch on it

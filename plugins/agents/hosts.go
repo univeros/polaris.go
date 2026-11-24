@@ -46,7 +46,10 @@ func (s *service) createHost(ctx context.Context, owner Host, name any, defaults
 	buf := make([]byte, 32)
 	_, _ = rand.Read(buf)
 	secret := HostTokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
-	h.ID, h.Name, h.CreatedAt, h.tokenHash = newID(), n, s.now(), s.pepper.Hash(hostPepper, secret)
+	if h.ID == "" {
+		h.ID = newID()
+	}
+	h.Name, h.CreatedAt, h.tokenHash = n, s.now(), s.pepper.Hash(hostPepper, secret)
 	if h.hasKey() {
 		secret = "" // never shown: the stored hash matches nothing anyone holds
 	}

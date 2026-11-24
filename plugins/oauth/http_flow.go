@@ -195,7 +195,7 @@ func (p *Plugin) serveRegister(ctx context.Context, in *endpoint.Input) endpoint
 			fields["scopes"], _ = anyList(strings.Split(scope, " "))
 		}
 	}
-	issued, err := p.clients.create(ctx, fields, "", "", false)
+	issued, err := p.clients.create(ctx, "", fields, "", "", false)
 	if err != nil {
 		return p.fail(ctx, err)
 	}

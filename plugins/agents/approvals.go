@@ -72,14 +72,7 @@ func (s *service) requestGrantsAndApproval(ctx context.Context, a Agent, asked [
 	if err != nil {
 		return nil, nil, err
 	}
-	names := make([]string, len(res.grants))
-	for i, g := range res.grants {
-		names[i] = g.Capability
-	}
-	data := map[string]any{"capabilities": names, "reason": null(reason), "approval_id": nil, "method": nil, "user_code": nil, "binding_message": null(binding)}
-	if approval != nil {
-		data["approval_id"], data["method"], data["user_code"] = approval.ID, approval.Method, approval.UserCode
-	}
+	data := requestedData(res.grants, approval, reason, binding)
 	events := []Event{byUser(EventGrantRequested, a, a.Subject(), data, c)}
 	if agentAsks {
 		events[0] = byAgent(EventGrantRequested, a, data, c)
@@ -89,6 +82,23 @@ func (s *service) requestGrantsAndApproval(ctx context.Context, a Agent, asked [
 	}
 	s.dispatch(ctx, events...)
 	return res.grants, approval, nil
+}
+
+// requestedData is what EventGrantRequested says.
+func requestedData(grants []Grant, approval *Approval, reason, binding string) map[string]any {
+	data := map[string]any{"capabilities": capabilityNames(grants), "reason": null(reason), "approval_id": nil, "method": nil, "user_code": nil, "binding_message": null(binding)}
+	if approval != nil {
+		data["approval_id"], data["method"], data["user_code"] = approval.ID, approval.Method, approval.UserCode
+	}
+	return data
+}
+
+func capabilityNames(grants []Grant) []string {
+	names := make([]string, len(grants))
+	for i, g := range grants {
+		names[i] = g.Capability
+	}
+	return names
 }
 
 // strengthFor is the strongest strength the grants' capabilities require.
@@ -133,7 +143,7 @@ func (s *service) openApproval(ctx context.Context, a Agent, grants []Grant, met
 	}
 	now := s.now()
 	ap := Approval{ID: newID(), AgentID: a.ID, Method: method, Strength: strength, UserCode: code, BindingMessage: binding,
-		Status: ApprovalPending, ExpiresAt: now.Add(time.Duration(s.settings.approvalTTL) * time.Second), CreatedAt: now, UpdatedAt: now}
+		GrantIDs: []string{}, Status: ApprovalPending, ExpiresAt: now.Add(time.Duration(s.settings.approvalTTL) * time.Second), CreatedAt: now, UpdatedAt: now}
 	for _, g := range grants {
 		ap.GrantIDs = append(ap.GrantIDs, g.ID)
 	}
@@ -147,8 +157,9 @@ func (s *service) openApproval(ctx context.Context, a Agent, grants []Grant, met
 }
 
 // decide records the decision once, in one transaction: approved grants become active (with the
-// owner's constraints, validated before anything is written), denied ones denied.
-func (s *service) decide(ctx context.Context, ap Approval, approve bool, by string, raw any) (Approval, []Grant, error) {
+// owner's constraints, validated before anything is written), denied ones denied. For an unknown
+// host's registration (reg, not nil) approving creates the agent it becomes, denying rejects it.
+func (s *service) decide(ctx context.Context, ap Approval, approve bool, by string, raw any, reg *registration) (Approval, []Grant, error) {
 	now := s.clock.Now()
 	if !ap.Pending(now) {
 		status := ap.Status
@@ -171,7 +182,13 @@ func (s *service) decide(ctx context.Context, ap Approval, approve bool, by stri
 	}
 	var decided []Grant
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
-		if err := s.lockAgent(ctx, ap.AgentID); err != nil { // the order the kill switch locks in
+		var err error
+		if reg != nil {
+			err = s.lockRegistration(ctx, reg.ID, refuse(ErrConflict, "The registration was already decided."))
+		} else {
+			err = s.lockAgent(ctx, ap.AgentID) // the order the kill switch locks in
+		}
+		if err != nil {
 			return err
 		}
 		n, err := s.db.Update(ctx, TableApprovals, store.Criteria{"id": ap.ID, "status": ApprovalPending, "expires_at": store.Gt(s.now())},
@@ -181,6 +198,15 @@ func (s *service) decide(ctx context.Context, ap Approval, approve bool, by stri
 		}
 		if n != 1 {
 			return refuse(ErrConflict, "The approval was already decided.")
+		}
+		switch {
+		case reg != nil && approve:
+			err = s.admit(ctx, *reg)
+		case reg != nil:
+			err = s.reject(ctx, *reg)
+		}
+		if err != nil {
+			return err
 		}
 		for _, id := range ap.GrantIDs {
 			g, ok, err := s.grant(ctx, id)
@@ -232,8 +258,7 @@ func (s *service) settle(ctx context.Context, agentID string, approved bool) err
 // step-up rule (a user with a confirmed factor re-authenticated within the step-up max age);
 // passkey a recent passkey sign-in.
 func (s *service) satisfies(ctx context.Context, strength string, tok *token.Token) (bool, error) {
-	authTime, ok := tok.Claim("auth_time").(int64)
-	recent := ok && s.clock.Now().Unix()-authTime <= int64(s.stepUpMaxAge/time.Second)
+	recent := s.recent(tok)
 	switch strength {
 	case StrengthStepUp:
 		if recent {
@@ -246,6 +271,12 @@ func (s *service) satisfies(ctx context.Context, strength string, tok *token.Tok
 		return recent && slices.Contains(amr, any("passkey")), nil
 	}
 	return true, nil
+}
+
+// recent reports whether the session's last full authentication is within the step-up max age.
+func (s *service) recent(tok *token.Token) bool {
+	authTime, ok := tok.Claim("auth_time").(int64)
+	return ok && s.clock.Now().Unix()-authTime <= int64(s.stepUpMaxAge/time.Second)
 }
 
 // approval reads an approval as it stands now: a pending one past its expiry reads expired.
@@ -347,15 +378,20 @@ func (s *service) approvalResponse(ap Approval) map[string]any {
 	if uri == "" {
 		uri = s.settings.baseURL + "/agents/approvals/code"
 	}
+	expiresIn := s.settings.approvalTTL
+	if ap.reused { // what is left of it
+		expiresIn = int64(ap.ExpiresAt.Sub(s.now()) / time.Second)
+	}
 	return map[string]any{
 		"id": ap.ID, "method": ap.Method, "strength": ap.Strength, "user_code": code, "verification_uri": uri,
-		"verification_uri_complete": uri + "?user_code=" + code, "expires_in": s.settings.approvalTTL,
+		"verification_uri_complete": uri + "?user_code=" + code, "expires_in": expiresIn,
 		"interval": pollInterval, "binding_message": null(ap.BindingMessage),
 	}
 }
 
-// describe is what the owner sees of an approval: it, how to reach it, the agent and the grants.
-func (s *service) describe(ctx context.Context, ap Approval, a *Agent) (map[string]any, error) {
+// describe is what the owner sees of an approval: it, how to reach it, the agent and the grants; of an
+// unknown host's registration, also the host and the reason as the host tells them.
+func (s *service) describe(ctx context.Context, ap Approval, a *Agent, reg *registration) (map[string]any, error) {
 	out := ap.view()
 	for k, v := range s.approvalResponse(ap) {
 		out[k] = v
@@ -375,5 +411,9 @@ func (s *service) describe(ctx context.Context, ap Approval, a *Agent) (map[stri
 		}
 	}
 	out["grants"] = grants
+	if reg != nil {
+		out["reason"] = null(reg.Reason)
+		out["host"] = map[string]any{"id": a.HostID, "name": reg.HostName, "key_thumbprint": reg.HostThumbprint, "known": reg.known}
+	}
 	return out, nil
 }

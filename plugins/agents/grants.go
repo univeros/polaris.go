@@ -75,6 +75,7 @@ func (s *service) requestGrants(ctx context.Context, a Agent, asked []any) (requ
 		g := Grant{ID: newID(), AgentID: a.ID, Capability: name, Constraints: parsed.fields, Status: GrantPending, CreatedAt: now, UpdatedAt: now}
 		g = withBudget(g, parsed.budget)
 		policy, auto := s.settings.autoApprove[capability.Risk]
+		auto = auto && a.OwnerType != "" // nobody's yet (a registration): a person decides
 		if auto {
 			// A budget the agent already spent is not refilled by asking again, and a revoked
 			// capability is not handed back by the policy: a person decides.

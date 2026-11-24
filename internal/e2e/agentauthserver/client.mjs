@@ -1,10 +1,9 @@
 // Drives the unmodified @auth/agent client against the server at AGENT_AUTH_URL, with the session of a
 // person in AGENT_AUTH_OWNER (scripts/e2e-agent-auth.sh). § numbers are the Agent Auth Protocol's.
 //
-// Exit status: 0 the whole flow passed; 3 it stopped where docs/agent-auth-compat.md says the server
-// stops today; 1 anything else.
+// Exit status: 0 the whole flow passed; 1 anything else.
 import assert from "node:assert/strict";
-import { AgentAuthClient, AgentAuthSDKError, generateKeypair, MemoryStorage } from "@auth/agent";
+import { AgentAuthClient, generateKeypair, MemoryStorage } from "@auth/agent";
 
 const url = process.env.AGENT_AUTH_URL;
 // urls: without it the client only asks the public directory and never this server.
@@ -145,38 +144,52 @@ async function aPreRegisteredHost() {
   });
 }
 
-// anUnknownHostRegisters answers false when the server refuses a host it does not know.
-async function anUnknownHostRegisters() {
-  let refusal;
-  try {
-    await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "e2e" });
-    return true;
-  } catch (err) {
-    refusal = err;
-  }
-  if (!(refusal instanceof AgentAuthSDKError) || refusal.status !== 401 || refusal.code !== "invalid_jwt" || !/unknown/.test(refusal.message)) {
-    console.error("FAIL register from an unknown host (§5.3): not the refusal of an unknown host");
-    throw refusal;
-  }
-  // The client has a host key now and signs a host JWT with it, which the server does not know.
-  await step("list the capabilities with an unknown host key (§5.2)", async () => {
+// anUnknownHost signs an agent in through a host the server does not know, which a person approves with
+// its agent (§2.8).
+async function anUnknownHost() {
+  const storage = new MemoryStorage();
+  const client = new AgentAuthClient({ urls: [url], storage, hostName: "Ada's laptop", approvalTimeoutMs: 20_000, onApprovalRequired: decide });
+  await client.init();
+  const hosts = async () => (await owner("GET", "/agents/hosts")).map((h) => h.name);
+
+  await step("list the capabilities with a key the server does not know (§5.2)", async () => {
+    await storage.setHostIdentity({ keypair: await generateKeypair(), createdAt: Date.now() });
     assert.equal(names(await client.listCapabilities({ provider: url })).length, 2);
   });
-  return false;
+  await step("a denied registration of an unknown host is rejected (§7.1)", async () => {
+    decision = "deny";
+    const denied = client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "denied" });
+    await assert.rejects(denied, { code: "agent_rejected" });
+    assert.ok(!(await hosts()).includes("Ada's laptop"), "no host");
+  });
+  const agent = await step("register from an unknown host, approved by a person with the code (§5.3, §7.1)", async () => {
+    decision = "approve";
+    const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "laptop", reason: "the harness" });
+    assert.deepEqual([out.status, out.capabilityGrants.map((g) => g.status)], ["active", ["active"]]);
+    assert.ok((await hosts()).includes("Ada's laptop"), "§2.9: the host is the approver's");
+    return out.agentId;
+  });
+  await step("execute, and request one more capability", async () => {
+    assert.deepEqual(await client.executeCapability({ agentId: agent, capability: "invoices.list" }), { data: ["inv_1", "inv_2"] });
+    const out = await client.requestCapability({ agentId: agent, capabilities: ["invoices.refund"] });
+    assert.ok(out.granted.includes("invoices.refund"), JSON.stringify(out));
+    assert.deepEqual(await client.executeCapability({ agentId: agent, capability: "invoices.refund", arguments: { invoice_id: "inv_2" } }), { data: { refunded: "inv_2" } });
+    const receipts = await owner("GET", `/agents/${agent}/receipts`);
+    assert.equal(receipts.length, 2);
+    for (const r of receipts) assert.equal((await owner("GET", `/agents/receipts/${r.id}/verify`)).valid, true);
+  });
+  await step("the host is known now: the policy approves its next agent (§2.9)", async () => {
+    decision = "deny"; // nobody is asked
+    const out = await client.connectAgent({ provider: url, capabilities: ["invoices.list"], name: "second" });
+    assert.deepEqual([out.status, (await client.agentStatus(out.agentId)).status], ["active", "active"]);
+  });
 }
 
 try {
   await readsTheServer();
   await aPreRegisteredHost();
-  if (!(await anUnknownHostRegisters())) {
-    console.error(
-      "STOP register from an unknown host (§2.8, §5.3): POST /agent/register answered 401 invalid_jwt. Expected for\n" +
-        "     now: dynamic hosts are part 3 of docs/agent-auth-compat.md, which is not built. Everything before it passed.",
-    );
-    process.exit(3);
-  }
-  console.error("FAIL the server registers unknown hosts now: extend client.mjs to the next part of docs/agent-auth-compat.md");
-  process.exit(1);
+  await anUnknownHost();
+  console.log("PASS the whole flow of docs/agent-auth-compat.md, parts 1 to 3");
 } catch (err) {
   console.error(err);
   process.exit(1);

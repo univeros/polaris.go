@@ -220,7 +220,7 @@ func (j *requestJWTs) lifetime(claims map[string]any) error {
 	return nil
 }
 
-// once accepts a jti once per agent or host until the JWT expires.
+// once accepts a jti once per agent or host (id: the thumbprint of the key that signed) until the JWT expires.
 func (j *requestJWTs) once(ctx context.Context, id string, claims map[string]any) error {
 	jti, _ := claims["jti"].(string)
 	if jti == "" || len(jti) > maxJTI {

@@ -20,7 +20,10 @@ domain:
     Once. Approving needs a session of the approval's strength (session: any; step_up: core's step-up
     freshness; passkey: a recent passkey sign-in) and the owner must hold every capability's permission
     now; constraints replaces what the agent asked (narrowing it). The agent's OAuth client scopes follow.
-    Recorded as agent.grant.approved or agent.grant.denied per grant.
+    Recorded as agent.grant.approved or agent.grant.denied per grant. Approving the registration of a host the
+    server does not know creates the host and the agent, owned by the caller in their active organization
+    (by the host's owner, when somebody owns it by then: only they decide it); denying it rejects the agent
+    for good. Approving it needs a recent sign-in, with or without a second factor. Recorded as agent.enrolled or agent.registration.denied too.
 
 output:
   status: 200
@@ -31,8 +34,9 @@ errors:
   - { status: 401, code: unauthorized }
   - { status: 403, code: agents_step_up_required }
   - { status: 403, code: agents_permission_not_held }
+  - { status: 403, code: host_revoked }
   - { status: 404, code: agents_not_found }
   - { status: 409, code: agents_conflict }
   - { status: 422, code: agents_invalid_input }
 
-events: [agent.grant.approved, agent.grant.denied]
+events: [agent.grant.approved, agent.grant.denied, agent.enrolled, agent.registration.denied]

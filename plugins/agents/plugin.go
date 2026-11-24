@@ -59,7 +59,7 @@ func Of(g *wiring.Graph) *Plugin {
 // ID implements wiring.Plugin.
 func (*Plugin) ID() string { return ID }
 
-// Schema declares the plugin's five tables.
+// Schema declares the plugin's six tables.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
 // Manifest is the plugin's 30 route specs (declared in internal/apispec/api/agents).
@@ -114,8 +114,10 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 		jwts:        &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge},
 		issuerJWTs:  &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge, audience: settings.baseURL, skew: protocolSkew},
 		executeJWTs: &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge, audience: settings.baseURL + pathExecute, skew: protocolSkew},
-		jwks:        &jwksKeys{client: settings.httpClient, cache: g.Cache(), log: g.Logger()},
+		rates:       g.RateStore(), unknownHosts: g.Auth().RateLimits.Register, codeGuesses: g.Auth().RateLimits.MFAConfirm,
+		jwks: &jwksKeys{client: settings.httpClient, cache: g.Cache(), log: g.Logger()},
 	}
+	p.s.unknownHosts.KeyPrefix, p.s.codeGuesses.KeyPrefix = "agents.unknown_host", "agents.user_code"
 	return nil
 }
 

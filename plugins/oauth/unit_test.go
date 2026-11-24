@@ -288,7 +288,7 @@ func TestClientMetadataIsValidated(t *testing.T) {
 		"trusted boolean": {"name": "x", "grant_types": []any{"client_credentials"}, "trusted": "yes"},
 	}
 	for name, fields := range cases {
-		_, err := p.clients.create(ctx, fields, "", "", name == "trusted boolean")
+		_, err := p.clients.create(ctx, "", fields, "", "", name == "trusted boolean")
 		wantCode(t, err, CodeInvalidClientMetadata, name)
 	}
 	issued, err := p.CreateClient(ctx, ClientFields{"name": "App", "redirect_uris": []any{"com.example.app://cb", "http://127.0.0.1:8080/cb"},

@@ -13,8 +13,11 @@ CREATE TABLE "polaris_agent" (
     "sealed_at" DATETIME NULL,
     "created_at" DATETIME NOT NULL,
     "updated_at" DATETIME NOT NULL,
+    "key_thumbprint" VARCHAR(64) NULL,
     PRIMARY KEY ("id")
 );
+
+CREATE UNIQUE INDEX "polaris_agent_host_key_thumbprint_unique" ON "polaris_agent" ("host_id", "key_thumbprint");
 
 CREATE INDEX "polaris_agent_owner_index" ON "polaris_agent" ("owner_type", "owner_id");
 
@@ -104,3 +107,25 @@ CREATE TABLE "polaris_agent_receipt" (
 );
 
 CREATE UNIQUE INDEX "polaris_agent_receipt_seq_unique" ON "polaris_agent_receipt" ("agent_id", "seq");
+
+CREATE TABLE "polaris_agent_registration" (
+    "id" VARCHAR(36) NOT NULL,
+    "host_id" VARCHAR(36) NOT NULL,
+    "host_thumbprint" VARCHAR(64) NOT NULL,
+    "host_jwk" TEXT NOT NULL,
+    "host_name" VARCHAR(160) NOT NULL,
+    "agent_thumbprint" VARCHAR(64) NOT NULL,
+    "agent_jwk" TEXT NOT NULL,
+    "name" VARCHAR(160) NOT NULL,
+    "mode" VARCHAR(16) NOT NULL,
+    "reason" VARCHAR(500) NULL,
+    "status" VARCHAR(16) NOT NULL,
+    "expires_at" DATETIME NOT NULL,
+    "created_at" DATETIME NOT NULL,
+    "updated_at" DATETIME NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "polaris_agent_registration_keys_unique" ON "polaris_agent_registration" ("host_thumbprint", "agent_thumbprint");
+
+CREATE INDEX "polaris_agent_registration_expiry_index" ON "polaris_agent_registration" ("expires_at");

@@ -22,7 +22,8 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 		securityFixtures: {"testAnotherUsersTokenNamingAnAgentIsRefusedEverywhere", "testAnAgentsClientIsNotManageableThroughTheOrganizationRoutes",
 			"testEverySpellingOfALocationIsGuardedAndABoundMiddlewareGuardsItsRoute", "testTheAskerCannotChooseItsAutoApprovalBudget"},
 		protocolFixtures: {"testThePolarisConfigurationIsServedAtItsOwnPath", "testCapabilitiesAreListedInPages", "testACapabilityIsDescribedByItsName",
-			"testAPreRegisteredHostsAgentRegistersRequestsAndExecutes", "testARegistrationAPersonMustApproveIsPending", "testADeniedRegistrationIsRejected"},
+			"testAPreRegisteredHostsAgentRegistersRequestsAndExecutes", "testARegistrationAPersonMustApproveIsPending", "testADeniedRegistrationIsRejected",
+			"testAnUnknownHostIsApprovedByAPerson", "testAnUnknownHostsDeniedRegistrationIsRejected"},
 	} {
 		for _, test := range tests {
 			covered = append(covered, class+"::"+test)

@@ -98,9 +98,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      # 3: stopped at registration, where the server stops today (docs/agent-auth-compat.md); every
-      # step before it passed. Part 3 drops the `|| [ $? -eq 3 ]`.
-      - run: scripts/e2e-agent-auth.sh || [ $? -eq 3 ]
+      - run: scripts/e2e-agent-auth.sh
 
   db-matrix:
     name: database matrix (PostgreSQL 17, MySQL 8.4)

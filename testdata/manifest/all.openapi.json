@@ -25258,7 +25258,7 @@
                         }
                     },
                     "403": {
-                        "description": "agents_step_up_required | agents_permission_not_held",
+                        "description": "agents_step_up_required | agents_permission_not_held | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -26082,6 +26082,16 @@
                     },
                     "404": {
                         "description": "agents_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "too_many_requests",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28788,6 +28798,16 @@
                     },
                     "403": {
                         "description": "host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "agent_exists",
                         "content": {
                             "application/problem+json": {
                                 "schema": {

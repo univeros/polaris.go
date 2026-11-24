@@ -44,7 +44,7 @@ func TestAKeySetIsAnArrayButAStoredObjectStillReads(t *testing.T) {
 		t.Error("keys as an object is not a JWK Set")
 	}
 	p, _ := boot(t, Config{HTTPClient: &http.Client{Transport: &docs{status: http.StatusOK, body: `{"keys":{"0":{"kty":"EC"}}}`}}})
-	_, err := p.clients.create(ctx, ClientFields{"name": "x", "grant_types": []any{"client_credentials"},
+	_, err := p.clients.create(ctx, "", ClientFields{"name": "x", "grant_types": []any{"client_credentials"},
 		"token_endpoint_auth_method": "private_key_jwt", "jwks": objectForm}, "", "", false)
 	wantCode(t, err, CodeInvalidClientMetadata, "a registered key set with keys as an object")
 	_, err = p.clients.keySet(ctx, Client{JWKSURI: "https://keys.example.com/jwks.json"})
