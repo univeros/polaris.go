@@ -489,7 +489,7 @@ func TestAHostsKeyIsProven(t *testing.T) {
 		"another iss": link(map[string]any{"iss": mallory.kid()}), "no iss": link(map[string]any{"iss": nil}),
 		"another server's": link(map[string]any{"aud": "https://other.example"}), "no aud": link(map[string]any{"aud": nil}), "a list of aud": link(map[string]any{"aud": []any{base}}),
 		"expired": link(map[string]any{"iat": now - 120, "exp": now - 31}), "from the future": link(map[string]any{"iat": now + 40, "exp": now + 60}),
-		"too long": link(map[string]any{"exp": now + 301}), "no exp": link(map[string]any{"exp": nil}), "no iat": link(map[string]any{"iat": nil}), "no jti": link(map[string]any{"jti": nil}),
+		"too long": link(map[string]any{"iat": now, "exp": now + 301}), "no exp": link(map[string]any{"exp": nil}), "no iat": link(map[string]any{"iat": nil}), "no jti": link(map[string]any{"jti": nil}),
 		"a key of its own": ada.hostLink(eveID, nil, map[string]any{"jwk": ada.jwk()}), "another alg": ada.hostLink(eveID, nil, map[string]any{"alg": "ES256"}),
 		"no alg": ada.hostLink(eveID, nil, map[string]any{"alg": "none"}),
 	} {
