@@ -137,3 +137,43 @@ func signRequest(k *ecdsa.PrivateKey, agentID, aud string) string {
 	s.FillBytes(sig[32:])
 	return input + "." + enc(sig)
 }
+
+// Discovery chooses the document at the one well-known path an origin has. With DiscoveryAgentAuth a
+// client of the Agent Auth Protocol (@auth/agent) finds the server there; the Go agent SDK finds
+// Polaris's own document at /agents/configuration.
+func ExampleConfig_discovery() {
+	private, public := contracttest.TestRSAKeyPEM() // AUTH_JWT_* in production
+	auth := config.Defaults()
+	auth.Issuer = "https://app.example.com"
+	ag := agents.New(agents.Config{
+		Discovery: agents.DiscoveryAgentAuth,
+		Capabilities: []agents.Capability{{Name: "members.count", Description: "Count the members", Permission: "members.read", Risk: agents.RiskLow,
+			Handler: func(context.Context, agents.Call) (any, error) { return map[string]any{"members": 1}, nil }}},
+	})
+	p, err := polaris.New(polaris.Config{
+		Secrets: config.Secrets{AppKey: strings.Repeat("k", 32), JWTPrivateKey: private, JWTPublicKey: public},
+		Auth:    auth,
+		DB:      memstore.New(), // sqlstore.Open(...) in production
+		Plugins: []polaris.Plugin{oauth.New(oauth.Config{}), ag},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, path := range []string{"/.well-known/agent-configuration", "/agents/configuration", "/capability/list"} {
+		w := httptest.NewRecorder()
+		p.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		var doc struct {
+			Issuer       string
+			Endpoints    map[string]string
+			Capabilities []map[string]any
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &doc); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(path, doc.Issuer, doc.Endpoints["capabilities"], doc.Capabilities)
+	}
+	// Output:
+	// /.well-known/agent-configuration https://app.example.com /capability/list []
+	// /agents/configuration https://app.example.com https://app.example.com/agents/capabilities []
+	// /capability/list   [map[description:Count the members name:members.count]]
+}

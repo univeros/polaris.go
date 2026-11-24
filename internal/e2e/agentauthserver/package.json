@@ -1,0 +1,8 @@
+{
+  "name": "polaris-agent-auth-e2e",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@auth/agent": "0.6.2"
+  }
+}

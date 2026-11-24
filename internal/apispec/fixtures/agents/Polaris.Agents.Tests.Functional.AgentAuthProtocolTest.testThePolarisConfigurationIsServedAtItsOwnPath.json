@@ -1,0 +1,63 @@
+[
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/agents/configuration",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=3600"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "agent_sdk_versions": {
+                    "github.com/univeros/polaris.go/agent": "devel"
+                },
+                "algorithms": [
+                    "ES256",
+                    "EdDSA"
+                ],
+                "approval_methods": [
+                    "device_authorization",
+                    "ciba",
+                    "in_app"
+                ],
+                "approval_strengths": {
+                    "high": "step_up",
+                    "low": "session",
+                    "medium": "session"
+                },
+                "default_location": "https://auth.polaris.test/agents/execute",
+                "description": "The agents functional suite",
+                "endpoints": {
+                    "approvals": "https://auth.polaris.test/agents/approvals",
+                    "capabilities": "https://auth.polaris.test/agents/capabilities",
+                    "enroll": "https://auth.polaris.test/agents/enroll",
+                    "execute": "https://auth.polaris.test/agents/execute",
+                    "grants": "https://auth.polaris.test/agents/grants",
+                    "receipts": "https://auth.polaris.test/agents/receipts",
+                    "register": "https://auth.polaris.test/agents/register",
+                    "request_capability": "https://auth.polaris.test/agents/grants/request",
+                    "revoke": "https://auth.polaris.test/agents",
+                    "status": "https://auth.polaris.test/agents/session",
+                    "token": "https://auth.polaris.test/oauth2/token"
+                },
+                "issuer": "https://auth.polaris.test",
+                "modes": [
+                    "delegated",
+                    "autonomous"
+                ],
+                "provider_name": "Polaris test",
+                "token_endpoint": "https://auth.polaris.test/oauth2/token",
+                "version": "1.0-draft"
+            }
+        }
+    }
+]

@@ -9,6 +9,20 @@ Breaking changes are marked **Breaking**.
 
 ## [Unreleased]
 
+### Added
+
+- `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
+  `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
+  Agent Auth Protocol's, for its clients (`@auth/agent`). Those clients can read the server and its
+  capabilities; they cannot register an agent yet ([docs/agent-auth-compat.md](docs/agent-auth-compat.md),
+  decision 83).
+- `GET /agents/configuration`: Polaris's discovery document in every mode. `agent.New` and
+  `agent.Discover` fall back to it when the well-known document names no `enroll` endpoint. A Go agent
+  SDK of v1.0.0 does not: upgrade it before a server switches to `DiscoveryAgentAuth`.
+- `GET /capability/list` and `GET /capability/describe`: the Agent Auth Protocol's capability routes, in
+  both modes; `agents.ErrInvalidRequest`, `ErrAgentRevoked` and `ErrAgentSuspended` are problems only they
+  answer. A third-party plugin that declares one of the three new paths is refused by `polaris.New`.
+
 ## [1.0.0] - 2026-11-23
 
 Polaris for Go 1.0. The code of v0.7.3 plus the security fixes below, from a review of the plugins

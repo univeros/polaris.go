@@ -62,7 +62,7 @@ func (*Plugin) ID() string { return ID }
 // Schema declares the plugin's five tables.
 func (*Plugin) Schema() []schema.Model { return Models() }
 
-// Manifest is the plugin's 23 route specs (declared in internal/apispec/api/agents).
+// Manifest is the plugin's 26 route specs (declared in internal/apispec/api/agents).
 func (*Plugin) Manifest() fs.FS {
 	dir, err := fs.Sub(apispec.API, "api/agents")
 	if err != nil {
@@ -111,7 +111,8 @@ func (p *Plugin) Init(g *wiring.Graph) error {
 	p.s = &service{
 		db: g.DB(), clock: g.Clock(), events: g.Events(), log: g.Logger(), oauth: op, resolver: g.Resolver(), gate: g.Gate(),
 		pepper: g.Pepper(), codec: g.Tokens(), mfa: g.MFA(), stepUpMaxAge: g.Auth().StepUpMaxAge, settings: settings, caps: p.caps,
-		jwts: &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge},
+		jwts:       &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge},
+		issuerJWTs: &requestJWTs{cache: g.Cache(), clock: g.Clock(), maxAge: settings.maxAge, issuer: settings.baseURL, skew: protocolSkew},
 	}
 	return nil
 }
@@ -124,7 +125,7 @@ func (p *Plugin) operators(ctx context.Context, capability, organizationID strin
 	return p.s.settings.operators(ctx, capability, organizationID)
 }
 
-// Endpoints serves the 23 agents routes.
+// Endpoints serves the 26 agents routes.
 func (p *Plugin) Endpoints(*wiring.Graph) (map[string]endpoint.Endpoint, error) {
 	return p.endpoints(), nil
 }

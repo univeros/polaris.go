@@ -1,0 +1,33 @@
+# GET /capability/describe: the Agent Auth Protocol's capability detail (§5.2.1).
+endpoint:
+  method: GET
+  path: /capability/describe
+  summary: Describe a capability (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
+  effect: read
+  receipt: false
+
+input:
+  source: query
+  fields:
+    name: { type: string, rules: [required] }
+
+domain:
+  description: >
+    One capability as the protocol describes it: name, description, the JSON Schema of its arguments
+    (input), the location it runs at when it has one, and grant_status (granted, not_granted) when an
+    agent authenticates. Without a credential the answer is cached for five minutes.
+
+output:
+  status: 200
+  example: { name: "deploy.staging", description: "Deploy a build to staging", input: { type: object, properties: { build: { type: string } }, required: [build] }, grant_status: granted }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_suspended }
+  - { status: 404, code: capability_not_found }
+
+events: []

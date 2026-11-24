@@ -98,6 +98,11 @@ type Config struct {
 	Strengths map[string]string
 	// ApprovalTTL is how long an approval waits; default 10 min.
 	ApprovalTTL time.Duration
+	// Discovery is the document /.well-known/agent-configuration serves: DiscoveryPolaris (default)
+	// or DiscoveryAgentAuth, for clients of the Agent Auth Protocol. An origin has one such path and
+	// the two client families read it differently; the Polaris document is always at
+	// GET /agents/configuration, where the Go agent SDK falls back to.
+	Discovery DiscoveryMode
 	// ProviderName and Description are what the discovery document says. Default "Polaris" and
 	// "Polaris for Go agent provider".
 	ProviderName, Description string
@@ -122,6 +127,7 @@ type settings struct {
 	strengths                 map[string]string
 	approvalTTL               int64
 	providerName, description string
+	discovery                 DiscoveryMode
 	maxAge                    int64
 	operators                 OperatorFunc
 	maxBody                   int64
@@ -139,7 +145,7 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	bad := func(format string, args ...any) { errs = append(errs, fmt.Errorf("agents: "+format, args...)) }
 	s := settings{
 		baseURL: strings.TrimRight(cfg.BaseURL, "/"), approvalURL: strings.TrimRight(cfg.ApprovalURL, "/"),
-		providerName: cfg.ProviderName, description: cfg.Description, operators: cfg.Operators,
+		discovery: cfg.Discovery, providerName: cfg.ProviderName, description: cfg.Description, operators: cfg.Operators,
 		approvalTTL: 600, maxAge: 300, strengths: map[string]string{}, maxBody: defaultMaxBodyBytes,
 	}
 	if cfg.MaxBodyBytes < 0 {
@@ -152,6 +158,12 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	}
 	if cfg.ApprovalURL != "" && !pageURLFormat.MatchString(cfg.ApprovalURL) {
 		bad("Config.ApprovalURL %q must be an absolute http(s) URL without a query", cfg.ApprovalURL)
+	}
+	if s.discovery == "" {
+		s.discovery = DiscoveryPolaris
+	}
+	if s.discovery != DiscoveryPolaris && s.discovery != DiscoveryAgentAuth {
+		bad("Config.Discovery must be agents.DiscoveryPolaris or agents.DiscoveryAgentAuth, got %q", cfg.Discovery)
 	}
 	if s.providerName == "" {
 		s.providerName = "Polaris"

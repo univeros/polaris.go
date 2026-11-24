@@ -76,4 +76,5 @@ make apicheck BASE=origin/main       # stable Go API unchanged, or the break rec
 make vuln                            # govulncheck
 make fuzz FUZZTIME=30s               # every fuzz target (CI: weekly, .github/workflows/fuzz.yml)
 scripts/test-db-matrix.sh            # the suites on PostgreSQL and MySQL
+scripts/e2e-agent-auth.sh            # the unmodified @auth/agent client (needs Node); see docs/agent-auth-compat.md
 ```

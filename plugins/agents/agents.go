@@ -43,6 +43,7 @@ type service struct {
 	settings     settings
 	caps         *capabilities
 	jwts         *requestJWTs
+	issuerJWTs   *requestJWTs // the Agent Auth Protocol's non-execution routes
 }
 
 func (s *service) now() time.Time { return s.clock.Now().UTC().Truncate(time.Second) }

@@ -169,6 +169,7 @@ func TestSettingsAndCapabilitiesAreValidated(t *testing.T) {
 	for name, cfg := range map[string]Config{
 		"base url":        {BaseURL: "not a url"},
 		"approval url":    {ApprovalURL: "https://app.test/approve?x=1"},
+		"discovery":       {Discovery: "both"},
 		"risk tier":       {AutoApprove: map[string]Budget{"critical": {}}},
 		"budget":          {AutoApprove: map[string]Budget{RiskLow: {Count: -1}}},
 		"window":          {AutoApprove: map[string]Budget{RiskLow: {Count: 1, Window: time.Millisecond}}},

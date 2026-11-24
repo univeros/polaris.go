@@ -27969,6 +27969,488 @@
                 }
             }
         },
+        "/capability/describe": {
+            "get": {
+                "operationId": "polaris.agents.protocol.capability-describe",
+                "summary": "Describe a capability (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "agents",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "input": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "properties": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "build": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "type": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "build"
+                                                    ]
+                                                },
+                                                "required": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "properties",
+                                                "required"
+                                            ]
+                                        },
+                                        "grant_status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "name",
+                                        "description",
+                                        "input",
+                                        "grant_status"
+                                    ]
+                                },
+                                "example": {
+                                    "name": "deploy.staging",
+                                    "description": "Deploy a build to staging",
+                                    "input": {
+                                        "type": "object",
+                                        "properties": {
+                                            "build": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "build"
+                                        ]
+                                    },
+                                    "grant_status": "granted"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "agent_revoked | agent_suspended",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "capability_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/capability/list": {
+            "get": {
+                "operationId": "polaris.agents.protocol.capability-list",
+                "summary": "List the capabilities (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "agents",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "capabilities": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "grant_status": {
+                                                        "type": "string"
+                                                    },
+                                                    "location": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "description",
+                                                    "grant_status"
+                                                ]
+                                            }
+                                        },
+                                        "next_cursor": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "has_more": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "capabilities",
+                                        "next_cursor",
+                                        "has_more"
+                                    ]
+                                },
+                                "example": {
+                                    "capabilities": [
+                                        {
+                                            "name": "deploy.staging",
+                                            "description": "Deploy a build to staging",
+                                            "grant_status": "granted"
+                                        },
+                                        {
+                                            "name": "refund",
+                                            "description": "Refund an invoice",
+                                            "location": "https://app.example.com/api/refunds",
+                                            "grant_status": "not_granted"
+                                        }
+                                    ],
+                                    "next_cursor": null,
+                                    "has_more": false
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "agent_revoked | agent_suspended",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/configuration": {
+            "get": {
+                "operationId": "polaris.agents.protocol.configuration",
+                "summary": "Polaris agent discovery",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "agents",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "version": {
+                                            "type": "string"
+                                        },
+                                        "provider_name": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "issuer": {
+                                            "type": "string"
+                                        },
+                                        "default_location": {
+                                            "type": "string"
+                                        },
+                                        "algorithms": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "modes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "approval_methods": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "approval_strengths": {
+                                            "type": "object",
+                                            "properties": {
+                                                "low": {
+                                                    "type": "string"
+                                                },
+                                                "medium": {
+                                                    "type": "string"
+                                                },
+                                                "high": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "low",
+                                                "medium",
+                                                "high"
+                                            ]
+                                        },
+                                        "endpoints": {
+                                            "type": "object",
+                                            "properties": {
+                                                "register": {
+                                                    "type": "string"
+                                                },
+                                                "enroll": {
+                                                    "type": "string"
+                                                },
+                                                "capabilities": {
+                                                    "type": "string"
+                                                },
+                                                "execute": {
+                                                    "type": "string"
+                                                },
+                                                "request_capability": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "revoke": {
+                                                    "type": "string"
+                                                },
+                                                "grants": {
+                                                    "type": "string"
+                                                },
+                                                "approvals": {
+                                                    "type": "string"
+                                                },
+                                                "receipts": {
+                                                    "type": "string"
+                                                },
+                                                "token": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "register",
+                                                "enroll",
+                                                "capabilities",
+                                                "execute",
+                                                "request_capability",
+                                                "status",
+                                                "revoke",
+                                                "grants",
+                                                "approvals",
+                                                "receipts",
+                                                "token"
+                                            ]
+                                        },
+                                        "token_endpoint": {
+                                            "type": "string"
+                                        },
+                                        "agent_sdk_versions": {
+                                            "type": "object",
+                                            "properties": {
+                                                "github.com/univeros/polaris.go/agent": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "github.com/univeros/polaris.go/agent"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "version",
+                                        "provider_name",
+                                        "description",
+                                        "issuer",
+                                        "default_location",
+                                        "algorithms",
+                                        "modes",
+                                        "approval_methods",
+                                        "approval_strengths",
+                                        "endpoints",
+                                        "token_endpoint",
+                                        "agent_sdk_versions"
+                                    ]
+                                },
+                                "example": {
+                                    "version": "1.0-draft",
+                                    "provider_name": "Polaris",
+                                    "description": "Polaris for Go agent provider",
+                                    "issuer": "https://auth.example",
+                                    "default_location": "https://auth.example/agents/execute",
+                                    "algorithms": [
+                                        "ES256",
+                                        "EdDSA"
+                                    ],
+                                    "modes": [
+                                        "delegated",
+                                        "autonomous"
+                                    ],
+                                    "approval_methods": [
+                                        "device_authorization",
+                                        "ciba",
+                                        "in_app"
+                                    ],
+                                    "approval_strengths": {
+                                        "low": "session",
+                                        "medium": "session",
+                                        "high": "step_up"
+                                    },
+                                    "endpoints": {
+                                        "register": "https://auth.example/agents/register",
+                                        "enroll": "https://auth.example/agents/enroll",
+                                        "capabilities": "https://auth.example/agents/capabilities",
+                                        "execute": "https://auth.example/agents/execute",
+                                        "request_capability": "https://auth.example/agents/grants/request",
+                                        "status": "https://auth.example/agents/session",
+                                        "revoke": "https://auth.example/agents",
+                                        "grants": "https://auth.example/agents/grants",
+                                        "approvals": "https://auth.example/agents/approvals",
+                                        "receipts": "https://auth.example/agents/receipts",
+                                        "token": "https://auth.example/oauth2/token"
+                                    },
+                                    "token_endpoint": "https://auth.example/oauth2/token",
+                                    "agent_sdk_versions": {
+                                        "github.com/univeros/polaris.go/agent": "v1.1.0"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/agents/receipts/{id}/verify": {
             "get": {
                 "operationId": "polaris.agents.receipts-verify",

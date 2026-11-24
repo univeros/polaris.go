@@ -56,9 +56,9 @@ func assertActive(a Agent) error {
 	if a.Active() {
 		return nil
 	}
-	code := "agent_suspended"
+	code := ErrAgentSuspended
 	if a.Status == StatusRevoked {
-		code = "agent_revoked"
+		code = ErrAgentRevoked
 	}
 	return &Error{Type: ErrAgentInactive, Detail: "The agent is " + a.Status + ".", Code: code}
 }
@@ -68,13 +68,18 @@ func assertActive(a Agent) error {
 // included). body is the raw request body; url is what a request JWT's aud must name (ownURL on
 // the plugin's routes, requestURL on a host's).
 func (s *service) authenticate(r *http.Request, body []byte, url string) (principal, error) {
+	return s.authenticateWith(s.jwts, r, body, url)
+}
+
+// authenticateWith is authenticate with the rules jwts holds a request JWT to.
+func (s *service) authenticateWith(jwts *requestJWTs, r *http.Request, body []byte, url string) (principal, error) {
 	m := credentialScheme.FindStringSubmatch(r.Header.Get("Authorization"))
 	if m == nil {
 		return principal{}, refuse(ErrUnauthorized, "An agent credential is required: a signed request JWT or an access token as a bearer.")
 	}
 	raw := m[2]
 	if peeked, ok := peekRequestJWT(raw); ok {
-		return s.byJWT(r, raw, peeked.sub, body, url)
+		return s.byJWT(jwts, r, raw, peeked.sub, body, url)
 	}
 	if h := oauth.JWTHeader(raw); h != nil && h["typ"] == oauth.AccessTokenType {
 		tok, err := s.oauth.ResolveBearer(r)
@@ -99,7 +104,7 @@ func deref(p *principal) principal {
 	return *p
 }
 
-func (s *service) byJWT(r *http.Request, raw, sub string, body []byte, url string) (principal, error) {
+func (s *service) byJWT(jwts *requestJWTs, r *http.Request, raw, sub string, body []byte, url string) (principal, error) {
 	ctx := r.Context()
 	a, ok, err := s.agent(ctx, sub)
 	if err != nil {
@@ -111,7 +116,7 @@ func (s *service) byJWT(r *http.Request, raw, sub string, body []byte, url strin
 	if err := assertActive(a); err != nil {
 		return principal{}, err
 	}
-	caps, err := s.jwts.verify(ctx, raw, a, r.Method, url, body)
+	caps, err := jwts.verify(ctx, raw, a, r.Method, url, body)
 	if err != nil {
 		return principal{}, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -33,6 +34,25 @@ func TestRouterMatchesParametersAndReportsAllowedMethods(t *testing.T) {
 	}
 	if route, _, _ := newRouter(core, "").match("GET", "/auth/me"); route == nil {
 		t.Fatal("no prefix: GET /auth/me unmatched")
+	}
+}
+
+// The first match in load order wins, so a spec file whose path has no parameter must sort before one
+// whose parameter matches it: agents/protocol/configuration.yaml before agents/show.yaml
+// (/agents/{id}). No route is hidden by another.
+func TestNoRouteIsHiddenByAParameter(t *testing.T) {
+	_, all := manifests(t)
+	rt := newRouter(all, "")
+	for _, r := range all.Routes() {
+		if strings.Contains(r.Path, "{") {
+			continue
+		}
+		if got, _, _ := rt.match(r.Method, r.Path); got != r {
+			t.Errorf("%s is answered by %v", r.Pattern(), got)
+		}
+	}
+	if got, params, _ := rt.match("GET", "/agents/some-id"); got == nil || got.Name != "polaris.agents.show" || params["id"] != "some-id" {
+		t.Errorf("GET /agents/some-id: %v %v", got, params)
 	}
 }
 

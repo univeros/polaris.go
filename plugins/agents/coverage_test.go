@@ -21,6 +21,7 @@ func TestEveryFixtureIsReplayed(t *testing.T) {
 		tokensFixtures:    {"testADelegatedAgentActsForTheUserThroughTokenExchange", "testAnAutonomousAgentActsAsItsOwnerWithinItsGrants", "testALocationCapabilityIsReachedOnlyThroughTheRequestMiddleware"},
 		securityFixtures: {"testAnotherUsersTokenNamingAnAgentIsRefusedEverywhere", "testAnAgentsClientIsNotManageableThroughTheOrganizationRoutes",
 			"testEverySpellingOfALocationIsGuardedAndABoundMiddlewareGuardsItsRoute", "testTheAskerCannotChooseItsAutoApprovalBudget"},
+		protocolFixtures: {"testThePolarisConfigurationIsServedAtItsOwnPath", "testCapabilitiesAreListedInPages", "testACapabilityIsDescribedByItsName"},
 	} {
 		for _, test := range tests {
 			covered = append(covered, class+"::"+test)

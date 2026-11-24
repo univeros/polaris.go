@@ -1,0 +1,737 @@
+[
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Count the members",
+                        "name": "members.list"
+                    },
+                    {
+                        "description": "Rename the organization",
+                        "name": "org.rename"
+                    },
+                    {
+                        "description": "Export the audit log",
+                        "name": "audit.export"
+                    },
+                    {
+                        "description": "Spend credits",
+                        "name": "credits.spend"
+                    },
+                    {
+                        "description": "Invite a member at the host",
+                        "location": "https://host.polaris.test/invite",
+                        "name": "invite"
+                    }
+                ],
+                "has_more": false,
+                "next_cursor": null
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?limit=2",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Count the members",
+                        "name": "members.list"
+                    },
+                    {
+                        "description": "Rename the organization",
+                        "name": "org.rename"
+                    }
+                ],
+                "has_more": true,
+                "next_cursor": "b3JnLnJlbmFtZQ"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?limit=3&cursor=b3JnLnJlbmFtZQ",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Export the audit log",
+                        "name": "audit.export"
+                    },
+                    {
+                        "description": "Spend credits",
+                        "name": "credits.spend"
+                    },
+                    {
+                        "description": "Invite a member at the host",
+                        "location": "https://host.polaris.test/invite",
+                        "name": "invite"
+                    }
+                ],
+                "has_more": false,
+                "next_cursor": null
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?query=MEMBER+invite",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Invite a member at the host",
+                        "location": "https://host.polaris.test/invite",
+                        "name": "invite"
+                    }
+                ],
+                "has_more": false,
+                "next_cursor": null
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?query=the&limit=1",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Count the members",
+                        "name": "members.list"
+                    }
+                ],
+                "has_more": true,
+                "next_cursor": "bWVtYmVycy5saXN0"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?query=the&limit=1&cursor=bWVtYmVycy5saXN0",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Rename the organization",
+                        "name": "org.rename"
+                    }
+                ],
+                "has_more": true,
+                "next_cursor": "b3JnLnJlbmFtZQ"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?query=nothing",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "public, max-age=300"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [],
+                "has_more": false,
+                "next_cursor": null
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?limit=0",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 400,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/problem+json"
+                ]
+            },
+            "body": {
+                "detail": "limit is a positive integer.",
+                "error": "invalid_request",
+                "message": "limit is a positive integer.",
+                "status": 400,
+                "title": "Invalid request",
+                "type": "https://polaris.univeros.io/problems/agents/invalid_request"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?limit=-1",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 400,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/problem+json"
+                ]
+            },
+            "body": {
+                "detail": "limit is a positive integer.",
+                "error": "invalid_request",
+                "message": "limit is a positive integer.",
+                "status": 400,
+                "title": "Invalid request",
+                "type": "https://polaris.univeros.io/problems/agents/invalid_request"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?limit=two",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 400,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/problem+json"
+                ]
+            },
+            "body": {
+                "detail": "limit is a positive integer.",
+                "error": "invalid_request",
+                "message": "limit is a positive integer.",
+                "status": 400,
+                "title": "Invalid request",
+                "type": "https://polaris.univeros.io/problems/agents/invalid_request"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?cursor=nonsense",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 400,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/problem+json"
+                ]
+            },
+            "body": {
+                "detail": "cursor is not one this server answered; list from the start.",
+                "error": "invalid_request",
+                "message": "cursor is not one this server answered; list from the start.",
+                "status": 400,
+                "title": "Invalid request",
+                "type": "https://polaris.univeros.io/problems/agents/invalid_request"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list?cursor=bm9uZQ",
+            "headers": [],
+            "body": ""
+        },
+        "response": {
+            "status": 400,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/problem+json"
+                ]
+            },
+            "body": {
+                "detail": "cursor is not one this server answered; list from the start.",
+                "error": "invalid_request",
+                "message": "cursor is not one this server answered; list from the start.",
+                "status": 400,
+                "title": "Invalid request",
+                "type": "https://polaris.univeros.io/problems/agents/invalid_request"
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/auth/register",
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "email": "ada@example.com",
+                "password": "correct horse battery staple"
+            }
+        },
+        "response": {
+            "status": 202,
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "5"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "4"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795503600"
+                ]
+            },
+            "body": {
+                "message": "If the address can be registered, a verification message has been sent."
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/auth/email/verify",
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "token": "K6o9odvUzgfNZr1nb7Otz3-7bEqu5KEgis0U3rgUQX4.db11e73e16959347a96af7d106017cae"
+            }
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "10"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "9"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795501800"
+                ]
+            },
+            "body": {
+                "message": "Email verified."
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/auth/login",
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "email": "ada@example.com",
+                "password": "correct horse battery staple"
+            }
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "10"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "9"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795501800"
+                ]
+            },
+            "body": {
+                "data": {
+                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVfRFdsc085LW8tbXNWbXd5bjd5WHVWZGpoa29OMHFRMmVzY1kzaEFDRFkifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTAxNjU1LCJuYmYiOjE3OTU1MDE2NTUsImV4cCI6MTc5NTUwMjU1NSwic3ViIjoiMDFhMjBjM2QtMDQ5ZS03MmEzLWFlZjAtNDA3YWFkOWEyMjk2IiwianRpIjoiMDFhMjBjM2QtMDRhMi03NGY5LTgzMGUtMzkwOTgxOGNlYjAyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwYzNkLTA0YTItNzMzYy1iN2Q4LTliNzcwNTg1MzM0ZiIsImF1dGhfdGltZSI6MTc5NTUwMTY1NX0.OpiGOiFGI2Y0eBJwXC2xDZpJGOXmadzqUWwcSHCdsJXpWAImjCEh4i5Uh3fXu3-ux-c1VLZQw8LzytPzdQ61hPAlTuIVN6SAUdRFX8zi_U9-c9otWQblCwQJNqSUJ13HFjHqm3EA75xVDm5EfRiE6mGS5yXg2WtGTHQUZFqB0OGHoLPy_XMGtcb9zc2FE2MuKkpzBgCSot8uZiMMld-5g5YnuOdRRW7UfnbHM66lGUud97rAac0ijJq_JsIf0vXkJYIyCaUOTWq3F8Bv9yfTwjBbnoQ8i6xL_vtHZJ645n8Mexb9XJem-ot0gZ41fLvTOxtEz8eRRaBSaN9Q6Sm81w",
+                    "expires_in": 900,
+                    "refresh_token": "4P-AjGJpX6teFf47lLbhC5l-_PWL7vimx5RN459VdSo",
+                    "token_type": "Bearer",
+                    "user": {
+                        "email": "ada@example.com",
+                        "email_verified": true,
+                        "id": "01a20c3d-049e-72a3-aef0-407aad9a2296"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/orgs",
+            "headers": {
+                "Authorization": [
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVfRFdsc085LW8tbXNWbXd5bjd5WHVWZGpoa29OMHFRMmVzY1kzaEFDRFkifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTAxNjU1LCJuYmYiOjE3OTU1MDE2NTUsImV4cCI6MTc5NTUwMjU1NSwic3ViIjoiMDFhMjBjM2QtMDQ5ZS03MmEzLWFlZjAtNDA3YWFkOWEyMjk2IiwianRpIjoiMDFhMjBjM2QtMDRhMi03NGY5LTgzMGUtMzkwOTgxOGNlYjAyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwYzNkLTA0YTItNzMzYy1iN2Q4LTliNzcwNTg1MzM0ZiIsImF1dGhfdGltZSI6MTc5NTUwMTY1NX0.OpiGOiFGI2Y0eBJwXC2xDZpJGOXmadzqUWwcSHCdsJXpWAImjCEh4i5Uh3fXu3-ux-c1VLZQw8LzytPzdQ61hPAlTuIVN6SAUdRFX8zi_U9-c9otWQblCwQJNqSUJ13HFjHqm3EA75xVDm5EfRiE6mGS5yXg2WtGTHQUZFqB0OGHoLPy_XMGtcb9zc2FE2MuKkpzBgCSot8uZiMMld-5g5YnuOdRRW7UfnbHM66lGUud97rAac0ijJq_JsIf0vXkJYIyCaUOTWq3F8Bv9yfTwjBbnoQ8i6xL_vtHZJ645n8Mexb9XJem-ot0gZ41fLvTOxtEz8eRRaBSaN9Q6Sm81w"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "name": "Acme"
+            }
+        },
+        "response": {
+            "status": 201,
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "600"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "599"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795501680"
+                ]
+            },
+            "body": {
+                "data": {
+                    "id": "01a20c3d-04a5-7392-9940-28325bdbfba5",
+                    "name": "Acme",
+                    "role": "owner",
+                    "slug": "acme"
+                }
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/auth/switch-org",
+            "headers": {
+                "Authorization": [
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVfRFdsc085LW8tbXNWbXd5bjd5WHVWZGpoa29OMHFRMmVzY1kzaEFDRFkifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTAxNjU1LCJuYmYiOjE3OTU1MDE2NTUsImV4cCI6MTc5NTUwMjU1NSwic3ViIjoiMDFhMjBjM2QtMDQ5ZS03MmEzLWFlZjAtNDA3YWFkOWEyMjk2IiwianRpIjoiMDFhMjBjM2QtMDRhMi03NGY5LTgzMGUtMzkwOTgxOGNlYjAyIiwib3JnIjpudWxsLCJyb2xlcyI6W10sImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJtZmEiOmZhbHNlLCJhbXIiOlsicHdkIl0sInNpZCI6IjAxYTIwYzNkLTA0YTItNzMzYy1iN2Q4LTliNzcwNTg1MzM0ZiIsImF1dGhfdGltZSI6MTc5NTUwMTY1NX0.OpiGOiFGI2Y0eBJwXC2xDZpJGOXmadzqUWwcSHCdsJXpWAImjCEh4i5Uh3fXu3-ux-c1VLZQw8LzytPzdQ61hPAlTuIVN6SAUdRFX8zi_U9-c9otWQblCwQJNqSUJ13HFjHqm3EA75xVDm5EfRiE6mGS5yXg2WtGTHQUZFqB0OGHoLPy_XMGtcb9zc2FE2MuKkpzBgCSot8uZiMMld-5g5YnuOdRRW7UfnbHM66lGUud97rAac0ijJq_JsIf0vXkJYIyCaUOTWq3F8Bv9yfTwjBbnoQ8i6xL_vtHZJ645n8Mexb9XJem-ot0gZ41fLvTOxtEz8eRRaBSaN9Q6Sm81w"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "organization_id": "01a20c3d-04a5-7392-9940-28325bdbfba5"
+            }
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "600"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "598"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795501680"
+                ]
+            },
+            "body": {
+                "data": {
+                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVfRFdsc085LW8tbXNWbXd5bjd5WHVWZGpoa29OMHFRMmVzY1kzaEFDRFkifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTAxNjU1LCJuYmYiOjE3OTU1MDE2NTUsImV4cCI6MTc5NTUwMjU1NSwic3ViIjoiMDFhMjBjM2QtMDQ5ZS03MmEzLWFlZjAtNDA3YWFkOWEyMjk2IiwianRpIjoiMDFhMjBjM2QtMDRhOC03MzUzLTkxMTAtODhhNTY1NzMxY2Y0Iiwib3JnIjoiMDFhMjBjM2QtMDRhNS03MzkyLTk5NDAtMjgzMjViZGJmYmE1Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBjM2QtMDRhMi03MzNjLWI3ZDgtOWI3NzA1ODUzMzRmIiwiYXV0aF90aW1lIjoxNzk1NTAxNjU1fQ.x9mcmxGZI_puNY0JigH08gDC9zTgpJwvhXEgCjZ3IJiB7Br1_sfdNzXz0TtBqUoqfD2NGd0e1cJBoT4feq3EMgGn4plTZ21qkiG-muSI3qrosjE9iHzzKuWIvKG2NcvFAhWQbZ7yKJ1ofkVv5_eRsFexhI0B9aYv7kNcoyvWJjFyv39m4h4sP6wu5K7LuTd--JmYy7yiaG5sdLZYZleRnAly9z1FHe32jzbUfc6vfteT9P0pdCnQ3Y6TrdzycBwxiQgt-Sb2GCdND8aUCspGHj1eRBfAlRyZ8bZCj801ZwKKy-BdEsIV9PgBLYKLo4m934-CkH3c_9yMIckvNsY8jw",
+                    "expires_in": 900,
+                    "org": "01a20c3d-04a5-7392-9940-28325bdbfba5",
+                    "token_type": "Bearer"
+                }
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "uri": "/agents/register",
+            "headers": {
+                "Authorization": [
+                    "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjVfRFdsc085LW8tbXNWbXd5bjd5WHVWZGpoa29OMHFRMmVzY1kzaEFDRFkifQ.eyJpc3MiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiaWF0IjoxNzk1NTAxNjU1LCJuYmYiOjE3OTU1MDE2NTUsImV4cCI6MTc5NTUwMjU1NSwic3ViIjoiMDFhMjBjM2QtMDQ5ZS03MmEzLWFlZjAtNDA3YWFkOWEyMjk2IiwianRpIjoiMDFhMjBjM2QtMDRhOC03MzUzLTkxMTAtODhhNTY1NzMxY2Y0Iiwib3JnIjoiMDFhMjBjM2QtMDRhNS03MzkyLTk5NDAtMjgzMjViZGJmYmE1Iiwicm9sZXMiOlsib3duZXIiXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm1mYSI6ZmFsc2UsImFtciI6WyJwd2QiXSwic2lkIjoiMDFhMjBjM2QtMDRhMi03MzNjLWI3ZDgtOWI3NzA1ODUzMzRmIiwiYXV0aF90aW1lIjoxNzk1NTAxNjU1fQ.x9mcmxGZI_puNY0JigH08gDC9zTgpJwvhXEgCjZ3IJiB7Br1_sfdNzXz0TtBqUoqfD2NGd0e1cJBoT4feq3EMgGn4plTZ21qkiG-muSI3qrosjE9iHzzKuWIvKG2NcvFAhWQbZ7yKJ1ofkVv5_eRsFexhI0B9aYv7kNcoyvWJjFyv39m4h4sP6wu5K7LuTd--JmYy7yiaG5sdLZYZleRnAly9z1FHe32jzbUfc6vfteT9P0pdCnQ3Y6TrdzycBwxiQgt-Sb2GCdND8aUCspGHj1eRBfAlRyZ8bZCj801ZwKKy-BdEsIV9PgBLYKLo4m934-CkH3c_9yMIckvNsY8jw"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ]
+            },
+            "body": {
+                "auth": "private_key_jwt",
+                "capabilities": [
+                    "members.list"
+                ],
+                "jwk": {
+                    "crv": "Ed25519",
+                    "kty": "OKP",
+                    "x": "ECLnliWflmjazR-qfpSTbuTTrVzWYtzmsyk51hk8VDI"
+                },
+                "mode": "delegated",
+                "name": "Reader"
+            }
+        },
+        "response": {
+            "status": 201,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "X-Ratelimit-Limit": [
+                    "5"
+                ],
+                "X-Ratelimit-Remaining": [
+                    "3"
+                ],
+                "X-Ratelimit-Reset": [
+                    "1795503600"
+                ]
+            },
+            "body": {
+                "data": {
+                    "approval": null,
+                    "auth": "private_key_jwt",
+                    "created_at": "2026-11-24T06:27:35Z",
+                    "created_by": "01a20c3d-049e-72a3-aef0-407aad9a2296",
+                    "grants": [
+                        {
+                            "agent_id": "01a20c3d-04ab-73d4-990a-96cad9b7dac6",
+                            "approval_id": null,
+                            "approved_via": "auto",
+                            "budget": {
+                                "field": null,
+                                "kind": "count",
+                                "remaining": 100,
+                                "total": 100
+                            },
+                            "capability": "members.list",
+                            "constraints": {},
+                            "created_at": "2026-11-24T06:27:35Z",
+                            "expires_at": null,
+                            "granted_by": null,
+                            "id": "01a20c3d-04ab-791f-99de-8d269974adb5",
+                            "status": "active",
+                            "updated_at": "2026-11-24T06:27:35Z"
+                        }
+                    ],
+                    "host_id": null,
+                    "id": "01a20c3d-04ab-73d4-990a-96cad9b7dac6",
+                    "mode": "delegated",
+                    "name": "Reader",
+                    "organization_id": "01a20c3d-04a5-7392-9940-28325bdbfba5",
+                    "owner_id": "01a20c3d-049e-72a3-aef0-407aad9a2296",
+                    "owner_type": "user",
+                    "public_jwk": {
+                        "alg": "EdDSA",
+                        "crv": "Ed25519",
+                        "kid": "LbjxGqmXVarZIqbUZ_nXdB_lQKWJS5Ljx_iJ0y6xXf0",
+                        "kty": "OKP",
+                        "use": "sig",
+                        "x": "ECLnliWflmjazR-qfpSTbuTTrVzWYtzmsyk51hk8VDI"
+                    },
+                    "sealed_at": null,
+                    "status": "active",
+                    "updated_at": "2026-11-24T06:27:35Z"
+                }
+            }
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "uri": "/capability/list",
+            "headers": {
+                "Authorization": [
+                    "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6ImFnZW50K2p3dCJ9.eyJhdWQiOiJodHRwczovL2F1dGgucG9sYXJpcy50ZXN0IiwiZXhwIjoxNzk1NTAxNzc1LCJpYXQiOjE3OTU1MDE2NTUsImp0aSI6Ik9EelJnUDNLY192QnFZMXJNY29oU2ciLCJzdWIiOiIwMWEyMGMzZC0wNGFiLTczZDQtOTkwYS05NmNhZDliN2RhYzYifQ.w31yXbVdDmLHptlHTZLoPh6xGLNiMIAa8PJ1YciPJAyrizb_fI8rXwhjNvgzcEmww0siuk95RXF5DhDbKvCUCw"
+                ]
+            },
+            "body": ""
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Cache-Control": [
+                    "no-store"
+                ],
+                "Content-Type": [
+                    "application/json"
+                ],
+                "Vary": [
+                    "Authorization"
+                ]
+            },
+            "body": {
+                "capabilities": [
+                    {
+                        "description": "Count the members",
+                        "grant_status": "granted",
+                        "name": "members.list"
+                    },
+                    {
+                        "description": "Rename the organization",
+                        "grant_status": "not_granted",
+                        "name": "org.rename"
+                    },
+                    {
+                        "description": "Export the audit log",
+                        "grant_status": "not_granted",
+                        "name": "audit.export"
+                    },
+                    {
+                        "description": "Spend credits",
+                        "grant_status": "not_granted",
+                        "name": "credits.spend"
+                    },
+                    {
+                        "description": "Invite a member at the host",
+                        "grant_status": "not_granted",
+                        "location": "https://host.polaris.test/invite",
+                        "name": "invite"
+                    }
+                ],
+                "has_more": false,
+                "next_cursor": null
+            }
+        }
+    }
+]

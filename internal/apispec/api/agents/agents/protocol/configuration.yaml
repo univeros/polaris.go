@@ -1,0 +1,25 @@
+# GET /agents/configuration: Polaris's agent discovery document, in every discovery mode.
+endpoint:
+  method: GET
+  path: /agents/configuration
+  summary: Polaris agent discovery
+  tags: [agents]
+  auth: public
+  effect: read
+  receipt: false
+
+input:
+  source: none
+
+domain:
+  description: >
+    The document GET /.well-known/agent-configuration answers unless agents.Config.Discovery is
+    DiscoveryAgentAuth, always here: the Go agent SDK falls back to it. Cached for an hour.
+
+output:
+  status: 200
+  example: { version: "1.0-draft", provider_name: "Polaris", description: "Polaris for Go agent provider", issuer: "https://auth.example", default_location: "https://auth.example/agents/execute", algorithms: [ES256, EdDSA], modes: [delegated, autonomous], approval_methods: [device_authorization, ciba, in_app], approval_strengths: { low: session, medium: session, high: step_up }, endpoints: { register: "https://auth.example/agents/register", enroll: "https://auth.example/agents/enroll", capabilities: "https://auth.example/agents/capabilities", execute: "https://auth.example/agents/execute", request_capability: "https://auth.example/agents/grants/request", status: "https://auth.example/agents/session", revoke: "https://auth.example/agents", grants: "https://auth.example/agents/grants", approvals: "https://auth.example/agents/approvals", receipts: "https://auth.example/agents/receipts", token: "https://auth.example/oauth2/token" }, token_endpoint: "https://auth.example/oauth2/token", agent_sdk_versions: { "github.com/univeros/polaris.go/agent": "v1.1.0" } }
+
+errors: []
+
+events: []
