@@ -45,6 +45,8 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | `Strengths` | low, medium `session`; high `step_up` | risk tier → `StrengthSession`, `StrengthStepUp`, `StrengthPasskey` |
 | `ApprovalTTL` | 10 min | how long an approval waits |
 | `Discovery` | `DiscoveryPolaris` | the document at `/.well-known/agent-configuration`: `DiscoveryPolaris` (the Go agent SDK's) or `DiscoveryAgentAuth` (the Agent Auth Protocol's) |
+| `DisableJWKSURLs` | false | refuse hosts that publish their keys at a `jwks_url` (taken with `DiscoveryAgentAuth` only) |
+| `HTTPClient` | guarded | fetches those key sets; the default connects to public addresses only, and no client follows a redirect |
 | `ProviderName`, `Description` | `Polaris`, `Polaris for Go agent provider` | discovery document |
 | `RequestJWTMaxAge` | 5 min (also the maximum) | bound on `exp - iat` |
 | `Operators` | the admin plugin | authorizes `/admin/agents`; without admin nobody (401) |
@@ -58,11 +60,15 @@ Only `Capabilities` matters for most hosts; every other field has a working defa
 | GET | `/agents/configuration` | Polaris's discovery document, whatever `Config.Discovery` says |
 | GET | `/capability/list` | Agent Auth Protocol: the capabilities (`query`, `cursor`, `limit` ≤ 100), with `grant_status` for an agent |
 | GET | `/capability/describe` | Agent Auth Protocol: one capability (`name`) |
+| POST | `/agent/register` | Agent Auth Protocol: a host with a key registers an agent |
+| GET | `/agent/status` | Agent Auth Protocol: an agent of the host (`agent_id`) |
+| POST | `/agent/request-capability` | Agent Auth Protocol: the agent asks for capabilities |
+| POST | `/capability/execute` | Agent Auth Protocol: run a `Handler` capability |
 | GET | `/agents/capabilities` | the capabilities (with `grant_status` for an agent) |
 | POST | `/agents/register` | the owner registers an agent |
 | POST | `/agents/enroll` | a host enrols an agent with its `peh_` token |
-| GET, POST | `/agents/hosts` | the owner's hosts / create one |
-| DELETE | `/agents/hosts/{id}` | revoke a host |
+| GET, POST | `/agents/hosts` | the owner's hosts / create one (with an enrolment token, or a `public_key` or `jwks_url` of its own) |
+| DELETE | `/agents/hosts/{id}` | revoke a host; one with a key takes its agents with it |
 | GET | `/agents`, `/agents/{id}` | the owner's agents / one agent |
 | POST | `/agents/{id}/suspend`, `/agents/{id}/resume` | pause / resume |
 | POST | `/agents/{id}/revoke` | kill switch: revoke, disable its client and tokens, seal the receipts |
@@ -93,8 +99,10 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 `constraint_violated` (with `violations`), `budget_exhausted`, `step_up_required`,
 `permission_not_held`, `forbidden` (403); `capability_not_found`, `not_found` (404); `conflict`,
 `sealed` (409); `invalid_arguments`, `invalid_input` (422); `unknown_constraint_operator` (400);
-`payload_too_large` (413). Only on the protocol routes: `invalid_request` (400), `agent_revoked`,
-`agent_suspended` (403). A `Handler` may return `*agents.Error` to refuse with one.
+`payload_too_large` (413). Only on the protocol routes: `invalid_request`,
+`invalid_capabilities`, `unsupported_mode`, `unsupported_algorithm` (400); `agent_revoked`,
+`agent_suspended`, `agent_pending`, `agent_rejected`, `host_revoked`, `limit_exceeded` (403);
+`agent_not_found` (404); `already_granted` (409). A `Handler` may return `*agents.Error` to refuse with one.
 
 ## Host integration
 
@@ -140,8 +148,11 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 
 ## Agent Auth Protocol
 
-The protocol's own client (`@auth/agent`) reads this server and lists and describes its capabilities;
-it cannot register an agent yet. What is built and what is next is
+The protocol's own client (`@auth/agent`) signs in through a host whose key its owner registered
+(`POST /agents/hosts` with `public_key`): it registers an agent, waits for a person where one must
+approve, requests capabilities and executes them. A host the server does not know is refused (401) for
+now, and so is a capability with a `Location`, which such a client calls with another body than `Protect`
+reads. What is built and what is next is
 [docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
 
 - An origin has one `/.well-known/agent-configuration` and the two client families read it differently.
@@ -151,8 +162,12 @@ it cannot register an agent yet. What is built and what is next is
 - The protocol document's `issuer` is `BaseURL`, where Polaris is mounted: its paths resolve against it,
   and it is the exact `aud` of an agent's request JWT on `/capability/*` (`AUTH_ISSUER` plays no part).
   A JWT's `iat` may be at most 30 s ahead there. An agent's OAuth token works too.
-- A credential on those routes that is not an agent's, a host JWT included, is 401 `invalid_jwt`, never
+- A credential on those routes that is neither an agent's nor a known host's is 401 `invalid_jwt`, never
   read as anonymous; the reference client then asks again without one.
+- An agent belongs to its host's owner, organization included. It is `pending` when a person must approve
+  everything it asked for at registration, and `rejected` for good when they deny it. Approvals are
+  decided as ever (`/agents/approvals`); with `ApprovalURL` the client shows that page and the code.
+- The public key an owner registers is not proven to be theirs: register the key of a host you run.
 
 ## Example
 
