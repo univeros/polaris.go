@@ -3433,13 +3433,15 @@ stays, before `v1.1.0`. Both change what v1.0.0 does.
   request JWT's `aud` and `htu` leave the query out, so nothing bound it either. Decision 87 closed it for protocol agents;
   now every agent is held to it, by `Protect` and by `Guard`.
 - **Refused,** with 422 `agents/invalid_arguments`, audited: a query; a body that is not one JSON object (a form, XML, an array
-  and `null` ran with no arguments); one whose `Content-Type` is not JSON, is missing, sent twice, malformed or not
+  and `null` ran with no arguments); one whose `Content-Type` is not JSON, is sent twice, malformed or not
   UTF-8, or whose bytes are not. Refusing forms alone would have left every other type. `+json` types pass and stay as they were sent. A request
   without a body has no arguments, whatever its type.
 - **Dropped:** a form that something before `Protect` parsed (it left no body to check, and the handler read it), trailers,
   `Content-Encoding`, `GetBody`. Headers, cookies and path values are the route's and stay: the README says no constraint covers them.
-- **No opt-out:** a switch back would be an insecure setting in the v1 API. It breaks clients that send a query, a form, or JSON
-  without its `Content-Type` (the plugin's own example was one); the 1.0.0 release notes allow that for a security fix nothing else closes. The release note
+- **No opt-out:** a switch back would be an insecure setting in the v1 API. It breaks clients that send a query,
+  a form, or JSON as another type; the 1.0.0 release notes allow that for a security fix nothing else closes. JSON without a type was first
+  refused too, which broke the plugin's own example and every `agent.Do` that sets none, and closes nothing: it passes, and the
+  handler is told `application/json`. The release note
   says so, and a GitHub advisory follows with `v1.1.0`.
 - **Agents' own rate limit.** The four v1.0.0 routes agents call (`/agents/enroll`, `execute`, `grants/request`, `session`) spent
   the `token_refresh` budget of their address, with people's refreshes. Their group is `agents` now: as large as
@@ -3456,3 +3458,21 @@ body as it was sent; a parsed multipart form and an agent's access token had no 
 test. Accepted: a refused request has spent its `jti`, as before; lone surrogates in a JSON string are read as U+FFFD by Go;
 a key prefix a host chose for another group could be the agents' one (`<TokenRefresh's>.agents`); an envelope a protocol
 agent sends wrong is refused unaudited, as before.
+
+Taking a body without a type was reviewed once more on its own, with the fixes above: nothing a client can reach. Accepted: a
+host's own middleware that writes a header key which is not canonical (`r.Header["content-type"]`) is not seen by the check.
+
+## 90. 2026-11-24 — Agent Auth Protocol, part 5: the release
+
+The documents of `v1.1.0`, and what the package's acceptance ([`agent-auth-compat.md`](agent-auth-compat.md) §4) still asked.
+
+- **`examples/agents -protocol`** serves the protocol's clients beside its own demo, which its test plays in both modes. Against it, by
+  hand, the unmodified `@auth/agent-cli` 0.5.1 connected from an unknown host, was approved by code, ran both capabilities (one at its
+  `Location`), was refused past its constraint and revoked its agent; its MCP server ran one. That is not in CI, which runs
+  `@auth/agent` 0.6.2 (decision 83). The CLI's `--url` takes a list, so a flag must follow it: the README says so.
+- **A minor version,** although decision 89 changes what v1.0.0 took behind `Protect`: no Go API, route or stored data breaks, and the
+  1.0.0 release notes keep that room for a security fix nothing else closes.
+- **Held back until the release:** decision 89 describes a hole v1.0.0 has, so it is pushed, merged and tagged in one go, and the
+  advisory follows (SECURITY.md).
+
+Go API, routes, fixtures, schema: none.

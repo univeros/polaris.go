@@ -91,7 +91,6 @@ func Example() {
 
 	body, _ := json.Marshal(map[string]any{"email": "bob@example.com"})
 	r := httptest.NewRequest("POST", "https://app.example.com/invitations", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json") // the arguments are the JSON body, and nothing else
 	r.Header.Set("Authorization", "Bearer "+signRequest(key, agentID, "https://app.example.com/invitations"))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)

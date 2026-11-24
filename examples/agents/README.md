@@ -19,6 +19,7 @@ runs. Every execution appends a signed, hash-chained receipt.
 ```sh
 POLARIS_DEV=1 go run ./examples/agents           # the owner approves from Go
 POLARIS_DEV=1 go run ./examples/agents -manual   # you approve with curl (step 5 below)
+POLARIS_DEV=1 go run ./examples/agents -protocol # Agent Auth Protocol clients sign in too (below)
 ```
 
 The example needs no setup:
@@ -196,6 +197,46 @@ curl -s $B/audit/organization/$ORG -H "Authorization: Bearer $OWNER" \
 ```json
 ["agent.receipt.sealed","agent.revoked","agent.execution_denied","agent.execution_denied","agent.executed","agent.executed","agent.grant.approved","agent.grant.approved","agent.grant.requested","agent.enrolled"]
 ```
+
+## An Agent Auth Protocol client
+
+With `-protocol` the server's discovery document is the
+[Agent Auth Protocol](https://agent-auth-protocol.com/specification)'s, and any client of it signs in, here the unmodified
+[`@auth/agent-cli`](https://www.npmjs.com/package/@auth/agent-cli) 0.5.1 (Node 22 or newer). The demo above runs as before: the Go agent
+SDK reads `/agents/configuration` by itself.
+
+```sh
+POLARIS_DEV=1 go run ./examples/agents -protocol
+alias auth-agent='npx -y @auth/agent-cli@0.5.1 --url http://localhost:8080 --no-browser' # --url takes a list: keep a flag after it
+auth-agent connect --provider http://localhost:8080 --name "CLI bot" \
+  --capabilities invoices.list invoices.refund --constraints '{"invoices.refund":{"amount":{"max":100}}}'
+```
+
+```
+Approval required. Open: http://localhost:8080/approve?user_code=VMSB-CPTK
+  Code: VMSB-CPTK
+```
+
+The server has never seen this host, and nothing of it exists yet. Your `ApprovalURL` page would show who asks for what;
+in another shell, as the owner ([sign in](#sign-in-as-the-owner) first), curl stands in for it. Use the code you were shown:
+
+```sh
+APPROVAL=$(curl -s "$B/agents/approvals/code?user_code=VMSB-CPTK" -H "Authorization: Bearer $OWNER" | jq -r .data.id)
+curl -s $B/agents/approvals/$APPROVAL/decide -H "Authorization: Bearer $OWNER" -H "$J" -d '{"decision":"approve"}' | jq -c .data.status
+```
+
+The client prints its agent's id and goes on. Grant, constraints, budget and receipts are the same as any agent's:
+
+```sh
+auth-agent execute $ID invoices.list --args '{}'
+auth-agent execute $ID invoices.refund --args '{"invoice_id":"inv_1","amount":60}'  # {"data":{"agent":…,"refunded":60}}
+auth-agent execute $ID invoices.refund --args '{"invoice_id":"inv_1","amount":500}' # Error: The arguments violate the grant's constraints.
+auth-agent disconnect $ID                                                           # the kill switch
+```
+
+`auth-agent mcp`, with the same flags, is the same client as an MCP server for your assistant. The demo asks `step_up` for the
+high-risk capability because its owner has no passkey; a real host adds the passkey plugin
+([why](../../plugins/agents/README.md#agent-auth-protocol)).
 
 ## The host's permissions
 

@@ -36,8 +36,8 @@ func CallFrom(ctx context.Context) (Call, bool) {
 // CallFrom; the response carries X-Polaris-Receipt. The response is buffered until the receipt is
 // written.
 //
-// Only the JSON body is checked, so a query, and a body that is not one JSON object sent with a JSON
-// Content-Type, are refused. Headers and path values are not arguments: no constraint covers them.
+// Only the JSON body is checked, so a query, and a body that is not one JSON object sent as JSON
+// (its Content-Type, when it has one), are refused. Headers and path values are not arguments: no constraint covers them.
 //
 // An agent of a host with a key (an Agent Auth Protocol client's) posts {capability, arguments} and is
 // answered {"data": ...}: next reads the arguments alone, and its JSON answer is wrapped.
@@ -114,7 +114,7 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 		if err == nil {
 			r, err = withArguments(r, body)
 		}
-		if err == nil && protocol {
+		if err == nil && (protocol || len(body) > 0 && len(r.Header.Values("Content-Type")) == 0) {
 			r.Header.Set("Content-Type", "application/json")
 		}
 		var ev evaluation

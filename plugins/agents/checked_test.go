@@ -66,7 +66,8 @@ func TestWhatAnyAgentsHandlerReadsWasChecked(t *testing.T) {
 			"JSON in UTF-7":         send("", bob, "application/json; charset=utf-7"),
 			"JSON in UTF-16":        send("", bob, "application/json; charset*=utf-16''x"), // RFC 2231: no parameter to Go
 			"bytes not UTF-8":       send("", "{\"email\":\"bob@acme.test\xff\"}", "application/json"),
-			"JSON as nothing":       send("", bob),
+			"JSON as an empty type": send("", bob, ""),
+			"a form as nothing":     send("", "email=mallory@evil.test"),
 			"a form":                send("", "email=mallory@evil.test", aForm),
 			"a form as JSON":        send("", "email=mallory@evil.test", "application/json"),
 			"XML":                   send("", "<email>mallory@evil.test</email>", "application/xml"),
@@ -81,11 +82,14 @@ func TestWhatAnyAgentsHandlerReadsWasChecked(t *testing.T) {
 			a.equal(send("", bob, media), "200 <nil>", name+": "+media)
 			a.equal(read, fmt.Sprintf(`"" %q "" 0 true`, media), name+": what the handler reads")
 		}
+		a.equal(send("", polyglot), "200 <nil>", name+": no type, as v1.0.0 clients may send it")
+		a.equal(read, `"" "application/json" "" 0 true`, name+": the handler is told what was checked")
 		a.equal([]any{send("", ""), send("", " \n", "text/plain")}, []any{"200 <nil>", "200 <nil>"}, name+": no body")
-		a.equal(ran, 6, name+": ran")
+		a.equal(read, `"" "text/plain" "" 0 true`, name+": and is told nothing new of no body")
+		a.equal(ran, 7, name+": ran")
 		ran = 0
 	}
-	a.equal(len(a.audited(agents.EventExecutionDenied)), 32, "refusals are audited")
+	a.equal(len(a.audited(agents.EventExecutionDenied)), 34, "refusals are audited")
 }
 
 // An agent's access token is held to it as its JWT is.
@@ -136,7 +140,9 @@ func TestAGuardedRouteKeepsItsPathValues(t *testing.T) {
 	a, jwt, _ := noting(t)
 	read := ""
 	mux := http.NewServeMux()
-	mux.Handle("POST /{name}", a.plugin.Protect("note", http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { read = r.PathValue("name") + r.Pattern })))
+	mux.Handle("POST /{name}", a.plugin.Protect("note", http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		read = r.PathValue("name") + r.Pattern + r.Header.Get("Content-Type")
+	})))
 	r := httptest.NewRequest(http.MethodPost, location, nil)
 	r.Header.Set("Authorization", "Bearer "+jwt())
 	w := httptest.NewRecorder()

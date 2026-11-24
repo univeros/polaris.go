@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -14,8 +16,15 @@ import (
 )
 
 // TestDemo boots the example on a real listener (capability Locations and request JWT audiences are
-// absolute URLs) and plays the whole story the README walks through.
+// absolute URLs) and plays the whole story the README walks through,
+// in both discovery modes: the Go agent SDK works in each.
 func TestDemo(t *testing.T) {
+	for name, protocol := range map[string]bool{"Polaris": false, "Agent Auth Protocol": true} {
+		t.Run(name, func(t *testing.T) { playDemo(t, protocol) })
+	}
+}
+
+func playDemo(t *testing.T, protocol bool) {
 	ctx := context.Background()
 	srv := httptest.NewUnstartedServer(nil)
 	baseURL := "http://" + srv.Listener.Addr().String()
@@ -31,7 +40,7 @@ func TestDemo(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	h, p, err := newServer(ctx, db, baseURL, cheapHashing)
+	h, p, err := newServer(ctx, db, baseURL, protocol, cheapHashing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,6 +49,20 @@ func TestDemo(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	var out strings.Builder
+	resp, err := http.Get(baseURL + "/.well-known/agent-configuration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var document struct {
+		Endpoints map[string]string `json:"endpoints"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&document); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := document.Endpoints["introspect"]; ok != protocol {
+		t.Fatalf("whose document it is: %v", document.Endpoints)
+	}
 	if err := runDemo(ctx, p, baseURL, false, &out); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}

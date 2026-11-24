@@ -82,13 +82,14 @@ func withArguments(r *http.Request, body []byte) (*http.Request, error) {
 }
 
 // declaresJSON refuses a body whose type is not JSON, once and in UTF-8: a handler, or what it passes the
-// request on to, reads the body as its type says, and it was checked as JSON. A request without a body has
-// no arguments, whatever its type.
+// request on to, reads the body as its type says, and it was checked as JSON. No type is JSON, which is what
+// the handler is told then: clients of v1.0.0 may send none. A request without a body has no arguments,
+// whatever its type.
 func declaresJSON(r *http.Request, body []byte) error {
-	if len(bytes.TrimLeft(body, jsonSpace)) == 0 {
+	declared := r.Header.Values("Content-Type")
+	if len(declared) == 0 || len(bytes.TrimLeft(body, jsonSpace)) == 0 {
 		return nil
 	}
-	declared := r.Header.Values("Content-Type")
 	if len(declared) == 1 {
 		media, params, err := mime.ParseMediaType(declared[0])
 		charset := params["charset"]
