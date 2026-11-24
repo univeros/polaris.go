@@ -17,8 +17,7 @@ import (
 	"github.com/univeros/polaris.go/wiring"
 )
 
-// ID is the plugin id: its routes are polaris.agents.* and polaris.protocol.* (the Agent Auth
-// Protocol's), its problems agents/*.
+// ID is the plugin id: its routes are polaris.agents.*, its problems agents/*.
 const ID = "agents"
 
 // Plugin is the agents plugin. Build it with New and pass it to polaris.Config.Plugins (with

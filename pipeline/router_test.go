@@ -37,9 +37,10 @@ func TestRouterMatchesParametersAndReportsAllowedMethods(t *testing.T) {
 	}
 }
 
-// A route without parameters is reached by its own path, whatever the load order: /agents/{id} is
-// declared before /agents/configuration.
-func TestALiteralPathWinsOverAParameter(t *testing.T) {
+// The first match in load order wins, so a spec file whose path has no parameter must sort before one
+// whose parameter matches it: agents/protocol/configuration.yaml before agents/show.yaml
+// (/agents/{id}). No route is hidden by another.
+func TestNoRouteIsHiddenByAParameter(t *testing.T) {
 	_, all := manifests(t)
 	rt := newRouter(all, "")
 	for _, r := range all.Routes() {

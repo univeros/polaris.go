@@ -23,11 +23,6 @@ Breaking changes are marked **Breaking**.
   both modes; `agents.ErrInvalidRequest`, `ErrAgentRevoked` and `ErrAgentSuspended` are problems only they
   answer. A third-party plugin that declares one of the three new paths is refused by `polaris.New`.
 
-### Changed
-
-- A route without parameters is matched before one with, whatever order plugins are loaded in
-  (`/agents/configuration` before `/agents/{id}`). No route of v1.0.0 is answered differently.
-
 ## [1.0.0] - 2026-11-23
 
 Polaris for Go 1.0. The code of v0.7.3 plus the security fixes below, from a review of the plugins

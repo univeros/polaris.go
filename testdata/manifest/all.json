@@ -11406,6 +11406,135 @@
         },
         {
             "method": "GET",
+            "path": "/capability/describe",
+            "summary": "Describe a capability (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "query",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "rules": [
+                            "required"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.capability-describe",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_suspended"
+                },
+                {
+                    "status": 404,
+                    "code": "capability_not_found"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/capability/list",
+            "summary": "List the capabilities (Agent Auth Protocol)",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "query",
+                "fields": [
+                    {
+                        "name": "query",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "cursor",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    },
+                    {
+                        "name": "limit",
+                        "type": "?integer",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
+                    }
+                ]
+            },
+            "name": "polaris.agents.protocol.capability-list",
+            "errors": [
+                {
+                    "status": 400,
+                    "code": "invalid_request"
+                },
+                {
+                    "status": 401,
+                    "code": "invalid_jwt"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_revoked"
+                },
+                {
+                    "status": 403,
+                    "code": "agent_suspended"
+                }
+            ],
+            "events": []
+        },
+        {
+            "method": "GET",
+            "path": "/agents/configuration",
+            "summary": "Polaris agent discovery",
+            "auth": "public",
+            "rate_limit": null,
+            "effect": "read",
+            "receipt": false,
+            "step_up": false,
+            "session": null,
+            "requires_permissions": [],
+            "input": {
+                "source": "none",
+                "fields": []
+            },
+            "name": "polaris.agents.protocol.configuration",
+            "errors": [],
+            "events": []
+        },
+        {
+            "method": "GET",
             "path": "/agents/receipts/{id}/verify",
             "summary": "Verify a receipt",
             "auth": "bearer",
@@ -11788,135 +11917,6 @@
             "events": [
                 "agent.suspended"
             ]
-        },
-        {
-            "method": "GET",
-            "path": "/capability/describe",
-            "summary": "Describe a capability (Agent Auth Protocol)",
-            "auth": "public",
-            "rate_limit": null,
-            "effect": "read",
-            "receipt": false,
-            "step_up": false,
-            "session": null,
-            "requires_permissions": [],
-            "input": {
-                "source": "query",
-                "fields": [
-                    {
-                        "name": "name",
-                        "type": "string",
-                        "rules": [
-                            "required"
-                        ],
-                        "sensitive": false
-                    }
-                ]
-            },
-            "name": "polaris.protocol.capability-describe",
-            "errors": [
-                {
-                    "status": 400,
-                    "code": "invalid_request"
-                },
-                {
-                    "status": 401,
-                    "code": "invalid_jwt"
-                },
-                {
-                    "status": 403,
-                    "code": "agent_revoked"
-                },
-                {
-                    "status": 403,
-                    "code": "agent_suspended"
-                },
-                {
-                    "status": 404,
-                    "code": "capability_not_found"
-                }
-            ],
-            "events": []
-        },
-        {
-            "method": "GET",
-            "path": "/capability/list",
-            "summary": "List the capabilities (Agent Auth Protocol)",
-            "auth": "public",
-            "rate_limit": null,
-            "effect": "read",
-            "receipt": false,
-            "step_up": false,
-            "session": null,
-            "requires_permissions": [],
-            "input": {
-                "source": "query",
-                "fields": [
-                    {
-                        "name": "query",
-                        "type": "?string",
-                        "rules": [
-                            "optional"
-                        ],
-                        "sensitive": false
-                    },
-                    {
-                        "name": "cursor",
-                        "type": "?string",
-                        "rules": [
-                            "optional"
-                        ],
-                        "sensitive": false
-                    },
-                    {
-                        "name": "limit",
-                        "type": "?integer",
-                        "rules": [
-                            "optional"
-                        ],
-                        "sensitive": false
-                    }
-                ]
-            },
-            "name": "polaris.protocol.capability-list",
-            "errors": [
-                {
-                    "status": 400,
-                    "code": "invalid_request"
-                },
-                {
-                    "status": 401,
-                    "code": "invalid_jwt"
-                },
-                {
-                    "status": 403,
-                    "code": "agent_revoked"
-                },
-                {
-                    "status": 403,
-                    "code": "agent_suspended"
-                }
-            ],
-            "events": []
-        },
-        {
-            "method": "GET",
-            "path": "/agents/configuration",
-            "summary": "Polaris agent discovery",
-            "auth": "public",
-            "rate_limit": null,
-            "effect": "read",
-            "receipt": false,
-            "step_up": false,
-            "session": null,
-            "requires_permissions": [],
-            "input": {
-                "source": "none",
-                "fields": []
-            },
-            "name": "polaris.protocol.configuration",
-            "errors": [],
-            "events": []
         }
     ]
 }

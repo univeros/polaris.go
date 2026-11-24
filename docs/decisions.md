@@ -3144,10 +3144,6 @@ v1.0.0 SDK finds no server in `DiscoveryAgentAuth` mode: documented, and the mod
   `agent_revoked`; a suspended agent is 403 `agent_suspended`, an extra code, until 5.2 is decided.
 - Anonymous answers are cached for five minutes with `Vary: Authorization`, an agent's not at all.
 
-**The router prefers a literal path.** It took the first match in load order, so `/agents/{id}` hid
-`/agents/configuration`, whose spec is in another directory. A route without parameters now wins. Every
-route of the manifest was compared under both rules, each method: only `/agents/configuration` differs.
-
 **The harness.** `scripts/e2e-agent-auth.sh` runs `@auth/agent` against `internal/e2e/agentauthserver`, in
 its own CI job, which is not a required check. It exits 3 when it stops exactly where the server stops
 today, at registration and for a missing route, with every step before it passed, and 1 for anything else;
@@ -3156,9 +3152,10 @@ registration starts to work. New dependency, for this job only: `@auth/agent` 0.
 npm, pinned by hash in the harness's lock file and installed without scripts; nothing a host builds, and
 no change to `go.mod`.
 
-**Not settled:** the specs' directory makes the routes `polaris.protocol.*`, with `x-polaris-plugin:
-protocol` (the manifest takes the plugin from the first directory). `agents/agents/protocol/` would make
-them `polaris.agents.protocol.*`. Decide before a release carries the names.
+**Where the specs are.** `internal/apispec/api/agents/agents/protocol/`: the manifest reads the plugin and
+the route's name from the path, so they are `polaris.agents.protocol.*` of the plugin `agents`. The
+router takes the first match in load order, so a spec must sort before any whose parameter matches its
+path; `TestNoRouteIsHiddenByAParameter` now checks that for every route.
 
 Go API: additions only (`make apicheck BASE=v1.0.0`): `Config.Discovery`, `DiscoveryMode` and its two
 values, three `Err*` names. Fixtures: three added, none changed; `testdata/discovery-v1.0.0.json`, written

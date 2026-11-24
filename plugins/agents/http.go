@@ -47,9 +47,9 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 		"polaris.agents.admin-list":       endpoint.Func(p.adminList),
 		"polaris.agents.admin-revoke":     endpoint.Func(p.adminRevoke),
 
-		"polaris.protocol.configuration":       endpoint.Func(p.polarisConfiguration),
-		"polaris.protocol.capability-list":     endpoint.Func(p.listProtocolCapabilities),
-		"polaris.protocol.capability-describe": endpoint.Func(p.describeProtocolCapability),
+		"polaris.agents.protocol.configuration":       endpoint.Func(p.polarisConfiguration),
+		"polaris.agents.protocol.capability-list":     endpoint.Func(p.listProtocolCapabilities),
+		"polaris.agents.protocol.capability-describe": endpoint.Func(p.describeProtocolCapability),
 	}
 }
 

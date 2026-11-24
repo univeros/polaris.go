@@ -151,10 +151,9 @@ POST /agent/rotate-key          POST /agent/introspect
 ```
 
 They are singular (`/agent`, `/host`, `/capability`), so none collides with `/agents/*`. Each gets a
-spec in `internal/apispec/api/agents/protocol/*.yaml` and a recorded fixture, like every other route
-(AGENT.md rules 3 and 4). The manifest names a route after its file, so these are `polaris.protocol.*`
-and their OpenAPI `x-polaris-plugin` is `protocol`, not `agents`; `agents/agents/protocol/` would make
-them `polaris.agents.protocol.*`. To settle before a release carries the names.
+spec in `internal/apispec/api/agents/agents/protocol/*.yaml` (the manifest reads the plugin and the
+route's name, `polaris.agents.protocol.*`, from its path) and a recorded fixture, like every other route
+(AGENT.md rules 3 and 4).
 
 An agent registered through either surface is the same `polaris_agent` row and the same OAuth client.
 It can be listed, suspended, revoked and audited through the existing owner and operator routes, and
@@ -234,8 +233,8 @@ The existing verifier is reused with three differences, on the protocol routes o
 JWT that does not verify, or whose host is unknown or pending, answers 401 `invalid_jwt`: that is the
 only status after which the client asks again without a credential (1.1), and it has a host key before
 the server knows it. Part 1 accepts no host JWT there yet. Part 1 accepts an agent's JWT or OAuth token
-on them, with `aud` and the 30 s rule above; `iss` is checked from part 2, when hosts have keys. Only Ed25519 keys register
-through the protocol routes; ES256 stays available on the Polaris routes.
+on them, with `aud` and the 30 s rule above; `iss` is checked from part 2, when hosts have keys. Only
+Ed25519 keys register through the protocol routes; ES256 stays available on the Polaris routes.
 
 ### 2.5 States and lifetimes
 
