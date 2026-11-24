@@ -5,7 +5,7 @@ endpoint:
   summary: Enrol an agent through a host
   tags: [agents]
   auth: public   # the host's enrolment token (peh_...) is the bearer; the endpoint checks it
-  rate_limit: token_refresh
+  rate_limit: agents
   effect: write
   receipt: true
 

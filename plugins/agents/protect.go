@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/endpoint"
 	"github.com/univeros/polaris.go/internal/strictjson"
@@ -34,6 +35,9 @@ func CallFrom(ctx context.Context) (Call, bool) {
 // status: below 300 is success) is appended, in one transaction. next reads the execution with
 // CallFrom; the response carries X-Polaris-Receipt. The response is buffered until the receipt is
 // written.
+//
+// Only the JSON body is checked, so a query, and a body that is not one JSON object sent as JSON
+// (its Content-Type, when it has one), are refused. Headers and path values are not arguments: no constraint covers them.
 //
 // An agent of a host with a key (an Agent Auth Protocol client's) posts {capability, arguments} and is
 // answered {"data": ...}: next reads the arguments alone, and its JSON answer is wrapped.
@@ -95,17 +99,23 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 				refused(err)
 				return
 			}
-			if body, err = executionArguments(body, capability); err == nil {
-				r, err = withArguments(r, body)
-			}
-			if err != nil {
+			if body, err = executionArguments(body, capability); err != nil {
 				refused(err)
 				return
 			}
 		}
 		args, err := bodyArguments(body)
+		if err == nil && !protocol { // whose handler is told JSON, whatever its client said
+			err = declaresJSON(r, body)
+		}
 		if err == nil {
 			err = checkSpelling(capability, args)
+		}
+		if err == nil {
+			r, err = withArguments(r, body)
+		}
+		if err == nil && (protocol || len(body) > 0 && len(r.Header.Values("Content-Type")) == 0) {
+			r.Header.Set("Content-Type", "application/json")
 		}
 		var ev evaluation
 		if err == nil {
@@ -146,15 +156,18 @@ func (p *Plugin) guard(bound *Capability, next http.Handler) http.Handler {
 	})
 }
 
-// bodyArguments are the JSON object the whole body is, nothing for a body that is no object. A body that
-// begins as an object and is not exactly one, or in which two members of one object have the same name,
-// upper and lower case alike, is refused: the handler may read what was not checked.
+// bodyArguments are the JSON object the whole body is, nothing for a request without a body. Any other body,
+// or one in which two members of one object have the same name, upper and lower case alike, is refused: the
+// handler may read what was not checked.
 func bodyArguments(body []byte) (map[string]any, error) {
-	if !bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n"), []byte("{")) {
+	switch text := bytes.TrimLeft(body, jsonSpace); {
+	case len(text) == 0:
 		return map[string]any{}, nil
+	case text[0] != '{':
+		return nil, invalidRequest("The body is one JSON object, sent with Content-Type: application/json.")
 	}
 	var args map[string]any
-	if strictjson.Decode(body, &args) != nil {
+	if !utf8.Valid(body) || strictjson.Decode(body, &args) != nil {
 		return nil, ambiguousBody("it is not one JSON object")
 	}
 	if !unambiguous(body) {
@@ -163,8 +176,16 @@ func bodyArguments(body []byte) (map[string]any, error) {
 	return args, nil
 }
 
+// jsonSpace is what may stand before a JSON value.
+const jsonSpace = " \t\r\n"
+
 func ambiguousBody(why string) error {
 	return &Error{Type: ErrInvalidArguments, Detail: "The body is ambiguous: " + why + ".", Extra: map[string]any{"errors": []string{why}}}
+}
+
+// invalidRequest is a request that could carry arguments nothing checked.
+func invalidRequest(why string) error {
+	return &Error{Type: ErrInvalidArguments, Detail: why, Extra: map[string]any{"errors": []string{why}}}
 }
 
 // checkSpelling refuses arguments that differ from a declared one in case alone.

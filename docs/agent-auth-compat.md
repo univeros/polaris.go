@@ -1,7 +1,8 @@
 # Agent Auth Protocol compatibility
 
-Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3), 86 (5.9, 5.3), 87 (5.8, 5.7) and 88 (part 4) in
-[`decisions.md`](decisions.md). Target release: `v1.1.0` (additive; nothing in v1 breaks).
+Status: **built** (2026-11-24; part 6 is optional and not started): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3), 86 (5.9, 5.3),
+87 (5.8, 5.7), 88 (part 4) and 90 (part 5) in [`decisions.md`](decisions.md). Release: `v1.1.0`. The protocol breaks nothing in v1; decision
+89, which came of it, changes what v1.0.0 took behind `Protect`.
 
 Reference: Agent Auth Protocol, published as `v1.0-draft`,
 <https://agent-auth-protocol.com/specification> (§ numbers below are the protocol's), read whole on
@@ -346,7 +347,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
 | 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4. Done | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
 | 4 | Done. Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
-| 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
+| 5 | Done but for the tag. Release: the decisions with their security review notes (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
 
 ## 4. Acceptance for the whole package
@@ -421,7 +422,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    - per address 600 a minute, its own key, before anything is verified, on these routes and the capability ones;
      discovery is a cached constant and has none. Unknown hosts keep their 5 an hour;
    - per capability is what budgets with a window do already; per user is left out until somebody needs it.
-   The Polaris agent routes of v1.0.0 keep `token_refresh`; that they share it with the refresh is a follow-up.
+   The Polaris agent routes of v1.0.0 have a counter of their own since decision 89, as large as `token_refresh`.
 8. **Capabilities with a `Location`. Decided: unwrap, for agents of a host with a key.** Built (decision 87). What decides is how
    the agent was registered, never the body's shape: a capability may itself take arguments called `capability` and `arguments`.
    No other kind of agent belongs to such a host, so no v1.0.0 caller changes.

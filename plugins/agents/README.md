@@ -7,8 +7,8 @@ credentials when autonomous, token exchange with `act` when delegated). It signs
 capability grants with constraints and budgets that a person approves (device code, CIBA, in-app) at
 the strength the risk needs, or the policy approves; every execution spends the budget and appends a
 signed, hash-chained receipt; a kill switch seals the agent. Needs
-`plugins/oauth` (`Init` fails without it); speaks part of the
-[Agent Auth Protocol](https://agent-auth-protocol.com/specification) to its own clients
+`plugins/oauth` (`Init` fails without it); serves the twelve endpoints of the
+[Agent Auth Protocol](https://agent-auth-protocol.com/specification) (`v1.0-draft`) to its own clients
 (see [Agent Auth Protocol](#agent-auth-protocol)); records to `plugins/audit` and uses `plugins/admin` for
 `/admin/agents` when they are registered.
 
@@ -112,8 +112,12 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 
 - On every other Polaris route and behind `p.Protect`, an agent's OAuth token is its owner delegated
   to its live grants, with claims `agents.ClaimActorType` (`"agent"`) and `agents.ClaimAgentID`.
-- The arguments checked are the JSON body and nothing else: a handler behind `Protect` or `Guard` reads them from
-  the body or from `CallFrom`, never from the query or a form (`FormValue` reads both).
+- The arguments checked are the JSON body and nothing else, so behind `Protect` and `Guard` nothing else may carry
+  any: a query, and a body that is not one JSON object in UTF-8, or that its `Content-Type` says is something else, are
+  refused with 422 `agents/invalid_arguments` (a protocol agent gets 400 `invalid_request`, and its type is not read); a body
+  sent without a type reaches the handler as `application/json`. A form parsed before, trailers, `GetBody` and
+  `Content-Encoding` do not reach the handler. A request without a body has no arguments. Headers, cookies and what the
+  path names (`PathValue`) are the route's, and no constraint covers them: take arguments from the body or `CallFrom`.
 - `ag.Guard(mux)` guards every capability `Location` on a whole mux: by its URL, or by its path (decoded as a
   router decodes it) when the request's `Host` is no location's. On a path several hosts' locations
   share, another `Host` answers 404 `agents/capability_not_found`. `Protect` binds one handler to one
@@ -157,8 +161,8 @@ with `cfg.Permissions` too if you want descriptions of your choosing.
 The protocol's own client (`@auth/agent`) signs in through a host whose key its owner registered
 (`POST /agents/hosts` with `public_key` and `proof`), or, with `DiscoveryAgentAuth`, through a host the server does not
 know: it registers an agent, waits for a person where one must approve, requests capabilities and executes
-them, at their `Location` too. What is built and what is next is
-[docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
+them, at their `Location` too. [`examples/agents -protocol`](../../examples/agents/README.md#an-agent-auth-protocol-client)
+walks through it; how it is built, and why, is [docs/agent-auth-compat.md](../../docs/agent-auth-compat.md).
 
 - An origin has one `/.well-known/agent-configuration` and the two client families read it differently.
   `Discovery: agents.DiscoveryAgentAuth` gives it to the protocol's clients; the Go agent SDK then reads
@@ -195,7 +199,7 @@ them, at their `Location` too. What is built and what is next is
   should ask whether they started this themselves.
 - At a capability's `Location` an agent of a host with a key posts `{capability, arguments}`, as to the execute
   route. Behind `Protect` and `Guard` your handler reads the arguments alone, as any other agent sends them, and its
-  JSON answer (2xx) is sent as `{"data": ...}` with status 200; other answers pass as they are. Such a call has no query. The JWT's `aud` is
+  JSON answer (2xx) is sent as `{"data": ...}` with status 200; other answers pass as they are. The JWT's `aud` is
   the `Location` exactly as configured. The client always posts: serve such a capability at `POST`.
 - Requests an agent or a host signed are limited per agent (60 a minute) and per host (300), at a `Location` too, and
   everything on the protocol's routes per address (600) before it is verified: 429 `rate_limited` with `Retry-After`. `RateLimits` sets others.

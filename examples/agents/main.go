@@ -13,6 +13,7 @@
 //
 //	POLARIS_DEV=1 go run ./examples/agents           # the owner approves from Go
 //	POLARIS_DEV=1 go run ./examples/agents -manual   # you approve with curl (README.md, step 5)
+//	POLARIS_DEV=1 go run ./examples/agents -protocol # Agent Auth Protocol clients sign in too (README.md)
 //
 // SQLite in a temporary directory; with POLARIS_DEV=1, polaris.DevEnv generates APP_KEY,
 // AUTH_JWT_PRIVATE_KEY, AUTH_JWT_PUBLIC_KEY and AUTH_ISSUER when the environment lacks them. ADDR (default
@@ -52,6 +53,7 @@ const (
 
 func main() {
 	manual := flag.Bool("manual", false, "leave the high-risk approval to a person (README.md, step 5)")
+	protocol := flag.Bool("protocol", false, "serve Agent Auth Protocol clients too (README.md)")
 	flag.Parse()
 	ctx := context.Background()
 	addr := envOr("ADDR", "localhost:8080")
@@ -67,7 +69,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	h, p, err := newServer(ctx, db, baseURL)
+	h, p, err := newServer(ctx, db, baseURL, *protocol)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,9 +90,9 @@ func main() {
 }
 
 // newServer is the host: Polaris with audit, admin, oauth and agents, the two capabilities, and
-// the host route the high-risk one runs at.
-func newServer(ctx context.Context, db store.Adapter, baseURL string, tune ...func(*polaris.Config)) (http.Handler, *polaris.Polaris, error) {
-	ag := agents.New(agents.Config{Capabilities: []agents.Capability{
+// the host route the high-risk one runs at. With protocol, clients of the Agent Auth Protocol sign in too.
+func newServer(ctx context.Context, db store.Adapter, baseURL string, protocol bool, tune ...func(*polaris.Config)) (http.Handler, *polaris.Polaris, error) {
+	agentsConfig := agents.Config{Capabilities: []agents.Capability{
 		{
 			Name: "invoices.list", Description: "List the organization's invoices",
 			Permission: "invoices.read", Risk: agents.RiskLow,
@@ -110,7 +112,14 @@ func newServer(ctx context.Context, db store.Adapter, baseURL string, tune ...fu
 				},
 			},
 		},
-	}})
+	}}
+	if protocol {
+		agentsConfig.Discovery = agents.DiscoveryAgentAuth
+		agentsConfig.ApprovalURL = baseURL + "/approve" // your page; the README approves with curl
+		// Add the passkey plugin instead, so that an agent cannot approve itself in the person's browser.
+		agentsConfig.Strengths = map[string]string{agents.RiskHigh: agents.StrengthStepUp}
+	}
+	ag := agents.New(agentsConfig)
 	cfg, err := polaris.FromEnv(db, audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{}), ag)
 	if err != nil {
 		return nil, nil, err

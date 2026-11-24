@@ -9,6 +9,37 @@ Breaking changes are marked **Breaking**.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-24
+
+Any client of the Agent Auth Protocol (`@auth/agent`, its CLI and its MCP server) signs in to a Polaris server, once the
+host switches it on (`agents.Config.Discovery`), and one security fix for hosts that use `agents.Plugin.Protect` or `Guard`: **upgrade
+now if a handler behind them reads the query or a form.**
+
+### Upgrading
+
+1. Run `Migrate`: `polaris_agent_host` gains four nullable columns, two unique indexes and an index, `polaris_agent`
+   three nullable columns and a unique index, and `polaris_agent_registration` is new.
+2. Check who calls the routes behind `Protect` and `Guard` (Changed, below).
+3. The protocol's routes are served in both modes; nobody signs in through them until a host with a key is registered or
+   `Discovery` is `DiscoveryAgentAuth`. Upgrade Go agent SDKs to v1.1.0 before that.
+
+### Security
+
+- Behind `agents.Plugin.Protect` and `Guard`, the grant's constraints were checked on the JSON body only, while a handler
+  that calls `FormValue`, or reads the query, a form or another kind of body, read values nothing had checked: a granted
+  agent could exceed its constraints there. Hosts whose handlers read the JSON body, or `CallFrom`, were not affected.
+  Every agent is now held to the body (decision 89).
+
+### Changed
+
+- **Breaking** for some clients of routes behind `agents.Plugin.Protect` or `Guard`: a query, and a body
+  that is not one JSON object in UTF-8, or that its `Content-Type` says is something else, are refused with 422
+  `agents/invalid_arguments` (decision 89). Send the arguments as a JSON body; one without a `Content-Type` is taken as before, and
+  the handler is told `application/json`.
+- `/agents/enroll`, `/agents/execute`, `/agents/grants/request` and `/agents/session` are limited as before, 60 a minute per
+  address (`RateLimits.TokenRefresh` sets how many), but counted apart from `POST /auth/token/refresh`: agents no longer use
+  up what people at the same address refresh their sessions with. Their specs' `rate_limit` is `agents` (decision 89).
+
 ### Added
 
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
@@ -37,8 +68,7 @@ Breaking changes are marked **Breaking**.
   Without the passkey plugin such a server starts only when `Strengths` says what it asks for instead.
   The default mode is as it was.
 - `agents.Plugin.Protect` and `Guard` serve an agent of a host with a key in the protocol's way: its body is
-  `{capability, arguments}`, the handler reads the arguments, and its JSON answer is `{"data": ...}`. Any other
-  agent is served as before.
+  `{capability, arguments}`, the handler reads the arguments, and its JSON answer is `{"data": ...}`.
 - `agents.Config.RateLimits`: the protocol's routes are limited per agent, per host and per address (60, 300 and 600
   a minute), answering 429 `rate_limited` (`agents.ErrRateLimited`).
 - The Agent Auth Protocol's lifecycle: `POST /agent/revoke`, `/agent/rotate-key`, `/agent/reactivate`, `/host/revoke`,
@@ -55,8 +85,6 @@ Breaking changes are marked **Breaking**.
 - Where unknown hosts are taken, `GET /agents/approvals/code` answers 429 after too many codes that stand for none of the caller's agents'
   approvals (the `MFAConfirm` budget, per person).
 - `oauth.Plugin.CreateClientAs`: `CreateClient` under a `client_id` the caller chose.
-- Run `Migrate`: `polaris_agent_host` gains four nullable columns, two unique indexes and an index, `polaris_agent`
-  three nullable columns and a unique index, and `polaris_agent_registration` is new.
 
 ### Fixed
 
@@ -1053,7 +1081,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/univeros/polaris.go/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/univeros/polaris.go/compare/v0.7.3...v1.0.0
 [0.7.3]: https://github.com/univeros/polaris.go/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/univeros/polaris.go/compare/v0.7.1...v0.7.2

@@ -63,20 +63,46 @@ func executionArguments(body []byte, c *Capability) (json.RawMessage, error) {
 	return args, nil
 }
 
-// withArguments is r whose body is the arguments, JSON whatever r said of the body it had. Nothing else of
-// it was checked, so nothing else may carry arguments: no query, no trailer.
+// withArguments is r whose body is the arguments. Nothing else of it was checked, so nothing else may carry
+// arguments, whoever the agent is: no query, no form something parsed before, no trailer. r itself is left as
+// it was.
 func withArguments(r *http.Request, body []byte) (*http.Request, error) {
 	if r.URL.RawQuery != "" {
-		return nil, refuse(ErrInvalidRequest, "The location is called without a query.")
+		return r, invalidRequest("The location is called without a query: the arguments are the JSON body.")
 	}
 	out := r.Clone(r.Context())
 	out.Body, out.ContentLength, out.TransferEncoding, out.Trailer = io.NopCloser(bytes.NewReader(body)), int64(len(body)), nil, nil
-	out.Header.Set("Content-Type", "application/json")
+	out.GetBody = nil // the body as it was sent
+	out.Form, out.PostForm, out.MultipartForm = nil, nil, nil
 	out.Header.Del("Content-Encoding")
 	if out.Header.Get("Content-Length") != "" {
 		out.Header.Set("Content-Length", strconv.Itoa(len(body)))
 	}
 	return out, nil
+}
+
+// declaresJSON refuses a body whose type is not JSON, once and in UTF-8: a handler, or what it passes the
+// request on to, reads the body as its type says, and it was checked as JSON. No type is JSON, which is what
+// the handler is told then: clients of v1.0.0 may send none. A request without a body has no arguments,
+// whatever its type.
+func declaresJSON(r *http.Request, body []byte) error {
+	declared := r.Header.Values("Content-Type")
+	if len(declared) == 0 || len(bytes.TrimLeft(body, jsonSpace)) == 0 {
+		return nil
+	}
+	if len(declared) == 1 {
+		media, params, err := mime.ParseMediaType(declared[0])
+		charset := params["charset"]
+		if err == nil && isJSON(media) && !strings.Contains(declared[0], "*") && // charset*= is no parameter to Go
+			(charset == "" || strings.EqualFold(charset, "utf-8")) {
+			return nil
+		}
+	}
+	return invalidRequest("The body is one JSON object, sent with Content-Type: application/json.")
+}
+
+func isJSON(media string) bool {
+	return media == "application/json" || strings.HasSuffix(media, "+json")
 }
 
 // asData makes a handler's JSON success the protocol's, {data} (§5.11): its own body could otherwise read
@@ -90,7 +116,7 @@ func (b *buffered) asData() {
 	switch {
 	case len(body) == 0:
 		body, media = []byte("null"), ""
-	case media != "" && media != "application/json" && !strings.HasSuffix(media, "+json"), !json.Valid(body):
+	case media != "" && !isJSON(media), !json.Valid(body):
 		return
 	}
 	if media == "" {

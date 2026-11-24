@@ -18,7 +18,8 @@ original port plan is history in [`docs/history/port-spec.md`](docs/history/port
   database matrix (#45), fuzzing (#42), the Go developer surface (#46–#48), API stability (#51:
   `wiring` hands plugins narrow interfaces; #70: every exported name outside `internal/` is the v1
   API and `make apicheck` guards all of it). Released as `v1.0.0`; what it had to meet, with the evidence,
-  is [`docs/v1.md`](docs/v1.md).
+  is [`docs/v1.md`](docs/v1.md). The Agent Auth Protocol (decisions 83 to 88,
+  [`docs/agent-auth-compat.md`](docs/agent-auth-compat.md)) is in `v1.1.0`.
 - Integration surface for hosts: `llms.txt` (read it first; `llms_test.go` keeps its snippets
   compiling), `plugins/<id>/README.md`, `examples/`, `polaristest`. A host imports only package
   `polaris` (+ plugin constructors, `store/sqlstore`, `polaristest`); `wiring`, `endpoint`,
