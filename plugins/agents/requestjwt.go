@@ -69,6 +69,25 @@ type requestJWTs struct {
 	cache  cache.Cache
 	clock  clock.Clock
 	maxAge int64 // seconds
+	// issuer, when set, is what aud must be, exactly (the Agent Auth Protocol's non-execution routes);
+	// empty: the URL called, compared normalised.
+	issuer string
+	skew   time.Duration // the clock leeway; 0: requestLeeway
+}
+
+func (j *requestJWTs) leeway() time.Duration {
+	if j.skew > 0 {
+		return j.skew
+	}
+	return requestLeeway
+}
+
+// audience reports whether aud names this server as the route wants it named.
+func (j *requestJWTs) audience(aud, url string) bool {
+	if j.issuer != "" {
+		return aud == j.issuer
+	}
+	return !strings.ContainsAny(aud, "?#") && normalizeURL(aud) == normalizeURL(url)
 }
 
 // verify checks raw for this request (method, the URL called, the raw body) and the agent, and
@@ -107,7 +126,7 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 	return strings_(caps), nil
 }
 
-// decode verifies the signature and the time claims, with 60 s of leeway: nbf and iat not after
+// decode verifies the signature and the time claims, with the leeway: nbf and iat not after
 // now, exp after now.
 func (j *requestJWTs) decode(raw string, jwk map[string]any) (map[string]any, error) {
 	verify, err := verifierOf(jwk)
@@ -124,14 +143,14 @@ func (j *requestJWTs) decode(raw string, jwk map[string]any) (map[string]any, er
 		return nil, errors.New("the claims are not a JSON object")
 	}
 	now := j.clock.Now()
-	limit := now.Add(requestLeeway).Unix()
+	limit := now.Add(j.leeway()).Unix()
 	if v, ok := number(claims["nbf"]); ok && int64(v) > limit {
 		return nil, fmt.Errorf("the token is not valid before %s", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
 	if v, ok := number(claims["iat"]); ok && int64(v) > limit {
 		return nil, fmt.Errorf("the token was issued in the future (%s)", time.Unix(int64(v), 0).UTC().Format(time.RFC3339))
 	}
-	if v, ok := number(claims["exp"]); ok && float64(now.Add(-requestLeeway).Unix()) >= v {
+	if v, ok := number(claims["exp"]); ok && float64(now.Add(-j.leeway()).Unix()) >= v {
 		return nil, errors.New("the token has expired")
 	}
 	return claims, nil
@@ -150,7 +169,7 @@ func (j *requestJWTs) checkClaims(claims map[string]any, a Agent, method, url st
 		return invalidJWT(fmt.Sprintf("exp - iat must be at most %d seconds.", j.maxAge))
 	}
 	aud, ok := claims["aud"].(string)
-	if !ok || strings.ContainsAny(aud, "?#") || normalizeURL(aud) != normalizeURL(url) {
+	if !ok || !j.audience(aud, url) {
 		return refuse(ErrAudMismatch, "aud must be the exact URL called (scheme, host, port, path; no query).")
 	}
 	if v, has := claims["htm"]; has && v != nil {

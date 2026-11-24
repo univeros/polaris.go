@@ -1,0 +1,41 @@
+# GET /capability/list: the Agent Auth Protocol's capability list (§5.2).
+endpoint:
+  method: GET
+  path: /capability/list
+  summary: List the capabilities (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
+  effect: read
+  receipt: false
+
+input:
+  source: query
+  fields:
+    query: { type: "?string", rules: [optional] }
+    cursor: { type: "?string", rules: [optional] }
+    limit: { type: "?integer", rules: [optional] }
+
+domain:
+  description: >
+    The capabilities in their configured order, as the protocol lists them: name, description and the
+    location a capability runs at when it has one; grant_status (granted, not_granted) on every one when
+    an agent authenticates. query keeps those whose name or description holds each of its words; cursor is
+    the next_cursor of the page before (null at the end); limit is at most 100, the default. Without a
+    credential the answer is cached for five minutes; a credential that is not an agent's is refused.
+
+output:
+  status: 200
+  example:
+    capabilities:
+      - { name: "deploy.staging", description: "Deploy a build to staging", grant_status: granted }
+      - { name: "refund", description: "Refund an invoice", location: "https://app.example.com/api/refunds", grant_status: not_granted }
+    next_cursor: null
+    has_more: false
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_suspended }
+
+events: []

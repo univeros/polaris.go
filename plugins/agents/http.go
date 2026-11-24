@@ -46,6 +46,10 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 		"polaris.agents.receipts-verify":  endpoint.Func(p.verifyReceipt),
 		"polaris.agents.admin-list":       endpoint.Func(p.adminList),
 		"polaris.agents.admin-revoke":     endpoint.Func(p.adminRevoke),
+
+		"polaris.protocol.configuration":       endpoint.Func(p.polarisConfiguration),
+		"polaris.protocol.capability-list":     endpoint.Func(p.listProtocolCapabilities),
+		"polaris.protocol.capability-describe": endpoint.Func(p.describeProtocolCapability),
 	}
 }
 
@@ -165,12 +169,20 @@ func grantView(g Grant) map[string]any     { return g.view() }
 func hostView(h Host) map[string]any       { return h.view() }
 func receiptView(r Receipt) map[string]any { return r.view() }
 
-func (p *Plugin) configuration(context.Context, *endpoint.Input) endpoint.Result {
+// configuration answers the document Config.Discovery chooses.
+func (p *Plugin) configuration(ctx context.Context, in *endpoint.Input) endpoint.Result {
+	if p.s.settings.discovery == DiscoveryAgentAuth {
+		return endpoint.JSON(http.StatusOK, p.protocolDiscovery()).WithHeader("Cache-Control", "public, max-age=3600")
+	}
+	return p.polarisConfiguration(ctx, in)
+}
+
+func (p *Plugin) polarisConfiguration(context.Context, *endpoint.Input) endpoint.Result {
 	return endpoint.JSON(http.StatusOK, p.discovery()).WithHeader("Cache-Control", "public, max-age=3600")
 }
 
-// discovery is the agent configuration document served at /.well-known/agent-configuration: the
-// provider, its issuer, every agents endpoint, the signing algorithms, modes and approval
+// discovery is Polaris's agent configuration document, served at /agents/configuration and, unless
+// Config.Discovery is DiscoveryAgentAuth, at /.well-known/agent-configuration: the provider, its issuer, every agents endpoint, the signing algorithms, modes and approval
 // methods a client reads before it registers.
 func (p *Plugin) discovery() map[string]any {
 	base := p.s.settings.baseURL
@@ -192,7 +204,7 @@ func (p *Plugin) discovery() map[string]any {
 	}
 }
 
-// DiscoveryHandler serves the agent configuration document; hosts mount it at the application
+// DiscoveryHandler serves the agent configuration document Config.Discovery chooses; hosts mount it at the application
 // root, where agents look for it:
 //
 //	mux.Handle("GET /.well-known/agent-configuration", agentsPlugin.DiscoveryHandler())

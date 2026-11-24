@@ -14,8 +14,9 @@ import (
 	"github.com/univeros/polaris.go/manifest"
 )
 
-// router matches a request against the manifest: routes in load order, the first
-// whose path and method match wins, a {param} segment binds [^/]+ of the raw (escaped) path.
+// router matches a request against the manifest: routes in load order, the first without a
+// parameter whose path and method match wins, else the first with one; a {param} segment binds
+// [^/]+ of the raw (escaped) path.
 type router struct {
 	prefix string
 	routes []compiled
@@ -57,6 +58,8 @@ func (rt *router) match(method, path string) (*manifest.Route, map[string]string
 	}
 	method = strings.ToUpper(method)
 	var allowed []string
+	var found *manifest.Route
+	var params map[string]string
 	for _, c := range rt.routes {
 		m := c.pattern.FindStringSubmatch(path)
 		if m == nil {
@@ -66,13 +69,21 @@ func (rt *router) match(method, path string) (*manifest.Route, map[string]string
 			allowed = append(allowed, c.route.Method)
 			continue
 		}
-		params := map[string]string{}
+		if c.pattern.NumSubexp() == 0 {
+			return c.route, map[string]string{}, nil
+		}
+		if found != nil {
+			continue
+		}
+		found, params = c.route, map[string]string{}
 		for i, name := range c.pattern.SubexpNames() {
 			if name != "" {
 				params[name] = m[i]
 			}
 		}
-		return c.route, params, nil
+	}
+	if found != nil {
+		return found, params, nil
 	}
 	return nil, nil, allowed
 }

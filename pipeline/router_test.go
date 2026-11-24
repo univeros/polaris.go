@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/univeros/polaris.go/endpoint"
@@ -33,6 +34,24 @@ func TestRouterMatchesParametersAndReportsAllowedMethods(t *testing.T) {
 	}
 	if route, _, _ := newRouter(core, "").match("GET", "/auth/me"); route == nil {
 		t.Fatal("no prefix: GET /auth/me unmatched")
+	}
+}
+
+// A route without parameters is reached by its own path, whatever the load order: /agents/{id} is
+// declared before /agents/configuration.
+func TestALiteralPathWinsOverAParameter(t *testing.T) {
+	_, all := manifests(t)
+	rt := newRouter(all, "")
+	for _, r := range all.Routes() {
+		if strings.Contains(r.Path, "{") {
+			continue
+		}
+		if got, _, _ := rt.match(r.Method, r.Path); got != r {
+			t.Errorf("%s is answered by %v", r.Pattern(), got)
+		}
+	}
+	if got, params, _ := rt.match("GET", "/agents/some-id"); got == nil || got.Name != "polaris.agents.show" || params["id"] != "some-id" {
+		t.Errorf("GET /agents/some-id: %v %v", got, params)
 	}
 }
 

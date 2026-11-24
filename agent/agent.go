@@ -33,6 +33,7 @@ const (
 	pathSession      = "/agents/session"
 	pathExecute      = "/agents/execute"
 	pathJWKS         = "/auth/.well-known/jwks.json"
+	pathConfig       = "/agents/configuration"
 )
 
 // maxBody caps what the SDK reads of an answer.
@@ -79,7 +80,9 @@ func WithHTTPClient(c *http.Client) Option { return func(a *Agent) { a.client = 
 func WithRequestTTL(d time.Duration) Option { return func(a *Agent) { a.ttl = d } }
 
 // New discovers the Polaris server at serverURL (where Polaris is mounted, or the discovery
-// document's own URL) and answers an Agent for it.
+// document's own URL) and answers an Agent for it. A server whose well-known document is the Agent
+// Auth Protocol's (agents.DiscoveryAgentAuth: it names no enroll endpoint) is read from
+// /agents/configuration.
 func New(ctx context.Context, serverURL string, opts ...Option) (*Agent, error) {
 	a, err := build(nil, opts)
 	if err != nil {
@@ -106,7 +109,7 @@ func build(config *Configuration, opts []Option) (*Agent, error) {
 }
 
 // Discover reads the discovery document at serverURL (the mount, or the document's own URL) with
-// c (http.DefaultClient when nil).
+// c (http.DefaultClient when nil), falling back to /agents/configuration as New does.
 func Discover(ctx context.Context, serverURL string, c *http.Client) (*Configuration, error) {
 	if c == nil {
 		c = http.DefaultClient
@@ -119,10 +122,28 @@ func discover(ctx context.Context, c *http.Client, serverURL string) (*Configura
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return nil, fmt.Errorf("agent: server URL %q: give the absolute http(s) URL Polaris is mounted at, such as https://app.example.com/auth", serverURL)
 	}
-	doc := strings.TrimRight(serverURL, "/")
-	if !strings.HasSuffix(doc, DiscoveryPath) {
-		doc += DiscoveryPath
+	mount := strings.TrimSuffix(strings.TrimRight(serverURL, "/"), DiscoveryPath)
+	config, err := configurationAt(ctx, c, mount+DiscoveryPath)
+	if err != nil {
+		return nil, err
 	}
+	if config.Endpoints["enroll"] == "" {
+		var polaris *Configuration
+		if polaris, err = configurationAt(ctx, c, mount+pathConfig); err == nil && polaris.Mount != "" {
+			return polaris, nil
+		}
+	}
+	switch {
+	case config.Mount != "":
+		return config, nil
+	case err != nil:
+		return nil, fmt.Errorf("%w: %s; %w", ErrNotConfiguration, mount+DiscoveryPath, err)
+	}
+	return nil, fmt.Errorf("%w: %s", ErrNotConfiguration, mount+DiscoveryPath)
+}
+
+// configurationAt reads the document at doc; Mount is empty when it is not a Polaris configuration.
+func configurationAt(ctx context.Context, c *http.Client, doc string) (*Configuration, error) {
 	var raw struct {
 		Configuration
 		Endpoints map[string]any `json:"endpoints"`
@@ -137,11 +158,9 @@ func discover(ctx context.Context, c *http.Client, serverURL string) (*Configura
 			config.Endpoints[name] = s
 		}
 	}
-	execute := config.Endpoints["execute"]
-	if config.TokenEndpoint == "" || !strings.HasSuffix(execute, pathExecute) {
-		return nil, fmt.Errorf("%w: %s", ErrNotConfiguration, doc)
+	if mount, ok := strings.CutSuffix(config.Endpoints["execute"], pathExecute); ok && config.TokenEndpoint != "" {
+		config.Mount = mount
 	}
-	config.Mount = strings.TrimSuffix(execute, pathExecute)
 	return &config, nil
 }
 

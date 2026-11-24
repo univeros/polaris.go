@@ -16,7 +16,10 @@ domain:
     docs/better/agent-auth-compat.md: the provider, the issuer, the absolute endpoints under the mount
     (register, enroll, capabilities, execute, request_capability, status, revoke, grants, approvals,
     receipts, token, and mcp when polaris/mcp is registered), the algorithms (EdDSA, ES256), the modes,
-    the approval methods and strengths, the OAuth token endpoint. Cached for an hour.
+    the approval methods and strengths, the OAuth token endpoint. Cached for an hour. With
+    agents.Config.Discovery DiscoveryAgentAuth it is the Agent Auth Protocol's document instead (version,
+    provider_name, description, issuer, algorithms, modes, approval_methods, jwks_uri and the protocol's
+    endpoints served, relative to issuer), and this one is at /agents/configuration.
 
 output:
   status: 200
