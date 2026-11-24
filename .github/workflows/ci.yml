@@ -84,6 +84,24 @@ jobs:
           cache: true
       - run: make apicheck BASE=origin/${{ github.base_ref }} # scripts/apicheck.sh
 
+  agent-auth:
+    name: Agent Auth Protocol client (@auth/agent)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          check-latest: true
+          cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # 3: stopped at registration, where the server stops today (docs/agent-auth-compat.md); every
+      # step before it passed. Part 3 drops the `|| [ $? -eq 3 ]`.
+      - run: scripts/e2e-agent-auth.sh || [ $? -eq 3 ]
+
   db-matrix:
     name: database matrix (PostgreSQL 17, MySQL 8.4)
     runs-on: ubuntu-latest
