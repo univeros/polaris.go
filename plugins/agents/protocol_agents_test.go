@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/univeros/polaris.go/agent"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/agents"
 	"github.com/univeros/polaris.go/store"
@@ -30,19 +31,46 @@ func (k *agentKey) hostJWT(extra, headers map[string]any) string {
 	return k.sign(header, payload)
 }
 
+// hostLink is the proof (host-link+jwt) that k's holder wants the account owner to own its host; claims and
+// headers override or add, a nil claim is left out.
+func (k *agentKey) hostLink(owner string, extra, headers map[string]any) string {
+	now := time.Now().Unix()
+	payload := map[string]any{"iss": k.kid(), "sub": owner, "aud": base, "iat": now, "exp": now + 60, "jti": jti()}
+	for n, v := range extra {
+		payload[n] = v
+		if v == nil {
+			delete(payload, n)
+		}
+	}
+	header := map[string]any{"typ": "host-link+jwt", "alg": k.alg}
+	for n, v := range headers {
+		header[n] = v
+	}
+	return k.sign(header, payload)
+}
+
+// addHost is POST /agents/hosts for k's host, with its proof for the owner.
+func (a *agentsCase) addHost(session, owner string, k *agentKey, fields map[string]any) *http.Response {
+	body := map[string]any{"name": "Host", "public_key": k.jwk(), "proof": k.hostLink(owner, nil, nil)}
+	for n, v := range fields {
+		body[n] = v
+	}
+	return a.c.Post("/agents/hosts", body, contracttest.Bearer(session))
+}
+
 // hostCase is an owner with a host that has a key, pre-registered (§2.8).
 type hostCase struct {
 	*agentsCase
-	session, orgID, hostID string
-	host                   *agentKey
+	userID, session, orgID, hostID string
+	host                           *agentKey
 }
 
 func newHostCase(a *agentsCase) *hostCase {
 	a.t.Helper()
-	_, session := a.login("ada@example.com")
+	userID, session := a.login("ada@example.com")
 	orgID, session := a.organization(session, "Acme")
-	h := &hostCase{agentsCase: a, session: session, orgID: orgID, host: newKey("EdDSA")}
-	created := a.c.Post("/agents/hosts", map[string]any{"name": "Nightwatch", "public_key": h.host.jwk()}, contracttest.Bearer(session))
+	h := &hostCase{agentsCase: a, userID: userID, session: session, orgID: orgID, host: newKey("EdDSA")}
+	created := a.addHost(session, userID, h.host, map[string]any{"name": "Nightwatch"})
 	body := a.data(created)
 	a.equal([]any{created.StatusCode, body["key_thumbprint"]}, []any{201, h.host.kid()}, "the host is known by its key's thumbprint")
 	if _, has := body["enrollment_token"]; has {
@@ -241,7 +269,7 @@ func TestSection5_5AHostSeesItsOwnAgentsOnly(t *testing.T) {
 	_, resp := h.registers(nil)
 	id := str(h.json(resp)["agent_id"])
 	other := newKey("EdDSA")
-	h.status(h.c.Post("/agents/hosts", map[string]any{"name": "Other", "public_key": other.jwk()}, contracttest.Bearer(h.session)), 201, "another host of the same owner")
+	h.status(h.addHost(h.session, h.userID, other, nil), 201, "another host of the same owner")
 	h.agentsProblem(h.c.Get("/agent/status?agent_id="+id, contracttest.Bearer(other.hostJWT(nil, nil))), 404, "agent_not_found", "agent_not_found", "another host's agent")
 	h.agentsProblem(h.c.Get("/agent/status?agent_id=nobody", contracttest.Bearer(h.host.hostJWT(nil, nil))), 404, "agent_not_found", "agent_not_found", "unknown")
 	h.agentsProblem(h.c.Get("/agent/status", contracttest.Bearer(h.host.hostJWT(nil, nil))), 400, "invalid_request", "invalid_request", "no agent_id")
@@ -282,7 +310,7 @@ func TestSection8_5RevokingAHostRevokesItsAgents(t *testing.T) {
 		h.agentsProblem(send(h.host.hostJWT(map[string]any{"agent_public_key": newKey("EdDSA").jwk()}, nil)), 403, "host_revoked", "host_revoked", name)
 	}
 	// §8.8.1: the key stays burned.
-	h.agentsProblem(h.c.Post("/agents/hosts", map[string]any{"name": "Again", "public_key": h.host.jwk()}, contracttest.Bearer(h.session)), 409, "conflict", "", "a revoked key")
+	h.agentsProblem(h.addHost(h.session, h.userID, h.host, nil), 409, "conflict", "", "a revoked key")
 }
 
 // A token host is revoked as in v1.0.0: the agents it enrolled keep working.
@@ -434,8 +462,63 @@ func TestAHostsKey(t *testing.T) {
 	bad(map[string]any{"public_key": "key"}, 422, "invalid_input")
 	bad(map[string]any{"public_key": map[string]any{}}, 422, "invalid_input")
 	bad(map[string]any{"public_key": newKey("EdDSA").jwk(), "jwks_url": "https://keys.example.com/jwks"}, 422, "invalid_input")
-	bad(map[string]any{"public_key": h.host.jwk()}, 409, "conflict")
+	bad(map[string]any{"public_key": h.host.jwk(), "proof": h.host.hostLink(h.userID, nil, nil)}, 409, "conflict")
 	bad(map[string]any{"jwks_url": "https://keys.example.com/jwks"}, 422, "invalid_input") // only in DiscoveryAgentAuth
+}
+
+// A key is taken with its holder's proof that the account is to own the host (5.9): a public key is known to
+// every server the host uses, and whoever registered it first would own what the host's agents do.
+func TestAHostsKeyIsProven(t *testing.T) {
+	h := unrecorded(t)
+	eveID, eve := h.login("eve@example.com")
+	ada, mallory := newKey("EdDSA"), newKey("EdDSA")
+	now := time.Now().Unix()
+	link := func(claims map[string]any) string {
+		all := map[string]any{"sub": eveID}
+		for n, v := range claims {
+			all[n] = v
+		}
+		return ada.hostLink(eveID, all, nil)
+	}
+	for name, proof := range map[string]any{
+		"none": nil, "not a JWT": "x", "not a string": 5, "empty": "",
+		"a host JWT": ada.hostJWT(nil, nil), "a host JWT that names the account": ada.hostJWT(map[string]any{"sub": eveID}, nil),
+		"an agent JWT":      ada.requestJWT(eveID, base, map[string]any{"iss": ada.kid()}, nil),
+		"another account's": ada.hostLink(h.userID, nil, nil), "nobody's": link(map[string]any{"sub": nil}),
+		"another key's": mallory.hostLink(eveID, nil, nil), "another key's, in its name": mallory.hostLink(eveID, map[string]any{"iss": ada.kid()}, nil),
+		"another iss": link(map[string]any{"iss": mallory.kid()}), "no iss": link(map[string]any{"iss": nil}),
+		"another server's": link(map[string]any{"aud": "https://other.example"}), "no aud": link(map[string]any{"aud": nil}), "a list of aud": link(map[string]any{"aud": []any{base}}),
+		"expired": link(map[string]any{"iat": now - 120, "exp": now - 31}), "from the future": link(map[string]any{"iat": now + 40, "exp": now + 60}),
+		"too long": link(map[string]any{"exp": now + 301}), "no exp": link(map[string]any{"exp": nil}), "no iat": link(map[string]any{"iat": nil}), "no jti": link(map[string]any{"jti": nil}),
+		"a key of its own": ada.hostLink(eveID, nil, map[string]any{"jwk": ada.jwk()}), "another alg": ada.hostLink(eveID, nil, map[string]any{"alg": "ES256"}),
+		"no alg": ada.hostLink(eveID, nil, map[string]any{"alg": "none"}),
+	} {
+		resp := h.c.Post("/agents/hosts", map[string]any{"name": "Mine", "public_key": ada.jwk(), "proof": proof}, contracttest.Bearer(eve))
+		h.agentsProblem(resp, 422, "invalid_input", "", name)
+	}
+	h.equal(len(h.list(h.c.Get("/agents/hosts", contracttest.Bearer(eve)))), 0, "nothing is Eve's")
+
+	proof := ada.hostLink(h.userID, nil, nil)
+	resp := h.addHost(h.session, h.userID, ada, map[string]any{"proof": proof})
+	h.equal([]any{resp.StatusCode, h.data(resp)["key_thumbprint"]}, []any{201, ada.kid()}, "Ada's own")
+	h.agentsProblem(h.addHost(h.session, h.userID, ada, map[string]any{"proof": proof}), 422, "invalid_input", "", "used already")
+
+	// The SDK's proof is one.
+	fleetKey, err := agent.GenerateKey(agent.EdDSA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signed, err := agent.SignHostLink(fleetKey, base, h.userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.status(h.c.Post("/agents/hosts", map[string]any{"name": "SDK", "public_key": fleetKey.PublicJWK(), "proof": signed}, contracttest.Bearer(h.session)), 201, "agent.SignHostLink")
+
+	// An organization's host names the organization.
+	fleet := newKey("EdDSA")
+	h.agentsProblem(h.addHost(h.session, h.userID, fleet, map[string]any{"organization_id": h.orgID}), 422, "invalid_input", "", "the person's, for an organization")
+	h.agentsProblem(h.addHost(h.session, h.orgID, fleet, nil), 422, "invalid_input", "", "the organization's, for a person")
+	h.status(h.addHost(h.session, h.orgID, fleet, map[string]any{"organization_id": h.orgID}), 201, "the organization's")
 }
 
 // §8.13: a limited route answers 429 rate_limited with Retry-After.

@@ -47,10 +47,12 @@ type service struct {
 	jwts         *requestJWTs
 	issuerJWTs   *requestJWTs // the Agent Auth Protocol's non-execution routes
 	executeJWTs  *requestJWTs // its POST /capability/execute
+	linkJWTs     *requestJWTs // host link JWTs
 	jwks         *jwksKeys
 	rates        ratelimit.Store
 	unknownHosts config.RateLimit // new registrations of unknown hosts, per address
 	codeGuesses  config.RateLimit // user codes that are not the caller's agents', per person
+	hostURLs     config.RateLimit // key set URLs hosts are registered with, per person
 }
 
 func (s *service) now() time.Time { return s.clock.Now().UTC().Truncate(time.Second) }

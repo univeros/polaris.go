@@ -16,6 +16,7 @@ input:
     default_capabilities: { type: "?list<string>", rules: [optional] }
     public_key: { type: "?object", rules: [optional] }
     jwks_url: { type: "?string", rules: [optional] }
+    proof: { type: "?string", rules: [optional] }
 
 domain:
   description: >
@@ -25,7 +26,11 @@ domain:
     public_key (an Ed25519 JWK) or, where the server takes them, jwks_url, the host signs JWTs with its
     key instead (Agent Auth Protocol, POST /agent/register): there is no enrolment token, and the answer
     has public_jwk, jwks_url and key_thumbprint. Its agents ask for what they need, not for
-    default_capabilities. A key (one spelling) or URL is one host's for good.
+    default_capabilities. A key (one spelling) or URL is one host's for good. Both need proof, a JWT (typ
+    host-link+jwt, alg EdDSA) signed by that key: iss its thumbprint, sub the id of the account that will
+    own the host (the caller's, or organization_id), aud the issuer, iat, exp at most five minutes
+    later, jti, used once; with jwks_url, kid names the key, and how many a person sends is limited. With
+    DiscoveryAgentAuth the caller needs a recent sign-in, as strong as what the policy approves needs.
 
 output:
   status: 201
@@ -35,8 +40,10 @@ output:
 errors:
   - { status: 401, code: unauthorized }
   - { status: 403, code: agents_forbidden }
+  - { status: 403, code: agents_step_up_required }
   - { status: 404, code: capability_not_found }
   - { status: 409, code: agents_conflict }
   - { status: 422, code: agents_invalid_input }
+  - { status: 429, code: too_many_requests }
 
 events: []

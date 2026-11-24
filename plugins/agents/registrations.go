@@ -171,10 +171,17 @@ func (s *service) registrationExpiry() time.Time {
 	return s.now().Add(time.Duration(s.settings.approvalTTL)*time.Second + registrationKept)
 }
 
-// linkStrength is the strength of approving an unknown host's registration: what its capabilities need,
-// and at least a fresh sign-in (§8.11), as the host may then register agents the policy approves.
+// linkStrength is the strength of approving an unknown host's registration: what its capabilities need, at
+// least a fresh sign-in (§8.11), and what the capabilities the policy approves need, as the host may then
+// register agents that get those without a person.
 func (s *service) linkStrength(grants []Grant) string {
-	return strengths[max(slices.Index(strengths, StrengthStepUp), slices.Index(strengths, s.strengthFor(grants)))]
+	rank := max(slices.Index(strengths, StrengthStepUp), slices.Index(strengths, s.strengthFor(grants)))
+	for _, c := range s.caps.list {
+		if _, auto := s.settings.autoApprove[c.Risk]; auto {
+			rank = max(rank, slices.Index(strengths, s.settings.strengthFor(c.Risk)))
+		}
+	}
+	return strengths[rank]
 }
 
 // retried answers a registration made before (§5.3): pending as it is, its approval opened again when

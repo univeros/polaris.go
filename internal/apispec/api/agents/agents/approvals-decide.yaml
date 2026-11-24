@@ -18,12 +18,13 @@ input:
 domain:
   description: >
     Once. Approving needs a session of the approval's strength (session: any; step_up: core's step-up
-    freshness; passkey: a recent passkey sign-in) and the owner must hold every capability's permission
+    freshness; passkey: a recent passkey sign-in; with DiscoveryAgentAuth always a recent sign-in, and a
+    passkey that verified the person) and the owner must hold every capability's permission
     now; constraints replaces what the agent asked (narrowing it). The agent's OAuth client scopes follow.
     Recorded as agent.grant.approved or agent.grant.denied per grant. Approving the registration of a host the
     server does not know creates the host and the agent, owned by the caller in their active organization
     (by the host's owner, when somebody owns it by then: only they decide it); denying it rejects the agent
-    for good. Approving it needs a recent sign-in, with or without a second factor. Recorded as agent.enrolled or agent.registration.denied too.
+    for good. Recorded as agent.enrolled or agent.registration.denied too.
 
 output:
   status: 200

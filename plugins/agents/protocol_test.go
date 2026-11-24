@@ -208,7 +208,9 @@ func TestAnAgentsAccessTokenListsItsGrants(t *testing.T) {
 
 func bootDiscovery(t *testing.T, mode agents.DiscoveryMode, caps []agents.Capability, baseURL, prefix string) (*polaristest.Server, *agents.Plugin) {
 	t.Helper()
-	p := agents.New(agents.Config{Capabilities: caps, Discovery: mode})
+	// v1.0.0's strengths, so that its document is the same in every mode.
+	strengths := map[string]string{agents.RiskLow: agents.StrengthSession, agents.RiskMedium: agents.StrengthSession, agents.RiskHigh: agents.StrengthStepUp}
+	p := agents.New(agents.Config{Capabilities: caps, Discovery: mode, Strengths: strengths})
 	return polaristest.New(t, polaristest.WithPathPrefix(prefix), polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{BaseURL: baseURL}), p)), p
 }
 

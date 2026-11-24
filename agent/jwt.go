@@ -24,6 +24,8 @@ import (
 const (
 	// RequestJWTType is the typ header of a signed request JWT.
 	RequestJWTType = "agent+jwt"
+	// HostLinkJWTType is the typ header of the proof SignHostLink makes.
+	HostLinkJWTType = "host-link+jwt"
 	// DefaultRequestTTL is how long a request JWT lives unless WithRequestTTL says otherwise.
 	DefaultRequestTTL = 60 * time.Second
 	// MaxRequestTTL is the server's requestJwtMaxAge: no request JWT may live longer.
@@ -80,6 +82,39 @@ func signRequest(k *Key, agentID, method, url string, body []byte, capabilities 
 		c.BodyHash = b64(sum[:])
 	}
 	return signJWS(k, RequestJWTType, c)
+}
+
+// hostLinkClaims are the host link JWT's claims.
+type hostLinkClaims struct {
+	Iss string `json:"iss"`
+	Sub string `json:"sub"`
+	Aud string `json:"aud"`
+	Iat int64  `json:"iat"`
+	Exp int64  `json:"exp"`
+	Jti string `json:"jti"`
+}
+
+// SignHostLink is the proof that POST /agents/hosts takes with public_key: whoever holds k, a host's EdDSA
+// key, wants ownerID (a user's id, or the organization's the host is registered for) to own that host on
+// the server issuer names (where Polaris is mounted, the protocol document's issuer). It is good once, for
+// five minutes. Give it to that owner only.
+func SignHostLink(k *Key, issuer, ownerID string) (string, error) {
+	if k.Alg() != EdDSA {
+		return "", fmt.Errorf("agent: a host's key must be EdDSA, not %s", k.Alg())
+	}
+	if issuer == "" || ownerID == "" {
+		return "", errors.New("agent: a host link needs the server's issuer and the owner's id")
+	}
+	thumbprint, err := Thumbprint(k.PublicJWK())
+	if err != nil {
+		return "", err
+	}
+	jti, err := newJTI()
+	if err != nil {
+		return "", err
+	}
+	iat := time.Now().Unix()
+	return signJWS(k, HostLinkJWTType, hostLinkClaims{Iss: thumbprint, Sub: ownerID, Aud: strings.TrimRight(issuer, "/"), Iat: iat, Exp: iat + int64(MaxRequestTTL/time.Second), Jti: jti})
 }
 
 // signAssertion is the private_key_jwt client assertion (RFC 7523) for the token endpoint:

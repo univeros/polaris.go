@@ -87,7 +87,7 @@ func TestEveryProtocolKeyIsChecked(t *testing.T) {
 		}
 	}
 	bad := map[string]any{"kty": "OKP", "crv": "Ed25519", "x": variant, "kid": "a"}
-	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth})
+	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
 	polaristest.New(t, polaristest.WithPlugins(oauth.New(oauth.Config{BaseURL: unitBase}), p))
 	_, err := p.s.withKey(Host{}, bad, nil)
 	_ = wantType(t, err, ErrInvalidInput, "POST /agents/hosts")

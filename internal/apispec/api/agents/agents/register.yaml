@@ -28,7 +28,8 @@ domain:
     private_key_jwt stores the public JWK (EC P-256 or OKP Ed25519) for assertions and request JWTs,
     client_secret answers a pcs_ secret in this response only, delegated_token is a public client
     limited to the exchange. capabilities asks for grants at once: what the policy auto-approves is
-    active, the rest waits in an in_app approval. Recorded as agent.registered.
+    active, the rest waits in an in_app approval. With DiscoveryAgentAuth the caller needs a recent sign-in,
+    as strong as what the policy approves needs. Recorded as agent.registered.
 
 output:
   status: 201
@@ -38,6 +39,7 @@ output:
 errors:
   - { status: 401, code: unauthorized }
   - { status: 403, code: agents_forbidden }
+  - { status: 403, code: agents_step_up_required }
   - { status: 404, code: capability_not_found }
   - { status: 422, code: agents_invalid_input }
 

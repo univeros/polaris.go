@@ -11321,6 +11321,14 @@
                             "optional"
                         ],
                         "sensitive": false
+                    },
+                    {
+                        "name": "proof",
+                        "type": "?string",
+                        "rules": [
+                            "optional"
+                        ],
+                        "sensitive": false
                     }
                 ]
             },
@@ -11335,6 +11343,10 @@
                     "code": "agents_forbidden"
                 },
                 {
+                    "status": 403,
+                    "code": "agents_step_up_required"
+                },
+                {
                     "status": 404,
                     "code": "capability_not_found"
                 },
@@ -11345,6 +11357,10 @@
                 {
                     "status": 422,
                     "code": "agents_invalid_input"
+                },
+                {
+                    "status": 429,
+                    "code": "too_many_requests"
                 }
             ],
             "events": []
@@ -12135,6 +12151,10 @@
                 {
                     "status": 403,
                     "code": "agents_forbidden"
+                },
+                {
+                    "status": 403,
+                    "code": "agents_step_up_required"
                 },
                 {
                     "status": 404,

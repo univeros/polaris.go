@@ -1,6 +1,6 @@
 # Agent Auth Protocol compatibility
 
-Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3) in
+Status: **in progress** (2026-11-24): decisions 83 (parts 0.1, 0.2 and 1), 84 (part 2) and 85 (part 3) and 86 (5.9, 5.3) in
 [`decisions.md`](decisions.md). Target release: `v1.1.0` (additive; nothing in v1 breaks).
 
 Reference: Agent Auth Protocol, published as `v1.0-draft`,
@@ -203,7 +203,7 @@ is a registration row.
 - **Pre-registered host.** `POST /agents/hosts` accepts an optional `public_key` (JWK) or
   `jwks_url`. The owner pastes the host's public key; the host is `active` at once and linked to that
   owner, and has no enrolment token. A key or URL is one host's for good, revoked hosts included
-  (§8.8.1). The owner proves no possession: see §6. This is the path for first-party fleets (Vela's Nightwatch, Venant, Tarazed).
+  (§8.8.1). Its `proof` is 5.9's. This is the path for first-party fleets (Vela's Nightwatch, Venant, Tarazed).
 - **Dynamic host.** A host JWT from an unknown thumbprint on `POST /agent/register` creates nothing
   in `polaris_agent_host` or `polaris_agent`. It creates a row in a new table,
   `polaris_agent_registration` (the future agent and host ids, both keys, names, mode, reason, expiry), and
@@ -344,7 +344,7 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
 | 1 | Discovery modes, `GET /agents/configuration`, SDK fallback; `/capability/list` with `query`, `cursor`, `limit`; `/capability/describe` | M | A protocol client reads the server's configuration and lists capabilities; existing discovery fixture unchanged |
 | 2 | `/agent/status` (moved from part 4: the client polls it during every approval and reads it before an execution, 1.1); host keys: schema columns, `hostjwt.go`, guarded JWKS fetch, `public_key` / `jwks_url` on `POST /agents/hosts`; `/agent/register` for pre-registered hosts; agent JWT rules of 2.4; `/agent/request-capability`; `/capability/execute` | L | The harness completes register → request → execute with a pre-registered host; a receipt is appended and verifies |
 | 3 | Done. Dynamic hosts: `polaris_agent_registration`, the registration approval, linking, idempotency by host and agent key (§5.3), cleanup of expired registrations (a known host's too: its agent stays `pending` when the approval expires), strict per-IP rate limit for unknown hosts (§8.13) | L | The harness completes the whole flow from an unknown host with a person approving by user code, and the CI job stops accepting exit status 3; a denied registration is `rejected` and is not retried |
-| 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4; 5.9 first | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
+| 3b | Decisions 5.3, 5.7, 5.8 and 5.9 (what parts 2 and 3 left open), before part 4. 5.9 and 5.3 done; next 5.8 and 5.7 | M | A key is taken only with its owner's proof; the tests that showed 5.3 and 5.9 pass the other way; the harness executes a capability with a `Location` |
 | 4 | Lifecycle: `/agent/revoke`, `/host/revoke`, `/agent/rotate-key`, `/host/rotate-key`, lifetimes and `/agent/reactivate`, `/agent/introspect` | L | Every protocol endpoint in discovery answers per its section; rotation invalidates the old key at once; revocation seals the chain |
 | 5 | Release: decision 83 with the security review note (AGENT.md rule 6), CHANGELOG, `plugins/agents/README.md`, `llms.txt`, `examples/agents`, `docs/stored-formats.md` | S | `v1.1.0` tagged by the release workflow |
 | 6 | Optional, after 1.1: protocol client in the Go SDK (`agent.NewHost`), so a Go agent signs in to any Agent Auth provider, Better Auth servers included | M | The Go SDK completes the flow against Better Auth's `agent-deploy` example |
@@ -385,17 +385,18 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
    section). The client's tool text asks for `reactivate` on `expired` only. A pause outranks the lifetimes: a
    suspended agent past its TTL reads `pending`, one past its absolute lifetime `revoked`. Its own calls stay 403
    `agent_suspended` (§5.13 allows more codes) and it introspects as inactive. Part 4 checks it in the harness.
-3. **Approval strength in protocol mode. Decided: 2.7, with three rules it lacked.** Not built. Shown by throwaway tests
+3. **Approval strength in protocol mode. Decided: 2.7, with three rules it lacked.** Built (decision 86). Shown by throwaway tests
    on part 3: in this mode, with the defaults, a 14-minute-old session of a person without a second factor
    approves a high-risk grant; and with `AutoApprove[high]` and `Strengths[high]: passkey`, a `step_up` approval
    that links a host is followed by a high-risk execution nobody approved.
    - Every approval needs a sign-in within `StepUpMaxAge`, whatever `Strengths` says and with or without a second
      factor (§8.11, a MUST): `recent`, which only registrations check today.
-   - Linking a host takes the strength of the riskiest tier `AutoApprove` names too: the link is the only time a
-     person decides those. This holds wherever dynamic hosts are taken.
+   - Linking a host takes the strength of the riskiest capability `AutoApprove` gives without a person too: the link is
+     the only time a person decides those.
    - `passkey` means user verification: the session must have `mfa`, as a passkey session has only with it. With
      the passkey plugin's defaults it always does; with `NoMFAFactor` it may not. §8.11 also asks for
      `userVerification: "required"` in the challenge; the README tells the host to set it.
+   - Registering a host or an agent by hand (`POST /agents/hosts`, `POST /agents/register`) takes that strength too.
    - Defaults: `step_up` low, `passkey` medium and high (an undeclared risk is medium, so it fails closed). They
      apply in this mode only, which no release has. A server with them and without the passkey plugin could
      approve nothing, so it does not start: the error says to add the plugin or set `Strengths`.
@@ -433,8 +434,8 @@ Each part is one pull request with `make qa`, the database matrix and `make apic
      handler's own `{"status": "pending", "status_url": …}` would otherwise read as an asynchronous answer that
      the client polls with its JWT. Other types and statuses pass as they are. Refusals are §5.13's.
    Leaving `location` out of the list was the other choice; a capability nobody can call is worse.
-9. **Proof of possession for a pre-registered key. Decided: required, and it must be in before `v1.1.0` is tagged.** Not
-   built. Shown by a throwaway test: Eve posts Ada's public key to `POST /agents/hosts`; Ada's client then
+9. **Proof of possession for a pre-registered key. Decided: required, and it must be in before `v1.1.0` is tagged.**
+   Built (decision 86). Shown by a throwaway test: Eve posts Ada's public key to `POST /agents/hosts`; Ada's client then
    registers and is `active` at once as Eve's agent, executes with nobody asked, and Ada's own registration of her key
    is 409. What Ada's agent writes lands in Eve's account. A public key is known to every server the host uses.
    - `POST /agents/hosts` with `public_key` or `jwks_url` takes `proof`: a JWT signed by that key, `typ`

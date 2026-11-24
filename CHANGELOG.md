@@ -14,7 +14,7 @@ Breaking changes are marked **Breaking**.
 - `agents.Config.Discovery`: which document `/.well-known/agent-configuration` serves.
   `agents.DiscoveryPolaris`, the default, is v1.0.0's, byte for byte; `agents.DiscoveryAgentAuth` is the
   Agent Auth Protocol's, for its clients (`@auth/agent`)
-  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 85). Those clients sign in through
+  ([docs/agent-auth-compat.md](docs/agent-auth-compat.md), decisions 83 to 86). Those clients sign in through
   a host whose key its owner registered, or through a host the server does not know, which a signed-in
   person approves with the code the client shows: the host and the agent are theirs then.
   `agents.Config.DisableDynamicHosts` takes registered hosts only.
@@ -27,9 +27,15 @@ Breaking changes are marked **Breaking**.
   strengths, receipts and the kill switch apply to an agent registered this way as to any other. A
   third-party plugin that declares one of the new paths is refused by `polaris.New`.
 - `POST /agents/hosts` takes a host's `public_key` (an Ed25519 JWK) or, with `DiscoveryAgentAuth`,
-  `jwks_url`: the host signs with its key and has no enrolment token. Revoking such a host revokes its
+  `jwks_url`, with `proof`, a JWT signed by that key that names the account (`agent.SignHostLink`, new):
+  the host signs with its key and has no enrolment token. Revoking such a host revokes its
   agents. `agents.Host` has `PublicJWK`, `JWKSURL` and `KeyThumbprint`; `agents.Config` has `HTTPClient`
   (for those key sets; the default reaches public addresses only) and `DisableJWKSURLs`.
+- With `DiscoveryAgentAuth`, `agents.Config.Strengths` defaults to `step_up` for low and `passkey` for medium and
+  high risk; every approval, and `POST /agents/hosts` and `POST /agents/register`, need a sign-in within
+  `StepUpMaxAge`, and a passkey must have verified the person.
+  Without the passkey plugin such a server starts only when `Strengths` says what it asks for instead.
+  The default mode is as it was.
 - An agent's `status` may be `pending` or `rejected` (`agents.StatusPending`, `StatusRejected`): a protocol
   registration that waits for a person, or was denied. Neither acts anywhere.
 - An agent's registration through a host is idempotent by the host's and the agent's key: pending answers

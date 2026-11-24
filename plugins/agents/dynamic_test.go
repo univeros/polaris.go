@@ -31,7 +31,7 @@ type unknownCase struct {
 
 func bootDynamic(t *testing.T, change func(*agents.Config), opts ...polaristest.Option) (*polaristest.Server, *agents.Plugin) {
 	t.Helper()
-	cfg := agents.Config{Capabilities: capabilities(), ApprovalURL: approveURL, Discovery: agents.DiscoveryAgentAuth}
+	cfg := agents.Config{Capabilities: capabilities(), ApprovalURL: approveURL, Discovery: agents.DiscoveryAgentAuth, Strengths: noPasskeys}
 	if change != nil {
 		change(&cfg)
 	}
@@ -39,6 +39,9 @@ func bootDynamic(t *testing.T, change func(*agents.Config), opts ...polaristest.
 	srv := polaristest.New(t, append(opts, polaristest.WithPlugins(audit.New(audit.Config{}), admin.New(admin.Config{}), oauth.New(oauth.Config{BaseURL: base}), p))...)
 	return srv, p
 }
+
+// noPasskeys are the strengths of a server in the protocol's mode whose people have no passkeys.
+var noPasskeys = map[string]string{agents.RiskMedium: agents.StrengthStepUp, agents.RiskHigh: agents.StrengthStepUp}
 
 func onClock(clk clock.Clock) polaristest.Option {
 	return polaristest.WithConfig(func(c *polaris.Config) { c.Clock = clk })
@@ -371,7 +374,7 @@ func TestSection2_11ARevokedHostsWaitingRegistration(t *testing.T) {
 func TestAHostRegisteredWhileItWaits(t *testing.T) {
 	u := anUnknownHost(t, nil)
 	_, registered := u.registers(map[string]any{"capabilities": []any{"members.list"}})
-	host := u.data(u.c.Post("/agents/hosts", map[string]any{"name": "Fleet", "public_key": u.host.jwk(), "organization_id": u.orgID}, contracttest.Bearer(u.session)))
+	host := u.data(u.addHost(u.session, u.orgID, u.host, map[string]any{"name": "Fleet", "organization_id": u.orgID}))
 	_, stranger := u.login("eve@example.com")
 	u.agentsProblem(u.decides(stranger, registered, approve), 404, "not_found", "", "a stranger")
 	u.status(u.decides(u.session, registered, approve), 200, "its organization's owner")
@@ -433,13 +436,118 @@ func TestSection8_11AnOldSessionApprovesNoHost(t *testing.T) {
 
 // The strength is what the capabilities' risk needs, and no less than step_up.
 func TestSection8_11LinkingAHostNeedsAFreshSignIn(t *testing.T) {
-	u := anUnknownHost(t, func(c *agents.Config) { c.Strengths = map[string]string{agents.RiskHigh: agents.StrengthPasskey} })
+	u := anUnknownHost(t, func(c *agents.Config) {
+		c.Strengths = map[string]string{agents.RiskMedium: agents.StrengthStepUp, agents.RiskHigh: agents.StrengthPasskey}
+	})
 	_, none := u.registers(nil)
 	_, low := u.registers(map[string]any{"capabilities": []any{"members.list"}})
 	_, high := u.registers(map[string]any{"capabilities": []any{"members.list", "org.rename"}})
 	u.equal([]any{obj(none["approval"])["strength"], obj(low["approval"])["strength"], obj(high["approval"])["strength"]}, []any{"step_up", "step_up", "passkey"}, "strengths")
 	problem := u.agentsProblem(u.decides(u.session, high, approve), 403, "step_up_required", "", "a password session")
 	u.equal(problem["strength"], "passkey", "and says which")
+}
+
+// Approving a host is the only time a person decides what the policy then approves for its agents: it takes
+// the strength of the riskiest of those.
+func TestSection8_11LinkingAHostTakesWhatThePolicyApproves(t *testing.T) {
+	for risk, want := range map[string]string{agents.RiskHigh: "passkey", agents.RiskLow: "step_up"} {
+		u := anUnknownHost(t, func(c *agents.Config) {
+			c.Strengths = map[string]string{agents.RiskMedium: agents.StrengthStepUp, agents.RiskHigh: agents.StrengthPasskey}
+			c.AutoApprove = map[string]agents.Budget{risk: {Count: 5}}
+		})
+		_, registered := u.registers(nil)
+		u.equal(obj(registered["approval"])["strength"], want, risk)
+		if want == "passkey" {
+			u.agentsProblem(u.decides(u.session, registered, approve), 403, "step_up_required", "", "a password session")
+		}
+	}
+}
+
+// §8.11: approval pages MUST require fresh authentication, whoever's agent it is and whatever Strengths says.
+func TestSection8_11AnOldSessionApprovesNothing(t *testing.T) {
+	for _, strength := range []string{agents.StrengthSession, agents.StrengthStepUp} {
+		clk := clock.NewFrozen(time.Now())
+		u := anUnknownHost(t, func(c *agents.Config) {
+			c.Strengths = map[string]string{agents.RiskMedium: strength, agents.RiskHigh: strength}
+		}, onClock(clk))
+		owned := newKey("EdDSA")
+		u.status(u.addHost(u.session, u.userID, owned, nil), 201, "a known host")
+		clk.Advance(6 * time.Minute)
+		now := clk.Now().Unix()
+		jwt := owned.hostJWT(map[string]any{"agent_public_key": newKey("EdDSA").jwk(), "iat": now, "exp": now + 60}, nil)
+		registered := u.json(u.c.Post("/agent/register", map[string]any{"name": "Reader", "capabilities": []any{"org.rename"}}, contracttest.Bearer(jwt)))
+		u.equal([]any{registered["status"], obj(registered["approval"])["strength"]}, []any{"pending", strength}, "waits")
+		u.agentsProblem(u.decides(u.session, registered, approve), 403, "step_up_required", "", "signed in 6 minutes ago: "+strength)
+		u.status(u.decides(u.relogin(), registered, approve), 200, "signed in again")
+	}
+}
+
+// A host, or an agent, that its owner registers by hand gets what the policy approves too: the owner is asked for
+// what approving an unknown host asks for.
+func TestSection8_11WhatAnOwnerRegistersNeedsAFreshSignIn(t *testing.T) {
+	clk := clock.NewFrozen(time.Now())
+	u := anUnknownHost(t, nil, onClock(clk))
+	now := clk.Now().Unix()
+	attempts := func(session string) map[string]*http.Response {
+		key := newKey("EdDSA")
+		return map[string]*http.Response{
+			"a key":   u.addHost(session, u.userID, key, map[string]any{"proof": key.hostLink(u.userID, map[string]any{"iat": now, "exp": now + 290}, nil)}),
+			"a token": u.c.Post("/agents/hosts", map[string]any{"name": "Laptop"}, contracttest.Bearer(session)),
+			"an agent": u.c.Post("/agents/register", map[string]any{"name": "Bot", "mode": "delegated", "auth": "private_key_jwt", "jwk": newKey("EdDSA").jwk(),
+				"capabilities": []any{"members.list"}}, contracttest.Bearer(session)),
+		}
+	}
+	for name, resp := range attempts(u.session) {
+		u.status(resp, 201, name)
+	}
+	clk.Advance(6 * time.Minute)
+	now = clk.Now().Unix()
+	for name, resp := range attempts(u.session) {
+		u.agentsProblem(resp, 403, "step_up_required", "", name)
+	}
+
+	strong := anUnknownHost(t, func(c *agents.Config) {
+		c.Strengths = map[string]string{agents.RiskMedium: agents.StrengthStepUp, agents.RiskHigh: agents.StrengthPasskey}
+		c.AutoApprove = map[string]agents.Budget{agents.RiskHigh: {Count: 5}}
+	})
+	problem := strong.agentsProblem(strong.addHost(strong.session, strong.userID, newKey("EdDSA"), nil), 403, "step_up_required", "", "the policy approves high risk")
+	strong.equal(problem["strength"], "passkey", "and says what is missing")
+}
+
+// In the default mode an owner's old session registers as in v1.0.0.
+func TestAnOwnersOldSessionRegistersInTheDefaultMode(t *testing.T) {
+	clk := clock.NewFrozen(time.Now())
+	u := anUnknownHost(t, func(c *agents.Config) { c.Discovery = agents.DiscoveryPolaris }, onClock(clk))
+	clk.Advance(6 * time.Minute)
+	u.status(u.c.Post("/agents/hosts", map[string]any{"name": "Laptop"}, contracttest.Bearer(u.session)), 201, "a host")
+}
+
+// A URL is fetched for a proof nobody verified yet: how many is bounded per person.
+func TestHostsWithAURLAreLimited(t *testing.T) {
+	u := anUnknownHost(t, nil)
+	var last *http.Response
+	for i := range 11 {
+		key := newKey("EdDSA")
+		last = u.c.Post("/agents/hosts", map[string]any{"name": "Fleet", "jwks_url": fmt.Sprintf("https://127.0.0.1/%d", i), "proof": key.hostLink(u.userID, nil, map[string]any{"kid": "1"})}, contracttest.Bearer(u.session))
+		if i < 10 {
+			u.agentsProblem(last, 422, "invalid_input", "", "not public")
+		}
+	}
+	u.equal([]any{last.StatusCode, last.Header.Get("Retry-After") != ""}, []any{429, true}, "the eleventh")
+	u.status(u.addHost(u.session, u.userID, newKey("EdDSA"), nil), 201, "a key is not limited")
+}
+
+// A registration whose approval expired is opened again at the strength it needs.
+func TestAReopenedApprovalKeepsItsStrength(t *testing.T) {
+	clk := clock.NewFrozen(time.Now())
+	u := anUnknownHost(t, func(c *agents.Config) {
+		c.Strengths = map[string]string{agents.RiskLow: agents.StrengthSession, agents.RiskMedium: agents.StrengthStepUp, agents.RiskHigh: agents.StrengthPasskey}
+		c.AutoApprove = map[string]agents.Budget{agents.RiskHigh: {Count: 5}}
+	}, onClock(clk))
+	key, first := u.registers(nil)
+	clk.Advance(11 * time.Minute)
+	again := u.json(u.registersAt(clk, key))
+	u.equal([]any{again["agent_id"], obj(again["approval"])["strength"]}, []any{first["agent_id"], "passkey"}, "opened again")
 }
 
 // §8.13: new registrations of unknown hosts are bounded per address, at sign-up's budget; a retry and a
@@ -455,7 +563,7 @@ func TestSection8_13UnknownHostsAreLimited(t *testing.T) {
 	u.equal([]any{resp.StatusCode, u.json(resp)["error"], resp.Header.Get("Retry-After") != ""}, []any{429, "rate_limited", true}, "§8.13")
 	u.equal(len(u.rows(agents.TableRegistrations, store.Criteria{})), 5, "nothing stored")
 	owned := newKey("EdDSA")
-	u.status(u.c.Post("/agents/hosts", map[string]any{"name": "Known", "public_key": owned.jwk()}, contracttest.Bearer(u.session)), 201, "a known host")
+	u.status(u.addHost(u.session, u.userID, owned, nil), 201, "a known host")
 	u.status(u.registersAs(owned, newKey("EdDSA"), nil), 200, "is not limited")
 	u.status(u.decides(u.session, first, deny), 200, "deny")
 	_ = key
@@ -494,7 +602,7 @@ func TestSection10_9WhatNobodyDecidesIsDeleted(t *testing.T) {
 	u := anUnknownHost(t, nil, onClock(clk))
 	key, registered := u.registers(map[string]any{"capabilities": []any{"members.list"}})
 	owned := newKey("EdDSA")
-	u.status(u.c.Post("/agents/hosts", map[string]any{"name": "Known", "public_key": owned.jwk()}, contracttest.Bearer(u.session)), 201, "a known host")
+	u.status(u.addHost(u.session, u.userID, owned, nil), 201, "a known host")
 	pending := u.json(u.registersAs(owned, newKey("EdDSA"), map[string]any{"capabilities": []any{"org.rename"}}))
 	active := u.json(u.registersAs(owned, newKey("EdDSA"), map[string]any{"capabilities": []any{"members.list"}}))
 	prune := func(registrations, agentsDeleted int64) {

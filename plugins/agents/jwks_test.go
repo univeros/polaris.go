@@ -136,6 +136,42 @@ func TestAKeySetIsFetchedAtMostOnceAMinute(t *testing.T) {
 	get("new", 3, true)
 }
 
+// A URL is taken with a proof by a key it publishes (5.9), and the host is known by that key from then on.
+func TestAHostsURLIsProven(t *testing.T) {
+	key, other := newTestKey(AlgEdDSA), newTestKey(AlgEdDSA)
+	fetched := 0
+	web := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fetched++
+		_, _ = w.Write(jwkSet(withKid(key, "1"), withKid(newTestKey(AlgES256), "ec")))
+	}))
+	defer web.Close()
+	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys, HTTPClient: web.Client()})
+	polaristest.New(t, polaristest.WithPlugins(oauth.New(oauth.Config{BaseURL: unitBase}), p))
+	thumb := func(k *testKey) string { s, _ := oauth.Thumbprint(k.jwk()); return s }
+	proof := func(k *testKey, kid, sub string) string {
+		now := time.Now().Unix()
+		return k.jwt(map[string]any{"iss": thumb(k), "sub": sub, "aud": unitBase, "iat": now, "exp": now + 60, "jti": newID()}, map[string]any{"typ": HostLinkJWTType, "kid": kid})
+	}
+	h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, nil, web.URL+"/jwks")
+	must(t, err)
+	_, err = p.s.proven(t.Context(), h, proof(key, "1", "user-2"))
+	_ = wantType(t, err, ErrInvalidInput, "another account's")
+	if fetched != 0 {
+		t.Error("the URL is fetched for a proof that names another account")
+	}
+	for name, raw := range map[string]string{"no kid": proof(key, "", "user-1"), "a kid the set lacks": proof(key, "2", "user-1"), "a key that is not in the set": proof(other, "1", "user-1"), "an EC key": proof(key, "ec", "user-1")} {
+		_, err = p.s.proven(t.Context(), h, raw)
+		_ = wantType(t, err, ErrInvalidInput, name)
+	}
+	said := wantType(t, err, ErrInvalidInput, "a key set is not described").Detail
+	if strings.Contains(said, "kid") || strings.Contains(said, "fetched") {
+		t.Errorf("tells what a URL serves: %s", said)
+	}
+	if h, err = p.s.proven(t.Context(), h, proof(key, "1", "user-1")); err != nil || h.KeyThumbprint != thumb(key) {
+		t.Errorf("%+v %v", h, err)
+	}
+}
+
 // §8.7: a host that publishes its keys signs with any of them; the thumbprint it is known by follows.
 // Its delivery mode is fixed, and turning JWKS URLs off refuses it.
 func TestSection8_7AHostThatPublishesItsKeys(t *testing.T) {
@@ -143,7 +179,7 @@ func TestSection8_7AHostThatPublishesItsKeys(t *testing.T) {
 	set := jwkSet(withKid(first, "1"))
 	web := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(set) }))
 	defer web.Close()
-	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, HTTPClient: web.Client()})
+	p := New(Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys, HTTPClient: web.Client()})
 	polaristest.New(t, polaristest.WithPlugins(oauth.New(oauth.Config{BaseURL: unitBase}), p))
 	ctx := t.Context()
 	h, err := p.s.withKey(Host{OwnerType: OwnerUser, OwnerID: "user-1", CreatedBy: "user-1"}, nil, web.URL+"/jwks")

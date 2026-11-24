@@ -207,7 +207,7 @@ func decidedBy(r registration, user string) *registration {
 func TestConcurrentRegistrationsAreOne(t *testing.T) {
 	for _, b := range storetest.Backends() {
 		t.Run(b.Name, func(t *testing.T) {
-			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth})
+			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
 			ctx := context.Background()
 			for range 4 {
 				host, agent := newTestKey(AlgEdDSA), newTestKey(AlgEdDSA)
@@ -252,7 +252,7 @@ func TestConcurrentRegistrationsAreOne(t *testing.T) {
 func TestAnUnknownHostIsLinkedOnce(t *testing.T) {
 	for _, b := range storetest.Backends() {
 		t.Run(b.Name, func(t *testing.T) {
-			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth})
+			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
 			ctx := context.Background()
 			for round := range 8 {
 				host := newTestKey(AlgEdDSA)
@@ -293,7 +293,7 @@ func TestAnUnknownHostIsLinkedOnce(t *testing.T) {
 func TestARegistrationIsDecidedOnce(t *testing.T) {
 	for _, b := range storetest.Backends() {
 		t.Run(b.Name, func(t *testing.T) {
-			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth})
+			p := bootOn(t, b, Config{Capabilities: unitCaps(), Discovery: DiscoveryAgentAuth, Strengths: noPasskeys})
 			ctx := context.Background()
 			for round := range 6 {
 				host := newTestKey(AlgEdDSA)
