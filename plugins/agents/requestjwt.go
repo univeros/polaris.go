@@ -31,25 +31,42 @@ const (
 
 var compactJWT = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`)
 
-// peekedJWT is the unverified header and sub of a JWT that claims to be an agent's.
+// peekedJWT is the unverified header, sub and iss of a JWT that claims to be an agent's or a host's.
 type peekedJWT struct {
 	header map[string]any
 	sub    string
+	iss    any
+	hasISS bool
 }
 
 // peekRequestJWT recognises an agent JWT (typ agent+jwt) without verifying it; ok is false for any
 // other credential.
-func peekRequestJWT(raw string) (peekedJWT, bool) {
+func peekRequestJWT(raw string) (peekedJWT, bool) { return peekJWT(raw, RequestJWTType) }
+
+// peekJWT recognises a JWT of the type without verifying it.
+func peekJWT(raw, typ string) (peekedJWT, bool) {
 	if len(raw) > maxRequestJWT || !compactJWT.MatchString(raw) {
 		return peekedJWT{}, false
 	}
 	parts := strings.Split(raw, ".")
 	header := decodeJSONSegment(parts[0])
-	if header == nil || header["typ"] != RequestJWTType {
+	if header == nil || header["typ"] != typ {
 		return peekedJWT{}, false
 	}
-	sub, _ := decodeJSONSegment(parts[1])["sub"].(string)
-	return peekedJWT{header: header, sub: sub}, true
+	claims := decodeJSONSegment(parts[1])
+	sub, _ := claims["sub"].(string)
+	iss, has := claims["iss"]
+	return peekedJWT{header: header, sub: sub, iss: iss, hasISS: has}, true
+}
+
+// noKeyHeader refuses a JWT that brings the key to verify it with.
+func noKeyHeader(header map[string]any, whose string) error {
+	for _, h := range strings.Fields(forbiddenKeyHeaders) {
+		if header[h] != nil {
+			return invalidJWT("The JWT must not carry a key or a key URL; the " + whose + "'s registered key verifies it.")
+		}
+	}
+	return nil
 }
 
 func decodeJSONSegment(seg string) map[string]any {
@@ -69,10 +86,10 @@ type requestJWTs struct {
 	cache  cache.Cache
 	clock  clock.Clock
 	maxAge int64 // seconds
-	// issuer, when set, is what aud must be, exactly (the Agent Auth Protocol's non-execution routes);
-	// empty: the URL called, compared normalised.
-	issuer string
-	skew   time.Duration // the clock leeway; 0: requestLeeway
+	// audience, when set, is what aud must be, exactly, on an Agent Auth Protocol route; empty: the URL
+	// called, compared normalised.
+	audience string
+	skew     time.Duration // the clock leeway; 0: requestLeeway
 }
 
 func (j *requestJWTs) leeway() time.Duration {
@@ -82,10 +99,10 @@ func (j *requestJWTs) leeway() time.Duration {
 	return requestLeeway
 }
 
-// audience reports whether aud names this server as the route wants it named.
-func (j *requestJWTs) audience(aud, url string) bool {
-	if j.issuer != "" {
-		return aud == j.issuer
+// addressed reports whether aud names this server as the route wants it named.
+func (j *requestJWTs) addressed(aud, url string) bool {
+	if j.audience != "" {
+		return aud == j.audience
 	}
 	return !strings.ContainsAny(aud, "?#") && normalizeURL(aud) == normalizeURL(url)
 }
@@ -97,10 +114,8 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 	if !ok {
 		return nil, invalidJWT("The credential is not an agent JWT (typ agent+jwt).")
 	}
-	for _, h := range strings.Fields(forbiddenKeyHeaders) {
-		if peeked.header[h] != nil {
-			return nil, invalidJWT("The JWT must not carry a key or a key URL; the agent's registered key verifies it.")
-		}
+	if err := noKeyHeader(peeked.header, "agent"); err != nil {
+		return nil, err
 	}
 	if a.PublicJWK == nil {
 		return nil, invalidJWT("The agent has no registered key; it authenticates with an access token.")
@@ -116,7 +131,7 @@ func (j *requestJWTs) verify(ctx context.Context, raw string, a Agent, method, u
 	if err := j.checkClaims(claims, a, method, url, body); err != nil {
 		return nil, err
 	}
-	if err := j.once(ctx, a, claims); err != nil {
+	if err := j.once(ctx, a.ID, claims); err != nil {
 		return nil, err
 	}
 	caps, has := claims["capabilities"].([]any)
@@ -160,16 +175,11 @@ func (j *requestJWTs) checkClaims(claims map[string]any, a Agent, method, url st
 	if claims["sub"] != a.ID {
 		return invalidJWT("sub must be the agent's id.")
 	}
-	iat, okI := wholeNumber(claims["iat"])
-	exp, okE := wholeNumber(claims["exp"])
-	if !okI || !okE || exp <= iat {
-		return invalidJWT("iat and exp are required, exp after iat.")
-	}
-	if exp-iat > j.maxAge {
-		return invalidJWT(fmt.Sprintf("exp - iat must be at most %d seconds.", j.maxAge))
+	if err := j.lifetime(claims); err != nil {
+		return err
 	}
 	aud, ok := claims["aud"].(string)
-	if !ok || !j.audience(aud, url) {
+	if !ok || !j.addressed(aud, url) {
 		return refuse(ErrAudMismatch, "aud must be the exact URL called (scheme, host, port, path; no query).")
 	}
 	if v, has := claims["htm"]; has && v != nil {
@@ -197,13 +207,26 @@ func (j *requestJWTs) checkClaims(claims map[string]any, a Agent, method, url st
 	return nil
 }
 
-// once accepts a jti once per agent until the JWT expires.
-func (j *requestJWTs) once(ctx context.Context, a Agent, claims map[string]any) error {
+// lifetime checks that iat and exp are there and bound the JWT's life.
+func (j *requestJWTs) lifetime(claims map[string]any) error {
+	iat, okI := wholeNumber(claims["iat"])
+	exp, okE := wholeNumber(claims["exp"])
+	if !okI || !okE || exp <= iat {
+		return invalidJWT("iat and exp are required, exp after iat.")
+	}
+	if exp-iat > j.maxAge {
+		return invalidJWT(fmt.Sprintf("exp - iat must be at most %d seconds.", j.maxAge))
+	}
+	return nil
+}
+
+// once accepts a jti once per agent or host until the JWT expires.
+func (j *requestJWTs) once(ctx context.Context, id string, claims map[string]any) error {
 	jti, _ := claims["jti"].(string)
 	if jti == "" || len(jti) > maxJTI {
 		return invalidJWT("jti is required.")
 	}
-	sum := sha256.Sum256([]byte(a.ID + "|" + jti))
+	sum := sha256.Sum256([]byte(id + "|" + jti))
 	key := replayPrefix + hex.EncodeToString(sum[:])
 	exp, _ := wholeNumber(claims["exp"])
 	ttl := exp - j.clock.Now().Unix() + int64(requestLeeway/time.Second)

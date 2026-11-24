@@ -50,6 +50,10 @@ func (p *Plugin) endpoints() map[string]endpoint.Endpoint {
 		"polaris.agents.protocol.configuration":       endpoint.Func(p.polarisConfiguration),
 		"polaris.agents.protocol.capability-list":     endpoint.Func(p.listProtocolCapabilities),
 		"polaris.agents.protocol.capability-describe": endpoint.Func(p.describeProtocolCapability),
+		"polaris.agents.protocol.register":            endpoint.Func(p.protocolRegister),
+		"polaris.agents.protocol.status":              endpoint.Func(p.protocolStatus),
+		"polaris.agents.protocol.request-capability":  endpoint.Func(p.protocolRequest),
+		"polaris.agents.protocol.execute":             endpoint.Func(p.protocolExecute),
 	}
 }
 
@@ -433,12 +437,18 @@ func (p *Plugin) createHost(ctx context.Context, in *endpoint.Input) endpoint.Re
 	if err != nil {
 		return p.fail(ctx, err)
 	}
-	h, secret, err := p.s.createHost(ctx, Host{OwnerType: ownerType, OwnerID: ownerID, OrganizationID: org, CreatedBy: tok.Subject()}, in.Value("name"), defaults)
+	h, err := p.s.withKey(Host{OwnerType: ownerType, OwnerID: ownerID, OrganizationID: org, CreatedBy: tok.Subject()}, in.Value("public_key"), in.Value("jwks_url"))
+	if err != nil {
+		return p.fail(ctx, err)
+	}
+	h, secret, err := p.s.createHost(ctx, h, in.Value("name"), defaults)
 	if err != nil {
 		return p.fail(ctx, err)
 	}
 	out := h.view()
-	out["enrollment_token"] = secret
+	if secret != "" {
+		out["enrollment_token"] = secret
+	}
 	return noStore(http.StatusCreated, data(out))
 }
 

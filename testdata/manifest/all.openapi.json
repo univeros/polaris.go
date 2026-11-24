@@ -27465,6 +27465,13 @@
                                         "items": {
                                             "type": "string"
                                         }
+                                    },
+                                    "public_key": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    },
+                                    "jwks_url": {
+                                        "type": "string"
                                     }
                                 },
                                 "required": [
@@ -27581,6 +27588,16 @@
                     },
                     "404": {
                         "description": "capability_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "agents_conflict",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28092,7 +28109,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28240,7 +28257,7 @@
                         }
                     },
                     "403": {
-                        "description": "agent_revoked | agent_suspended",
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -28444,6 +28461,766 @@
                                     "agent_sdk_versions": {
                                         "github.com/univeros/polaris.go/agent": "v1.1.0"
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/capability/execute": {
+            "post": {
+                "operationId": "polaris.agents.protocol.execute",
+                "summary": "Execute a capability (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "x-polaris-rate-limit": "token_refresh",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "capability": {
+                                        "type": "string"
+                                    },
+                                    "arguments": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "required": [
+                                    "capability"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "deployed": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "deployed"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                },
+                                "example": {
+                                    "data": {
+                                        "deployed": true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked | capability_not_granted | constraint_violated | limit_exceeded",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "capability_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/register": {
+            "post": {
+                "operationId": "polaris.agents.protocol.register",
+                "summary": "Register an agent (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "x-polaris-rate-limit": "token_refresh",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 160
+                                    },
+                                    "host_name": {
+                                        "type": "string"
+                                    },
+                                    "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "delegated",
+                                            "autonomous"
+                                        ]
+                                    },
+                                    "capabilities": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    },
+                                    "preferred_method": {
+                                        "type": "string"
+                                    },
+                                    "login_hint": {
+                                        "type": "string"
+                                    },
+                                    "binding_message": {
+                                        "type": "string",
+                                        "maxLength": 160
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "mode": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "agent_capability_grants": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "capability": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "input": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "type": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "type"
+                                                        ]
+                                                    },
+                                                    "budget": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "kind": {
+                                                                "type": "string"
+                                                            },
+                                                            "total": {
+                                                                "type": "integer"
+                                                            },
+                                                            "remaining": {
+                                                                "type": "integer"
+                                                            },
+                                                            "field": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "kind",
+                                                            "total",
+                                                            "remaining",
+                                                            "field"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "capability",
+                                                    "status",
+                                                    "description",
+                                                    "input",
+                                                    "budget"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "host_id",
+                                        "name",
+                                        "mode",
+                                        "status",
+                                        "agent_capability_grants"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "host_id": "018f...",
+                                    "name": "Claude Code",
+                                    "mode": "delegated",
+                                    "status": "active",
+                                    "agent_capability_grants": [
+                                        {
+                                            "capability": "deploy.staging",
+                                            "status": "active",
+                                            "description": "Deploy a build to staging",
+                                            "input": {
+                                                "type": "object"
+                                            },
+                                            "budget": {
+                                                "kind": "count",
+                                                "total": 100,
+                                                "remaining": 100,
+                                                "field": null
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request | unsupported_mode | unsupported_algorithm | invalid_capabilities | unknown_constraint_operator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/request-capability": {
+            "post": {
+                "operationId": "polaris.agents.protocol.request-capability",
+                "summary": "Request capabilities (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "write",
+                "x-polaris-receipt": true,
+                "x-polaris-plugin": "agents",
+                "x-polaris-rate-limit": "token_refresh",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "capabilities": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    },
+                                    "preferred_method": {
+                                        "type": "string"
+                                    },
+                                    "login_hint": {
+                                        "type": "string"
+                                    },
+                                    "binding_message": {
+                                        "type": "string",
+                                        "maxLength": 160
+                                    }
+                                },
+                                "required": [
+                                    "capabilities"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "agent_capability_grants": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "capability": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "capability",
+                                                    "status"
+                                                ]
+                                            }
+                                        },
+                                        "approval": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "method": {
+                                                    "type": "string"
+                                                },
+                                                "strength": {
+                                                    "type": "string"
+                                                },
+                                                "user_code": {
+                                                    "type": "string"
+                                                },
+                                                "verification_uri": {
+                                                    "type": "string"
+                                                },
+                                                "verification_uri_complete": {
+                                                    "type": "string"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer"
+                                                },
+                                                "interval": {
+                                                    "type": "integer"
+                                                },
+                                                "binding_message": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "method",
+                                                "strength",
+                                                "user_code",
+                                                "verification_uri",
+                                                "verification_uri_complete",
+                                                "expires_in",
+                                                "interval",
+                                                "binding_message"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "status",
+                                        "agent_capability_grants",
+                                        "approval"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "status": "pending",
+                                    "agent_capability_grants": [
+                                        {
+                                            "capability": "refund",
+                                            "status": "pending"
+                                        }
+                                    ],
+                                    "approval": {
+                                        "id": "018f...",
+                                        "method": "device_authorization",
+                                        "strength": "step_up",
+                                        "user_code": "BCDF-GHJK",
+                                        "verification_uri": "https://app.example.com/agents/approve",
+                                        "verification_uri_complete": "https://app.example.com/agents/approve?user_code=BCDF-GHJK",
+                                        "expires_in": 600,
+                                        "interval": 5,
+                                        "binding_message": null
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request | invalid_capabilities | unknown_constraint_operator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "agent_revoked | agent_suspended | agent_pending | agent_rejected | host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "already_granted | agents_conflict",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/status": {
+            "get": {
+                "operationId": "polaris.agents.protocol.status",
+                "summary": "An agent's status (Agent Auth Protocol)",
+                "tags": [
+                    "agents"
+                ],
+                "x-polaris-effect": "read",
+                "x-polaris-receipt": false,
+                "x-polaris-plugin": "agents",
+                "x-polaris-rate-limit": "token_refresh",
+                "parameters": [
+                    {
+                        "name": "agent_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "agent_id": {
+                                            "type": "string"
+                                        },
+                                        "host_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "mode": {
+                                            "type": "string"
+                                        },
+                                        "agent_capability_grants": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "capability": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "granted_by": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "input": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "type": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "type"
+                                                        ]
+                                                    },
+                                                    "constraints": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "build": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "in": {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "in"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "build"
+                                                        ]
+                                                    },
+                                                    "reason": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "capability",
+                                                    "status"
+                                                ]
+                                            }
+                                        },
+                                        "user_id": {
+                                            "type": "string"
+                                        },
+                                        "created_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "agent_id",
+                                        "host_id",
+                                        "name",
+                                        "status",
+                                        "mode",
+                                        "agent_capability_grants",
+                                        "user_id",
+                                        "created_at"
+                                    ]
+                                },
+                                "example": {
+                                    "agent_id": "018f...",
+                                    "host_id": "018f...",
+                                    "name": "Claude Code",
+                                    "status": "active",
+                                    "mode": "delegated",
+                                    "agent_capability_grants": [
+                                        {
+                                            "capability": "deploy.staging",
+                                            "status": "active",
+                                            "granted_by": "018f...",
+                                            "description": "Deploy a build to staging",
+                                            "input": {
+                                                "type": "object"
+                                            },
+                                            "constraints": {
+                                                "build": {
+                                                    "in": [
+                                                        "42"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "capability": "refund",
+                                            "status": "denied",
+                                            "reason": "A person denied the request."
+                                        }
+                                    ],
+                                    "user_id": "018f...",
+                                    "created_at": "2026-10-10T10:00:00Z"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_jwt",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "host_revoked",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "agent_not_found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
                                 }
                             }
                         }

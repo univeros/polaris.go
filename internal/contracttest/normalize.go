@@ -65,6 +65,10 @@ func normalizeResponse(status int, headers map[string][]string, body any) normal
 			out[lower] = []string{"<device>"}
 			continue
 		}
+		if lower == "x-polaris-receipt" {
+			out[lower] = []string{"<receipt>"}
+			continue
+		}
 		masked := make([]string, len(values))
 		for i, v := range values {
 			masked[i] = maskQuery(v)

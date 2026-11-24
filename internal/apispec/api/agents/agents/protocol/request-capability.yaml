@@ -1,0 +1,49 @@
+# POST /agent/request-capability: the Agent Auth Protocol's capability request (§5.4).
+endpoint:
+  method: POST
+  path: /agent/request-capability
+  summary: Request capabilities (Agent Auth Protocol)
+  tags: [agents]
+  auth: public   # the agent authenticates itself: a request JWT (aud the issuer) or its access token
+  rate_limit: token_refresh
+  effect: write
+  receipt: true
+
+input:
+  source: body
+  fields:
+    capabilities: { type: "list<mixed>", rules: [required] }
+    reason: { type: "?string", rules: [optional, "max:500"] }
+    preferred_method: { type: "?string", rules: [optional] }
+    login_hint: { type: "?string", rules: [optional] }
+    binding_message: { type: "?string", rules: [optional, "max:160"] }
+
+domain:
+  description: >
+    As POST /agents/grants/request, in the protocol's bodies: the grants asked for (an active one in full,
+    a pending one by name) and one approval for what a person must decide. status is pending when there is
+    one, else granted. A constraint may be an exact value. login_hint is not used.
+
+output:
+  status: 200
+  example:
+    agent_id: "018f..."
+    status: pending
+    agent_capability_grants: [{ capability: "refund", status: pending }]
+    approval: { id: "018f...", method: device_authorization, strength: step_up, user_code: "BCDF-GHJK", verification_uri: "https://app.example.com/agents/approve", verification_uri_complete: "https://app.example.com/agents/approve?user_code=BCDF-GHJK", expires_in: 600, interval: 5, binding_message: null }
+
+errors:
+  - { status: 400, code: invalid_request }
+  - { status: 400, code: invalid_capabilities }
+  - { status: 400, code: unknown_constraint_operator }
+  - { status: 401, code: invalid_jwt }
+  - { status: 403, code: agent_revoked }
+  - { status: 403, code: agent_suspended }
+  - { status: 403, code: agent_pending }
+  - { status: 403, code: agent_rejected }
+  - { status: 403, code: host_revoked }
+  - { status: 409, code: already_granted }
+  - { status: 409, code: agents_conflict }
+  - { status: 429, code: rate_limited }
+
+events: [agent.grant.requested, agent.grant.approved]

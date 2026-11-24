@@ -6,9 +6,11 @@ import (
 	"crypto/elliptic"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"math/big"
 	"regexp"
+	"slices"
 
 	"github.com/univeros/polaris.go/plugins/oauth"
 )
@@ -131,4 +133,46 @@ func verifierOf(jwk map[string]any) (func(input, sig []byte) bool, error) {
 		return func(input, sig []byte) bool { return ed25519.Verify(pub, input, sig) }, nil
 	}
 	return nil, errors.New("agents: unsupported key")
+}
+
+// smallOrder are the y coordinates (little endian, the sign bit clear) of the curve's eight points of
+// small order: for such a "key" anyone can make signatures that verify.
+var smallOrder = []string{
+	"0000000000000000000000000000000000000000000000000000000000000000",
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+	"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+}
+
+// protocolKey validates a host's or an agent's key on the Agent Auth Protocol's surface: Ed25519 only
+// (ErrUnsupportedAlgorithm), no point of small order, and in its one spelling, so that a key has one
+// thumbprint and is one host's. Anything else is ErrInvalidInput.
+func protocolKey(v any) (map[string]any, error) {
+	jwk, err := publicJWK(v)
+	if err != nil {
+		return nil, err
+	}
+	if jwk["alg"] != AlgEdDSA {
+		return nil, refuse(ErrUnsupportedAlgorithm, "The key is an Ed25519 key.")
+	}
+	x, _ := jwk["x"].(string)
+	raw, err := base64.RawURLEncoding.Strict().DecodeString(x)
+	if err != nil || len(raw) != ed25519.PublicKeySize || base64.RawURLEncoding.EncodeToString(raw) != x {
+		return nil, refuse(ErrInvalidInput, "x is the key's 32 bytes in base64url without padding, in its canonical form.")
+	}
+	y := slices.Clone(raw)
+	y[31] &= 0x7f
+	if slices.Contains(smallOrder, hex.EncodeToString(y)) || !reduced(y) {
+		return nil, refuse(ErrInvalidInput, "x is not a usable Ed25519 key.")
+	}
+	return jwk, nil
+}
+
+// reduced reports whether y (little endian) is below the field's prime, 2^255 - 19.
+func reduced(y []byte) bool {
+	if y[31] != 0x7f || y[0] < 0xed {
+		return true
+	}
+	return slices.ContainsFunc(y[1:31], func(b byte) bool { return b != 0xff })
 }

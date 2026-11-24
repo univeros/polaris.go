@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"maps"
 	"strings"
 
+	"github.com/univeros/polaris.go/plugins/oauth"
 	"github.com/univeros/polaris.go/store"
 )
 
@@ -17,7 +20,7 @@ const (
 )
 
 // createHost creates a host for the owner with its enrolment token, shown once and stored as a
-// keyed hash.
+// keyed hash. An owner with a key (withKey) makes a host that signs with it and has no token.
 func (s *service) createHost(ctx context.Context, owner Host, name any, defaults []any) (Host, string, error) {
 	n, _ := name.(string)
 	n, ok := displayName(n)
@@ -44,10 +47,44 @@ func (s *service) createHost(ctx context.Context, owner Host, name any, defaults
 	_, _ = rand.Read(buf)
 	secret := HostTokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
 	h.ID, h.Name, h.CreatedAt, h.tokenHash = newID(), n, s.now(), s.pepper.Hash(hostPepper, secret)
+	if h.hasKey() {
+		secret = "" // never shown: the stored hash matches nothing anyone holds
+	}
 	if err := s.db.Insert(ctx, TableHosts, h.row()); err != nil {
+		if h.hasKey() && errors.Is(err, store.ErrDuplicate) {
+			return Host{}, "", refuse(ErrConflict, "The key or the JWKS URL belongs to a host already, live or revoked.")
+		}
 		return Host{}, "", err
 	}
 	return h, secret, nil
+}
+
+// withKey is the host with the key its owner gave: an Ed25519 public key, or the URL the host
+// publishes its keys at (§2.8, §4.1); neither makes a host with an enrolment token.
+func (s *service) withKey(h Host, publicKey, url any) (Host, error) {
+	switch {
+	case publicKey != nil && url != nil:
+		return h, refuse(ErrInvalidInput, "public_key or jwks_url, not both.")
+	case publicKey != nil:
+		jwk, err := protocolKey(publicKey)
+		if err != nil {
+			return h, refuse(ErrInvalidInput, "public_key is an Ed25519 public key as a JWK (kty OKP, crv Ed25519, x), without its private part.")
+		}
+		h.PublicJWK = jwk
+		if h.KeyThumbprint, err = oauth.Thumbprint(jwk); err != nil {
+			return h, err
+		}
+	case url != nil:
+		if !s.settings.jwksURLs {
+			return h, refuse(ErrInvalidInput, "jwks_url is not taken by this server; register the host with its public_key.")
+		}
+		u, err := jwksURL(url)
+		if err != nil {
+			return h, err
+		}
+		h.JWKSURL = u
+	}
+	return h, nil
 }
 
 // hostByToken is the live host an enrolment token belongs to; ok is false for anything else. The
@@ -86,9 +123,50 @@ func (s *service) liveHosts(ctx context.Context, c store.Criteria) ([]Host, erro
 	return out, nil
 }
 
-// revokeHosts revokes the live hosts the criteria select (a conditional update: once).
+// revokeHosts revokes the live hosts the criteria select (a conditional update: once), and with a
+// host that has a key every agent under it (§2.11, §8.5). The agents a token enrolled stay, as their
+// own credentials do.
 func (s *service) revokeHosts(ctx context.Context, c store.Criteria) error {
-	c["revoked_at"] = nil
-	_, err := s.db.Update(ctx, TableHosts, c, store.Data{"revoked_at": s.now()})
+	return s.db.Tx(ctx, func(ctx context.Context) error {
+		live := maps.Clone(c)
+		live["revoked_at"] = nil
+		// The first statement: it waits for a registration in flight, which holds the host's row
+		// (lockHost), so what is read next (MySQL's snapshot too) has its agent; a later one finds the
+		// host revoked.
+		if _, err := s.db.Update(ctx, TableHosts, live, store.Data{"revoked_at": s.now()}); err != nil {
+			return err
+		}
+		rows, err := s.db.FindMany(ctx, TableHosts, c, store.Query{OrderBy: []store.Order{{Column: "id"}}})
+		if err != nil {
+			return err
+		}
+		for _, row := range rows { // one revoked before has no agent left to revoke
+			h := hostFromRow(row)
+			if !h.hasKey() {
+				continue
+			}
+			agents, err := s.agentsWhere(ctx, store.Criteria{"host_id": h.ID, "status": []string{StatusActive, StatusSuspended, StatusPending}})
+			if err != nil {
+				return err
+			}
+			for _, a := range agents {
+				if _, _, err := s.revoke(ctx, a, "", "host_revoked", client{}); err != nil {
+					if e, ok := asError(err); !ok || e.Type != ErrConflict { // revoked meanwhile
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// lockHost serializes a registration with the host's revocation: it takes the live host's row lock, as
+// lockAgent does, and must be the transaction's first statement.
+func (s *service) lockHost(ctx context.Context, id string) error {
+	n, err := s.db.Update(ctx, TableHosts, store.Criteria{"id": id, "revoked_at": nil}, store.Data{"id": id})
+	if err == nil && n != 1 {
+		err = refuse(ErrHostRevoked, "The host is revoked.")
+	}
 	return err
 }

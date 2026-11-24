@@ -33,6 +33,8 @@ const (
 	maxPage = 100
 	// protocolSkew is the most a JWT's iat may be ahead on the protocol routes, a MUST (§8.2).
 	protocolSkew = 30 * time.Second
+	// pathExecute is the protocol's execute endpoint, under the mount.
+	pathExecute = "/capability/execute"
 )
 
 // protocolDiscovery is the protocol's discovery document (§5.1): the issuer is where Polaris is
@@ -42,8 +44,10 @@ func (p *Plugin) protocolDiscovery() map[string]any {
 		"version": "1.0-draft", "provider_name": p.s.settings.providerName, "description": p.s.settings.description,
 		"issuer": p.s.settings.baseURL, "algorithms": []string{"Ed25519"}, "modes": modes,
 		"approval_methods": []string{MethodDevice, MethodCIBA},
-		"endpoints":        map[string]string{"capabilities": "/capability/list", "describe_capability": "/capability/describe"},
-		"jwks_uri":         p.s.settings.baseURL + "/auth/.well-known/jwks.json",
+		"default_location": p.s.settings.baseURL + pathExecute,
+		"endpoints": map[string]string{"register": "/agent/register", "capabilities": "/capability/list", "describe_capability": "/capability/describe",
+			"execute": pathExecute, "request_capability": "/agent/request-capability", "status": "/agent/status"},
+		"jwks_uri": p.s.settings.baseURL + "/auth/.well-known/jwks.json",
 	}
 }
 
@@ -55,23 +59,35 @@ func (p *Plugin) protocolFail(ctx context.Context, err error) endpoint.Result {
 		p.s.log.ErrorContext(ctx, "agents: request failed", "error", err)
 		return endpoint.Error(http.StatusInternalServerError, "internal_error", "The server could not complete the request.")
 	}
+	as := func(typ string) *Error { return &Error{Type: typ, Detail: e.Detail, Extra: e.Extra} }
 	switch e.Type {
 	case ErrUnauthorized:
-		e = refuse(ErrInvalidJWT, e.Detail)
+		e = as(ErrInvalidJWT)
 	case ErrAudMismatch:
-		e = refuse(ErrInvalidJWT, "aud must be exactly the server's issuer.")
+		e = refuse(ErrInvalidJWT, "aud must be exactly the server's issuer, or the location on an execution.")
 	case ErrAgentInactive:
-		e = refuse(e.Code, e.Detail)
+		e = as(e.Code)
+	case ErrInvalidInput, ErrInvalidArguments:
+		e = as(ErrInvalidRequest)
+	case ErrBudgetExhausted:
+		e = as(ErrLimitExceeded)
 	}
 	return e.result()
 }
 
 // protocolGrants authenticates the caller of a capability route (§5.2) and answers the names its
-// agent holds a live grant for; nil without a credential. A credential that is not an agent's is
-// refused, never read as anonymous.
+// agent holds a live grant for; nil without a credential, or with a host's, which sees what everyone
+// does. Any other credential is refused, never read as anonymous.
 func (p *Plugin) protocolGrants(ctx context.Context, in *endpoint.Input) (map[string]bool, error) {
-	if in.Request.Header.Get("Authorization") == "" {
+	authorization := in.Request.Header.Get("Authorization")
+	if authorization == "" {
 		return nil, nil
+	}
+	if m := bearerOnly.FindStringSubmatch(authorization); m != nil {
+		if _, isHost := peekJWT(m[1], HostJWTType); isHost {
+			_, _, err := p.s.hostOf(in.Request)
+			return nil, err
+		}
 	}
 	pr, err := p.s.authenticateWith(p.s.issuerJWTs, in.Request, rawBody(ctx), ownURL(p.s.settings.baseURL, in.Request))
 	if err != nil {

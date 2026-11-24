@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/univeros/polaris.go/endpoint"
+	"github.com/univeros/polaris.go/internal/netguard"
 )
 
 // Risk tiers of a capability: they decide the approval strength and the auto-approval.
@@ -103,6 +104,12 @@ type Config struct {
 	// the two client families read it differently; the Polaris document is always at
 	// GET /agents/configuration, where the Go agent SDK falls back to.
 	Discovery DiscoveryMode
+	// DisableJWKSURLs refuses hosts that publish their keys at a URL (jwks_url), which this server
+	// fetches. Such hosts are only taken with DiscoveryAgentAuth.
+	DisableJWKSURLs bool
+	// HTTPClient fetches hosts' key sets. Default: a client that connects to public addresses only,
+	// with a timeout. Redirects are never followed, whichever client is used.
+	HTTPClient *http.Client
 	// ProviderName and Description are what the discovery document says. Default "Polaris" and
 	// "Polaris for Go agent provider".
 	ProviderName, Description string
@@ -128,6 +135,8 @@ type settings struct {
 	approvalTTL               int64
 	providerName, description string
 	discovery                 DiscoveryMode
+	jwksURLs                  bool
+	httpClient                *http.Client
 	maxAge                    int64
 	operators                 OperatorFunc
 	maxBody                   int64
@@ -165,6 +174,8 @@ func (cfg Config) resolve() (settings, *capabilities, error) {
 	if s.discovery != DiscoveryPolaris && s.discovery != DiscoveryAgentAuth {
 		bad("Config.Discovery must be agents.DiscoveryPolaris or agents.DiscoveryAgentAuth, got %q", cfg.Discovery)
 	}
+	s.jwksURLs = s.discovery == DiscoveryAgentAuth && !cfg.DisableJWKSURLs
+	s.httpClient = netguard.NoRedirects(cfg.HTTPClient)
 	if s.providerName == "" {
 		s.providerName = "Polaris"
 	}
