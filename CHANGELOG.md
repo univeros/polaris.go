@@ -9,6 +9,12 @@ Breaking changes are marked **Breaking**.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-25
+
+With `AUTH_ACCESS_TOKEN_DENYLIST` on, ending one session now refuses its access tokens, and the `/admin/oauth` routes ask the
+denylist. **Upgrade now if you run the denylist with the oauth plugin and without the admin plugin.** With the denylist off
+nothing changes for clients. There is no migration.
+
 ### Security
 
 - With `AUTH_ACCESS_TOKEN_DENYLIST` on and neither the admin plugin nor `oauth.Config.Operators`, the `/admin/oauth` routes
@@ -1106,7 +1112,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/univeros/polaris.go/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/univeros/polaris.go/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/univeros/polaris.go/compare/v0.7.3...v1.0.0
 [0.7.3]: https://github.com/univeros/polaris.go/compare/v0.7.2...v0.7.3

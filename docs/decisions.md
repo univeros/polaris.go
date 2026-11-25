@@ -3518,6 +3518,9 @@ interface. Routes, schema: none. Fixtures: none changed, as they run with the de
 Stored formats: one transient cache key. Clients of a host with the denylist on see 401 `session_ended` where an
 ended session answered, a second logout included.
 
+Released as `v1.1.1`: a security fix, and the Go API only grows. An advisory covers it; what `/admin/oauth` took is rated Medium, so
+`v1.0.x` gets no fix of its own (SECURITY.md).
+
 Security review (rule 6), two independent ones, of the whole change: nothing critical or high. Fixed from them, with a test: MCP skipped the
 watermark for a token of no session (an impersonation). Each check was removed in turn, with a failing test. Accepted: the rollback above; a cache that is down holds the user's
 lock up to 5 seconds in the calls made within a transaction, as the watermark's did; a token signed more than a minute after its session
