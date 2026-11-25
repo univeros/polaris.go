@@ -53,7 +53,7 @@ func TestSection5_12Introspection(t *testing.T) {
 		"a location's path": key.requestJWT(id, location+"/", nil, nil), "no aud": key.requestJWT(id, location, map[string]any{"aud": nil}, nil), "a list of aud": key.requestJWT(id, location, map[string]any{"aud": []any{location}}, nil),
 		"expired": key.requestJWT(id, location, map[string]any{"iat": now - 90, "exp": now - 31}, nil), "from the future": key.requestJWT(id, location, map[string]any{"iat": now + 40, "exp": now + 90}, nil),
 		"another key": newKey("EdDSA").requestJWT(id, location, nil, nil), "nobody's": key.requestJWT("nobody", location, nil, nil), "another iss": key.requestJWT(id, location, map[string]any{"iss": key.kid()}, nil),
-		"a host's JWT": host.hostJWT(nil, nil), "a session": u.session, "garbage": "x", "empty": "", "a number": 5, "no exp": key.requestJWT(id, location, map[string]any{"exp": nil}, nil), "too long": key.requestJWT(id, location, map[string]any{"exp": now + 301}, nil), "no iat": key.requestJWT(id, location, map[string]any{"iat": nil}, nil),
+		"a host's JWT": host.hostJWT(nil, nil), "a session": u.session, "garbage": "x", "empty": "", "a number": 5, "no exp": key.requestJWT(id, location, map[string]any{"exp": nil}, nil), "too long": key.requestJWT(id, location, map[string]any{"iat": now, "exp": now + 301}, nil), "no iat": key.requestJWT(id, location, map[string]any{"iat": nil}, nil),
 		"no jti":           key.requestJWT(id, location, map[string]any{"jti": ""}, nil),
 		"a key of its own": key.requestJWT(id, location, nil, map[string]any{"jwk": key.jwk()}), "another alg": key.requestJWT(id, location, nil, map[string]any{"alg": "ES256"}),
 	} {
