@@ -57,10 +57,12 @@ type Config struct {
 	Pepper     *security.Pepper  // hashes refresh secrets (context "refresh")
 	Access     Issuer            // mints access JWTs: the access-token *token.Codec
 	Principals PrincipalResolver // authz.Principals in production
-	// Denylist receives the per-user watermark of RevokeAll; pass the instance the denylist
-	// middleware reads. It is written whether or not the denylist check is enabled.
+	// Denylist receives the per-user watermark of RevokeAll, written whether or not the denylist
+	// check is enabled, and, when it is (Auth.AccessToken.Denylist), every session that ends; pass the
+	// instance the denylist middleware reads.
 	Denylist *Denylist
-	// Auth supplies AccessToken.TTL and the RefreshToken settings; start from config.Defaults().
+	// Auth supplies AccessToken.TTL, AccessToken.Denylist and the RefreshToken settings; start from
+	// config.Defaults().
 	Auth   config.Auth
 	Clock  clock.Clock      // nil: clock.System
 	Events event.Dispatcher // nil: event.Nop
@@ -262,12 +264,18 @@ func (s *Service) revokedPresented(ctx context.Context, t model.RefreshToken, cl
 	if !s.auth.RefreshToken.ReuseDetection || deref(t.RevokedReason) != model.RevokedRotated {
 		return fmt.Errorf("%w: the refresh token is no longer valid", ErrInvalidGrant)
 	}
-	if err := s.revoke(ctx, t.UserID, store.Criteria{"family_id": t.FamilyID}, model.RevokedReuseDetected, now); err != nil {
+	ended, err := s.end(ctx, t.UserID, store.Criteria{"family_id": t.FamilyID}, model.RevokedReuseDetected, now)
+	if err != nil {
 		return err
 	}
+	// The alert does not depend on the cache: the thief may not present the token again.
+	err = s.denylist.RevokeSessions(ctx, ended...)
 	s.events.Dispatch(ctx, event.RefreshReuseDetected{
 		UserID: t.UserID, FamilyID: t.FamilyID, IP: nullable(client.IP), UserAgent: nullable(client.UserAgent),
 	})
+	if err != nil {
+		return err
+	}
 	return ErrRefreshReuse
 }
 
@@ -328,7 +336,8 @@ func (s *Service) SwitchOrganization(ctx context.Context, userID, organizationID
 }
 
 // RevokeFamily revokes every live token of a session with reason (a model.Revoked* value). Tokens
-// already revoked keep their original reason.
+// already revoked keep their original reason. With the denylist on its access tokens die too, also
+// when the session had ended before: calling again after a failure is enough.
 func (s *Service) RevokeFamily(ctx context.Context, familyID, reason string) error {
 	row, err := s.tokens.FindOne(ctx, store.Criteria{"family_id": familyID})
 	if errors.Is(err, repository.ErrNotFound) {
@@ -340,23 +349,68 @@ func (s *Service) RevokeFamily(ctx context.Context, familyID, reason string) err
 	return s.revoke(ctx, row.UserID, store.Criteria{"family_id": familyID}, reason, s.now())
 }
 
-// revoke ends the user's live tokens that match c, under the user's lock. One conditional UPDATE:
-// only rows still live are touched, so an earlier rotation or revocation keeps its reason and
-// nothing is resurrected.
+// revoke ends the user's live tokens that match c and, with the denylist on, the access tokens of
+// the sessions they were. The cache is written once the database is: after the commit, or, in a
+// transaction of the caller's, whose commit is not seen here, before it. A rollback then leaves the
+// sessions live and their access tokens refused until the entry expires, refreshed ones too.
 func (s *Service) revoke(ctx context.Context, userID string, c store.Criteria, reason string, now time.Time) error {
+	ended, err := s.end(ctx, userID, c, reason, now)
+	if err != nil {
+		return err
+	}
+	return s.denylist.RevokeSessions(ctx, ended...)
+}
+
+// end ends the user's live tokens that match c, under the user's lock, and returns the sessions to
+// record in the denylist, none with it off. One conditional UPDATE: only rows still live are touched,
+// so an earlier rotation or revocation keeps its reason and nothing is resurrected.
+func (s *Service) end(ctx context.Context, userID string, c store.Criteria, reason string, now time.Time) ([]string, error) {
 	live := maps.Clone(c)
 	live["user_id"], live["revoked_at"] = userID, nil
+	var ended []string
 	err := s.db.Tx(ctx, func(ctx context.Context) error {
 		if err := s.lock(ctx, userID); err != nil {
 			return err
 		}
-		_, err := s.db.Update(ctx, "auth_refresh_tokens", live, store.Data{"revoked_at": now, "revoked_reason": reason})
+		if _, err := s.db.Update(ctx, "auth_refresh_tokens", live, store.Data{"revoked_at": now, "revoked_reason": reason}); err != nil {
+			return err
+		}
+		var err error
+		ended, err = s.endedSessions(ctx, userID, c, now)
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("session: revoke: %w", err)
+		return nil, fmt.Errorf("session: revoke: %w", err)
 	}
-	return nil
+	return ended, nil
+}
+
+// endedSessions are the sessions an end of the tokens that match c must record: the one c names, or
+// every session with a token that matches and was ended on purpose (not rotated) since an access
+// token of it can still be valid. Not only those the caller's UPDATE ended, so that a retry records
+// what a failing cache did not. The caller has run that UPDATE in this transaction: under MySQL's
+// repeatable read that shows it the rows it ended, whatever its snapshot held before.
+func (s *Service) endedSessions(ctx context.Context, userID string, c store.Criteria, now time.Time) ([]string, error) {
+	if !s.auth.AccessToken.Denylist {
+		return nil, nil
+	}
+	if id, ok := c["family_id"].(string); ok {
+		return []string{id}, nil
+	}
+	recent := maps.Clone(c)
+	recent["user_id"] = userID
+	recent["revoked_at"] = store.Gte(now.Add(-s.denylist.sessionTTL()))
+	recent["revoked_reason"] = store.Ne(model.RevokedRotated)
+	rows, err := s.db.FindMany(ctx, "auth_refresh_tokens", recent, store.Query{})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(rows))
+	for i, row := range rows {
+		ids[i] = row.String("family_id")
+	}
+	slices.Sort(ids)
+	return slices.Compact(ids), nil
 }
 
 // lock makes opening, rotating and revoking a user's sessions run one after the other: a no-op

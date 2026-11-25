@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/univeros/polaris.go/event"
@@ -72,36 +73,40 @@ func (s *Service) LogoutAll(ctx context.Context, userID string, client token.Cli
 
 // RevokeAll revokes every session of the user with reason and returns how many sessions there
 // were; no event (the password flows use it). It also watermarks the access-token denylist, so
-// with the denylist on every outstanding access token of the user dies with the sessions.
+// with the denylist on every outstanding access token of the user dies with the sessions. The
+// watermark also ends the tokens that belong to no session; the sessions' entries end one that a
+// racing refresh signs after it.
 func (s *Service) RevokeAll(ctx context.Context, userID, reason string) (int, error) {
-	n, err := s.revokeFamilies(ctx, userID, "", reason)
+	n, ended, err := s.endFamilies(ctx, userID, "", reason)
 	if err != nil {
 		return 0, err
 	}
-	if err := s.denylist.RevokeAllFor(ctx, userID); err != nil {
+	if err := errors.Join(s.denylist.RevokeAllFor(ctx, userID), s.denylist.RevokeSessions(ctx, ended...)); err != nil {
 		return 0, err
 	}
 	return n, nil
 }
 
 // RevokeAllExcept revokes every session of the user except exceptSessionID ("" keeps none) and
-// returns how many sessions it touched (every family of the user, revoked ones
-// included). It does not watermark the denylist: that would kill the kept session's own
-// access token. It ends the login_mfa tickets issued before.
+// returns how many sessions it touched (every family of the user, revoked ones included). With the
+// denylist on their access tokens die too, session by session: the per-user watermark would kill the
+// kept session's own. A token that belongs to no session therefore lives until it expires. It ends
+// the login_mfa tickets issued before.
 func (s *Service) RevokeAllExcept(ctx context.Context, userID, exceptSessionID, reason string) (int, error) {
-	n, err := s.revokeFamilies(ctx, userID, exceptSessionID, reason)
+	n, ended, err := s.endFamilies(ctx, userID, exceptSessionID, reason)
 	if err != nil {
 		return 0, err
 	}
-	return n, s.denylist.RevokeTicketsFor(ctx, userID)
+	return n, errors.Join(s.denylist.RevokeSessions(ctx, ended...), s.denylist.RevokeTicketsFor(ctx, userID))
 }
 
-// revokeFamilies revokes every session of the user but except ("" for none), returning how many
-// there were. By user, not by the sessions it counted: one opened since is ended too.
-func (s *Service) revokeFamilies(ctx context.Context, userID, except, reason string) (int, error) {
+// endFamilies ends every session of the user but except ("" for none), returning how many there
+// were and those to record in the denylist. By user, not by the sessions it counted: one opened since
+// is ended too.
+func (s *Service) endFamilies(ctx context.Context, userID, except, reason string) (int, []string, error) {
 	rows, err := s.tokens.ListByUser(ctx, userID)
 	if err != nil {
-		return 0, fmt.Errorf("session: revoke: %w", err)
+		return 0, nil, fmt.Errorf("session: revoke: %w", err)
 	}
 	families := map[string]bool{}
 	for _, t := range rows {
@@ -113,19 +118,21 @@ func (s *Service) revokeFamilies(ctx context.Context, userID, except, reason str
 	if except != "" {
 		c["family_id"] = store.Ne(except)
 	}
-	return len(families), s.revoke(ctx, userID, c, reason, s.now())
+	ended, err := s.end(ctx, userID, c, reason, s.now())
+	return len(families), ended, err
 }
 
 // RevokeAllForOrganization revokes the user's sessions whose current organization context is
 // organizationID (an admin suspension cuts org access at once); sessions pointed elsewhere stay.
-// Only live tokens identify a session's current context: rotated ancestors keep a stale one.
+// Only live tokens identify a session's current context: rotated ancestors keep a stale one. With the
+// denylist on the access tokens of the sessions it ends die too.
 func (s *Service) RevokeAllForOrganization(ctx context.Context, userID, organizationID, reason string) error {
 	return s.revoke(ctx, userID, store.Criteria{"organization_id": organizationID}, reason, s.now())
 }
 
-// Revoke revokes one session of the user (reason logout). It returns false, and revokes nothing,
-// when no such session belongs to the user: the endpoint answers 404, never disclosing another
-// user's session.
+// Revoke revokes one session of the user (reason logout). With the denylist on its access tokens die
+// too, also when it had ended before. It returns false, and revokes nothing, when no such session
+// belongs to the user: the endpoint answers 404, never disclosing another user's session.
 func (s *Service) Revoke(ctx context.Context, userID, sessionID string) (bool, error) {
 	rows, err := s.tokens.ListByFamily(ctx, sessionID)
 	if err != nil {

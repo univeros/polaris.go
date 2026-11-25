@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"regexp"
@@ -210,7 +211,7 @@ func (p *Pipeline) recentAuth(tok *token.Token) bool {
 }
 
 // denylist rejects, when the denylist is on, an access token issued before its user's last
-// logout-everywhere.
+// logout-everywhere, or whose own session ended.
 func (p *Pipeline) denylist(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tok := endpoint.Token(r.Context())
@@ -221,7 +222,7 @@ func (p *Pipeline) denylist(next http.Handler) http.Handler {
 		revoked := tok.Subject() == "" || tok.IssuedAt().IsZero()
 		if !revoked {
 			var err error
-			if revoked, err = p.opts.Denylist.Revoked(r.Context(), tok.Subject(), tok.IssuedAt()); err != nil {
+			if revoked, err = p.revoked(r.Context(), tok); err != nil {
 				p.fail(w, r, "denylist lookup", err)
 				return
 			}
@@ -232,6 +233,19 @@ func (p *Pipeline) denylist(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (p *Pipeline) revoked(ctx context.Context, tok *token.Token) (bool, error) {
+	revoked, err := p.opts.Denylist.Revoked(ctx, tok.Subject(), tok.IssuedAt())
+	if err != nil || revoked {
+		return revoked, err
+	}
+	sessions, ok := p.opts.Denylist.(SessionDenylist)
+	sid, _ := tok.Claim("sid").(string)
+	if !ok || sid == "" {
+		return false, nil
+	}
+	return sessions.SessionRevoked(ctx, sid)
 }
 
 // authorize enforces the route's requires_permissions through the Gate, and keeps delegated

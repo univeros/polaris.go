@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/polaristest"
@@ -345,5 +346,45 @@ func TestTheDeviceCookieIsSecureBehindATLSTerminatingProxy(t *testing.T) {
 	resp := h.c.JSONRequest(http.MethodPost, "http://app.example/auth/login", map[string]any{"email": "ada@example.com", "password": pw}, contracttest.RemoteAddr("203.0.113.7:1234"))
 	if c := resp.Header.Get("Set-Cookie"); !strings.Contains(c, Cookie+"=") || !strings.HasSuffix(c, "; Secure") {
 		t.Fatalf("cookie %q", c)
+	}
+}
+
+// With the denylist on, signing a session of the device out, and switching to its account, which ends
+// it, end its access token; the others of the device live.
+func TestAnEndedDeviceSessionsAccessTokenIsRefused(t *testing.T) {
+	ctx := context.Background()
+	for _, denylist := range []bool{true, false} {
+		p := New(Config{})
+		srv := polaristest.New(t, polaristest.WithPlugins(p), polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }))
+		h := &harness{t: t, srv: srv, p: p, c: contracttest.NewClient(t, srv.Handler(), nil)}
+		ada, grace := h.user("ada@example.com"), h.user("grace@example.com")
+		ended := http.StatusOK
+		if denylist {
+			ended = http.StatusUnauthorized
+		}
+		issue := func(userID string) token.IssuedTokens {
+			issued, err := srv.Graph().Sessions().Issue(ctx, token.SessionPrincipal{UserID: userID}, token.ClientContext{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return issued
+		}
+		a, g := issue(ada.ID), issue(grace.ID)
+		dev, err := p.devices.record(ctx, mint(), ada.ID, a.SessionID, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dev, err = p.devices.record(ctx, dev, grace.ID, g.SessionID, nil); err != nil {
+			t.Fatal(err)
+		}
+		switched, _, err := p.devices.switchTo(ctx, dev, g.SessionID, a.SessionID, token.ClientContext{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want(t, h.send(http.MethodGet, "/auth/me", req{token: a.AccessToken}), ended, "the session switched from")
+		want(t, h.send(http.MethodGet, "/auth/me", req{token: switched.AccessToken}), 200, "the session switched to")
+		want(t, h.send(http.MethodDelete, "/multi-session/"+switched.SessionID, req{token: g.AccessToken, device: dev}), 200, "revoke")
+		want(t, h.send(http.MethodGet, "/auth/me", req{token: switched.AccessToken}), ended, "the session signed out")
+		want(t, h.send(http.MethodGet, "/auth/me", req{token: g.AccessToken}), 200, "the caller's own session")
 	}
 }

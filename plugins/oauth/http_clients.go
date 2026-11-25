@@ -202,6 +202,9 @@ func (p *Plugin) superadmins(r *http.Request) (*Operator, error) {
 	if tok.OrganizationBound() {
 		return nil, nil // an organization's IdP opened it: it stays in that organization (decision 68)
 	}
+	if refused, err := p.graph.Denylist().Refuses(r.Context(), tok); err != nil || refused {
+		return nil, err
+	}
 	user, err := p.graph.Repos().Users.Get(r.Context(), tok.Subject())
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && user.Status == model.UserStatusDisabled) {
 		return nil, nil

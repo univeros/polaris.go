@@ -53,6 +53,10 @@ func (a denylistAdapter) Revoked(ctx context.Context, userID string, issuedAt ti
 	return a.g.denylist.IsRevoked(ctx, userID, issuedAt)
 }
 
+func (a denylistAdapter) SessionRevoked(ctx context.Context, sessionID string) (bool, error) {
+	return a.g.denylist.IsSessionRevoked(ctx, sessionID)
+}
+
 // PipelineOption adjusts the options of one pipeline Graph.Pipeline builds, after they are filled
 // from the graph.
 type PipelineOption func(*pipeline.Options)

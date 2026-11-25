@@ -160,7 +160,8 @@ func (s *Guests) liveSubject(ctx context.Context, accessToken string) (string, e
 // Prune deletes the unconverted guests older than the policy with their core rows (sessions,
 // factors, challenges, recovery codes, verifications, resets, the user), one transaction per
 // guest, and dispatches event.UserDeleted (actor ActorSystem) for each so the host drops what it
-// kept. It returns how many it deleted. A guest converted while the prune runs is kept.
+// kept. With the denylist on the guest's access tokens are refused at once. It returns how many it
+// deleted. A guest converted while the prune runs is kept.
 func (s *Guests) Prune(ctx context.Context) (int, error) {
 	before := s.g.Clock().Now().Add(-s.pruneAfter)
 	rows, err := s.g.DB().FindMany(ctx, TableGuests, store.Criteria{"converted_at": nil, "created_at": store.Lt(before)}, store.Query{})
@@ -182,13 +183,18 @@ func (s *Guests) Prune(ctx context.Context) (int, error) {
 			if n != 1 {
 				return errConverted
 			}
+			if err := s.g.Identity().OnUserDeleted(ctx, guestID); err != nil { // before the row: host rows may reference it
+				return err
+			}
+			// After the hook: it also writes the denylist, which a rollback cannot undo. Before the
+			// sessions are deleted: it records each, and an error leaves them to the next prune.
+			if _, err := s.g.Sessions().RevokeAll(ctx, guestID, model.RevokedLogout); err != nil {
+				return err
+			}
 			for _, table := range userTables {
 				if _, err := s.g.DB().Delete(ctx, table, store.Criteria{"user_id": guestID}); err != nil {
 					return err
 				}
-			}
-			if err := s.g.Identity().OnUserDeleted(ctx, guestID); err != nil { // before the row: host rows may reference it
-				return err
 			}
 			_, err = s.g.DB().Delete(ctx, "auth_users", store.Criteria{"id": guestID})
 			return err

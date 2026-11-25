@@ -9,6 +9,37 @@ Breaking changes are marked **Breaking**.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-25
+
+With `AUTH_ACCESS_TOKEN_DENYLIST` on, ending one session now refuses its access tokens, and the `/admin/oauth` routes ask the
+denylist. **Upgrade now if you run the denylist with the oauth plugin and without the admin plugin.** With the denylist off
+nothing changes for clients. There is no migration.
+
+### Security
+
+- With `AUTH_ACCESS_TOKEN_DENYLIST` on and neither the admin plugin nor `oauth.Config.Operators`, the `/admin/oauth` routes
+  took a superadmin's access token after a logout everywhere, until it expired. They refuse it, as every other route
+  did (decision 91).
+- With `AUTH_ACCESS_TOKEN_DENYLIST` on, ending one session now refuses its access tokens at once, as logging out
+  everywhere did: `POST /auth/logout`, `DELETE /auth/sessions/{id}`, `Sessions().Revoke`, the other sessions after
+  `POST /auth/password/change`, a replayed refresh token, a suspended membership, the admin and multisession plugins'
+  revocations, a guest pruned. Until now they answered until they expired (decision 91).
+
+### Changed
+
+- With the denylist on: a client that keeps calling with the access token of a session it ended is answered 401
+  `session_ended`, a second `POST /auth/logout` included; a cache that cannot be written fails the call that ends the
+  session (500, or the error from Go), and the same call again completes it; each request reads the cache twice. With
+  it off nothing changes.
+- `POST /mcp` and `mcp.ServeStdio` refuse a session token the denylist refuses, instead of listing tools for it.
+- The anonymous plugin's `Prune` runs `Hooks.OnUserDeleted` before it deletes the guest's core rows, not after, and a cache
+  that cannot be written fails it, the denylist on or off: that guest stays for the next prune.
+
+### Added
+
+- `pipeline.SessionDenylist`, the optional interface of a `pipeline.Denylist` that knows the sessions that ended, and
+  `wiring.Denylist.Refuses`, for a plugin that parses access tokens itself.
+
 ## [1.1.0] - 2026-11-24
 
 Any client of the Agent Auth Protocol (`@auth/agent`, its CLI and its MCP server) signs in to a Polaris server, once the
@@ -1081,7 +1112,8 @@ First release under the module path `github.com/univeros/polaris.go`.
 `v0.1.0` was tagged under the earlier module path `github.com/univeros/polaris-go`; it cannot be
 fetched as `github.com/univeros/polaris.go`. `v0.1.1` is the same code under the new path.
 
-[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/univeros/polaris.go/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/univeros/polaris.go/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/univeros/polaris.go/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/univeros/polaris.go/compare/v0.7.3...v1.0.0
 [0.7.3]: https://github.com/univeros/polaris.go/compare/v0.7.2...v0.7.3

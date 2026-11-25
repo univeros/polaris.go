@@ -229,6 +229,16 @@ func (p *Plugin) callerOf(r *http.Request, credential string) (caller, error) {
 		}
 	}
 	tok, err := p.g.Tokens().Parse(credential)
+	if err == nil {
+		// The tools of other plugins run without the pipeline, which refuses a session that ended.
+		refused, derr := p.g.Denylist().Refuses(r.Context(), tok)
+		if derr != nil {
+			p.g.Logger().ErrorContext(r.Context(), "mcp: denylist lookup failed", "error", derr)
+		}
+		if derr != nil || refused {
+			return caller{}, errCredential
+		}
+	}
 	return p.withOperator(r.Context(), caller{token: tok, credential: credential}, err)
 }
 

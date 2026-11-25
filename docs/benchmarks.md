@@ -32,5 +32,8 @@ Reading them:
 - **Writes are the database.** Login, refresh and agent execution each commit a transaction; on
   SQLite in a file that commit dominates (milliseconds). PostgreSQL/MySQL on a network move the
   number by their round trips, not by Polaris's CPU.
+- **The denylist is two cache reads.** With `AUTH_ACCESS_TOKEN_DENYLIST` on, `Protect` reads the
+  user's entry and the session's. In memory the second is lost in the noise (64 B and one allocation
+  more, within 1% of the time); a shared cache adds a round trip for each.
 - **Reads are cheap.** Verifying a token is ~40–50 µs; `Protect` adds the denylist and the
   principal's authority from the database (~120 µs on SQLite).

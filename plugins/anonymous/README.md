@@ -59,7 +59,7 @@ Sign-in dispatches core's `user.logged_in`. `Prune` dispatches `event.UserDelete
 
 - Prune from a scheduled job: `guests.Prune(ctx)` (CLI `polaris anonymous:prune`). It deletes the
   guest's core rows in one transaction per guest; drop your own data in an `event.UserDeleted`
-  listener.
+  listener. With the denylist on its access token is refused at once, if the job shares the server's `Config.Cache`.
 - `anonymous.Of(p.Graph()).Guests()` is the service: `SignIn`, `Convert`, `IsGuest`, `Prune`.
 - Two concurrent conversions run `OnConvert` once. A conversion that fails at any step (the hook,
   disabling the guest, ending its sessions) answers 500 and leaves the guest as it was: its

@@ -186,10 +186,8 @@ func (p *Plugin) Resolve(ctx context.Context, bearer, ip string) (Resolution, er
 		// organization only (decision 68): it carries no operator role, grant or superadmin.
 		return Resolution{}, nil
 	}
-	if p.g.Auth().AccessToken.Denylist {
-		if revoked, err := p.g.Denylist().IsRevoked(ctx, userID, tok.IssuedAt()); err != nil || revoked {
-			return Resolution{}, err
-		}
+	if refused, err := p.g.Denylist().Refuses(ctx, tok); err != nil || refused {
+		return Resolution{}, err
 	}
 	user, err := p.g.Repos().Users.Get(ctx, userID)
 	if errors.Is(err, repository.ErrNotFound) || (err == nil && user.Status == model.UserStatusDisabled) {

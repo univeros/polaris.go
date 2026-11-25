@@ -105,9 +105,17 @@ type Orgs interface {
 	sealed()
 }
 
-// Denylist answers whether a user's access tokens issued at a time are revoked.
+// Denylist answers whether access tokens are revoked: a user's, by when they were issued, and, with
+// Auth.AccessToken.Denylist on, a session's, once it ended.
 type Denylist interface {
+	// IsRevoked reports whether userID's every session ended since issuedAt, whether or not
+	// Auth.AccessToken.Denylist makes the pipeline refuse the tokens issued before.
 	IsRevoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error)
+	// Refuses reports whether the pipeline refuses tok, an access token: with
+	// Auth.AccessToken.Denylist on, its user's every session ended since it was issued, or its own
+	// (sid) did. Unlike IsRevoked it is false with the denylist off. A plugin that parses access
+	// tokens itself (Graph.Tokens) should call it.
+	Refuses(ctx context.Context, tok *token.Token) (bool, error)
 
 	sealed()
 }
@@ -159,7 +167,6 @@ type (
 	sessionsService   struct{ *isession.Service }
 	mfaService        struct{ *imfa.Service }
 	orgsService       struct{ *iorgs.Service }
-	denylistService   struct{ *isession.Denylist }
 	catalogService    struct{ authz.Catalog }
 	resolverService   struct{ *iauthz.Resolver }
 	gateService       struct{ *iauthz.Gate }
@@ -178,6 +185,11 @@ func (gateService) sealed()       {}
 func (principalsService) sealed() {}
 func (pepperService) sealed()     {}
 
+type denylistService struct {
+	*isession.Denylist
+	on bool // Auth.AccessToken.Denylist
+}
+
 func init() {
 	services.Bind(func(graph any) *services.Services { return graph.(*Graph).core })
 }
@@ -195,7 +207,23 @@ func (g *Graph) MFA() MFA { return mfaService{g.core.MFA} }
 func (g *Graph) Orgs() Orgs { return orgsService{g.core.Orgs} }
 
 // Denylist returns the access-token denylist.
-func (g *Graph) Denylist() Denylist { return denylistService{g.core.Denylist} }
+func (g *Graph) Denylist() Denylist {
+	return denylistService{g.core.Denylist, g.auth.AccessToken.Denylist}
+}
+
+func (d denylistService) Refuses(ctx context.Context, tok *token.Token) (bool, error) {
+	if !d.on {
+		return false, nil
+	}
+	if revoked, err := d.IsRevoked(ctx, tok.Subject(), tok.IssuedAt()); err != nil || revoked {
+		return revoked, err
+	}
+	sid, _ := tok.Claim("sid").(string)
+	if sid == "" {
+		return false, nil
+	}
+	return d.IsSessionRevoked(ctx, sid)
+}
 
 // Catalog returns the permission catalog (core, Config.Permissions, plugins).
 func (g *Graph) Catalog() Catalog { return catalogService{g.core.Catalog} }

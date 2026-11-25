@@ -2,16 +2,22 @@ package anonymous_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/anonymous"
 	"github.com/univeros/polaris.go/polaristest"
+	"github.com/univeros/polaris.go/store"
 )
 
 const (
@@ -139,6 +145,85 @@ func TestAConvertedGuestsAccessTokenEndsWithTheDenylist(t *testing.T) {
 		if d := data(t, me); d["status"] != "disabled" {
 			t.Fatalf("me %v", d)
 		}
+	}
+}
+
+// downCache fails every write while down.
+type downCache struct {
+	cache.Cache
+	down atomic.Bool
+}
+
+func (c *downCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if c.down.Load() {
+		return errors.New("cache down")
+	}
+	return c.Cache.Set(ctx, key, value, ttl)
+}
+
+// A prune ends the guest's access tokens as a conversion does. It is recorded while the guest's
+// sessions are known, so a cache that cannot be written prunes nothing and the next prune does, and
+// after the host's hook, so one that fails leaves the guest its session.
+func TestAPrunedGuestsAccessTokenEndsWithTheDenylist(t *testing.T) {
+	ctx := context.Background()
+	for _, denylist := range []bool{true, false} {
+		c := &downCache{Cache: cache.NewMemory(nil)}
+		var refuse atomic.Bool
+		plugin := anonymous.New(anonymous.Config{})
+		srv := polaristest.New(t, polaristest.WithPlugins(plugin),
+			polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }),
+			polaristest.WithConfig(func(cfg *polaris.Config) {
+				cfg.Cache = c
+				cfg.Hooks.OnUserDeleted = func(context.Context, string) error {
+					if refuse.Load() {
+						return errors.New("the host refused")
+					}
+					return nil
+				}
+			}))
+		client := contracttest.NewClient(t, srv.Handler(), nil)
+		guest := data(t, client.Post("/anonymous/sign-in", map[string]any{}))
+		id := guest["user"].(map[string]any)["id"]
+		recent := data(t, client.Post("/anonymous/sign-in", map[string]any{}))
+		asGuest := contracttest.Bearer(guest["access_token"].(string))
+		old := srv.Graph().Clock().Now().Add(-2 * anonymous.DefaultPruneAfter)
+		if _, err := srv.Graph().DB().Update(ctx, anonymous.TableGuests, store.Criteria{"user_id": id}, store.Data{"created_at": old}); err != nil {
+			t.Fatal(err)
+		}
+
+		refuse.Store(true)
+		if n, err := plugin.Prune(ctx); n != 0 || err == nil {
+			t.Fatalf("the hook refused: pruned %d, %v", n, err)
+		}
+		status(t, client.Get("/auth/me", asGuest), 200, "a guest the host refused to prune")
+		refuse.Store(false)
+
+		c.down.Store(true)
+		if n, err := plugin.Prune(ctx); n != 0 || err == nil {
+			t.Fatalf("cache down: pruned %d, %v", n, err)
+		}
+		c.down.Store(false)
+		status(t, client.Get("/auth/me", asGuest), 200, "a guest that was not pruned")
+		if n, err := plugin.Prune(ctx); n != 1 || err != nil {
+			t.Fatalf("pruned %d, %v", n, err)
+		}
+
+		// The tokens a refresh signed as the prune began carry a later iat: the session's entry refuses them.
+		tok, err := srv.Graph().Tokens().Parse(guest["access_token"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if refused, err := srv.Graph().Denylist().Refuses(ctx, tok); err != nil || refused != denylist {
+			t.Fatalf("denylist %v: refused %v, %v", denylist, refused, err)
+		}
+		sid, _ := tok.Claim("sid").(string)
+		if _, recorded, err := c.Get(ctx, "polaris.denylist.session."+sid); err != nil || recorded != denylist {
+			t.Fatalf("denylist %v: session recorded %v, %v", denylist, recorded, err)
+		}
+		if denylist {
+			status(t, client.Get("/auth/me", asGuest), 401, "the pruned guest's access token")
+		}
+		status(t, client.Get("/auth/me", contracttest.Bearer(recent["access_token"].(string))), 200, "another guest's")
 	}
 }
 
