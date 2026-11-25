@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/admin"
 	"github.com/univeros/polaris.go/plugins/audit"
@@ -197,5 +198,47 @@ func TestAnErasureThatCannotEraseAPluginsRowsErasesNothing(t *testing.T) {
 	}
 	if _, held, _ := f.admin.Grants().For(ctx, adaID); held {
 		t.Error("the erased user keeps an operator grant")
+	}
+}
+
+// With the denylist on, a session that ended is no operator's: not on the admin routes, which an
+// operator's browser may still call, nor to a bare credential. Ending a user's session there ends its
+// access token, and no other one.
+func TestAnEndedSessionIsNoOperatorAndAnOperatorEndsOne(t *testing.T) {
+	ctx := context.Background()
+	for _, denylist := range []bool{true, false} {
+		f := &flow{t: t, admin: admin.New(admin.Config{})}
+		f.srv = polaristest.New(t, polaristest.WithPlugins(audit.New(audit.Config{}), f.admin),
+			polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }))
+		f.c = contracttest.NewClient(t, f.srv.Handler(), nil)
+		sid := func(access string) string {
+			tok, err := f.srv.Graph().Tokens().Parse(access)
+			if err != nil {
+				t.Fatal(err)
+			}
+			id, _ := tok.Claim("sid").(string)
+			return id
+		}
+		ended := http.StatusOK
+		if denylist {
+			ended = http.StatusUnauthorized
+		}
+
+		op := f.operator(admin.RoleOwner, "")
+		second := f.login(operator)
+		ended1, kept := f.login("ada@example.com"), f.login("ada@example.com")
+		adaID := f.userID("ada@example.com")
+		wantStatus(t, f.c.Delete("/admin/users/"+adaID+"/sessions/"+sid(ended1), as(op)), http.StatusOK)
+		wantStatus(t, f.c.Get("/auth/me", as(ended1)), ended)
+		wantStatus(t, f.c.Get("/auth/me", as(kept)), http.StatusOK)
+
+		wantStatus(t, f.c.Post("/auth/logout", nil, as(second)), http.StatusOK)
+		wantStatus(t, f.c.Get("/admin/users", as(second)), ended)
+		wantStatus(t, f.c.Get("/admin/users", as(op)), http.StatusOK)
+		for credential, want := range map[string]bool{second: !denylist, op: true} {
+			if is, err := f.admin.IsOperator(ctx, credential); is != want || err != nil {
+				t.Errorf("denylist %v: IsOperator %v %v, want %v", denylist, is, err, want)
+			}
+		}
 	}
 }

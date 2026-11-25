@@ -19,6 +19,7 @@ import (
 
 	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/clock"
+	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/event"
 	"github.com/univeros/polaris.go/model"
 	"github.com/univeros/polaris.go/polaristest"
@@ -746,5 +747,41 @@ func TestAnOrganizationBoundSessionIsNoDefaultOperator(t *testing.T) {
 	r.Header.Set("Authorization", "Bearer "+bound)
 	if _, refused := p.operator(ctx, r, false, ""); refused == nil {
 		t.Error("an SSO-bound session of a superadmin acted as an instance operator")
+	}
+}
+
+// With the denylist on, the default operators answer as the pipeline does: a superadmin's session that
+// ended, or every one of them, is no operator's on the OAuth admin routes.
+func TestAnEndedSessionIsNoDefaultOperator(t *testing.T) {
+	ctx := context.Background()
+	for _, denylist := range []bool{true, false} {
+		p := New(Config{})
+		srv := polaristest.New(t, polaristest.WithPlugins(p), polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }))
+		root := addUser(t, srv, "root@example.com")
+		org, err := srv.Polaris.Orgs().Create(ctx, root.ID, "Root", "")
+		must(t, err)
+		membership, err := srv.Graph().DB().FindOne(ctx, "auth_memberships", store.Criteria{"user_id": root.ID, "organization_id": org.ID})
+		must(t, err)
+		role, err := srv.Graph().DB().FindOne(ctx, "auth_roles", store.Criteria{"slug": "superadmin", "organization_id": nil})
+		must(t, err)
+		must(t, srv.Graph().DB().Insert(ctx, "auth_membership_roles", store.Row{"membership_id": membership.String("id"), "role_id": role.String("id")}))
+		one, err := srv.Graph().Sessions().Issue(ctx, token.SessionPrincipal{UserID: root.ID}, token.ClientContext{})
+		must(t, err)
+		two, err := srv.Graph().Sessions().Issue(ctx, token.SessionPrincipal{UserID: root.ID}, token.ClientContext{})
+		must(t, err)
+		operator := func(access string) bool {
+			r := httptest.NewRequest(http.MethodGet, "/admin/oauth/clients", nil)
+			r.Header.Set("Authorization", "Bearer "+access)
+			_, refused := p.operator(ctx, r, true, "")
+			return refused == nil
+		}
+		must(t, srv.Sessions().Revoke(ctx, one.SessionID))
+		if operator(one.AccessToken) == denylist || !operator(two.AccessToken) {
+			t.Errorf("denylist %v: ended %v, live %v", denylist, operator(one.AccessToken), operator(two.AccessToken))
+		}
+		must(t, srv.Sessions().RevokeAll(ctx, root.ID))
+		if got := operator(two.AccessToken); got == denylist {
+			t.Errorf("denylist %v: an operator after logout everywhere: %v", denylist, got)
+		}
 	}
 }

@@ -71,10 +71,14 @@ type AccessToken struct {
 	TTL        time.Duration
 	Signer     Signer
 	EmbedScope bool // embed flat permissions instead of roles only
-	// Denylist (AUTH_ACCESS_TOKEN_DENYLIST) is the per-user revocation watermark: logging out
-	// everywhere, disabling, erasing or converting a guest refuses the user's outstanding access
-	// tokens at once. Off, an access token is stateless and answers until it expires (TTL), though
-	// its sessions can no longer refresh and a disabled user holds no permission.
+	// Denylist (AUTH_ACCESS_TOKEN_DENYLIST) refuses the access tokens of a session at once when it
+	// ends: a logout, its revocation, a replayed refresh token, a password changed in another session,
+	// a membership suspended. Ending a user's every session (logging out everywhere, a password reset,
+	// disabling, erasing, converting or pruning a guest) refuses all the user's access tokens, those of no session
+	// too. It costs two reads of Config.Cache per request; replicas must share that cache, and a cache
+	// that cannot be written fails the call that ends the session, which can be made again. Off, an
+	// access token is stateless and answers until it expires (TTL), though its session can no longer
+	// refresh and a disabled user holds no permission.
 	Denylist bool
 }
 

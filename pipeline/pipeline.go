@@ -76,9 +76,16 @@ type StepUpVerifier interface {
 }
 
 // Denylist reports whether access tokens of userID issued at issuedAt were revoked by a later
-// logout-everywhere.
+// logout-everywhere. One that knows the sessions ended one by one is a SessionDenylist too.
 type Denylist interface {
 	Revoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error)
+}
+
+// SessionDenylist is a Denylist that also reports whether a session ended (a logout, its revocation,
+// a replayed refresh token, a password changed in another session): the pipeline refuses the access
+// tokens that carry its id (sid), whenever they were issued. A token without a sid is not looked up.
+type SessionDenylist interface {
+	SessionRevoked(ctx context.Context, sessionID string) (bool, error)
 }
 
 // Gate resolves a principal's database-backed authority, already intersected with what a
@@ -111,7 +118,7 @@ type Options struct {
 	BearerResolvers []BearerResolver // asked in order before Tokens
 	MFATickets      MFATickets       // required when a route has auth: mfa_token
 	StepUp          StepUpVerifier   // required when a route has step_up: true
-	Denylist        Denylist         // required when Auth.AccessToken.Denylist is on
+	Denylist        Denylist         // required when Auth.AccessToken.Denylist is on; sessions ended one by one need a SessionDenylist
 	Gate            Gate             // required when a route has requires_permissions, and by Protect with permissions
 
 	// RateStore counts rate-limit hits; nil means an in-process store (not shared across replicas).

@@ -202,8 +202,12 @@ func (d *devices) switchTo(ctx context.Context, deviceID, currentSessionID, sess
 		if issued, err = d.sessions.Issue(ctx, p, client); err != nil {
 			return err
 		}
-		_, err = d.db.Update(ctx, TableDevices, store.Criteria{"id": row.String("id")}, store.Data{"session_id": issued.SessionID, "last_seen": now})
-		return err
+		if _, err = d.db.Update(ctx, TableDevices, store.Criteria{"id": row.String("id")}, store.Data{"session_id": issued.SessionID, "last_seen": now}); err != nil {
+			return err
+		}
+		// Last: the claim ended the session; this ends its access tokens, with the denylist on, in the
+		// cache, which a rollback cannot undo.
+		return d.sessions.RevokeFamily(ctx, sessionID, model.RevokedRotated)
 	})
 	if errors.Is(err, session.ErrInvalidGrant) { // disabled since
 		err = errSessionNotFound

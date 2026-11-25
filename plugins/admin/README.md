@@ -119,7 +119,8 @@ impersonation token), `…/admin/not_found` (404), `…/admin/conflict` (409),
 - Outside `/admin`: `Plugin.OperatorOf(r)`, `Plugin.IsOperator(ctx, credential)`,
   `Plugin.Resolve(ctx, bearer, ip)`. A plugin that does not import this package type-asserts
   `g.Plugin("admin")` to an interface with `AuthorizeOperator` / `OperatorID`.
-- An operator's access token is checked against the denylist when enabled;
+- An operator's access token is checked against the denylist when enabled (a session that ended is
+  no operator's);
   a drain's `filter` must be a JSON list; dates are ISO 8601 only.
 - One grant per user is enforced by the database (`polaris_admin_grant_user_unique` on `user_id`):
   a grant replaces the user's previous one, and of two concurrent first grants the second is

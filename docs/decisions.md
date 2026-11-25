@@ -3476,3 +3476,56 @@ The documents of `v1.1.0`, and what the package's acceptance ([`agent-auth-compa
   advisory follows (SECURITY.md).
 
 Go API, routes, fixtures, schema: none.
+
+## 91. 2026-11-25 — With the denylist on, a session's access tokens end with it
+
+With `AUTH_ACCESS_TOKEN_DENYLIST` on, ending one session ended its refresh token only. The denylist held one watermark per
+user, and only ending every session wrote it, so the access token answered until it expired: after a logout, a session
+revoked from another one, a replayed refresh token, a suspended membership, and, for the sessions it was meant to
+throw out, a changed password.
+
+- **An entry per session** (`polaris.denylist.session.<sid>`), and its presence is the refusal. A watermark would let through
+  what a racing refresh, step-up or organization switch signs after the session ended. Presence is safe because no
+  family opens again: `revoked_at` is never cleared, a row joins a family only by a rotation that claimed its live
+  token under the user's lock, and a new family has a new id.
+- **It lives one minute more than the watermark.** That racing token is signed after the entry is written, and
+  replicas' clocks differ; with the same lifetime its last moments would pass.
+- **Written where sessions end** (`Service.end`): for the session named, or for every family with a token that matches and was
+  ended on purpose within an entry's lifetime. They are read after the UPDATE, in its transaction, under the user's lock:
+  MySQL's repeatable read shows a transaction the rows it updated. Families another call ended are included, so the
+  same call again completes one whose cache failed. The bound keeps a user's history out. Rotated ancestors, which name an
+  organization their session left, are not matched. The multisession switch ends a family itself, so it calls `RevokeFamily`, last.
+- **After the commit;** in a transaction of the caller's, by the call, as the watermark is. A rollback there leaves the
+  session live and its access tokens refused, refreshed ones too, until the entry expires: `Sessions.Revoke` says so.
+  `AfterCommit` would avoid that and could not return a cache's error. The write does not stop when the caller
+  hangs up, and takes 5 seconds at most; one key that fails does not keep the others from being written.
+- **A cache that fails is an error** once the database is done. The theft alert of a replayed refresh token is dispatched first.
+- **With the denylist off** nothing is written and nothing asked: a cache must not fail a logout it plays no part in.
+- **Every place that takes a session's token:** the pipeline (`Require`, `Protect`, `Authenticate`, every route), the admin
+  resolver, and two that had no check at all. `oauth.superadmins`, the default operators of `/admin/oauth`, whose routes are public to
+  the pipeline, took a superadmin's token after a logout everywhere, against what `config.AccessToken.Denylist` documented.
+  MCP listed tools for such a token and would have run those of a third-party plugin (Polaris's own run behind the pipeline).
+  `oauth.sessionSubject` already asks the database, and is unchanged.
+- **Guests' `Prune`** deleted sessions without any entry, or the watermark. It calls `RevokeAll` in the guest's transaction:
+  before the rows that name the sessions go, so that a cache that fails leaves the guest to the next prune, and after the
+  host's `OnUserDeleted`, which now runs first, so that a hook that fails leaves a live guest its access token.
+- **Not changed:** tokens without a `sid` from API keys, OAuth and agents. `ChangePassword` commits the password
+  before it ends the sessions, so a retry after a failed cache is ending them (`DELETE /auth/sessions/{id}`, `/auth/logout-all`), not
+  changing the password again.
+
+Go API: additions only: `pipeline.SessionDenylist`, an optional interface as `MFATicketFactors` is; `wiring.Denylist.Refuses`, on a sealed
+interface. Routes, schema: none. Fixtures: none changed, as they run with the denylist off but for one, whose answers are the same.
+Stored formats: one transient cache key. Clients of a host with the denylist on see 401 `session_ended` where an
+ended session answered, a second logout included.
+
+Security review (rule 6), two independent ones, of the whole change: nothing critical or high. Fixed from them, with a test: MCP skipped the
+watermark for a token of no session (an impersonation). Each check was removed in turn, with a failing test. Accepted: the rollback above; a cache that is down holds the user's
+lock up to 5 seconds in the calls made within a transaction, as the watermark's did; a token signed more than a minute after its session
+ended (a host's slow `Claims` hook) can outlive the entry by as much; a host that replaces `pipeline.Options.Denylist` with one that
+is no `SessionDenylist` keeps the per-user check only. The reviews ran no PostgreSQL or MySQL, and
+do not cover `Prune`, which was added after them.
+
+Tests: `TestEndingASessionEndsItsAccessToken`, `TestSuspendingAMemberEndsTheAccessTokensOfThatOrganization`, `TestAFailedRevocationIsRetried`,
+`TestARevocationInTheHostsTransactionEndsTheAccessToken`; `internal/session/denylist_test.go`; `TestTheDenylistRefusesTheTokensOfAnEndedSession`
+(pipeline); `TestAnEndedSession…` (admin, oauth, mcp), `TestAnEndedDeviceSessionsAccessTokenIsRefused` (multisession);
+`TestAPrunedGuestsAccessTokenEndsWithTheDenylist` (anonymous).

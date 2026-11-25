@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -289,6 +290,64 @@ func TestDenylist(t *testing.T) {
 	}
 	if w := serve(deny(true, stubDenylist{err: errors.New("cache down")}), authed); w.Code != 500 {
 		t.Fatalf("error: %d", w.Code)
+	}
+}
+
+// sessionDenylist is a Denylist that also knows the sessions that ended.
+type sessionDenylist struct {
+	stubDenylist
+	ended string
+	err   error
+	asked *int
+}
+
+func (s sessionDenylist) SessionRevoked(_ context.Context, sessionID string) (bool, error) {
+	*s.asked++
+	return sessionID == s.ended, s.err
+}
+
+func TestTheDenylistRefusesTheTokensOfAnEndedSession(t *testing.T) {
+	core, _ := manifests(t)
+	sid := func(v any) map[string]any { return map[string]any{"sid": v} }
+	for name, c := range map[string]struct {
+		d     sessionDenylist
+		extra map[string]any
+		code  int
+		asked int
+	}{
+		"ended":                        {sessionDenylist{ended: "s1"}, sid("s1"), 401, 1},
+		"live":                         {sessionDenylist{ended: "s1"}, sid("s2"), 200, 1},
+		"no session":                   {sessionDenylist{ended: ""}, nil, 200, 0},
+		"a sid that is no string":      {sessionDenylist{ended: ""}, sid(int64(7)), 200, 0},
+		"the user's every session":     {sessionDenylist{stubDenylist: stubDenylist{revoked: true}}, sid("s1"), 401, 0},
+		"a failing lookup":             {sessionDenylist{err: errors.New("cache down")}, sid("s1"), 500, 1},
+		"a failing lookup of the user": {sessionDenylist{stubDenylist: stubDenylist{err: errors.New("cache down")}}, sid("s1"), 500, 0},
+	} {
+		asked := 0
+		c.d.asked = &asked
+		o := options(t, core)
+		o.Auth.AccessToken.Denylist = true
+		o.Denylist = c.d
+		tok := issue(t, "user-1", c.extra)
+		p := newPipeline(t, o)
+		bearer := httptest.NewRequest(http.MethodGet, "/api", nil)
+		bearer.Header.Set("Authorization", "Bearer "+tok.Raw())
+		for where, w := range map[string]*httptest.ResponseRecorder{
+			"a route":      serve(p.denylist(&counting{}), withToken(routed(t, core, "GET", "/auth/me"), tok)),
+			"Protect":      serve(p.Protect(&counting{}), bearer),
+			"Authenticate": serve(p.Authenticate(&counting{}), bearer),
+		} {
+			if w.Code != c.code || c.code == 401 && w.Body.String() != `{"error":"session_ended","message":"The session is no longer active."}` {
+				t.Errorf("%s, %s: %d %s, want %d", name, where, w.Code, w.Body, c.code)
+			}
+		}
+		if asked != 3*c.asked {
+			t.Errorf("%s: asked %d times, want %d", name, asked, 3*c.asked)
+		}
+		o.Auth.AccessToken.Denylist = false
+		if w := serve(newPipeline(t, o).Protect(&counting{}), bearer); w.Code != 200 {
+			t.Errorf("%s, denylist off: %d", name, w.Code)
+		}
 	}
 }
 

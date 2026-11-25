@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"testing"
 
 	polaris "github.com/univeros/polaris.go"
+	"github.com/univeros/polaris.go/cache"
 	"github.com/univeros/polaris.go/config"
 	"github.com/univeros/polaris.go/internal/contracttest"
 	"github.com/univeros/polaris.go/plugins/admin"
@@ -424,6 +426,79 @@ func TestToolsListIsPaginated(t *testing.T) {
 		reply := stdio(t, srv.Polaris, key, extra, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": map[string]any{"cursor": cursor}})["1"]
 		if e, _ := reply["error"].(map[string]any); e == nil || e["code"] != float64(-32602) {
 			t.Errorf("cursor %v: %v", cursor, reply)
+		}
+	}
+}
+
+// unreadableCache is a cache that cannot be read.
+type unreadableCache struct{ cache.Cache }
+
+func (unreadableCache) Get(context.Context, string) ([]byte, bool, error) {
+	return nil, false, errors.New("dial tcp 10.0.0.7:6379: refused")
+}
+
+// A denylist that cannot be read lets nobody in, and says nothing of the cache.
+func TestAFailingDenylistRefusesTheSession(t *testing.T) {
+	ctx := context.Background()
+	srv := polaristest.New(t, polaristest.WithPlugins(stub{}, mcp.New(mcp.Config{BaseURL: base})),
+		polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = true }),
+		polaristest.WithConfig(func(c *polaris.Config) { c.Cache = unreadableCache{cache.NewMemory(nil)} }))
+	u, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err := srv.Sessions().Issue(ctx, polaris.SignIn{UserID: u.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mcp.ServeStdio(ctx, srv.Polaris, mcp.StdioOptions{Credential: tokens.AccessToken, In: strings.NewReader(""), Out: &bytes.Buffer{}})
+	if err == nil || strings.Contains(err.Error(), "6379") {
+		t.Fatalf("%v", err)
+	}
+}
+
+// With the denylist on, a session that ended reaches no tool, not those another plugin adds either,
+// which run without the pipeline.
+func TestAnEndedSessionCallsNoTool(t *testing.T) {
+	ctx := context.Background()
+	for _, denylist := range []bool{true, false} {
+		srv := polaristest.New(t, polaristest.WithPlugins(stub{}, mcp.New(mcp.Config{BaseURL: base})),
+			polaristest.WithAuth(func(a *config.Auth) { a.AccessToken.Denylist = denylist }))
+		u, err := srv.Users().Create(ctx, polaris.NewUser{Email: "ada@example.com", EmailVerified: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var tokens [2]polaris.Tokens
+		for i := range tokens {
+			if tokens[i], err = srv.Sessions().Issue(ctx, polaris.SignIn{UserID: u.ID}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := srv.Sessions().Revoke(ctx, tokens[0].SessionID); err != nil {
+			t.Fatal(err)
+		}
+		serve := func(access string) error {
+			return mcp.ServeStdio(ctx, srv.Polaris, mcp.StdioOptions{Credential: access, In: strings.NewReader(""), Out: &bytes.Buffer{}})
+		}
+		if err := serve(tokens[0].AccessToken); (err != nil) != denylist {
+			t.Errorf("denylist %v, the ended session: %v", denylist, err)
+		}
+		if err := serve(tokens[1].AccessToken); err != nil {
+			t.Errorf("denylist %v, the live session: %v", denylist, err)
+		}
+		// A token of no session (an impersonation) ends with the user's every session.
+		sessionless, err := srv.Graph().Sessions().Mint(ctx, token.SessionPrincipal{UserID: u.ID}, "", token.Claims{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := serve(sessionless); err != nil {
+			t.Errorf("denylist %v, a token of no session: %v", denylist, err)
+		}
+		if err := srv.Sessions().RevokeAll(ctx, u.ID); err != nil {
+			t.Fatal(err)
+		}
+		if err := serve(sessionless); (err != nil) != denylist {
+			t.Errorf("denylist %v, a token of no session after logout everywhere: %v", denylist, err)
 		}
 	}
 }

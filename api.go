@@ -377,12 +377,17 @@ func (s Sessions) Refresh(ctx context.Context, refreshToken string) (Tokens, err
 	return tokensOf(t), nil
 }
 
-// Revoke ends one session (Tokens.SessionID; the sid claim). Ending an ended session is a no-op.
+// Revoke ends one session (Tokens.SessionID; the sid claim): it refreshes no more and, with
+// Auth.AccessToken.Denylist on, its access tokens are refused at once. Ending an ended session is
+// safe, and is the retry after an error. In a transaction of the host's the access tokens are refused
+// by the call, not by the commit: make it last, as a rollback leaves them refused while the session
+// lives, refreshed ones too, for as long as an access token does.
 func (s Sessions) Revoke(ctx context.Context, sessionID string) error {
 	return classify(services.Of(s.p.graph).Sessions.Logout(ctx, sessionID))
 }
 
-// RevokeAll ends every session of the user (logout everywhere).
+// RevokeAll ends every session of the user (logout everywhere), and with
+// Auth.AccessToken.Denylist on every access token of the user's.
 func (s Sessions) RevokeAll(ctx context.Context, userID string) error {
 	return classify(services.Of(s.p.graph).Sessions.LogoutAll(ctx, userID, token.ClientContext{}))
 }
